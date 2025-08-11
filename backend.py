@@ -138,8 +138,14 @@ def serve_frontend(path):
         return send_from_directory('dist', 'index.html')
 
 if __name__ == '__main__':
-    print("🚀 Backend server starting on http://localhost:8000")
+    # Render 환경에서 포트 설정
+    port = int(os.environ.get('PORT', 8000))
+    
+    print(f"🚀 Backend server starting on port {port}")
     print("📡 Proxying requests to snspop API...")
     print("💾 Local order storage enabled...")
     print("🌐 Serving frontend from dist/ directory...")
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    
+    # 프로덕션 환경에서는 debug=False
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    app.run(host='0.0.0.0', port=port, debug=debug)
