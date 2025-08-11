@@ -8,18 +8,15 @@
 - **서비스 유형**: 팔로워, 좋아요, 조회수, 구독자 등
 - **할인 시스템**: 수량에 따른 자동 할인 적용
 - **snspop API 연동**: PHP 백엔드와의 완벽한 연동
-- **주문 내역 관리**: 로그인한 사용자의 주문 정보 추적 및 관리
 - **반응형 디자인**: 모바일과 데스크톱 모두 지원
 
 ## 🛠️ 기술 스택
 
 - **Frontend**: React 18, Vite
-- **Backend**: Python Flask, SQLite
 - **Styling**: CSS3, Flexbox, Grid
 - **Icons**: Lucide React
 - **HTTP Client**: Axios
 - **Routing**: React Router DOM
-- **Authentication**: Firebase Auth
 
 ## 📦 설치 및 실행
 
@@ -39,21 +36,7 @@ VITE_SNSPOP_API_URL=http://your-snspop-api-domain.com/api
 
 **참고**: Vite에서는 환경 변수 이름에 `VITE_` 접두사를 사용해야 합니다.
 
-### 3. 백엔드 서버 실행
-
-Python 백엔드 서버를 실행하여 주문 정보를 저장하고 관리할 수 있습니다:
-
-```bash
-# Python 패키지 설치
-pip install -r requirements.txt
-
-# 백엔드 서버 실행
-python backend.py
-```
-
-백엔드 서버는 `http://localhost:8000`에서 실행됩니다.
-
-### 4. 프론트엔드 개발 서버 실행
+### 3. 개발 서버 실행
 
 ```bash
 npm run dev
@@ -61,7 +44,7 @@ npm run dev
 
 브라우저에서 `http://localhost:3000`으로 접속하세요.
 
-### 5. 프로덕션 빌드
+### 4. 프로덕션 빌드
 
 ```bash
 npm run build
@@ -107,12 +90,7 @@ const status = await snspopApi.getOrderStatus(orderId)
 ## 📱 페이지 구조
 
 - **홈페이지** (`/`): 플랫폼 선택 및 서비스 소개
-- **로그인** (`/login`): 사용자 인증
-- **회원가입** (`/signup`): 새 계정 생성
-- **주문내역** (`/orders`): 로그인한 사용자의 주문 정보 조회
 - **주문페이지** (`/order/:platform`): 서비스 주문 및 설정
-- **결제페이지** (`/payment/:platform`): 주문 결제 및 확인
-- **주문완료** (`/order-complete/:orderId`): 주문 완료 확인
 
 ## 🎨 디자인 특징
 

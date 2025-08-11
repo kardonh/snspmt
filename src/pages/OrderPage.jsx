@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ShoppingBag, ChevronDown, Star } from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
 import { getPlatformInfo, calculatePrice } from '../utils/platformUtils'
 import { snspopApi, handleApiError, transformOrderData } from '../services/snspopApi'
+import { useAuth } from '../contexts/AuthContext'
 import './OrderPage.css'
 
 const OrderPage = () => {
@@ -450,25 +450,19 @@ const OrderPage = () => {
 
       const orderData = {
         serviceId,
-        link: link.trim(),
+          link: link.trim(),
         quantity,
         runs: 1, // 기본 실행 횟수
         interval: 0, // 즉시 실행
-        comments: comments.trim(), // 커스텀 댓글 (댓글 서비스인 경우)
-        explanation: explanation.trim(), // 설명 (추가 요청사항)
+          comments: comments.trim(), // 커스텀 댓글 (댓글 서비스인 경우)
+          explanation: explanation.trim(), // 설명 (추가 요청사항)
         username: '', // 사용자명 (구독 서비스인 경우)
         min: 0,
         max: 0,
         posts: 0,
         delay: 0,
         expiry: '',
-        oldPosts: 0,
-        // 사용자 정보 추가
-        user_id: currentUser?.uid || 'anonymous',
-        user_email: currentUser?.email || 'anonymous@example.com',
-        platform: platform,
-        service_name: services.find(s => s.id === selectedService)?.name || selectedService,
-        price: totalPrice
+        oldPosts: 0
       }
 
         console.log('Order Data being sent:', orderData)
@@ -476,20 +470,13 @@ const OrderPage = () => {
       const transformedData = transformOrderData(orderData)
         console.log('Transformed Data:', transformedData)
         
-      const result = await snspopApi.createOrder(transformedData)
+      const userId = currentUser?.uid || currentUser?.email || 'anonymous'
+      const result = await snspopApi.createOrder(transformedData, userId)
 
       console.log('Order created successfully:', result)
       
       if (result.error) {
-        // 특정 오류 메시지에 대한 사용자 친화적인 처리
-        let errorMessage = result.error
-        if (result.error === 'neworder.error.not_enough_funds') {
-          errorMessage = '계정 잔액이 부족합니다. 충전 후 다시 시도해주세요.'
-        } else if (result.error.includes('not_enough_funds')) {
-          errorMessage = '계정 잔액이 부족합니다. 충전 후 다시 시도해주세요.'
-        }
-        
-        alert(`주문 생성 실패: ${errorMessage}`)
+        alert(`주문 생성 실패: ${result.error}`)
       } else {
           // 주문 성공 시 결제 페이지로 이동
           const paymentData = {
@@ -702,7 +689,6 @@ const OrderPage = () => {
             {getDiscount(quantity) > 0 && (
               <p className="discount-applied">{getDiscount(quantity)}% 할인 적용</p>
             )}
-
           </div>
         </section>
         

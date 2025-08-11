@@ -9,7 +9,6 @@ import OrderPage from './pages/OrderPage'
 import PaymentPage from './pages/PaymentPage'
 import OrderCompletePage from './pages/OrderCompletePage'
 import OrdersPage from './pages/OrdersPage'
-import CouponPage from './pages/CouponPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import './App.css'
 
@@ -22,16 +21,6 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
-            <Route path="/orders" element={
-              <ProtectedRoute>
-                <OrdersPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/coupons" element={
-              <ProtectedRoute>
-                <CouponPage />
-              </ProtectedRoute>
-            } />
             <Route path="/order/:platform" element={
               <ProtectedRoute>
                 <OrderPage />
@@ -45,6 +34,11 @@ function App() {
             <Route path="/order-complete/:orderId" element={
               <ProtectedRoute>
                 <OrderCompletePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/orders" element={
+              <ProtectedRoute>
+                <OrdersPage />
               </ProtectedRoute>
             } />
           </Routes>

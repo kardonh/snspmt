@@ -1,10 +1,10 @@
 import axios from 'axios'
 
-// snspop API 기본 설정 (Render 백엔드 사용)
-const API_BASE_URL = 'https://snspmt-backend.onrender.com/api/snspop'
+// snspop API 기본 설정
+const API_BASE_URL = 'http://localhost:8000/api'
 
 // 기본 API 키
-const DEFAULT_API_KEY = '284ff0e3bc3dfff934914d1f30535b3c'
+const DEFAULT_API_KEY = '88a588af6f79647ac863be81835f3472'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -46,10 +46,17 @@ export const snspopApi = {
   getBalance: () => apiClient.post('', { action: 'balance' }),
   
   // 주문 생성
-  createOrder: (orderData) => apiClient.post('', { 
-    action: 'add',
-    ...orderData 
-  }),
+  createOrder: (orderData, userId) => {
+    const config = {
+      headers: {
+        'X-User-ID': userId
+      }
+    }
+    return apiClient.post('', { 
+      action: 'add',
+      ...orderData 
+    }, config)
+  },
   
   // 주문 상태 조회
   getOrderStatus: (orderId) => apiClient.post('', { 
@@ -91,7 +98,13 @@ export const snspopApi = {
   cancelOrders: (orderIds) => apiClient.post('', { 
     action: 'cancel',
     orders: orderIds.join(',') 
-  })
+  }),
+  
+  // 사용자별 주문 목록 조회
+  getUserOrders: (userId) => apiClient.get(`/orders?user_id=${userId}`),
+  
+  // 특정 주문 상세 정보 조회
+  getOrderDetail: (orderId, userId) => apiClient.get(`/orders/${orderId}?user_id=${userId}`)
 }
 
 // 에러 처리 헬퍼 함수
@@ -138,140 +151,6 @@ export const transformOrderData = (orderData) => {
     delay: orderData.delay || 0, // 지연 시간
     expiry: orderData.expiry || '', // 만료일
     old_posts: orderData.oldPosts || 0 // 이전 게시물 수
-  }
-}
-
-// 사용자 주문 조회
-export const getUserOrders = async (userEmail) => {
-  try {
-    const response = await fetch(`https://snspmt-backend.onrender.com/api/orders?user_email=${encodeURIComponent(userEmail)}`)
-    const data = await response.json()
-    
-    if (!response.ok) {
-      throw new Error(data.error || '주문 조회에 실패했습니다')
-    }
-    
-    return data.orders
-  } catch (error) {
-    console.error('주문 조회 오류:', error)
-    throw error
-  }
-}
-
-// 주문 상태 업데이트
-export const updateOrderStatus = async (orderId, status) => {
-  try {
-    const response = await fetch(`https://snspmt-backend.onrender.com/api/orders/${orderId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ status })
-    })
-    
-    const data = await response.json()
-    
-    if (!response.ok) {
-      throw new Error(data.error || '주문 상태 업데이트에 실패했습니다')
-    }
-    
-    return data
-  } catch (error) {
-    console.error('주문 상태 업데이트 오류:', error)
-    throw error
-  }
-}
-
-// 추천인 코드 생성
-export const generateReferralCode = async (userId, userEmail) => {
-  try {
-    const response = await fetch('https://snspmt-backend.onrender.com/api/referral/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ user_id: userId, user_email: userEmail })
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.error || '추천인 코드 생성에 실패했습니다')
-    }
-
-    return data.referral_code
-  } catch (error) {
-    console.error('추천인 코드 생성 오류:', error)
-    throw error
-  }
-}
-
-// 추천인 코드 사용
-export const useReferralCode = async (referralCode, userId, userEmail) => {
-  try {
-    const response = await fetch('https://snspmt-backend.onrender.com/api/referral/use', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        referral_code: referralCode, 
-        user_id: userId, 
-        user_email: userEmail 
-      })
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.message || '추천인 코드 사용에 실패했습니다')
-    }
-
-    return data
-  } catch (error) {
-    console.error('추천인 코드 사용 오류:', error)
-    throw error
-  }
-}
-
-// 사용자 쿠폰 조회
-export const getUserCoupons = async (userEmail) => {
-  try {
-    const response = await fetch(`https://snspmt-backend.onrender.com/api/coupons?user_email=${encodeURIComponent(userEmail)}`)
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.error || '쿠폰 조회에 실패했습니다')
-    }
-
-    return data.coupons
-  } catch (error) {
-    console.error('쿠폰 조회 오류:', error)
-    throw error
-  }
-}
-
-// 쿠폰 사용
-export const useCoupon = async (couponId, orderId) => {
-  try {
-    const response = await fetch(`https://snspmt-backend.onrender.com/api/coupons/${couponId}/use`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ order_id: orderId })
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.error || '쿠폰 사용에 실패했습니다')
-    }
-
-    return data
-  } catch (error) {
-    console.error('쿠폰 사용 오류:', error)
-    throw error
   }
 }
 

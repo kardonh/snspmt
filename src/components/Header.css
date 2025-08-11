@@ -61,38 +61,20 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: none;
+  border: 1px solid #667eea;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #667eea;
+  font-size: 12px;
   text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .orders-link:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.coupons-link {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  background-color: #667eea;
   color: white;
-  text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.coupons-link:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
 }
 
 .username {
@@ -200,116 +182,4 @@
 .modal-actions .btn {
   padding: 8px 16px;
   font-size: 14px;
-}
-
-/* 추천인 코드 섹션 스타일 */
-.referral-code-section {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.referral-label {
-  white-space: nowrap;
-}
-
-.referral-loading {
-  opacity: 0.8;
-  font-style: italic;
-}
-
-.referral-error {
-  opacity: 0.8;
-  font-style: italic;
-}
-
-.referral-code-display {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.referral-code {
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
-  letter-spacing: 1px;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 2px 6px;
-  border-radius: 4px;
-  min-width: 60px;
-  text-align: center;
-}
-
-.copy-referral-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  padding: 4px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  min-width: 24px;
-  min-height: 24px;
-}
-
-.copy-referral-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
-}
-
-.copy-referral-btn:active {
-  transform: scale(0.95);
-}
-
-/* 반응형 디자인 */
-@media (max-width: 768px) {
-  .user-info {
-    gap: 12px;
-  }
-  
-  .referral-code-section {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-  
-  .referral-code {
-    min-width: 50px;
-    font-size: 12px;
-  }
-  
-  .orders-link,
-  .coupons-link {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-}
-
-@media (max-width: 640px) {
-  .header-container {
-    padding: 0 16px;
-  }
-  
-  .user-info {
-    gap: 8px;
-  }
-  
-  .referral-code-section {
-    flex-direction: column;
-    gap: 4px;
-    padding: 8px;
-    text-align: center;
-  }
-  
-  .referral-code-display {
-    justify-content: center;
-  }
 }

@@ -50,20 +50,6 @@
   border-color: #667eea;
 }
 
-.optional {
-  color: #999;
-  font-size: 14px;
-  font-weight: 400;
-}
-
-.help-text {
-  display: block;
-  margin-top: 6px;
-  color: #667eea;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
 .signup-button {
   width: 100%;
   padding: 14px;

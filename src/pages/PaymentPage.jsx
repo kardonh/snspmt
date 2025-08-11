@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ChevronLeft, CreditCard, Wallet, Shield, CheckCircle, Smartphone, Zap, Heart, Gift, X } from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
-import { getUserCoupons, useCoupon } from '../services/snspopApi'
+import { ChevronLeft, CreditCard, Wallet, Shield, CheckCircle, Smartphone, Zap, Heart } from 'lucide-react'
 import './PaymentPage.css'
 
 const PaymentPage = () => {
@@ -10,16 +8,10 @@ const PaymentPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const orderData = location.state?.orderData
-  const { currentUser } = useAuth()
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
-  const [coupons, setCoupons] = useState([])
-  const [selectedCoupon, setSelectedCoupon] = useState(null)
-  const [couponsLoading, setCouponsLoading] = useState(false)
-  const [couponsError, setCouponsError] = useState(null)
-  const [showCouponModal, setShowCouponModal] = useState(false)
 
   // 주문 데이터가 없으면 홈으로 리다이렉트
   useEffect(() => {
@@ -28,58 +20,6 @@ const PaymentPage = () => {
       return
     }
   }, [orderData, navigate])
-
-  // 사용 가능한 쿠폰 불러오기
-  useEffect(() => {
-    if (currentUser && orderData) {
-      fetchUserCoupons()
-    }
-  }, [currentUser, orderData])
-
-  const fetchUserCoupons = async () => {
-    try {
-      setCouponsLoading(true)
-      setCouponsError(null)
-      const userCoupons = await getUserCoupons(currentUser.email)
-      // 사용 가능한 쿠폰만 필터링 (사용되지 않았고 만료되지 않은 쿠폰)
-      const availableCoupons = userCoupons.filter(coupon => 
-        !coupon.is_used && new Date(coupon.expires_at) > new Date()
-      )
-      setCoupons(availableCoupons)
-    } catch (err) {
-      setCouponsError('쿠폰 정보를 불러오는 중 오류가 발생했습니다.')
-      console.error('Error fetching coupons:', err)
-    } finally {
-      setCouponsLoading(false)
-    }
-  }
-
-  const handleCouponSelect = (coupon) => {
-    setSelectedCoupon(coupon)
-    setShowCouponModal(false)
-  }
-
-  const handleCouponRemove = () => {
-    setSelectedCoupon(null)
-  }
-
-  const calculateDiscountedPrice = () => {
-    if (!selectedCoupon) return orderData.totalPrice
-    
-    let discountAmount = 0
-    if (selectedCoupon.discount_type === 'percentage') {
-      discountAmount = Math.round(orderData.totalPrice * selectedCoupon.discount_value / 100)
-    } else {
-      discountAmount = Math.min(selectedCoupon.discount_value, orderData.totalPrice)
-    }
-    
-    return Math.max(0, orderData.totalPrice - discountAmount)
-  }
-
-  const getDiscountAmount = () => {
-    if (!selectedCoupon) return 0
-    return orderData.totalPrice - calculateDiscountedPrice()
-  }
 
   const paymentMethods = [
     {
@@ -143,61 +83,44 @@ const PaymentPage = () => {
 
     setIsProcessing(true)
 
-    try {
-      // 쿠폰이 선택된 경우 쿠폰 사용 처리
-      if (selectedCoupon) {
-        try {
-          await useCoupon(selectedCoupon.id, orderData.orderId || 'temp')
-          console.log('쿠폰이 성공적으로 사용되었습니다.')
-        } catch (couponError) {
-          console.error('쿠폰 사용 중 오류:', couponError)
-          // 쿠폰 사용 실패해도 결제는 계속 진행
-        }
-      }
-
-      // 선택된 결제 방법에 따른 처리
-      let paymentMessage = ''
-      switch (selectedPaymentMethod) {
-        case 'toss':
-          paymentMessage = '토스페이 결제를 진행합니다...'
-          break
-        case 'kakao':
-          paymentMessage = '카카오페이 결제를 진행합니다...'
-          break
-        case 'naver':
-          paymentMessage = '네이버페이 결제를 진행합니다...'
-          break
-        case 'card':
-          paymentMessage = '신용카드 결제를 진행합니다...'
-          break
-        case 'bank':
-          paymentMessage = '계좌이체를 진행합니다...'
-          break
-        case 'virtual':
-          paymentMessage = '가상계좌 결제를 진행합니다...'
-          break
-        default:
-          paymentMessage = '결제를 진행합니다...'
-      }
-
-      // 실제 결제 처리 로직을 여기에 구현
-      // 현재는 시뮬레이션
-      setTimeout(() => {
-        setIsProcessing(false)
-        setPaymentSuccess(true)
-        
-        // 3초 후 주문 완료 페이지로 이동
-        setTimeout(() => {
-          navigate(`/order-complete/${orderData.orderId || 'temp'}`, { 
-            state: { orderData: orderData } 
-          })
-        }, 3000)
-      }, 2000)
-    } catch (error) {
-      console.error('결제 처리 중 오류:', error)
-      setIsProcessing(false)
-      alert('결제 처리 중 오류가 발생했습니다. 다시 시도해주세요.')
+    // 선택된 결제 방법에 따른 처리
+    let paymentMessage = ''
+    switch (selectedPaymentMethod) {
+      case 'toss':
+        paymentMessage = '토스페이 결제를 진행합니다...'
+        break
+      case 'kakao':
+        paymentMessage = '카카오페이 결제를 진행합니다...'
+        break
+      case 'naver':
+        paymentMessage = '네이버페이 결제를 진행합니다...'
+        break
+      case 'card':
+        paymentMessage = '신용카드 결제를 진행합니다...'
+        break
+      case 'bank':
+        paymentMessage = '계좌이체를 진행합니다...'
+        break
+      case 'virtual':
+        paymentMessage = '가상계좌 결제를 진행합니다...'
+        break
+      default:
+        paymentMessage = '결제를 진행합니다...'
     }
+
+    // 실제 결제 처리 로직을 여기에 구현
+    // 현재는 시뮬레이션
+    setTimeout(() => {
+      setIsProcessing(false)
+      setPaymentSuccess(true)
+      
+      // 3초 후 주문 완료 페이지로 이동
+      setTimeout(() => {
+        navigate(`/order-complete/${orderData.orderId || 'temp'}`, { 
+          state: { orderData: orderData } 
+        })
+      }, 3000)
+    }, 2000)
   }
 
   const handleBack = () => {
@@ -288,61 +211,10 @@ const PaymentPage = () => {
                 <span>-{Math.round(orderData.quantity * orderData.unitPrice * orderData.discount / 100).toLocaleString()}원</span>
               </div>
             )}
-            {selectedCoupon && (
-              <div className="price-row coupon-discount">
-                <span>쿠폰 할인 ({selectedCoupon.discount_type === 'percentage' ? `${selectedCoupon.discount_value}%` : `${selectedCoupon.discount_value}원`}):</span>
-                <span>-{getDiscountAmount().toLocaleString()}원</span>
-              </div>
-            )}
             <div className="price-row total">
               <span>총 결제금액:</span>
-              <span>{calculateDiscountedPrice().toLocaleString()}원</span>
+              <span>{orderData.totalPrice.toLocaleString()}원</span>
             </div>
-          </div>
-        </div>
-
-        {/* 쿠폰 선택 */}
-        <div className="coupon-section">
-          <h2>쿠폰 사용</h2>
-          <div className="coupon-content">
-            {couponsLoading ? (
-              <div className="coupon-loading">
-                <div className="spinner"></div>
-                <span>쿠폰 정보를 불러오는 중...</span>
-              </div>
-            ) : couponsError ? (
-              <div className="coupon-error">
-                <span>{couponsError}</span>
-                <button onClick={fetchUserCoupons} className="retry-btn">다시 시도</button>
-              </div>
-            ) : selectedCoupon ? (
-              <div className="selected-coupon">
-                <div className="coupon-info">
-                  <Gift size={20} />
-                  <div className="coupon-details">
-                    <span className="coupon-code">{selectedCoupon.code}</span>
-                    <span className="coupon-discount">
-                      {selectedCoupon.discount_type === 'percentage' ? `${selectedCoupon.discount_value}%` : `${selectedCoupon.discount_value}원`} 할인
-                    </span>
-                  </div>
-                </div>
-                <button onClick={handleCouponRemove} className="remove-coupon-btn">
-                  <X size={16} />
-                </button>
-              </div>
-            ) : coupons.length > 0 ? (
-              <div className="coupon-actions">
-                <button onClick={() => setShowCouponModal(true)} className="select-coupon-btn">
-                  <Gift size={16} />
-                  쿠폰 선택하기
-                </button>
-                <span className="coupon-count">사용 가능한 쿠폰 {coupons.length}개</span>
-              </div>
-            ) : (
-              <div className="no-coupons">
-                <span>사용 가능한 쿠폰이 없습니다</span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -417,8 +289,8 @@ const PaymentPage = () => {
           >
             {isProcessing ? '결제 처리 중...' : 
              selectedPaymentMethod ? 
-             `${calculateDiscountedPrice().toLocaleString()}원 ${getPaymentMethodName(selectedPaymentMethod)}로 결제하기` :
-             `${calculateDiscountedPrice().toLocaleString()}원 결제하기`}
+             `${orderData.totalPrice.toLocaleString()}원 ${getPaymentMethodName(selectedPaymentMethod)}로 결제하기` :
+             `${orderData.totalPrice.toLocaleString()}원 결제하기`}
           </button>
         </div>
 
@@ -436,59 +308,6 @@ const PaymentPage = () => {
           </ul>
         </div>
       </div>
-
-      {/* 쿠폰 선택 모달 */}
-      {showCouponModal && (
-        <div className="coupon-modal-overlay" onClick={() => setShowCouponModal(false)}>
-          <div className="coupon-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>쿠폰 선택</h3>
-              <button onClick={() => setShowCouponModal(false)} className="close-btn">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-body">
-              {coupons.length === 0 ? (
-                <div className="no-coupons-modal">
-                  <Gift size={48} />
-                  <h4>사용 가능한 쿠폰이 없습니다</h4>
-                  <p>추천인 코드를 사용하여 쿠폰을 받아보세요!</p>
-                </div>
-              ) : (
-                <div className="coupons-list">
-                  {coupons.map((coupon) => (
-                    <div
-                      key={coupon.id}
-                      className="coupon-item"
-                      onClick={() => handleCouponSelect(coupon)}
-                    >
-                      <div className="coupon-item-header">
-                        <span className="coupon-code">{coupon.code}</span>
-                        <span className="coupon-expiry">
-                          {new Date(coupon.expires_at).toLocaleDateString('ko-KR')}까지
-                        </span>
-                      </div>
-                      <div className="coupon-item-body">
-                        <span className="discount-value">
-                          {coupon.discount_type === 'percentage' ? `${coupon.discount_value}%` : `${coupon.discount_value}원`}
-                        </span>
-                        <span className="discount-label">할인</span>
-                      </div>
-                      <div className="coupon-item-footer">
-                        <span className="estimated-savings">
-                          예상 절약: {coupon.discount_type === 'percentage' ? 
-                            `${Math.round(orderData.totalPrice * coupon.discount_value / 100).toLocaleString()}원` : 
-                            `${Math.min(coupon.discount_value, orderData.totalPrice).toLocaleString()}원`}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
