@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { User, Mail, Lock, ArrowRight } from 'lucide-react';
 import './SignupPage.css';
 
 export default function SignupPage() {
@@ -42,55 +43,104 @@ export default function SignupPage() {
   return (
     <div className="signup-container">
       <div className="signup-card">
-        <h2>회원가입</h2>
-        {error && <div className="error-message">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="username">사용자명</label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
+        <div className="signup-header">
+          <h2 className="signup-title">회원가입</h2>
+          <p className="signup-subtitle">SNSINTO 계정을 만들어보세요</p>
+        </div>
+        
+        {error && (
+          <div className="error-message">
+            <div className="error-icon">⚠️</div>
+            <span>{error}</span>
           </div>
+        )}
+        
+        <form onSubmit={handleSubmit} className="signup-form">
           <div className="form-group">
-            <label htmlFor="email">이메일</label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+            <label htmlFor="username" className="form-label">사용자명</label>
+            <div className="input-wrapper">
+              <User size={20} className="input-icon" />
+              <input
+                type="text"
+                id="username"
+                className="form-input"
+                placeholder="사용자명을 입력하세요"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
           </div>
+          
           <div className="form-group">
-            <label htmlFor="password">비밀번호</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <label htmlFor="email" className="form-label">이메일</label>
+            <div className="input-wrapper">
+              <Mail size={20} className="input-icon" />
+              <input
+                type="email"
+                id="email"
+                className="form-input"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
           </div>
+          
           <div className="form-group">
-            <label htmlFor="confirmPassword">비밀번호 확인</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
+            <label htmlFor="password" className="form-label">비밀번호</label>
+            <div className="input-wrapper">
+              <Lock size={20} className="input-icon" />
+              <input
+                type="password"
+                id="password"
+                className="form-input"
+                placeholder="비밀번호를 입력하세요 (최소 6자)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
           </div>
-          <button disabled={loading} type="submit" className="signup-button">
-            {loading ? '가입 중...' : '회원가입'}
+          
+          <div className="form-group">
+            <label htmlFor="confirmPassword" className="form-label">비밀번호 확인</label>
+            <div className="input-wrapper">
+              <Lock size={20} className="input-icon" />
+              <input
+                type="password"
+                id="confirmPassword"
+                className="form-input"
+                placeholder="비밀번호를 다시 입력하세요"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          
+          <button 
+            disabled={loading} 
+            type="submit" 
+            className="btn btn-primary signup-button"
+          >
+            {loading ? (
+              <div className="loading-spinner"></div>
+            ) : (
+              <>
+                회원가입
+                <ArrowRight size={20} />
+              </>
+            )}
           </button>
         </form>
+        
         <div className="login-link">
-          이미 계정이 있으신가요? <Link to="/login">로그인</Link>
+          <span>이미 계정이 있으신가요?</span>
+          <Link to="/login" className="login-button">
+            로그인
+          </Link>
         </div>
       </div>
     </div>

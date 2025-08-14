@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import './Header.css'
 
 const Header = () => {
-  const { currentUser, logout } = useAuth()
+  const { currentUser, logout, loading } = useAuth()
 
   const handleLogout = async () => {
     try {
@@ -13,6 +13,19 @@ const Header = () => {
     } catch (error) {
       console.error('로그아웃 실패:', error)
     }
+  }
+
+  // 로딩 중일 때는 기본 헤더만 표시
+  if (loading) {
+    return (
+      <header className="header">
+        <div className="header-container">
+          <Link to="/" className="logo">
+            SNSINTO
+          </Link>
+        </div>
+      </header>
+    )
   }
 
   return (

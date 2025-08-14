@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
 import './LoginPage.css';
 
 export default function LoginPage() {
@@ -28,35 +29,72 @@ export default function LoginPage() {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h2>로그인</h2>
-        {error && <div className="error-message">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">이메일</label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+        <div className="login-header">
+          <h2 className="login-title">로그인</h2>
+          <p className="login-subtitle">SNSINTO에 오신 것을 환영합니다</p>
+        </div>
+        
+        {error && (
+          <div className="error-message">
+            <div className="error-icon">⚠️</div>
+            <span>{error}</span>
           </div>
+        )}
+        
+        <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
-            <label htmlFor="password">비밀번호</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <label htmlFor="email" className="form-label">이메일</label>
+            <div className="input-wrapper">
+              <Mail size={20} className="input-icon" />
+              <input
+                type="email"
+                id="email"
+                className="form-input"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
           </div>
-          <button disabled={loading} type="submit" className="login-button">
-            {loading ? '로그인 중...' : '로그인'}
+          
+          <div className="form-group">
+            <label htmlFor="password" className="form-label">비밀번호</label>
+            <div className="input-wrapper">
+              <Lock size={20} className="input-icon" />
+              <input
+                type="password"
+                id="password"
+                className="form-input"
+                placeholder="비밀번호를 입력하세요"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          
+          <button 
+            disabled={loading} 
+            type="submit" 
+            className="btn btn-primary login-button"
+          >
+            {loading ? (
+              <div className="loading-spinner"></div>
+            ) : (
+              <>
+                로그인
+                <ArrowRight size={20} />
+              </>
+            )}
           </button>
         </form>
+        
         <div className="signup-link">
-          계정이 없으신가요? <Link to="/signup">회원가입</Link>
+          <span>계정이 없으신가요?</span>
+          <Link to="/signup" className="signup-button">
+            회원가입
+          </Link>
         </div>
       </div>
     </div>

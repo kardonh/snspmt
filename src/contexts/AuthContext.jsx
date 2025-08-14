@@ -4,14 +4,19 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  updateProfile 
+  updateProfile,
+  deleteUser
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 
 const AuthContext = createContext();
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }
 
 export function AuthProvider({ children }) {
@@ -36,6 +41,20 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
+  function updateUserProfile(updates) {
+    if (!currentUser) {
+      throw new Error('사용자가 로그인되지 않았습니다.');
+    }
+    return updateProfile(currentUser, updates);
+  }
+
+  function deleteAccount() {
+    if (!currentUser) {
+      throw new Error('사용자가 로그인되지 않았습니다.');
+    }
+    return deleteUser(currentUser);
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
@@ -47,14 +66,17 @@ export function AuthProvider({ children }) {
 
   const value = {
     currentUser,
+    loading,
     signup,
     login,
-    logout
+    logout,
+    updateProfile: updateUserProfile,
+    deleteAccount
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }
