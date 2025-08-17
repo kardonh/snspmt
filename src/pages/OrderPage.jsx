@@ -19,6 +19,12 @@ const OrderPage = () => {
   const [explanation, setExplanation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   
+  // 디버깅: currentUser 상태 확인
+  console.log('OrderPage - currentUser:', currentUser)
+  console.log('OrderPage - currentUser type:', typeof currentUser)
+  console.log('OrderPage - currentUser uid:', currentUser?.uid)
+  console.log('OrderPage - currentUser email:', currentUser?.email)
+  
   const platformInfo = getPlatformInfo(platform)
   
   // 플랫폼별 서비스 목록
@@ -233,6 +239,11 @@ const OrderPage = () => {
   }
   
     const handlePurchase = async () => {
+      // 디버깅: currentUser 상태 확인
+      console.log('handlePurchase - currentUser:', currentUser)
+      console.log('handlePurchase - currentUser type:', typeof currentUser)
+      console.log('handlePurchase - currentUser uid:', currentUser?.uid)
+      
       // 사용자 인증 상태 확인
       if (!currentUser) {
         alert('로그인이 필요합니다.')
@@ -512,6 +523,11 @@ const OrderPage = () => {
   }
 
   const handleAddToCart = async () => {
+    // 디버깅: currentUser 상태 확인
+    console.log('handleAddToCart - currentUser:', currentUser)
+    console.log('handleAddToCart - currentUser type:', typeof currentUser)
+    console.log('handleAddToCart - currentUser uid:', currentUser?.uid)
+    
     // 사용자 인증 상태 확인
     if (!currentUser) {
       alert('로그인이 필요합니다.')
