@@ -4,7 +4,7 @@ import axios from 'axios'
 const API_BASE_URL = 'http://localhost:8000/api'
 
 // 기본 API 키
-const DEFAULT_API_KEY = '88a588af6f79647ac863be81835f3472'
+const DEFAULT_API_KEY = '5fccf26387249db082e60791afd7c358'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

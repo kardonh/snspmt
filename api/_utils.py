@@ -5,7 +5,7 @@ import json
 
 # snspop API 설정
 SNSPOP_API_URL = 'https://snspop.com/api/v2'
-API_KEY = '284ff0e3bc3dfff934914d1f30535b3c'
+API_KEY = '5fccf26387249db082e60791afd7c358'
 
 # 데이터베이스 초기화
 def init_db():
