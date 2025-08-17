@@ -36,8 +36,8 @@ export const calculatePrice = (service, quantity, platform) => {
   // Instagram 서비스별 단가 적용
   if (platform === 'instagram') {
     switch (service) {
-      case 'followers_korean': // 한국인 팔로워: 100원
-        basePrice = 100 * quantity
+      case 'followers_korean': // 한국인 팔로워: 120원
+        basePrice = 120 * quantity
         break
       case 'followers_foreign': // 외국인 팔로워: 기본 단가 사용
         basePrice = getPlatformInfo(platform).unitPrice * quantity
