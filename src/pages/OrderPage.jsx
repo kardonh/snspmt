@@ -18,6 +18,14 @@ const OrderPage = () => {
   const [comments, setComments] = useState('')
   const [explanation, setExplanation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isAuthReady, setIsAuthReady] = useState(false)
+  
+  // Firebase 인증 상태가 안정화된 후에만 컴포넌트 렌더링
+  useEffect(() => {
+    if (!loading && currentUser) {
+      setIsAuthReady(true)
+    }
+  }, [loading, currentUser])
   
   // 디버깅: currentUser 상태 확인
   console.log('OrderPage - currentUser:', currentUser)
@@ -25,13 +33,14 @@ const OrderPage = () => {
   console.log('OrderPage - currentUser uid:', currentUser?.uid)
   console.log('OrderPage - currentUser email:', currentUser?.email)
   console.log('OrderPage - loading:', loading)
+  console.log('OrderPage - isAuthReady:', isAuthReady)
   
-  // Firebase 인증이 로딩 중일 때는 대기
-  if (loading) {
+  // Firebase 인증이 로딩 중이거나 아직 준비되지 않은 경우
+  if (loading || !isAuthReady) {
     return (
       <div className="order-page">
         <div className="order-header">
-          <h1>{platformInfo?.name || '서비스'} 서비스 주문</h1>
+          <h1>서비스 주문</h1>
         </div>
         <div className="loading-container">
           <div className="loading-spinner">Loading...</div>
