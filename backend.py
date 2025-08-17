@@ -123,6 +123,25 @@ def get_order_detail(order_id):
     except Exception as e:
         return jsonify({'error': f'주문 상세 조회 실패: {str(e)}'}), 500
 
+@app.route('/api/services', methods=['GET'])
+def get_snspop_services():
+    """snspop API에서 실제 서비스 목록 조회"""
+    try:
+        response = requests.post(SNSPOP_API_URL, json={
+            'key': API_KEY,
+            'action': 'services'
+        }, timeout=30)
+        
+        if response.status_code == 200:
+            services_data = response.json()
+            print(f"Snspop API Services Response: {services_data}")  # 디버깅용
+            return jsonify(services_data), 200
+        else:
+            return jsonify({'error': f'Snspop API 오류: {response.status_code}'}), response.status_code
+            
+    except Exception as e:
+        return jsonify({'error': f'서비스 조회 실패: {str(e)}'}), 500
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'ok', 'message': 'Backend server is running'})
