@@ -9,7 +9,7 @@ import './OrderPage.css'
 const OrderPage = () => {
   const { platform } = useParams()
   const navigate = useNavigate()
-  const { currentUser } = useAuth()
+  const { currentUser, loading } = useAuth()
   const [selectedService, setSelectedService] = useState('followers_korean')
   const [quantity, setQuantity] = useState(200)
   const [totalPrice, setTotalPrice] = useState(0)
@@ -24,6 +24,12 @@ const OrderPage = () => {
   console.log('OrderPage - currentUser type:', typeof currentUser)
   console.log('OrderPage - currentUser uid:', currentUser?.uid)
   console.log('OrderPage - currentUser email:', currentUser?.email)
+  console.log('OrderPage - loading:', loading)
+  
+  // Firebase 인증이 로딩 중일 때는 대기
+  if (loading) {
+    return <div>Loading...</div>
+  }
   
   const platformInfo = getPlatformInfo(platform)
   
