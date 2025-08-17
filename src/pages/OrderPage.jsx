@@ -258,13 +258,19 @@ const OrderPage = () => {
       console.log('handlePurchase - currentUser:', currentUser)
       console.log('handlePurchase - currentUser type:', typeof currentUser)
       console.log('handlePurchase - currentUser uid:', currentUser?.uid)
+      console.log('handlePurchase - currentUser email:', currentUser?.email)
+      console.log('handlePurchase - currentUser truthy check:', !!currentUser)
+      console.log('handlePurchase - currentUser.uid truthy check:', !!currentUser?.uid)
       
-      // 사용자 인증 상태 확인
-      if (!currentUser) {
+      // 사용자 인증 상태 확인 (더 엄격한 검사)
+      if (!currentUser || !currentUser.uid) {
+        console.log('handlePurchase - Authentication failed, redirecting to login')
         alert('로그인이 필요합니다.')
         navigate('/login')
         return
       }
+      
+      console.log('handlePurchase - Authentication successful, proceeding with purchase')
       
       // 입력 검증
       if (!link.trim()) {
@@ -542,13 +548,19 @@ const OrderPage = () => {
     console.log('handleAddToCart - currentUser:', currentUser)
     console.log('handleAddToCart - currentUser type:', typeof currentUser)
     console.log('handleAddToCart - currentUser uid:', currentUser?.uid)
+    console.log('handleAddToCart - currentUser email:', currentUser?.email)
+    console.log('handleAddToCart - currentUser truthy check:', !!currentUser)
+    console.log('handleAddToCart - currentUser.uid truthy check:', !!currentUser?.uid)
     
-    // 사용자 인증 상태 확인
-    if (!currentUser) {
+    // 사용자 인증 상태 확인 (더 엄격한 검사)
+    if (!currentUser || !currentUser.uid) {
+      console.log('handleAddToCart - Authentication failed, redirecting to login')
       alert('로그인이 필요합니다.')
       navigate('/login')
       return
     }
+    
+    console.log('handleAddToCart - Authentication successful, proceeding with add to cart')
     
     try {
       // 장바구니 기능은 snspop API에 없으므로 로컬 스토리지에 저장
