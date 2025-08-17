@@ -8,9 +8,9 @@ import os
 app = Flask(__name__)
 CORS(app)  # 모든 origin에서의 요청 허용
 
-# snspop API 설정
-SNSPOP_API_URL = 'https://snspop.com/api/v2'
-API_KEY = '88a588af6f79647ac863be81835f3472'
+# snsshop API 설정
+SNSSHOP_API_URL = 'https://snsshop.com/api/v2'
+API_KEY = '5fccf26387249db082e60791afd7c358'
 
 # 주문 데이터 저장소 (실제 프로덕션에서는 데이터베이스 사용)
 orders_db = {}
@@ -24,8 +24,8 @@ def proxy_api():
         # API 키 추가
         data['key'] = API_KEY
         
-        # snspop API로 요청 전달
-        response = requests.post(SNSPOP_API_URL, json=data, timeout=30)
+        # snsshop API로 요청 전달
+        response = requests.post(SNSSHOP_API_URL, json=data, timeout=30)
         
         # 주문 생성인 경우 로컬에 저장
         if data.get('action') == 'add' and response.status_code == 200:
@@ -65,10 +65,10 @@ def get_user_orders():
         if user_id not in orders_db:
             return jsonify({'orders': []}), 200
         
-        # 주문 상태 업데이트 (snspop API에서 최신 상태 조회)
+        # 주문 상태 업데이트 (snsshop API에서 최신 상태 조회)
         for order in orders_db[user_id]:
             try:
-                status_response = requests.post(SNSPOP_API_URL, json={
+                status_response = requests.post(SNSSHOP_API_URL, json={
                     'key': API_KEY,
                     'action': 'status',
                     'order': order['id']
@@ -104,9 +104,9 @@ def get_order_detail(order_id):
         if not order:
             return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
         
-        # snspop API에서 최신 상태 조회
+        # snsshop API에서 최신 상태 조회
         try:
-            status_response = requests.post(SNSPOP_API_URL, json={
+            status_response = requests.post(SNSSHOP_API_URL, json={
                 'key': API_KEY,
                 'action': 'status',
                 'order': order_id
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
     
     print(f"🚀 Backend server starting on port {port}")
-    print("📡 Proxying requests to snspop API...")
+    print("📡 Proxying requests to snsshop API...")
     print("💾 Local order storage enabled...")
     print("🌐 Serving frontend from dist/ directory...")
     
