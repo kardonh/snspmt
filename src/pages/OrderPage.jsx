@@ -535,286 +535,288 @@ const OrderPage = () => {
         <h1>{platformInfo.name} 서비스 주문</h1>
       </div>
       
-      <div className="order-sections">
-        {/* Section 1: Product Selection */}
-        <section className="order-section">
-          <h2>1 주문할 {platformInfo.name} 상품을 선택해 주세요</h2>
-          <div className="service-buttons">
-            {services.map(service => (
-              <button
-                key={service.id}
-                className={`service-btn ${selectedService === service.id ? 'active' : ''}`}
-                onClick={() => setSelectedService(service.id)}
-              >
-                {service.name}
-              </button>
-            ))}
-          </div>
-          <div className="product-intro">
-            <h3>상품 소개</h3>
-            <p>{services.find(s => s.id === selectedService)?.description}</p>
-          </div>
-        </section>
-        
-        {/* Section 2: Quantity Selection */}
-        <section className="order-section">
-          <h2>2 개수를 선택해 주세요</h2>
-          <div className="quantity-selection">
-            <div className="quantity-grid">
-              {quantityOptions.map(option => (
+      <form className="order-form">
+        <div className="order-sections">
+          {/* Section 1: Product Selection */}
+          <section className="order-section">
+            <h2>1 주문할 {platformInfo.name} 상품을 선택해 주세요</h2>
+            <div className="service-buttons">
+              {services.map(service => (
                 <button
-                  key={option}
-                  className={`quantity-option ${quantity === option ? 'selected' : ''}`}
-                  onClick={() => handleQuantityChange(option)}
+                  key={service.id}
+                  className={`service-btn ${selectedService === service.id ? 'active' : ''}`}
+                  onClick={() => setSelectedService(service.id)}
                 >
-                  {option.toLocaleString()}개
+                  {service.name}
                 </button>
               ))}
             </div>
-          </div>
-          <div className="quantity-info">
-                  <p>수량 선택 가능</p>
-            <p>1개당 {platformInfo.unitPrice}원</p>
-                  {platform === 'instagram' && (
-                    <div className="quantity-limit-notice">
-                      {selectedService === 'followers_foreign' && (
-                        <p>⚠️ 외국인 팔로워: 100개~2000개</p>
-                      )}
-                      {selectedService === 'followers_korean' && (
-                        <p>⚠️ 한국인 팔로워: 50개~20000개</p>
-                      )}
-                      {selectedService === 'likes_foreign' && (
-                        <p>⚠️ 외국인 좋아요: 100개~50000개</p>
-                      )}
-                      {selectedService === 'likes_korean' && (
-                        <p>⚠️ 한국인 좋아요: 50개~10000개</p>
-                      )}
-                      {selectedService === 'comments_korean' && (
-                        <p>⚠️ 한국인 랜덤 댓글: 5개~100개</p>
-                      )}
-                      {selectedService === 'comments_foreign' && (
-                        <p>⚠️ 외국인 랜덤 댓글: 10개~1000개</p>
-                      )}
-                      {selectedService === 'views_korean' && (
-                        <p>⚠️ 한국인 조회수: 100개~100,000,000개</p>
-                      )}
-                      {selectedService === 'views_foreign' && (
-                        <p>⚠️ 외국인 조회수: 100개~100,000,000개</p>
-                      )}
-                    </div>
-                  )}
-                  {platform === 'youtube' && (
-                    <div className="quantity-limit-notice">
-                      {selectedService === 'followers_foreign' && (
-                        <p>⚠️ 외국인 구독자: 100개</p>
-                      )}
-                      {selectedService === 'followers_korean' && (
-                        <p>⚠️ 리얼 한국인 구독자: 50개~1000개</p>
-                      )}
-                      {selectedService === 'likes_foreign' && (
-                        <p>⚠️ 외국인 좋아요: 100개~5000개</p>
-                      )}
-                      {selectedService === 'comments_korean' && (
-                        <p>⚠️ AI 랜덤 한국인 댓글: 10개~10000개</p>
-                      )}
-                      {selectedService === 'views_foreign' && (
-                        <p>⚠️ 외국인 조회수: 100개~10,000,000개</p>
-                      )}
-                      {selectedService === 'views_korean' && (
-                        <p>⚠️ 리얼 한국인 조회수: 4000개~100,000개</p>
-                      )}
-                    </div>
-                  )}
-                  {platform === 'tiktok' && (
-                    <div className="quantity-limit-notice">
-                      {selectedService === 'likes_foreign' && (
-                        <p>⚠️ 외국인 좋아요: 100개~100,000개</p>
-                      )}
-                      {selectedService === 'followers_foreign' && (
-                        <p>⚠️ 외국인 계정 팔로워: 100개~1,000,000개</p>
-                      )}
-                      {selectedService === 'views_foreign' && (
-                        <p>⚠️ 외국인 조회수: 100개~2,000,000,000개</p>
-                      )}
-                      {selectedService === 'comments_foreign' && (
-                        <p>⚠️ 외국인 랜덤 댓글: 10개~2,000개</p>
-                      )}
-                    </div>
-                  )}
-                                     {platform === 'facebook' && (
-                     <div className="quantity-limit-notice">
-                       {selectedService === 'followers_korean' && (
-                         <p>⚠️ 개인계정 팔로우: 5개~2,500개</p>
-                       )}
-                       {selectedService === 'followers_foreign' && (
-                         <p>⚠️ 프로필 팔로우: 100개~1,000,000개</p>
-                       )}
-                       {selectedService === 'likes_korean' && (
-                         <p>⚠️ 게시물 좋아요 (리얼 한국인): 20개~10,000개</p>
-                       )}
-                       {selectedService === 'likes_foreign' && (
-                         <p>⚠️ 게시물 좋아요 (외국인): 100개~100,000개</p>
-                       )}
-                       {selectedService === 'comments_korean' && (
-                         <p>⚠️ 게시물 랜덤 댓글 (한국인): 10개~10,000개</p>
-                       )}
-                     </div>
-                   )}
-                  {platform === 'twitter' && (
-                    <div className="quantity-limit-notice">
-                      {selectedService === 'followers_real' && (
-                        <p>⚠️ 리얼 팔로워: 100개~200,000개</p>
-                      )}
-                    </div>
-                  )}
-                  {platform === 'kakaotalk' && (
-                    <div className="quantity-limit-notice">
-                      {selectedService === 'friends_real' && (
-                        <p>⚠️ 리얼 채널 친구 추가: 100개~10,000개</p>
-                      )}
-                    </div>
-                  )}
-          </div>
-          <div className="discount-info">
-            <h3>할인 혜택</h3>
-            {discountTiers.map(tier => (
-              <p key={tier.min}>
-                {tier.min.toLocaleString()}개 - {tier.max.toLocaleString()}개: {tier.discount}% 할인
-              </p>
-            ))}
-          </div>
-          <div className="total-price">
-            <h3>총 금액</h3>
-            <p className="price">{totalPrice.toLocaleString()}원</p>
-            {getDiscount(quantity) > 0 && (
-              <p className="discount-applied">{getDiscount(quantity)}% 할인 적용</p>
-            )}
-          </div>
-        </section>
-        
-        {/* Section 3: Link Input */}
-        <section className="order-section">
-          <h2>3 링크를 입력해 주세요</h2>
-          <div className="link-input">
-            <input
-              type="url"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              placeholder={`${platformInfo.name} 게시물 URL 또는 사용자명을 입력하세요`}
-              className="link-input-field"
-            />
-          </div>
-          <div className="link-info">
-            {platform === 'instagram' && (
-              <p>예시: https://www.instagram.com/p/XXXXX/ (게시물) 또는 @username (사용자명)</p>
-            )}
-            {platform === 'youtube' && (
-              <p>예시: https://www.youtube.com/watch?v=XXXXX (동영상) 또는 채널명</p>
-            )}
-            {platform === 'tiktok' && (
-              <p>예시: https://www.tiktok.com/@username/video/XXXXX (동영상) 또는 @username (사용자명)</p>
-            )}
-          </div>
-        </section>
-
-        {/* Section 4: Comments Input (for comment service) */}
-        {((platform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
-          (platform === 'youtube' && selectedService === 'comments_korean') ||
-          (platform === 'facebook' && selectedService === 'comments_korean') ||
-          (platform === 'tiktok' && selectedService === 'comments_foreign')) && (
+            <div className="product-intro">
+              <h3>상품 소개</h3>
+              <p>{services.find(s => s.id === selectedService)?.description}</p>
+            </div>
+          </section>
+          
+          {/* Section 2: Quantity Selection */}
           <section className="order-section">
-            <h2>4 댓글 내용을 입력해 주세요</h2>
-            <div className="comments-input">
+            <h2>2 개수를 선택해 주세요</h2>
+            <div className="quantity-selection">
+              <div className="quantity-grid">
+                {quantityOptions.map(option => (
+                  <button
+                    key={option}
+                    className={`quantity-option ${quantity === option ? 'selected' : ''}`}
+                    onClick={() => handleQuantityChange(option)}
+                  >
+                    {option.toLocaleString()}개
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="quantity-info">
+                    <p>수량 선택 가능</p>
+              <p>1개당 {platformInfo.unitPrice}원</p>
+                    {platform === 'instagram' && (
+                      <div className="quantity-limit-notice">
+                        {selectedService === 'followers_foreign' && (
+                          <p>⚠️ 외국인 팔로워: 100개~2000개</p>
+                        )}
+                        {selectedService === 'followers_korean' && (
+                          <p>⚠️ 한국인 팔로워: 50개~20000개</p>
+                        )}
+                        {selectedService === 'likes_foreign' && (
+                          <p>⚠️ 외국인 좋아요: 100개~50000개</p>
+                        )}
+                        {selectedService === 'likes_korean' && (
+                          <p>⚠️ 한국인 좋아요: 50개~10000개</p>
+                        )}
+                        {selectedService === 'comments_korean' && (
+                          <p>⚠️ 한국인 랜덤 댓글: 5개~100개</p>
+                        )}
+                        {selectedService === 'comments_foreign' && (
+                          <p>⚠️ 외국인 랜덤 댓글: 10개~1000개</p>
+                        )}
+                        {selectedService === 'views_korean' && (
+                          <p>⚠️ 한국인 조회수: 100개~100,000,000개</p>
+                        )}
+                        {selectedService === 'views_foreign' && (
+                          <p>⚠️ 외국인 조회수: 100개~100,000,000개</p>
+                        )}
+                      </div>
+                    )}
+                    {platform === 'youtube' && (
+                      <div className="quantity-limit-notice">
+                        {selectedService === 'followers_foreign' && (
+                          <p>⚠️ 외국인 구독자: 100개</p>
+                        )}
+                        {selectedService === 'followers_korean' && (
+                          <p>⚠️ 리얼 한국인 구독자: 50개~1000개</p>
+                        )}
+                        {selectedService === 'likes_foreign' && (
+                          <p>⚠️ 외국인 좋아요: 100개~5000개</p>
+                        )}
+                        {selectedService === 'comments_korean' && (
+                          <p>⚠️ AI 랜덤 한국인 댓글: 10개~10000개</p>
+                        )}
+                        {selectedService === 'views_foreign' && (
+                          <p>⚠️ 외국인 조회수: 100개~10,000,000개</p>
+                        )}
+                        {selectedService === 'views_korean' && (
+                          <p>⚠️ 리얼 한국인 조회수: 4000개~100,000개</p>
+                        )}
+                      </div>
+                    )}
+                    {platform === 'tiktok' && (
+                      <div className="quantity-limit-notice">
+                        {selectedService === 'likes_foreign' && (
+                          <p>⚠️ 외국인 좋아요: 100개~100,000개</p>
+                        )}
+                        {selectedService === 'followers_foreign' && (
+                          <p>⚠️ 외국인 계정 팔로워: 100개~1,000,000개</p>
+                        )}
+                        {selectedService === 'views_foreign' && (
+                          <p>⚠️ 외국인 조회수: 100개~2,000,000,000개</p>
+                        )}
+                        {selectedService === 'comments_foreign' && (
+                          <p>⚠️ 외국인 랜덤 댓글: 10개~2,000개</p>
+                        )}
+                      </div>
+                    )}
+                                       {platform === 'facebook' && (
+                       <div className="quantity-limit-notice">
+                         {selectedService === 'followers_korean' && (
+                           <p>⚠️ 개인계정 팔로우: 5개~2,500개</p>
+                         )}
+                         {selectedService === 'followers_foreign' && (
+                           <p>⚠️ 프로필 팔로우: 100개~1,000,000개</p>
+                         )}
+                         {selectedService === 'likes_korean' && (
+                           <p>⚠️ 게시물 좋아요 (리얼 한국인): 20개~10,000개</p>
+                         )}
+                         {selectedService === 'likes_foreign' && (
+                           <p>⚠️ 게시물 좋아요 (외국인): 100개~100,000개</p>
+                         )}
+                         {selectedService === 'comments_korean' && (
+                           <p>⚠️ 게시물 랜덤 댓글 (한국인): 10개~10,000개</p>
+                         )}
+                       </div>
+                     )}
+                    {platform === 'twitter' && (
+                      <div className="quantity-limit-notice">
+                        {selectedService === 'followers_real' && (
+                          <p>⚠️ 리얼 팔로워: 100개~200,000개</p>
+                        )}
+                      </div>
+                    )}
+                    {platform === 'kakaotalk' && (
+                      <div className="quantity-limit-notice">
+                        {selectedService === 'friends_real' && (
+                          <p>⚠️ 리얼 채널 친구 추가: 100개~10,000개</p>
+                        )}
+                      </div>
+                    )}
+            </div>
+            <div className="discount-info">
+              <h3>할인 혜택</h3>
+              {discountTiers.map(tier => (
+                <p key={tier.min}>
+                  {tier.min.toLocaleString()}개 - {tier.max.toLocaleString()}개: {tier.discount}% 할인
+                </p>
+              ))}
+            </div>
+            <div className="total-price">
+              <h3>총 금액</h3>
+              <p className="price">{totalPrice.toLocaleString()}원</p>
+              {getDiscount(quantity) > 0 && (
+                <p className="discount-applied">{getDiscount(quantity)}% 할인 적용</p>
+              )}
+            </div>
+          </section>
+          
+          {/* Section 3: Link Input */}
+          <section className="order-section">
+            <h2>3 링크를 입력해 주세요</h2>
+            <div className="link-input">
+              <input
+                type="url"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                placeholder={`${platformInfo.name} 게시물 URL 또는 사용자명을 입력하세요`}
+                className="link-input-field"
+              />
+            </div>
+            <div className="link-info">
+              {platform === 'instagram' && (
+                <p>예시: https://www.instagram.com/p/XXXXX/ (게시물) 또는 @username (사용자명)</p>
+              )}
+              {platform === 'youtube' && (
+                <p>예시: https://www.youtube.com/watch?v=XXXXX (동영상) 또는 채널명</p>
+              )}
+              {platform === 'tiktok' && (
+                <p>예시: https://www.tiktok.com/@username/video/XXXXX (동영상) 또는 @username (사용자명)</p>
+              )}
+            </div>
+          </section>
+
+          {/* Section 4: Comments Input (for comment service) */}
+          {((platform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
+            (platform === 'youtube' && selectedService === 'comments_korean') ||
+            (platform === 'facebook' && selectedService === 'comments_korean') ||
+            (platform === 'tiktok' && selectedService === 'comments_foreign')) && (
+            <section className="order-section">
+              <h2>4 댓글 내용을 입력해 주세요</h2>
+              <div className="comments-input">
+                <textarea
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                  placeholder="댓글 내용을 입력하세요 (최대 200자)"
+                  maxLength="200"
+                  className="comments-textarea"
+                  rows="4"
+                />
+                <div className="char-count">
+                  {comments.length}/200
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Section 5: Explanation Input */}
+          <section className="order-section">
+            <h2>5 추가 요청사항을 입력해 주세요</h2>
+            <div className="explanation-input">
               <textarea
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-                placeholder="댓글 내용을 입력하세요 (최대 200자)"
-                maxLength="200"
-                className="comments-textarea"
+                value={explanation}
+                onChange={(e) => setExplanation(e.target.value)}
+                placeholder="추가 요청사항이나 특별한 요구사항이 있으시면 입력해주세요 (선택사항)"
+                maxLength="500"
+                className="explanation-textarea"
                 rows="4"
               />
               <div className="char-count">
-                {comments.length}/200
+                {explanation.length}/500
               </div>
             </div>
           </section>
-        )}
+          
+          {/* Section 6: Pre-order Checklist */}
+          <section className="order-section">
+            <h2 
+              className="checklist-header"
+              onClick={() => setShowChecklist(!showChecklist)}
+            >
+              6 주문 전 체크사항 꼭 읽어주세요
+              <ChevronDown className={`chevron ${showChecklist ? 'rotated' : ''}`} />
+            </h2>
+            {showChecklist && (
+              <div className="checklist-content">
+                <ul>
+                  <li>주문하신 계정 정보가 정확한지 확인해주세요</li>
+                  <li>서비스 시작 후에는 취소가 불가능합니다</li>
+                  <li>서비스 완료까지 24-48시간이 소요될 수 있습니다</li>
+                  <li>문의사항이 있으시면 고객센터로 연락해주세요</li>
+                </ul>
+              </div>
+            )}
+          </section>
+          
 
-        {/* Section 5: Explanation Input */}
-        <section className="order-section">
-          <h2>5 추가 요청사항을 입력해 주세요</h2>
-          <div className="explanation-input">
-            <textarea
-              value={explanation}
-              onChange={(e) => setExplanation(e.target.value)}
-              placeholder="추가 요청사항이나 특별한 요구사항이 있으시면 입력해주세요 (선택사항)"
-              maxLength="500"
-              className="explanation-textarea"
-              rows="4"
-            />
-            <div className="char-count">
-              {explanation.length}/500
+          
+          {/* Customer Reviews */}
+          <section className="reviews-section">
+            <div className="reviews-header">
+              <h3>146개의 실제 고객 후기</h3>
+              <div className="rating">
+                <span className="stars">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} size={20} fill="#FFD700" />
+                  ))}
+                </span>
+                <span className="rating-score">5.0</span>
+              </div>
             </div>
-          </div>
-        </section>
+            <div className="review-example">
+              <p>"아주빠릅니다."</p>
+              <span className="review-date">2025.08.07</span>
+            </div>
+          </section>
+        </div>
         
-        {/* Section 6: Pre-order Checklist */}
-        <section className="order-section">
-          <h2 
-            className="checklist-header"
-            onClick={() => setShowChecklist(!showChecklist)}
+        {/* Bottom Action Bar */}
+        <div className="bottom-action-bar">
+          <button className="cart-btn" onClick={handleAddToCart}>
+            <ShoppingBag size={20} />
+            장바구니
+          </button>
+          <button 
+            className="purchase-btn" 
+            onClick={handlePurchase}
+            disabled={isLoading}
           >
-            6 주문 전 체크사항 꼭 읽어주세요
-            <ChevronDown className={`chevron ${showChecklist ? 'rotated' : ''}`} />
-          </h2>
-          {showChecklist && (
-            <div className="checklist-content">
-              <ul>
-                <li>주문하신 계정 정보가 정확한지 확인해주세요</li>
-                <li>서비스 시작 후에는 취소가 불가능합니다</li>
-                <li>서비스 완료까지 24-48시간이 소요될 수 있습니다</li>
-                <li>문의사항이 있으시면 고객센터로 연락해주세요</li>
-              </ul>
-            </div>
-          )}
-        </section>
-        
-
-        
-        {/* Customer Reviews */}
-        <section className="reviews-section">
-          <div className="reviews-header">
-            <h3>146개의 실제 고객 후기</h3>
-            <div className="rating">
-              <span className="stars">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={20} fill="#FFD700" />
-                ))}
-              </span>
-              <span className="rating-score">5.0</span>
-            </div>
-          </div>
-          <div className="review-example">
-            <p>"아주빠릅니다."</p>
-            <span className="review-date">2025.08.07</span>
-          </div>
-        </section>
-      </div>
-      
-      {/* Bottom Action Bar */}
-      <div className="bottom-action-bar">
-        <button className="cart-btn" onClick={handleAddToCart}>
-          <ShoppingBag size={20} />
-          장바구니
-        </button>
-        <button 
-          className="purchase-btn" 
-          onClick={handlePurchase}
-          disabled={isLoading}
-        >
-          {isLoading ? '처리 중...' : '구매하기'}
-        </button>
-      </div>
+            {isLoading ? '처리 중...' : '구매하기'}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
