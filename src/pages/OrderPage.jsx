@@ -28,7 +28,16 @@ const OrderPage = () => {
   
   // Firebase 인증이 로딩 중일 때는 대기
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="order-page">
+        <div className="order-header">
+          <h1>{platformInfo?.name || '서비스'} 서비스 주문</h1>
+        </div>
+        <div className="loading-container">
+          <div className="loading-spinner">Loading...</div>
+        </div>
+      </div>
+    )
   }
   
   const platformInfo = getPlatformInfo(platform)

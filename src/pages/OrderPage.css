@@ -61,6 +61,23 @@
   z-index: -1;
 }
 
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  background: white;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.loading-spinner {
+  font-size: 18px;
+  color: #667eea;
+  font-weight: 600;
+}
+
 @keyframes borderGlow {
   0% {
     opacity: 0.6;
