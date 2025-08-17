@@ -233,6 +233,13 @@ const OrderPage = () => {
   }
   
     const handlePurchase = async () => {
+      // 사용자 인증 상태 확인
+      if (!currentUser) {
+        alert('로그인이 필요합니다.')
+        navigate('/login')
+        return
+      }
+      
       // 입력 검증
       if (!link.trim()) {
         alert('링크를 입력해주세요!')
@@ -505,6 +512,13 @@ const OrderPage = () => {
   }
 
   const handleAddToCart = async () => {
+    // 사용자 인증 상태 확인
+    if (!currentUser) {
+      alert('로그인이 필요합니다.')
+      navigate('/login')
+      return
+    }
+    
     try {
       // 장바구니 기능은 snspop API에 없으므로 로컬 스토리지에 저장
       const cartItem = {
