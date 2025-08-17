@@ -138,7 +138,7 @@ export const handleApiError = (error) => {
 // 주문 데이터 변환 헬퍼 함수 (snspop API v2 구조)
 export const transformOrderData = (orderData) => {
   return {
-    service_id: orderData.serviceId, // snspop 서비스 ID (service_id로 변경)
+    service: orderData.serviceId, // snspop 서비스 ID
     link: orderData.link, // 대상 URL 또는 사용자명
     quantity: orderData.quantity,
     runs: orderData.runs || 1, // 실행 횟수 (기본값: 1)
