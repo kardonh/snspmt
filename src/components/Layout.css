@@ -18,12 +18,16 @@
 
 .main-content.sidebar-open {
   margin-left: 0;
-  max-width: calc(100vw - 320px - 1000px); /* 사이드바(320px) + 가이드패널(1000px) 제외 */
+  width: 1000px; /* 가이드패널과 동일한 너비 */
+  max-width: 1000px;
+  flex-shrink: 0;
 }
 
 .main-content.sidebar-closed {
   margin-left: 0;
-  max-width: calc(100vw - 1000px); /* 가이드패널(1000px)만 제외 */
+  width: 1000px; /* 가이드패널과 동일한 너비 */
+  max-width: 1000px;
+  flex-shrink: 0;
 }
 
 /* Sidebar Toggle Button */
@@ -70,42 +74,34 @@
 
 /* Responsive Design */
 @media (max-width: 1400px) {
-  .main-content.sidebar-open {
-    max-width: calc(100vw - 320px - 800px);
-  }
-  
+  .main-content.sidebar-open,
   .main-content.sidebar-closed {
-    max-width: calc(100vw - 800px);
+    width: 800px;
+    max-width: 800px;
   }
 }
 
 @media (max-width: 1200px) {
-  .main-content.sidebar-open {
-    max-width: calc(100vw - 320px - 600px);
-  }
-  
+  .main-content.sidebar-open,
   .main-content.sidebar-closed {
-    max-width: calc(100vw - 600px);
+    width: 600px;
+    max-width: 600px;
   }
 }
 
 @media (max-width: 1000px) {
-  .main-content.sidebar-open {
-    max-width: calc(100vw - 320px - 400px);
-  }
-  
+  .main-content.sidebar-open,
   .main-content.sidebar-closed {
-    max-width: calc(100vw - 400px);
+    width: 400px;
+    max-width: 400px;
   }
 }
 
 @media (max-width: 900px) {
-  .main-content.sidebar-open {
-    max-width: calc(100vw - 320px - 300px);
-  }
-  
+  .main-content.sidebar-open,
   .main-content.sidebar-closed {
-    max-width: calc(100vw - 300px);
+    width: 300px;
+    max-width: 300px;
   }
 }
 
