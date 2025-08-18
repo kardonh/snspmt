@@ -7,10 +7,10 @@ import { useAuth } from '../contexts/AuthContext'
 import './OrderPage.css'
 
 const OrderPage = () => {
-  const { platform } = useParams()
+  const { platform, serviceId } = useParams()
   const navigate = useNavigate()
   const { currentUser } = useAuth()
-  const [selectedService, setSelectedService] = useState('followers_korean')
+  const [selectedService, setSelectedService] = useState(serviceId || 'followers_korean')
   const [quantity, setQuantity] = useState(200)
   const [totalPrice, setTotalPrice] = useState(0)
   const [showChecklist, setShowChecklist] = useState(false)

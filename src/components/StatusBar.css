@@ -1,0 +1,44 @@
+.status-bar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+}
+
+.status-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator svg {
+  color: #10b981;
+}
+
+.status-time {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .status-content {
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+  }
+}

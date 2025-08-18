@@ -24,6 +24,11 @@ export const getPlatformInfo = (platform) => {
       name: '트위터',
       unitPrice: 28,
       services: ['followers_real']
+    },
+    naver: {
+      name: '제작중',
+      unitPrice: 0,
+      services: ['under_development']
     }
   }
   
@@ -135,6 +140,9 @@ export const calculatePrice = (service, quantity, platform) => {
       default:
         basePrice = getPlatformInfo(platform).unitPrice * quantity
     }
+  } else if (platform === 'naver') {
+    // 제작중인 서비스는 가격 0
+    basePrice = 0
   } else {
     // 다른 플랫폼들은 기본 단가 사용
     basePrice = getPlatformInfo(platform).unitPrice * quantity
@@ -192,7 +200,8 @@ export const getServiceName = (serviceId) => {
     page_likes: '페이지 좋아요',
     post_likes: '게시물 좋아요',
     retweets: '리트윗',
-    channel_followers: '채널 팔로워'
+    channel_followers: '채널 팔로워',
+    under_development: '제작중'
   }
   
   return serviceNames[serviceId] || serviceId
