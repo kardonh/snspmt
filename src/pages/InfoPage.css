@@ -248,8 +248,8 @@
 }
 
 .guide-item:first-child {
-  background: #3b82f6;
-  color: white;
+  background: #f8fafc;
+  color: rgb(0, 0, 0);
   border-color: #3b82f6;
   font-weight: 600;
 }

@@ -71,7 +71,7 @@ const Home = () => {
 
 
 
-  // 플랫폼별 서비스 목록 (OrderPage에서 가져온 실제 서비스들)
+  // 플랫폼별 서비스 목록
   const getServicesForPlatform = (platform) => {
     switch (platform) {
       case 'instagram':
@@ -100,81 +100,47 @@ const Home = () => {
         ]
       case 'threads':
         return [
-          { id: 'threads_followers', name: '스레드 팔로워', description: '스레드 팔로워를 늘려드리는 서비스입니다.' },
-          { id: 'threads_likes', name: '스레드 좋아요', description: '스레드 게시물의 좋아요를 늘려드리는 서비스입니다.' }
+          { id: 'threads_service', name: '스레드 서비스', description: '스레드 플랫폼 서비스입니다.' }
         ]
       case 'news-media':
         return [
-          { id: 'press_release', name: '보도자료 배포', description: '언론사에 보도자료를 배포하는 서비스입니다.' },
-          { id: 'media_coverage', name: '언론 보도', description: '언론 매체에 기사가 실리도록 도와드리는 서비스입니다.' }
+          { id: 'news_service', name: '뉴스 언론 보도', description: '뉴스 언론 보도 서비스입니다.' }
         ]
       case 'experience-group':
         return [
-          { id: 'product_review', name: '제품 리뷰', description: '제품 체험단을 모집하고 리뷰를 받는 서비스입니다.' },
-          { id: 'event_participation', name: '이벤트 참여', description: '이벤트 참여자를 모집하는 서비스입니다.' }
+          { id: 'experience_service', name: '체험단 서비스', description: '체험단 서비스입니다.' }
         ]
       case 'kakao':
         return [
-          { id: 'kakao_channel', name: '카카오 채널', description: '카카오 채널 팔로워를 늘려드리는 서비스입니다.' },
-          { id: 'kakao_story', name: '카카오 스토리', description: '카카오 스토리 좋아요를 늘려드리는 서비스입니다.' }
+          { id: 'kakao_service', name: '카카오 서비스', description: '카카오 플랫폼 서비스입니다.' }
         ]
       case 'store-marketing':
         return [
-          { id: 'store_promotion', name: '스토어 홍보', description: '온라인 스토어 홍보 서비스입니다.' },
-          { id: 'product_marketing', name: '상품 마케팅', description: '상품 마케팅 서비스입니다.' }
+          { id: 'store_service', name: '스토어 마케팅', description: '스토어 마케팅 서비스입니다.' }
         ]
       case 'app-marketing':
         return [
-          { id: 'app_download', name: '앱 다운로드', description: '앱 다운로드 수를 늘려드리는 서비스입니다.' },
-          { id: 'app_review', name: '앱 리뷰', description: '앱 리뷰를 늘려드리는 서비스입니다.' }
+          { id: 'app_service', name: '앱 마케팅', description: '앱 마케팅 서비스입니다.' }
         ]
       case 'seo-traffic':
         return [
-          { id: 'seo_optimization', name: 'SEO 최적화', description: '검색 엔진 최적화 서비스입니다.' },
-          { id: 'traffic_increase', name: '트래픽 증가', description: '웹사이트 트래픽을 늘려드리는 서비스입니다.' }
-        ]
-      case 'recommended':
-        return [
-          { id: 'instagram_followers', name: '인스타그램 팔로워 추천', description: '인스타그램에서 가장 인기 있는 팔로워 서비스입니다.' },
-          { id: 'youtube_subscribers', name: '유튜브 구독자 추천', description: '유튜브에서 가장 인기 있는 구독자 서비스입니다.' },
-          { id: 'facebook_likes', name: '페이스북 좋아요 추천', description: '페이스북에서 가장 인기 있는 좋아요 서비스입니다.' }
-        ]
-      case 'event':
-        return [
-          { id: 'special_promotion', name: '특별 프로모션', description: '한정 시간 특별 할인 이벤트 서비스입니다.' },
-          { id: 'new_user_discount', name: '신규 사용자 할인', description: '신규 가입자를 위한 특별 할인 서비스입니다.' },
-          { id: 'seasonal_event', name: '시즌 이벤트', description: '계절별 특별 이벤트 서비스입니다.' }
-        ]
-      case 'top-exposure':
-        return [
-          { id: 'search_ranking', name: '검색 순위 상승', description: '검색 결과에서 상위에 노출되도록 도와드립니다.' },
-          { id: 'trending_hashtag', name: '트렌딩 해시태그', description: '인기 해시태그를 활용한 노출 서비스입니다.' },
-          { id: 'viral_potential', name: '바이럴 잠재력', description: '바이럴 확산 가능성을 높이는 서비스입니다.' }
-        ]
-      case 'account-management':
-        return [
-          { id: 'profile_optimization', name: '프로필 최적화', description: '계정 프로필을 최적화하여 인기도를 높입니다.' },
-          { id: 'content_strategy', name: '콘텐츠 전략', description: '효과적인 콘텐츠 전략을 제공합니다.' },
-          { id: 'engagement_boost', name: '참여도 향상', description: '팔로워와의 상호작용을 높입니다.' }
-        ]
-      case 'package':
-        return [
-          { id: 'comprehensive_package', name: '종합 패키지', description: '여러 서비스를 한 번에 이용할 수 있는 패키지입니다.' },
-          { id: 'growth_package', name: '성장 패키지', description: '계정 성장에 특화된 패키지 서비스입니다.' },
-          { id: 'premium_package', name: '프리미엄 패키지', description: '고급 서비스를 포함한 프리미엄 패키지입니다.' }
+          { id: 'seo_service', name: 'SEO 트래픽', description: 'SEO 트래픽 서비스입니다.' }
         ]
       case 'other':
         return [
-          { id: 'custom_service', name: '맞춤 서비스', description: '고객의 특별한 요구사항에 맞춘 서비스입니다.' },
-          { id: 'consultation', name: '컨설팅', description: '전문가의 1:1 컨설팅 서비스입니다.' },
-          { id: 'analytics', name: '분석 서비스', description: '계정 성과를 분석하고 개선 방안을 제시합니다.' }
+          { id: 'other_service', name: '기타 서비스', description: '기타 서비스입니다.' }
+        ]
+      case 'recommended':
+      case 'event':
+      case 'top-exposure':
+      case 'account-management':
+      case 'package':
+        return [
+          { id: 'general_service', name: '일반 서비스', description: '일반적인 서비스입니다.' }
         ]
       default:
         return [
-          { id: 'followers_korean', name: '팔로워 (한국인)', description: '한국인 팔로워를 늘려드리는 서비스입니다.' },
-          { id: 'followers_foreign', name: '팔로워 (외국인)', description: '외국인 팔로워를 늘려드리는 서비스입니다.' },
-          { id: 'likes_korean', name: '좋아요 (한국인)', description: '한국인 사용자로부터 좋아요를 받아 게시물의 인기도를 높여드리는 서비스입니다.' },
-          { id: 'likes_foreign', name: '좋아요 (외국인)', description: '외국인 사용자로부터 좋아요를 받아 게시물의 인기도를 높여드리는 서비스입니다.' }
+          { id: 'default_service', name: '기본 서비스', description: '선택된 플랫폼에 대한 기본 서비스입니다.' }
         ]
     }
   }
@@ -401,190 +367,204 @@ const Home = () => {
 
   return (
     <div className="order-page">
-      {/* Header */}
-      <div className="order-header">
-        <h1 className="order-title">주문하기</h1>
-        <button className="order-help-btn" onClick={handleHelpClick}>
-          <HelpCircle size={16} />
-          주문 방법이 궁금해요!
-        </button>
-        </div>
-
-      {/* Section 01: Platform Selection */}
-      <div className="order-section">
-        <h2 className="section-title">이용하실 플랫폼 및 서비스 유형을 선택해 주세요.</h2>
-        <div className="platforms-grid">
+      {/* Service Selection */}
+      <div className="service-selection">
+        <h2>주문하기</h2>
+        <p>원하는 서비스를 선택하고 주문해보세요!</p>
+        
+        <div className="platform-grid">
           {platforms.map(({ id, name, icon: Icon, color, description }) => (
             <div
               key={id}
-              className={`platform-item ${selectedPlatform === id ? 'active' : ''}`}
+              className={`platform-item ${selectedPlatform === id ? 'selected' : ''}`}
               onClick={() => handlePlatformSelect(id)}
+              style={{
+                '--platform-color': color,
+                '--platform-color-secondary': color === '#f59e0b' ? '#d97706' : 
+                                            color === '#8b5cf6' ? '#7c3aed' :
+                                            color === '#10b981' ? '#059669' :
+                                            color === '#3b82f6' ? '#2563eb' :
+                                            color === '#e4405f' ? '#dc2626' :
+                                            color === '#ff0000' ? '#dc2626' :
+                                            color === '#1877f2' ? '#0d6efd' :
+                                            color === '#000000' ? '#374151' :
+                                            color === '#1da1f2' ? '#0ea5e9' :
+                                            color === '#03c75a' ? '#059669' :
+                                            color === '#fbbf24' ? '#f59e0b' :
+                                            color === '#8b5cf6' ? '#7c3aed' :
+                                            color === '#6b7280' ? '#4b5563' : '#667eea'
+              }}
             >
-              <div className="platform-icon" style={{ color }}>
-                <Icon size={32} />
-              </div>
-              <h3 className="platform-name">{name}</h3>
-              <p className="platform-description">{description}</p>
-              <div className="platform-arrow">
-                  <ArrowRight size={20} />
-              </div>
+              <Icon size={32} className="platform-icon" />
+              <div className="platform-name">{name}</div>
+              <div className="platform-description">{description}</div>
         </div>
           ))}
-      </div>
-
-
-      </div>
-      
-      {/* Section 02: Detailed Services with Order Form */}
-      <div className="order-section">
-        <h2 className="section-title">세부 서비스를 선택해주세요.</h2>
-        <div className="detailed-services">
-          {/* Premium Quality Check Button */}
-          <div className="service-item premium-check" onClick={handlePremiumCheck}>
-            <div className="service-content">
-              <CheckCircle size={20} />
-              <span>선택상품의 프리미엄 퀄리티확인</span>
-            </div>
+        </div>
           </div>
-
-          {/* Service Selection */}
-          <div className="service-category">
-            <h3 className="category-title">{platforms.find(p => p.id === selectedPlatform)?.name} 서비스</h3>
-            <div className="service-list">
-              {services.map(({ id, name, badge, featured, special }) => (
-                <div 
-                  key={id} 
-                  className={`service-item ${special ? 'special' : ''} ${featured ? 'featured' : ''} ${selectedService === id ? 'selected' : ''}`}
-                  onClick={() => handleServiceSelect(id)}
-                >
-                  <div className="service-content">
-                    <span className="service-name">{name}</span>
-                    {badge && <span className="service-badge">{badge}</span>}
-                    {featured && <Star size={16} className="featured-icon" />}
-                    {special && (
-                      <div className="special-indicator">
-                        <Sparkles size={16} />
-                        <Sparkles size={16} />
-                  </div>
-                    )}
-                  </div>
-                </div>
-            ))}
+      
+      {/* Service Type Selection */}
+      <div className="service-type-selection">
+        <h3>세부 서비스를 선택해주세요</h3>
+        
+        {/* Premium Quality Check Button */}
+        <div className="service-item premium-check" onClick={handlePremiumCheck}>
+          <div className="service-content">
+            <CheckCircle size={20} />
+            <span>선택상품의 프리미엄 퀄리티확인</span>
           </div>
         </div>
 
-          {/* Order Form */}
-          {selectedService && (
-            <div className="order-form-section">
-              <h3 className="form-title">주문 정보 입력</h3>
-              
-              {/* Service Description */}
-              <div className="service-description">
-                <h4>선택된 서비스</h4>
-                <p>{services.find(s => s.id === selectedService)?.description}</p>
+        {/* Service Selection */}
+        <div className="service-category">
+          <h3 className="category-title">{platforms.find(p => p.id === selectedPlatform)?.name} 서비스</h3>
+          <div className="service-list">
+            {services.map(({ id, name, badge, featured, special }) => (
+              <div 
+                key={id} 
+                className={`service-item ${special ? 'special' : ''} ${featured ? 'featured' : ''} ${selectedService === id ? 'selected' : ''}`}
+                onClick={() => handleServiceSelect(id)}
+              >
+                <div className="service-content">
+                  <span className="service-name">{name}</span>
+                  {badge && <span className="service-badge">{badge}</span>}
+                  {featured && <Star size={16} className="featured-icon" />}
+                  {special && (
+                    <div className="special-indicator">
+                      <Sparkles size={16} />
+                      <Sparkles size={16} />
       </div>
-      
-              {/* Quantity Selection */}
-              <div className="form-group">
-                <label>수량 선택</label>
-                <div className="quantity-grid">
-                  {quantityOptions.map(option => (
-                    <button
-                      key={option}
-                      className={`quantity-option ${quantity === option ? 'selected' : ''}`}
-                      onClick={() => handleQuantityChange(option)}
-                    >
-                      {option.toLocaleString()}개
-                    </button>
-                  ))}
-          </div>
-                <div className="quantity-info">
-                  <p>1개당 {platformInfo.unitPrice}원</p>
-                  {getDiscount(quantity) > 0 && (
-                    <p className="discount-applied">{getDiscount(quantity)}% 할인 적용</p>
                   )}
                 </div>
               </div>
-
-              {/* Link Input */}
-              <div className="form-group">
-                <label>링크 입력</label>
-                <input
-                  type="url"
-                  value={link}
-                  onChange={(e) => setLink(e.target.value)}
-                  placeholder={`${platformInfo.name} 게시물 URL 또는 사용자명을 입력하세요`}
-                  className="link-input-field"
-                />
+            ))}
           </div>
-
-              {/* Comments Input */}
-              {((selectedPlatform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
-                (selectedPlatform === 'youtube' && selectedService === 'comments_korean')) && (
-                <div className="form-group">
-                  <label>댓글 내용</label>
-                  <textarea
-                    value={comments}
-                    onChange={(e) => setComments(e.target.value)}
-                    placeholder="댓글 내용을 입력하세요 (최대 200자)"
-                    maxLength="200"
-                    className="comments-textarea"
-                    rows="4"
-                  />
-                  <div className="char-count">{comments.length}/200</div>
         </div>
-              )}
-
-              {/* Explanation Input */}
-              <div className="form-group">
-                <label>추가 요청사항</label>
-                <textarea
-                  value={explanation}
-                  onChange={(e) => setExplanation(e.target.value)}
-                  placeholder="추가 요청사항이나 특별한 요구사항이 있으시면 입력해주세요 (선택사항)"
-                  maxLength="500"
-                  className="explanation-textarea"
-                  rows="4"
-                />
-                <div className="char-count">{explanation.length}/500</div>
       </div>
-
-              {/* Total Price */}
-              <div className="total-price-section">
-                <h4>총 금액</h4>
-                <p className="total-price">{totalPrice.toLocaleString()}원</p>
+      
+                {/* Order Form */}
+      {selectedService && (
+        <div className="order-form">
+          <h3>주문 정보 입력</h3>
+          
+          {/* Service Description */}
+          <div className="service-description">
+            <h4>선택된 서비스</h4>
+            <p>{services.find(s => s.id === selectedService)?.description}</p>
+          </div>
+          
+          {/* Quantity Selection */}
+          <div className="form-group">
+            <label>수량 선택</label>
+            <div className="quantity-controls">
+              <button 
+                className="quantity-btn" 
+                onClick={() => {
+                  const currentIndex = quantityOptions.indexOf(quantity)
+                  if (currentIndex > 0) {
+                    handleQuantityChange(quantityOptions[currentIndex - 1])
+                  }
+                }}
+                disabled={quantityOptions.indexOf(quantity) === 0}
+              >
+                -
+              </button>
+              <input
+                type="text"
+                value={quantity.toLocaleString()}
+                readOnly
+                className="quantity-input"
+              />
+              <button 
+                className="quantity-btn"
+                onClick={() => {
+                  const currentIndex = quantityOptions.indexOf(quantity)
+                  if (currentIndex < quantityOptions.length - 1) {
+                    handleQuantityChange(quantityOptions[currentIndex + 1])
+                  }
+                }}
+                disabled={quantityOptions.indexOf(quantity) === quantityOptions.length - 1}
+              >
+                +
+              </button>
+                  </div>
+            <div className="quantity-info">
+              <p>1개당 {platformInfo.unitPrice}원</p>
+              {getDiscount(quantity) > 0 && (
+                <p className="discount-applied">{getDiscount(quantity)}% 할인 적용</p>
+              )}
+        </div>
+      </div>
+      
+          {/* Link Input */}
+          <div className="form-group">
+            <label>링크 입력</label>
+            <input
+              type="url"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              placeholder={`${platformInfo.name} 게시물 URL 또는 사용자명을 입력하세요`}
+              className="form-control"
+            />
           </div>
 
-              {/* Action Buttons */}
-              <div className="action-buttons">
-                <button className="cart-btn" onClick={handleAddToCart}>
-                  <ShoppingBagIcon size={20} />
-                  장바구니
-                </button>
-                <button 
-                  className="purchase-btn" 
-                  onClick={handlePurchase}
-                  disabled={isLoading}
-                >
-                  {isLoading ? '처리 중...' : '구매하기'}
-                </button>
-                  </div>
-                  </div>
+          {/* Comments Input */}
+          {((selectedPlatform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
+            (selectedPlatform === 'youtube' && selectedService === 'comments_korean')) && (
+            <div className="form-group">
+              <label>댓글 내용</label>
+              <textarea
+                value={comments}
+                onChange={(e) => setComments(e.target.value)}
+                placeholder="댓글 내용을 입력하세요 (최대 200자)"
+                maxLength="200"
+                className="form-control"
+                rows="4"
+              />
+              <div className="char-count">{comments.length}/200</div>
+                </div>
           )}
 
-          {/* Bulk Purchase */}
-          <div className="service-category">
-            <h3 className="category-title">기타 서비스</h3>
-            <div className="service-list">
-              <div className="service-item special" onClick={() => alert('대량구매 문의 기능이 실행됩니다.')}>
-                <div className="service-content">
-                  <span className="service-name">대량구매 시 문의주세요</span>
-                  <div className="special-indicator">
-                    <Sparkles size={16} />
-                    <Sparkles size={16} />
-                  </div>
-                </div>
-              </div>
+          {/* Explanation Input */}
+          <div className="form-group">
+            <label>추가 요청사항</label>
+            <textarea
+              value={explanation}
+              onChange={(e) => setExplanation(e.target.value)}
+              placeholder="추가 요청사항이나 특별한 요구사항이 있으시면 입력해주세요 (선택사항)"
+              maxLength="500"
+              className="form-control"
+              rows="4"
+            />
+            <div className="char-count">{comments.length}/500</div>
+      </div>
+
+          {/* Total Price */}
+          <div className="price-display">
+            <div className="total-price">{totalPrice.toLocaleString()}원</div>
+            <div className="price-label">총 금액</div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="action-buttons">
+            <button className="submit-btn" onClick={handlePurchase} disabled={isLoading}>
+              {isLoading ? '처리 중...' : '구매하기'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Purchase */}
+      <div className="service-category">
+        <h3 className="category-title">기타 서비스</h3>
+        <div className="service-list">
+          <div className="service-item special" onClick={() => alert('대량구매 문의 기능이 실행됩니다.')}>
+            <div className="service-content">
+              <span className="service-name">대량구매 시 문의주세요</span>
+              <div className="special-indicator">
+                <Sparkles size={16} />
+                <Sparkles size={16} />
+      </div>
             </div>
           </div>
         </div>

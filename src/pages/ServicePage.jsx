@@ -3,87 +3,6 @@ import { Star, Users, Heart, Eye, MessageCircle, Instagram, Youtube, Facebook, T
 import './ServicePage.css'
 
 const ServicePage = () => {
-  const platforms = [
-    {
-      id: 'instagram',
-      name: '인스타그램',
-      icon: Instagram,
-      color: '#e4405f',
-      description: '팔로워, 좋아요, 댓글, 조회수 서비스',
-      services: [
-        { name: '팔로워 늘리기', icon: Users, description: '한국인/외국인 팔로워' },
-        { name: '좋아요 늘리기', icon: Heart, description: '게시물 좋아요 증가' },
-        { name: '댓글 늘리기', icon: MessageCircle, description: '커스텀 댓글 서비스' },
-        { name: '조회수 늘리기', icon: Eye, description: '동영상 조회수 증가' }
-      ]
-    },
-    {
-      id: 'youtube',
-      name: '유튜브',
-      icon: Youtube,
-      color: '#ff0000',
-      description: '구독자, 조회수, 좋아요, 댓글 서비스',
-      services: [
-        { name: '구독자 늘리기', icon: Users, description: '한국인/외국인 구독자' },
-        { name: '조회수 늘리기', icon: Eye, description: '동영상 조회수 증가' },
-        { name: '좋아요 늘리기', icon: Heart, description: '동영상 좋아요 증가' },
-        { name: '댓글 늘리기', icon: MessageCircle, description: 'AI 댓글 서비스' }
-      ]
-    },
-    {
-      id: 'facebook',
-      name: '페이스북',
-      icon: Facebook,
-      color: '#1877f2',
-      description: '페이지 좋아요, 팔로워, 게시물 서비스',
-      services: [
-        { name: '페이지 좋아요', icon: Heart, description: '페이스북 페이지 좋아요' },
-        { name: '팔로워 늘리기', icon: Users, description: '페이지 팔로워 증가' },
-        { name: '게시물 좋아요', icon: Heart, description: '게시물 좋아요 증가' },
-        { name: '게시물 댓글', icon: MessageCircle, description: '게시물 댓글 서비스' }
-      ]
-    },
-    {
-      id: 'tiktok',
-      name: '틱톡',
-      icon: MessageCircle,
-      color: '#000000',
-      description: '팔로워, 좋아요, 조회수 서비스',
-      services: [
-        { name: '팔로워 늘리기', icon: Users, description: '틱톡 팔로워 증가' },
-        { name: '좋아요 늘리기', icon: Heart, description: '동영상 좋아요 증가' },
-        { name: '조회수 늘리기', icon: Eye, description: '동영상 조회수 증가' },
-        { name: '공유 늘리기', icon: MessageCircle, description: '동영상 공유 증가' }
-      ]
-    },
-    {
-      id: 'twitter',
-      name: '트위터',
-      icon: Twitter,
-      color: '#1da1f2',
-      description: '팔로워, 리트윗, 좋아요 서비스',
-      services: [
-        { name: '팔로워 늘리기', icon: Users, description: '트위터 팔로워 증가' },
-        { name: '리트윗 늘리기', icon: MessageCircle, description: '트윗 리트윗 증가' },
-        { name: '좋아요 늘리기', icon: Heart, description: '트윗 좋아요 증가' },
-        { name: '답글 늘리기', icon: MessageCircle, description: '트윗 답글 서비스' }
-      ]
-    },
-    {
-      id: 'naver',
-      name: '네이버',
-      icon: Globe,
-      color: '#03c75a',
-      description: '블로그, 카페 서비스',
-      services: [
-        { name: '블로그 방문자', icon: Users, description: '블로그 방문자 증가' },
-        { name: '카페 회원', icon: Users, description: '카페 회원 증가' },
-        { name: '포스트 조회수', icon: Eye, description: '포스트 조회수 증가' },
-        { name: '댓글 늘리기', icon: MessageCircle, description: '댓글 서비스' }
-      ]
-    }
-  ]
-
   const features = [
     {
       icon: Shield,
@@ -124,42 +43,6 @@ const ServicePage = () => {
               </div>
               <h3>{feature.title}</h3>
               <p>{feature.description}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="platforms-section">
-        <h2>지원 플랫폼</h2>
-        <div className="platforms-grid">
-          {platforms.map((platform) => (
-            <div key={platform.id} className="platform-card">
-              <div className="platform-header">
-                <div className="platform-icon" style={{ color: platform.color }}>
-                  <platform.icon size={32} />
-                </div>
-                <div className="platform-info">
-                  <h3>{platform.name}</h3>
-                  <p>{platform.description}</p>
-                </div>
-              </div>
-              
-              <div className="platform-services">
-                <h4>제공 서비스</h4>
-                <div className="services-grid">
-                  {platform.services.map((service, index) => (
-                    <div key={index} className="service-card">
-                      <div className="service-icon">
-                        <service.icon size={20} />
-                      </div>
-                      <div className="service-info">
-                        <h5>{service.name}</h5>
-                        <p>{service.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           ))}
         </div>

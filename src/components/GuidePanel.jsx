@@ -3,7 +3,7 @@ import { ChevronRight, HelpCircle, ChevronDown, ChevronUp, Instagram, Youtube, F
 import './GuidePanel.css'
 
 const GuidePanel = () => {
-  const [expandedGuide, setExpandedGuide] = useState(0)
+  const [expandedGuide, setExpandedGuide] = useState(null)
   const [selectedPlatform, setSelectedPlatform] = useState('all')
 
   const guides = [
@@ -201,12 +201,12 @@ const GuidePanel = () => {
     : guides.filter(guide => guide.platform === selectedPlatform)
 
   const handleGuideClick = (guideId) => {
-    setExpandedGuide(expandedGuide === guideId ? 0 : guideId)
+    setExpandedGuide(expandedGuide === guideId ? null : guideId)
   }
 
   const handlePlatformFilter = (platformId) => {
     setSelectedPlatform(platformId)
-    setExpandedGuide(0)
+    setExpandedGuide(null)
   }
 
   return (
@@ -233,7 +233,7 @@ const GuidePanel = () => {
 
       <div className="guide-list">
         {filteredGuides.map((guide) => (
-          <div key={guide.id} className="guide-item">
+          <div key={guide.id} className={`guide-item ${expandedGuide === guide.id ? 'selected' : ''}`}>
             <div 
               className="guide-item-header"
               onClick={() => handleGuideClick(guide.id)}

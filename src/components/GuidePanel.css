@@ -74,14 +74,17 @@
 }
 
 .platform-filter-btn.active {
-  background: linear-gradient(135deg, var(--filter-color, #667eea) 0%, #764ba2 100%);
-  border-color: var(--filter-color, #667eea);
-  color: white;
-  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+  background: white;
+  border: 3px solid var(--filter-color, #667eea);
+  color: var(--filter-color, #667eea);
+  box-shadow: 
+    0 4px 15px rgba(var(--filter-color-rgb, 102, 126, 234), 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }
 
 .platform-filter-btn.active svg {
-  color: white;
+  color: var(--filter-color, #667eea);
 }
 
 .guide-list {
@@ -146,11 +149,57 @@
   color: #3b82f6;
 }
 
+/* 선택된 가이드 아이템 스타일 */
+.guide-item.selected {
+  background: white !important;
+  border: 3px solid #667eea;
+  box-shadow: 
+    0 8px 25px rgba(102, 126, 234, 0.25),
+    0 4px 15px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(102, 126, 234, 0.1);
+  transform: translateY(-2px);
+  position: relative;
+  overflow: hidden;
+}
+
+.guide-item.selected::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent !important;
+  opacity: 1;
+  z-index: 0;
+}
+
+.guide-item.selected .guide-item-header {
+  background: transparent !important;
+  position: relative;
+  z-index: 1;
+}
+
+.guide-item.selected .guide-text {
+  color: #667eea !important;
+  font-weight: 700;
+}
+
+.guide-item.selected .guide-item-icon svg {
+  color: #667eea !important;
+}
+
+.guide-item.selected svg:last-child {
+  color: #667eea !important;
+}
+
 .guide-item-content {
   padding: 0 18px 18px 18px;
   border-top: 1px solid rgba(102, 126, 234, 0.1);
   margin-top: 8px;
   animation: slideDown 0.3s ease-out;
+  position: relative;
+  z-index: 1;
 }
 
 @keyframes slideDown {
@@ -313,12 +362,6 @@
   
   .guide-steps li, .guide-tips li {
     font-size: 11px;
-  }
-}
-
-@media (max-width: 768px) {
-  .guide-panel {
-    display: none; /* 모바일에서는 가이드 패널 숨김 */
   }
 }
 

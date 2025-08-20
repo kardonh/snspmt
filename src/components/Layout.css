@@ -118,6 +118,8 @@
     order: 2;
     max-width: 100% !important;
     margin-left: 0 !important;
+    width: 100% !important;
+    padding: 0;
   }
   
   .sidebar-container {
@@ -135,9 +137,7 @@
     visibility: hidden;
   }
   
-  .main-content {
-    padding: 16px;
-    margin-left: 0 !important;
-    max-width: 100% !important;
+  .guide-panel {
+    display: none;
   }
 }
