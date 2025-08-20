@@ -119,7 +119,7 @@
     max-width: 100% !important;
     margin-left: 0 !important;
     width: 100% !important;
-    padding: 0;
+    padding: 16px;
   }
   
   .sidebar-container {
@@ -129,7 +129,14 @@
     left: 0;
     height: 100vh;
     z-index: 999;
-    width: 320px;
+    width: 280px;
+    background: white;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .sidebar-container.open {
+    transform: translateX(0);
+    visibility: visible;
   }
   
   .sidebar-container.closed {
@@ -139,5 +146,15 @@
   
   .guide-panel {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar-container {
+    width: 260px;
+  }
+  
+  .main-content {
+    padding: 12px;
   }
 }

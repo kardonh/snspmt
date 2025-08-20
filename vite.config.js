@@ -7,5 +7,19 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
+  },
+  preview: {
+    port: process.env.PORT || 3000,
+    host: '0.0.0.0'
   }
 })
