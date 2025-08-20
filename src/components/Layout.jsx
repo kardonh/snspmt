@@ -41,12 +41,6 @@ const Layout = ({ children }) => {
     }
   }, [currentUser])
 
-  // 디버깅을 위한 로그
-  useEffect(() => {
-    console.log('Current user:', currentUser)
-    console.log('Show auth modal:', showAuthModal)
-  }, [currentUser, showAuthModal])
-
   return (
     <div className="layout">
       <StatusBar />

@@ -152,11 +152,11 @@
 /* 선택된 가이드 아이템 스타일 */
 .guide-item.selected {
   background: white !important;
-  border: 3px solid #667eea;
+  border: 3px solid #667eea !important;
   box-shadow: 
     0 8px 25px rgba(102, 126, 234, 0.25),
     0 4px 15px rgba(0, 0, 0, 0.1),
-    0 0 0 1px rgba(102, 126, 234, 0.1);
+    0 0 0 1px rgba(102, 126, 234, 0.1) !important;
   transform: translateY(-2px);
   position: relative;
   overflow: hidden;
@@ -191,6 +191,21 @@
 
 .guide-item.selected svg:last-child {
   color: #667eea !important;
+}
+
+/* 더 강력한 선택자로 파란색 배경 완전 제거 */
+.guide-item.selected,
+.guide-item.selected *,
+.guide-item.selected::before,
+.guide-item.selected::after {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+.guide-item.selected {
+  background: white !important;
+  background-color: white !important;
 }
 
 .guide-item-content {

@@ -59,7 +59,7 @@ const Home = () => {
     { id: 'tiktok', name: '틱톡', icon: MessageCircle, color: '#000000', description: '팔로워, 좋아요, 조회수 서비스' },
     { id: 'threads', name: '스레드', icon: MessageSquare, color: '#000000', description: '스레드 서비스' },
     { id: 'twitter', name: '트위터', icon: Twitter, color: '#1da1f2', description: '팔로워, 리트윗, 좋아요 서비스' },
-    { id: 'naver', name: 'N포털', icon: Globe, color: '#03c75a', description: 'N포털 서비스' },
+    { id: 'naver', name: '제작중', icon: Globe, color: '#03c75a', description: '현재 서비스 개발 중입니다' },
     { id: 'news-media', name: '뉴스언론보도', icon: FileText, color: '#3b82f6', description: '뉴스 언론 보도 서비스' },
     { id: 'experience-group', name: '체험단', icon: Users, color: '#10b981', description: '체험단 서비스' },
     { id: 'kakao', name: '카카오', icon: MessageCircle, color: '#fbbf24', description: '카카오 서비스' },
