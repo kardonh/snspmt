@@ -18,38 +18,21 @@
 
 .main-content.sidebar-open {
   margin-left: 0;
-  width: 1000px; /* 가이드패널과 동일한 너비 */
+  width: 1000px;
   max-width: 1000px;
   flex-shrink: 0;
 }
 
 .main-content.sidebar-closed {
   margin-left: 0;
-  width: 1000px; /* 가이드패널과 동일한 너비 */
+  width: 1000px;
   max-width: 1000px;
   flex-shrink: 0;
 }
 
 /* Sidebar Toggle Button */
 .sidebar-toggle {
-  display: none; /* 기본적으로 숨김 */
-  position: fixed;
-  top: 80px;
-  left: 16px;
-  z-index: 1000;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 12px;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease;
-}
-
-.sidebar-toggle:hover {
-  background: #2563eb;
-  transform: translateY(-1px);
+  display: none;
 }
 
 /* Sidebar Container */
@@ -105,9 +88,27 @@
   }
 }
 
+/* 모바일 스타일 */
 @media (max-width: 768px) {
   .sidebar-toggle {
-    display: block; /* 모바일에서만 토글 버튼 표시 */
+    display: block !important;
+    position: fixed;
+    top: 80px;
+    left: 16px;
+    z-index: 1000;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+  }
+  
+  .sidebar-toggle:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
   }
   
   .layout-content {
@@ -124,24 +125,35 @@
   
   .sidebar-container {
     order: 1;
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    z-index: 999;
-    width: 280px;
-    background: white;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    z-index: 999 !important;
+    width: 280px !important;
+    background: white !important;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.3s ease !important;
+    overflow: visible !important;
+    border: 2px solid red !important; /* 디버깅용 테두리 */
   }
   
   .sidebar-container.open {
-    transform: translateX(0);
-    visibility: visible;
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 280px !important;
+    left: 0 !important;
+    display: block !important;
   }
   
   .sidebar-container.closed {
-    transform: translateX(-100%);
-    visibility: hidden;
+    transform: translateX(-100%) !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    left: -280px !important;
+    display: none !important;
   }
   
   .guide-panel {
@@ -151,7 +163,15 @@
 
 @media (max-width: 480px) {
   .sidebar-container {
-    width: 260px;
+    width: 260px !important;
+  }
+  
+  .sidebar-container.open {
+    width: 260px !important;
+  }
+  
+  .sidebar-container.closed {
+    left: -260px !important;
   }
   
   .main-content {

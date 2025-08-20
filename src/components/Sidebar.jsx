@@ -44,7 +44,8 @@ const Sidebar = ({ onClose }) => {
   }
 
   const handleMenuItemClick = () => {
-    if (onClose) {
+    // 모바일에서만 사이드바 닫기 (onClose가 있을 때만)
+    if (onClose && window.innerWidth <= 768) {
       onClose()
     }
   }
