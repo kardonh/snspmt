@@ -31,6 +31,7 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { getPlatformInfo, calculatePrice } from '../utils/platformUtils'
 import { smmkingsApi, handleApiError, transformOrderData } from '../services/snspopApi'
+import { getSMMKingsServiceId, getSMMKingsServicePrice, getAvailableServices } from '../utils/smmkingsMapping'
 import './Home.css'
 
 const Home = () => {
@@ -214,10 +215,29 @@ const Home = () => {
     return tier ? tier.discount : 0
   }
 
-  // 가격 계산
+  // 가격 계산 (SMM KINGS 가격 사용)
   useEffect(() => {
-    const price = calculatePrice(selectedService, quantity, selectedPlatform)
-    setTotalPrice(price)
+    if (!selectedPlatform || !selectedService || quantity <= 0) {
+      setTotalPrice(0)
+      return
+    }
+    
+    // SMM KINGS 가격 사용
+    const smmkingsPrice = getSMMKingsServicePrice(selectedPlatform, selectedService)
+    const basePrice = smmkingsPrice * quantity
+    
+    // 할인 적용
+    let discount = 0
+    if (quantity >= 5000) {
+      discount = 20
+    } else if (quantity >= 1000) {
+      discount = 15
+    } else if (quantity >= 500) {
+      discount = 10
+    }
+    
+    const finalPrice = basePrice * (1 - discount / 100)
+    setTotalPrice(Math.round(finalPrice))
   }, [selectedService, quantity, selectedPlatform])
 
   const handlePlatformSelect = (platformId) => {
@@ -289,8 +309,16 @@ const Home = () => {
         return
       }
 
+      // SMM KINGS 서비스 ID 가져오기
+      const smmkingsServiceId = getSMMKingsServiceId(selectedPlatform, selectedService)
+      
+      if (!smmkingsServiceId) {
+        alert('선택한 서비스에 대한 SMM KINGS 매핑을 찾을 수 없습니다.')
+        return
+      }
+
       const orderData = {
-        serviceId,
+        serviceId: smmkingsServiceId, // SMM KINGS 실제 서비스 ID 사용
         link: link.trim(),
         quantity,
         runs: 1,
