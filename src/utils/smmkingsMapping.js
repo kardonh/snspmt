@@ -6,130 +6,130 @@ export const SMMKINGS_SERVICE_MAPPING = {
     followers_korean: {
       smmkings_id: 1, // 실제 SMM KINGS 서비스 ID로 변경 필요
       name: '팔로워 (한국인)',
-      price: 120
+      price: 150
     },
     followers_foreign: {
       smmkings_id: 2,
       name: '팔로워 (외국인)',
-      price: 25
+      price: 55
     },
     likes_korean: {
       smmkings_id: 3,
       name: '좋아요 (한국인)',
-      price: 7
+      price: 37
     },
     likes_foreign: {
       smmkings_id: 4,
       name: '좋아요 (외국인)',
-      price: 1
+      price: 31
     },
     comments_korean: {
       smmkings_id: 5,
       name: '댓글 (한국인)',
-      price: 200
+      price: 230
     },
     comments_foreign: {
       smmkings_id: 6,
       name: '댓글 (외국인)',
-      price: 50
+      price: 80
     },
     views_korean: {
       smmkings_id: 7,
       name: '조회수 (한국인)',
-      price: 1
+      price: 31
     },
     views_foreign: {
       smmkings_id: 8,
       name: '조회수 (외국인)',
-      price: 0.5
+      price: 30.5
     }
   },
   youtube: {
     followers_foreign: {
       smmkings_id: 101,
       name: '구독자 (외국인)',
-      price: 50
+      price: 80
     },
     followers_korean: {
       smmkings_id: 102,
       name: '구독자 (리얼 한국인)',
-      price: 500
+      price: 530
     },
     likes_foreign: {
       smmkings_id: 103,
       name: '좋아요 (외국인)',
-      price: 7
+      price: 37
     },
     comments_korean: {
       smmkings_id: 104,
       name: '댓글 (AI 랜덤 한국인)',
-      price: 150
+      price: 180
     },
     views_foreign: {
       smmkings_id: 105,
       name: '조회수 (외국인)',
-      price: 7
+      price: 37
     },
     views_korean: {
       smmkings_id: 106,
       name: '조회수 (리얼 한국인)',
-      price: 25
+      price: 55
     }
   },
   tiktok: {
     likes_foreign: {
       smmkings_id: 201,
       name: '좋아요 (외국인)',
-      price: 6
+      price: 36
     },
     followers_foreign: {
       smmkings_id: 202,
       name: '팔로워 (외국인)',
-      price: 20
+      price: 50
     },
     views_foreign: {
       smmkings_id: 203,
       name: '조회수 (외국인)',
-      price: 2
+      price: 32
     },
     comments_foreign: {
       smmkings_id: 204,
       name: '댓글 (외국인)',
-      price: 200
+      price: 230
     }
   },
   facebook: {
     followers_korean: {
       smmkings_id: 301,
       name: '개인계정 팔로우 (한국인)',
-      price: 350
+      price: 380
     },
     followers_foreign: {
       smmkings_id: 302,
       name: '프로필 팔로우 (외국인)',
-      price: 20
+      price: 50
     },
     likes_korean: {
       smmkings_id: 303,
       name: '게시물 좋아요 (리얼 한국인)',
-      price: 50
+      price: 80
     },
     likes_foreign: {
       smmkings_id: 304,
       name: '게시물 좋아요 (외국인)',
-      price: 10
+      price: 40
     },
     comments_korean: {
       smmkings_id: 305,
       name: '게시물 랜덤 댓글 (한국인)',
-      price: 500
+      price: 530
     }
   },
   twitter: {
     followers_real: {
       smmkings_id: 401,
       name: '팔로워 (리얼)',
-      price: 50
+      price: 80
     }
   },
   naver: {
