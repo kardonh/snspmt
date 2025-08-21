@@ -30,7 +30,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getPlatformInfo, calculatePrice } from '../utils/platformUtils'
-import { snspopApi, handleApiError, transformOrderData } from '../services/snspopApi'
+import { smmkingsApi, handleApiError, transformOrderData } from '../services/snspopApi'
 import './Home.css'
 
 const Home = () => {
@@ -308,7 +308,7 @@ const Home = () => {
 
       const transformedData = transformOrderData(orderData)
       const userId = currentUser?.uid || currentUser?.email || 'anonymous'
-      const result = await snspopApi.createOrder(transformedData, userId)
+      const result = await smmkingsApi.createOrder(transformedData, userId)
 
       if (result.error) {
         alert(`주문 생성 실패: ${result.error}`)

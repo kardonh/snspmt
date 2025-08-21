@@ -1,10 +1,10 @@
 import axios from 'axios'
 
-// snspop API 기본 설정
+// SMM KINGS API 기본 설정
 const API_BASE_URL = 'http://localhost:8000/api'
 
-// 기본 API 키
-const DEFAULT_API_KEY = '5fccf26387249db082e60791afd7c358'
+// 기본 API 키 (실제 SMM KINGS API 키로 변경 필요)
+const DEFAULT_API_KEY = 'YOUR_SMMKINGS_API_KEY'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -37,8 +37,8 @@ apiClient.interceptors.response.use(
   }
 )
 
-// SNS SMM 서비스 API 함수들 (snspop API v2 구조)
-export const snspopApi = {
+// SNS SMM 서비스 API 함수들 (SMM KINGS API v2 구조)
+export const smmkingsApi = {
   // 서비스 목록 조회
   getServices: () => apiClient.post('', { action: 'services' }),
   
@@ -135,10 +135,10 @@ export const handleApiError = (error) => {
   }
 }
 
-// 주문 데이터 변환 헬퍼 함수 (snspop API v2 구조)
+// 주문 데이터 변환 헬퍼 함수 (SMM KINGS API v2 구조)
 export const transformOrderData = (orderData) => {
   return {
-    service: orderData.serviceId, // snspop 서비스 ID
+    service: orderData.serviceId, // SMM KINGS 서비스 ID
     link: orderData.link, // 대상 URL 또는 사용자명
     quantity: orderData.quantity,
     runs: orderData.runs || 1, // 실행 횟수 (기본값: 1)
@@ -150,8 +150,12 @@ export const transformOrderData = (orderData) => {
     posts: orderData.posts || 0, // 게시물 수
     delay: orderData.delay || 0, // 지연 시간
     expiry: orderData.expiry || '', // 만료일
-    old_posts: orderData.oldPosts || 0 // 이전 게시물 수
+    old_posts: orderData.oldPosts || 0, // 이전 게시물 수
+    country: orderData.country || '', // 국가 (웹 트래픽용)
+    device: orderData.device || '', // 디바이스 (웹 트래픽용)
+    type_of_traffic: orderData.typeOfTraffic || '', // 트래픽 타입 (웹 트래픽용)
+    google_keyword: orderData.googleKeyword || '' // 구글 키워드 (웹 트래픽용)
   }
 }
 
-export default snspopApi
+export default smmkingsApi

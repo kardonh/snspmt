@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ShoppingBag, ChevronDown, Star } from 'lucide-react'
 import { getPlatformInfo, calculatePrice } from '../utils/platformUtils'
-import { snspopApi, handleApiError, transformOrderData } from '../services/snspopApi'
+import { smmkingsApi, handleApiError, transformOrderData } from '../services/snspopApi'
 import { useAuth } from '../contexts/AuthContext'
 import './OrderPage.css'
 
@@ -471,7 +471,7 @@ const OrderPage = () => {
         console.log('Transformed Data:', transformedData)
         
       const userId = currentUser?.uid || currentUser?.email || 'anonymous'
-      const result = await snspopApi.createOrder(transformedData, userId)
+      const result = await smmkingsApi.createOrder(transformedData, userId)
 
       console.log('Order created successfully:', result)
       

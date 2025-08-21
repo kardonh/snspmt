@@ -2,10 +2,7 @@ import sqlite3
 import uuid
 from datetime import datetime, timedelta
 import json
-
-# snspop API 설정
-SNSPOP_API_URL = 'https://snspop.com/api/v2'
-API_KEY = '5fccf26387249db082e60791afd7c358'
+from .config import *
 
 # 데이터베이스 초기화
 def init_db():
@@ -224,7 +221,7 @@ def save_order_to_db(request_data, snspop_order):
             request_data.get('link'),
             request_data.get('quantity'),
             request_data.get('price'),
-            snspop_order.get('order'),
+            smmkings_order.get('order'),
             'pending'
         ))
         
