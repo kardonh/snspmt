@@ -100,8 +100,8 @@ const Sidebar = ({ onClose }) => {
           </Link>
         ))}
         
-        {/* 관리자 메뉴 (임시로 모든 로그인 사용자에게 표시) */}
-        {currentUser && (
+        {/* 관리자 메뉴 (관리자 계정일 때만 표시) */}
+        {currentUser && currentUser.email === 'tambleofficial@gmail.com' && (
           console.log('Rendering admin menu for:', currentUser.email),
           <>
             <div className="admin-separator"></div>

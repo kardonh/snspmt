@@ -44,12 +44,12 @@ const AdminPage = () => {
 
     console.log('Current user email:', currentUser.email)
     
-    // 임시로 관리자 체크 비활성화 (테스트용)
+    // 관리자 이메일 체크
     if (currentUser.email !== 'tambleofficial@gmail.com') {
-      console.log('Not admin user, but allowing access for testing')
-      // alert('관리자만 접근할 수 있습니다.')
-      // navigate('/')
-      // return
+      console.log('Not admin user, redirecting to home')
+      alert('관리자만 접근할 수 있습니다.')
+      navigate('/')
+      return
     }
 
     console.log('Admin user confirmed, loading data')
