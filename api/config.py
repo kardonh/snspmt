@@ -2,7 +2,7 @@ import os
 
 # SMM KINGS API 설정
 SMMKINGS_API_URL = 'https://smmkings.com/api/v2'
-API_KEY = os.environ.get('SMMKINGS_API_KEY', 'YOUR_SMMKINGS_API_KEY')
+API_KEY = os.environ.get('SMMKINGS_API_KEY', 'aa91dd380c10cf5fd875cb2b5626dd37')
 
 # 데이터베이스 설정
 DATABASE_PATH = '/tmp/orders.db'

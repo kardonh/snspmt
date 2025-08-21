@@ -3,8 +3,8 @@ import axios from 'axios'
 // SMM KINGS API 기본 설정
 const API_BASE_URL = 'http://localhost:8000/api'
 
-// 기본 API 키 (실제 SMM KINGS API 키로 변경 필요)
-const DEFAULT_API_KEY = 'YOUR_SMMKINGS_API_KEY'
+// 기본 API 키 (SMM KINGS API 키)
+const DEFAULT_API_KEY = 'aa91dd380c10cf5fd875cb2b5626dd37'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
