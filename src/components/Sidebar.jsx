@@ -9,7 +9,8 @@ import {
   FileText, 
   ChevronDown,
   ChevronUp,
-  X
+  X,
+  Shield
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import './Sidebar.css'
@@ -25,6 +26,11 @@ const Sidebar = ({ onClose }) => {
     { id: 'info', name: '상품안내 및 주문방법', icon: Info, path: '/info', color: '#10b981' },
     { id: 'faq', name: '자주 묻는 질문', icon: HelpCircle, path: '/faq', color: '#f59e0b' },
     { id: 'service', name: '서비스 소개서', icon: FileText, path: '/service', color: '#6b7280' }
+  ]
+
+  // 관리자 메뉴 아이템 (관리자 계정일 때만 표시)
+  const adminMenuItems = [
+    { id: 'admin', name: '관리자 대시보드', icon: Shield, path: '/admin', color: '#dc2626' }
   ]
 
   const handleSignOut = async () => {
@@ -93,6 +99,27 @@ const Sidebar = ({ onClose }) => {
             <span className="sidebar-item-text">{name}</span>
           </Link>
         ))}
+        
+        {/* 관리자 메뉴 (임시로 모든 로그인 사용자에게 표시) */}
+        {currentUser && (
+          console.log('Rendering admin menu for:', currentUser.email),
+          <>
+            <div className="admin-separator"></div>
+            {adminMenuItems.map(({ id, name, icon: Icon, path, color }) => (
+              <Link
+                key={id}
+                to={path}
+                className={`sidebar-item admin-item ${location.pathname === path ? 'active' : ''}`}
+                onClick={handleMenuItemClick}
+              >
+                <div className="sidebar-item-icon" style={{ color }}>
+                  <Icon size={20} />
+                </div>
+                <span className="sidebar-item-text">{name}</span>
+              </Link>
+            ))}
+          </>
+        )}
       </nav>
 
       {/* Business Information */}

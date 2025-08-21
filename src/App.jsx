@@ -12,6 +12,7 @@ import SettingsPage from './pages/SettingsPage'
 import InfoPage from './pages/InfoPage'
 import FAQPage from './pages/FAQPage'
 import ServicePage from './pages/ServicePage'
+import AdminPage from './pages/AdminPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import './App.css'
 
@@ -29,6 +30,7 @@ function App() {
                 <Route path="/order-complete" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                <Route path="/admin" element={<AdminPage />} />
                 <Route path="/info" element={<InfoPage />} />
                 <Route path="/faq" element={<FAQPage />} />
                 <Route path="/service" element={<ServicePage />} />

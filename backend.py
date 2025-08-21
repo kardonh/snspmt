@@ -2,8 +2,9 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+import sqlite3
 
 app = Flask(__name__)
 CORS(app)  # 모든 origin에서의 요청 허용
@@ -145,6 +146,149 @@ def get_snspop_services():
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'ok', 'message': 'Backend server is running'})
+
+# 관리자 API 엔드포인트
+def get_db_connection():
+    db_path = os.path.join(os.path.dirname(__file__), 'orders.db')
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+@app.route('/api/admin/stats', methods=['GET'])
+def get_admin_stats():
+    """관리자 통계 데이터 제공"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 현재 날짜와 한 달 전 날짜 계산
+        now = datetime.now()
+        one_month_ago = now - timedelta(days=30)
+        
+        # 총 가입자 수 (Firebase Auth 사용자 수는 별도로 관리 필요)
+        cursor.execute("SELECT COUNT(DISTINCT user_id) as total_users FROM orders")
+        total_users = cursor.fetchone()['total_users']
+        
+        # 한 달 가입자 수
+        cursor.execute("""
+            SELECT COUNT(DISTINCT user_id) as monthly_users 
+            FROM orders 
+            WHERE created_at >= ?
+        """, (one_month_ago.strftime('%Y-%m-%d'),))
+        monthly_users = cursor.fetchone()['monthly_users']
+        
+        # 총 매출액
+        cursor.execute("SELECT SUM(total_amount) as total_revenue FROM orders WHERE status = 'completed'")
+        total_revenue = cursor.fetchone()['total_revenue'] or 0
+        
+        # 한 달 매출액
+        cursor.execute("""
+            SELECT SUM(total_amount) as monthly_revenue 
+            FROM orders 
+            WHERE status = 'completed' AND created_at >= ?
+        """, (one_month_ago.strftime('%Y-%m-%d'),))
+        monthly_revenue = cursor.fetchone()['monthly_revenue'] or 0
+        
+        # 총 SMM KINGS 충전액 (실제 비용)
+        cursor.execute("SELECT SUM(smmkings_cost) as total_smmkings_charge FROM orders WHERE status = 'completed'")
+        total_smmkings_charge = cursor.fetchone()['total_smmkings_charge'] or 0
+        
+        # 한 달 SMM KINGS 충전액
+        cursor.execute("""
+            SELECT SUM(smmkings_cost) as monthly_smmkings_charge 
+            FROM orders 
+            WHERE status = 'completed' AND created_at >= ?
+        """, (one_month_ago.strftime('%Y-%m-%d'),))
+        monthly_smmkings_charge = cursor.fetchone()['monthly_smmkings_charge'] or 0
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'totalUsers': total_users,
+                'monthlyUsers': monthly_users,
+                'totalRevenue': total_revenue,
+                'monthlyRevenue': monthly_revenue,
+                'totalSMMKingsCharge': total_smmkings_charge,
+                'monthlySMMKingsCharge': monthly_smmkings_charge
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/admin/transactions', methods=['GET'])
+def get_admin_transactions():
+    """충전 및 환불 내역 제공"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 충전 내역 (완료된 주문)
+        cursor.execute("""
+            SELECT 
+                id,
+                user_id as user,
+                total_amount as amount,
+                created_at as date,
+                status
+            FROM orders 
+            WHERE status = 'completed'
+            ORDER BY created_at DESC
+            LIMIT 20
+        """)
+        charges = []
+        for row in cursor.fetchall():
+            charges.append({
+                'id': row['id'],
+                'user': row['user'],
+                'amount': row['amount'],
+                'date': row['date'],
+                'status': row['status']
+            })
+        
+        # 환불 내역 (취소된 주문)
+        cursor.execute("""
+            SELECT 
+                id,
+                user_id as user,
+                total_amount as amount,
+                created_at as date,
+                '고객 요청' as reason
+            FROM orders 
+            WHERE status = 'cancelled'
+            ORDER BY created_at DESC
+            LIMIT 20
+        """)
+        refunds = []
+        for row in cursor.fetchall():
+            refunds.append({
+                'id': row['id'],
+                'user': row['user'],
+                'amount': row['amount'],
+                'date': row['date'],
+                'reason': row['reason']
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'charges': charges,
+                'refunds': refunds
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 # 프론트엔드 정적 파일 서빙
 @app.route('/', defaults={'path': ''})

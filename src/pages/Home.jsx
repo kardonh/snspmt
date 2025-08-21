@@ -31,7 +31,7 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { getPlatformInfo, calculatePrice } from '../utils/platformUtils'
 import { smmkingsApi, handleApiError, transformOrderData } from '../services/snspopApi'
-import { getSMMKingsServiceId, getSMMKingsServicePrice, getAvailableServices } from '../utils/smmkingsMapping'
+import { getSMMKingsServiceId, getSMMKingsServicePrice, getAvailableServices, getSMMKingsServiceMin, getSMMKingsServiceMax } from '../utils/smmkingsMapping'
 import './Home.css'
 
 const Home = () => {
@@ -40,6 +40,7 @@ const Home = () => {
   const [selectedPlatform, setSelectedPlatform] = useState('instagram')
   const [selectedServiceType, setSelectedServiceType] = useState('recommended')
   const [selectedService, setSelectedService] = useState('followers_korean')
+  const [selectedDetailedService, setSelectedDetailedService] = useState(null)
   const [quantity, setQuantity] = useState(200)
   const [totalPrice, setTotalPrice] = useState(0)
   const [showChecklist, setShowChecklist] = useState(false)
@@ -60,7 +61,7 @@ const Home = () => {
     { id: 'tiktok', name: '틱톡', icon: MessageCircle, color: '#000000', description: '팔로워, 좋아요, 조회수 서비스' },
     { id: 'threads', name: '스레드', icon: MessageSquare, color: '#000000', description: '스레드 서비스' },
     { id: 'twitter', name: '트위터', icon: Twitter, color: '#1da1f2', description: '팔로워, 리트윗, 좋아요 서비스' },
-    { id: 'naver', name: '제작중', icon: Globe, color: '#03c75a', description: '현재 서비스 개발 중입니다' },
+    { id: 'naver', name: '네이버', icon: Globe, color: '#03c75a', description: '네이버 라이브 서비스' },
     { id: 'news-media', name: '뉴스언론보도', icon: FileText, color: '#3b82f6', description: '뉴스 언론 보도 서비스' },
     { id: 'experience-group', name: '체험단', icon: Users, color: '#10b981', description: '체험단 서비스' },
     { id: 'kakao', name: '카카오', icon: MessageCircle, color: '#fbbf24', description: '카카오 서비스' },
@@ -70,135 +71,173 @@ const Home = () => {
     { id: 'other', name: '기타', icon: MoreHorizontal, color: '#6b7280', description: '기타 서비스' }
   ]
 
-
-
   // 플랫폼별 서비스 목록
   const getServicesForPlatform = (platform) => {
     switch (platform) {
       case 'instagram':
         return [
-          { id: 'followers_korean', name: '팔로워 (한국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200명 | 최소/최대: 100/20,000개 | 1개당 120원 | 리필불가 | ✴️ 인스타그램 업데이트로 인해 검토를 위한 플래그 지정을 꺼주세요 (설정 > 친구 팔로우 및 초대 > 검토를 위해 플래그 지정 끄기) | ✴️ 하루 약 500~1000명 팔로워 증가 | ✴️ 한국인 프로필 유저들로 유입되어 언팔에 의한 이탈 없음 | ✴️ 한국 시장에서의 신뢰도 및 인지도 향상 | ✴️ 인스타그램 인플루언서 프로그램 참여 자격 획득 가능 | ✴️ 브랜드 협업 및 수익화 기회 확대 | ✴️ 지역별 타겟팅으로 한국 시장 공략 가능 | ✴️ 계정 권위성 및 신뢰도 향상 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 100명 단위 주문 가능' },
-          { id: 'followers_foreign', name: '팔로워 (외국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200명 | 최소/최대: 100/2,000개 | 1개당 1원 | 리필불가 | ✴️ 인스타그램 업데이트로 인해 검토를 위한 플래그 지정을 꺼주세요 (설정 > 친구 팔로우 및 초대 > 검토를 위해 플래그 지정 끄기) | ✴️ 하루 약 500~1000명 팔로워 증가 | ✴️ 글로벌 팔로워로 구성되어 국제적인 영향력 향상 | ✴️ 국제 시장에서의 브랜드 인지도 향상 | ✴️ 다국어 콘텐츠로 글로벌 시장 공략 가능 | ✴️ 인스타그램 인플루언서 프로그램 참여 자격 획득 가능 | ✴️ 브랜드 협업 및 수익화 기회 확대 | ✴️ 계정 권위성 및 신뢰도 향상 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 100명 단위 주문 가능' },
-          { id: 'likes_korean', name: '좋아요 (한국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200개 | 최소/최대: 50/10,000개 | 1개당 7원 | 리필불가 | ✴️ 한국인 사용자로부터 좋아요를 받아 게시물의 인기도 향상 | ✴️ 자연스러운 한국어 사용자로 구성 | ✴️ 한국 시장에서의 콘텐츠 인기도 향상 | ✴️ 게시물 노출도 및 상호작용 증가 | ✴️ 댓글 및 공유 가능성 증가 | ✴️ 인스타그램 알고리즘에서 우선순위 상승 | ✴️ 브랜드 인지도 및 신뢰도 향상 | ✴️ 지역별 타겟팅으로 한국 시장 공략 가능 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 50명 단위 주문 가능' },
-          { id: 'likes_foreign', name: '좋아요 (외국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200개 | 최소/최대: 100/50,000개 | 1개당 1원 | 리필불가 | ✴️ 외국인 사용자로부터 좋아요를 받아 게시물의 인기도 향상 | ✴️ 글로벌 사용자로 구성되어 국제적인 영향력 향상 | ✴️ 국제 시장에서의 콘텐츠 인기도 향상 | ✴️ 게시물 노출도 및 상호작용 증가 | ✴️ 다국어 댓글 및 공유 가능성 증가 | ✴️ 인스타그램 알고리즘에서 우선순위 상승 | ✴️ 글로벌 브랜드 인지도 및 신뢰도 향상 | ✴️ 해시태그 트렌딩 효과로 바이럴 확산 가능성 증대 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 100명 단위 주문 가능' },
-          { id: 'comments_korean', name: '댓글 (한국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200개 | 최소/최대: 5/100개 | 1개당 200원 | 리필불가 | ✴️ 한국어 댓글을 달아 게시물의 상호작용 증가 | ✴️ 커스텀 댓글 입력 가능 | ✴️ 자연스러운 한국어 사용자로 구성 | ✴️ 한국 시장에서의 콘텐츠 인기도 향상 | ✴️ 댓글을 통한 추가 상호작용 유도 | ✴️ 인스타그램 알고리즘에서 우선순위 상승 | ✴️ 브랜드 인지도 및 신뢰도 향상 | ✴️ 지역별 타겟팅으로 한국 시장 공략 가능 | ✴️ 게시물 노출도 및 상호작용 증가 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 5명 단위 주문 가능' },
-          { id: 'comments_foreign', name: '댓글 (외국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200개 | 최소/최대: 10/1,000개 | 1개당 50원 | 리필불가 | ✴️ 외국어 댓글을 달아 게시물의 상호작용 증가 | ✴️ 글로벌 사용자로 구성되어 국제적인 영향력 향상 | ✴️ 국제 시장에서의 콘텐츠 인기도 향상 | ✴️ 다국어 댓글로 국제적 소통 증대 | ✴️ 게시물 노출도 및 상호작용 증가 | ✴️ 인스타그램 알고리즘에서 우선순위 상승 | ✴️ 글로벌 브랜드 인지도 및 신뢰도 향상 | ✴️ 해시태그 트렌딩 효과로 바이럴 확산 가능성 증대 | ✴️ 지역별 타겟팅으로 특정 국가 시장 공략 가능 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 10명 단위 주문 가능' },
-          { id: 'views_korean', name: '조회수 (한국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200개 | 최소/최대: 100/100,000,000개 | 1개당 1원 | 리필불가 | ✴️ 한국인 사용자로부터 조회수를 증가시켜 콘텐츠의 노출도 향상 | ✴️ 자연스러운 한국어 사용자로 구성 | ✴️ 한국 시장에서의 콘텐츠 인기도 향상 | ✴️ 스토리 및 릴스 노출도 증가 | ✴️ 인스타그램 알고리즘에서 우선순위 상승 | ✴️ 브랜드 인지도 및 신뢰도 향상 | ✴️ 지역별 타겟팅으로 한국 시장 공략 가능 | ✴️ 스토리 광고 및 브랜드 협업 기회 확대 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 100명 단위 주문 가능' },
-          { id: 'views_foreign', name: '조회수 (외국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200개 | 최소/최대: 100/100,000,000개 | 1개당 0.5원 | 리필불가 | ✴️ 외국인 사용자로부터 조회수를 증가시켜 콘텐츠의 노출도 향상 | ✴️ 글로벌 사용자로 구성되어 국제적인 영향력 향상 | ✴️ 국제 시장에서의 콘텐츠 인기도 향상 | ✴️ 스토리 및 릴스 노출도 증가 | ✴️ 인스타그램 알고리즘에서 우선순위 상승 | ✴️ 글로벌 브랜드 인지도 및 신뢰도 향상 | ✴️ 지역별 타겟팅으로 특정 국가 시장 공략 가능 | ✴️ 해시태그 트렌딩 효과로 바이럴 확산 가능성 증대 | ✴️ 스토리 광고 및 브랜드 협업 기회 확대 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 100명 단위 주문 가능' }
+          { id: 'followers_korean', name: '팔로워 (한국인)', description: '한국인 팔로워 서비스' },
+          { id: 'followers_foreign', name: '팔로워 (외국인)', description: '외국인 팔로워 서비스' },
+          { id: 'likes_korean', name: '좋아요 (한국인)', description: '한국인 좋아요 서비스' },
+          { id: 'likes_foreign', name: '좋아요 (외국인)', description: '외국인 좋아요 서비스' },
+          { id: 'comments_korean', name: '댓글 (한국인)', description: '한국인 댓글 서비스' },
+          { id: 'comments_foreign', name: '댓글 (외국인)', description: '외국인 댓글 서비스' },
+          { id: 'views_korean', name: '조회수 (한국인)', description: '한국인 조회수 서비스' },
+          { id: 'views_foreign', name: '조회수 (외국인)', description: '외국인 조회수 서비스' }
         ]
       case 'youtube':
         return [
-          { id: 'followers_foreign', name: '구독자 (외국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200명 | 최소/최대: 100/100개 | 1개당 50원 | 리필불가 | ✴️ 외국인 사용자로부터 유튜브 채널의 구독자 수 증가 | ✴️ 글로벌 사용자로 구성되어 국제적인 영향력 향상 | ✴️ 채널 인기도 및 권위성 향상 | ✴️ 유튜브 파트너 프로그램 참여 자격 획득 가능 | ✴️ 광고 수익 및 브랜드 협업 기회 확대 | ✴️ 다국어 콘텐츠로 글로벌 시장 공략 가능 | ✴️ 채널 추천 알고리즘에서 우선순위 상승 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 100명 단위 주문 가능' },
-          { id: 'followers_korean', name: '구독자 (리얼 한국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200명 | 최소/최대: 50/1,000개 | 1개당 500원 | 리필불가 | ✴️ 리얼 한국인 사용자로부터 유튜브 채널의 구독자 수 증가 | ✴️ 자연스러운 한국어 사용자로 구성 | ✴️ 채널 인기도 및 권위성 향상 | ✴️ 언팔에 의한 이탈 최소화 | ✴️ 한국 시장에서의 신뢰도 및 인지도 향상 | ✴️ 유튜브 파트너 프로그램 참여 자격 획득 가능 | ✴️ 한국 시장에서의 브랜드 협업 기회 확대 | ✴️ 채널 추천 알고리즘에서 우선순위 상승 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 50명 단위 주문 가능' },
-          { id: 'likes_foreign', name: '좋아요 (외국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200개 | 최소/최대: 100/5,000개 | 1개당 7원 | 리필불가 | ✴️ 외국인 사용자로부터 유튜브 동영상의 좋아요 수 증가 | ✴️ 글로벌 사용자로 구성되어 국제적인 영향력 향상 | ✴️ 동영상 인기도 및 추천 알고리즘 향상 | ✴️ 동영상 노출도 및 검색 순위 상승 | ✴️ 댓글 및 공유 가능성 증가 | ✴️ 글로벌 시장에서의 콘텐츠 인기도 향상 | ✴️ 브랜드 인지도 및 신뢰도 향상 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 100명 단위 주문 가능' },
-          { id: 'comments_korean', name: '댓글 (AI 랜덤 한국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200개 | 최소/최대: 10/10,000개 | 1개당 150원 | 리필불가 | ✴️ AI가 생성한 한국어 댓글을 달아 동영상의 상호작용 증가 | ✴️ 자연스러운 한국어 댓글으로 구성 | ✴️ 동영상 인기도 및 추천 알고리즘 향상 | ✴️ 한국 시장에서의 콘텐츠 인기도 향상 | ✴️ 댓글을 통한 추가 상호작용 유도 | ✴️ 동영상 노출도 및 검색 순위 상승 | ✴️ 브랜드 인지도 및 신뢰도 향상 | ✴️ 지역별 타겟팅으로 한국 시장 공략 가능 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 10명 단위 주문 가능' },
-          { id: 'views_foreign', name: '조회수 (외국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200개 | 최소/최대: 100/10,000,000개 | 1개당 7원 | 리필불가 | ✴️ 외국인 사용자로부터 유튜브 동영상의 조회수 증가 | ✴️ 글로벌 사용자로 구성되어 국제적인 영향력 향상 | ✴️ 동영상 노출도 및 추천 알고리즘 향상 | ✴️ 동영상 검색 순위 및 추천 영상 등극 가능 | ✴️ 글로벌 시장에서의 콘텐츠 인기도 향상 | ✴️ 광고 수익 및 브랜드 협업 기회 확대 | ✴️ 브랜드 인지도 및 신뢰도 향상 | ✴️ 동영상 트렌딩 효과로 바이럴 확산 가능성 증대 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 100명 단위 주문 가능' },
-          { id: 'views_korean', name: '조회수 (리얼 한국인)', description: '품질: 고품질 | 시작시간: 5분 | 하루유입량: 100~200개 | 최소/최대: 4,000/100,000개 | 1개당 25원 | 리필불가 | ✴️ 리얼 한국인 사용자로부터 유튜브 동영상의 조회수 증가 | ✴️ 자연스러운 한국어 사용자로 구성 | ✴️ 동영상 노출도 및 추천 알고리즘 향상 | ✴️ 언팔에 의한 이탈 최소화 | ✴️ 한국 시장에서의 콘텐츠 인기도 향상 | ✴️ 동영상 검색 순위 및 추천 영상 등극 가능 | ✴️ 한국 시장에서의 브랜드 협업 기회 확대 | ✴️ 지역별 타겟팅으로 한국 시장 공략 가능 | 계정공개 필수, 비공개 계정 작업 불가 | 주문접수 후 취소/변경/환불 불가 | 1,000명 단위 주문 가능' }
+          { id: 'followers_korean', name: '구독자', description: '구독자 서비스' },
+          { id: 'likes_foreign', name: '좋아요', description: '좋아요 서비스' },
+          { id: 'views_foreign', name: '조회수', description: '조회수 서비스' }
         ]
-      case 'naver':
+      case 'tiktok':
         return [
-          { id: 'under_development', name: '제작중', description: '현재 서비스 개발 중입니다. 곧 새로운 서비스로 찾아뵙겠습니다.' }
+          { id: 'followers_foreign', name: '팔로워 (외국인)', description: '외국인 팔로워 서비스' },
+          { id: 'likes_foreign', name: '좋아요 (외국인)', description: '외국인 좋아요 서비스' },
+          { id: 'views_foreign', name: '조회수 (외국인)', description: '외국인 조회수 서비스' },
+          { id: 'comments_foreign', name: '댓글 (외국인)', description: '외국인 댓글 서비스' },
+          { id: 'shares_foreign', name: '공유/저장 (외국인)', description: '외국인 공유/저장 서비스' },
+          { id: 'story_foreign', name: '스토리 (외국인)', description: '외국인 스토리 서비스' },
+          { id: 'live_foreign', name: '라이브 (외국인)', description: '외국인 라이브 서비스' }
+        ]
+      case 'facebook':
+        return [
+          { id: 'page_likes_foreign', name: '팬페이지 좋아요', description: '팬페이지 좋아요 서비스' },
+          { id: 'post_likes_foreign', name: '게시물 좋아요', description: '게시물 좋아요 서비스' },
+          { id: 'video_views_foreign', name: '비디오 조회수', description: '비디오 조회수 서비스' },
+          { id: 'comments_foreign', name: '댓글', description: '댓글 서비스' }
         ]
       case 'threads':
         return [
-          { id: 'threads_service', name: '스레드 서비스', description: '스레드 플랫폼 서비스입니다.' }
+          { id: 'followers_foreign', name: '팔로워 (외국인)', description: '외국인 팔로워 서비스' },
+          { id: 'likes_foreign', name: '좋아요 (외국인)', description: '외국인 좋아요 서비스' }
         ]
-      case 'news-media':
+      case 'naver':
         return [
-          { id: 'news_service', name: '뉴스 언론 보도', description: '뉴스 언론 보도 서비스입니다.' }
-        ]
-      case 'experience-group':
-        return [
-          { id: 'experience_service', name: '체험단 서비스', description: '체험단 서비스입니다.' }
-        ]
-      case 'kakao':
-        return [
-          { id: 'kakao_service', name: '카카오 서비스', description: '카카오 플랫폼 서비스입니다.' }
-        ]
-      case 'store-marketing':
-        return [
-          { id: 'store_service', name: '스토어 마케팅', description: '스토어 마케팅 서비스입니다.' }
-        ]
-      case 'app-marketing':
-        return [
-          { id: 'app_service', name: '앱 마케팅', description: '앱 마케팅 서비스입니다.' }
-        ]
-      case 'seo-traffic':
-        return [
-          { id: 'seo_service', name: 'SEO 트래픽', description: 'SEO 트래픽 서비스입니다.' }
-        ]
-      case 'other':
-        return [
-          { id: 'other_service', name: '기타 서비스', description: '기타 서비스입니다.' }
+          { id: 'live_foreign', name: '네이버 라이브', description: '네이버 라이브 서비스' }
         ]
       case 'recommended':
-      case 'event':
-      case 'top-exposure':
-      case 'account-management':
-      case 'package':
         return [
-          { id: 'general_service', name: '일반 서비스', description: '일반적인 서비스입니다.' }
+          { id: 'instagram_followers', name: '인스타그램 팔로워', description: '인기 팔로워 서비스' },
+          { id: 'instagram_likes', name: '인스타그램 좋아요', description: '인기 좋아요 서비스' },
+          { id: 'instagram_popular', name: '인스타그램 상위노출', description: '인기 상위노출 서비스' },
+          { id: 'youtube_subscribers', name: '유튜브 구독자', description: '인기 구독자 서비스' },
+          { id: 'youtube_views', name: '유튜브 조회수', description: '인기 조회수 서비스' },
+          { id: 'tiktok_followers', name: '틱톡 팔로워', description: '인기 팔로워 서비스' },
+          { id: 'tiktok_views', name: '틱톡 조회수', description: '인기 조회수 서비스' },
+          { id: 'facebook_page_likes', name: '페이스북 팬페이지 좋아요', description: '인기 팬페이지 서비스' },
+          { id: 'twitter_followers', name: '트위터 팔로워', description: '인기 팔로워 서비스' }
         ]
       default:
-        return [
-          { id: 'default_service', name: '기본 서비스', description: '선택된 플랫폼에 대한 기본 서비스입니다.' }
-        ]
+        return []
     }
   }
 
-  const platformInfo = getPlatformInfo(selectedPlatform)
+  // 서비스 타입별 세부 서비스 목록
+  const getDetailedServices = (platform, serviceType) => {
+    const availableServices = getAvailableServices(platform)
+    return availableServices.filter(service => {
+      // 서비스 타입에 따라 필터링
+      if (serviceType === 'followers_korean') {
+        return service.id.includes('followers') && service.name.includes('한국') || service.name.includes('HQ') || service.name.includes('실제')
+      } else if (serviceType === 'followers_foreign') {
+        return service.id.includes('followers') && !service.name.includes('한국')
+      } else if (serviceType === 'likes_korean') {
+        return service.id.includes('likes') && service.name.includes('한국') || service.name.includes('UHQ')
+      } else if (serviceType === 'likes_foreign') {
+        return service.id.includes('likes') && !service.name.includes('한국') && !service.name.includes('UHQ')
+      } else if (serviceType === 'comments_korean') {
+        return service.id.includes('comments') && service.name.includes('한국') || service.name.includes('커스텀') || service.name.includes('랜덤')
+      } else if (serviceType === 'comments_foreign') {
+        return service.id.includes('comments') && !service.name.includes('한국')
+      } else if (serviceType === 'views_korean') {
+        return service.id.includes('views') && service.name.includes('한국')
+      } else if (serviceType === 'views_foreign') {
+        return service.id.includes('views') && !service.name.includes('한국')
+      } else if (serviceType === 'shares_foreign') {
+        return service.id.includes('shares') || service.id.includes('saves')
+      } else if (serviceType === 'story_foreign') {
+        return service.id.includes('story')
+      } else if (serviceType === 'live_foreign') {
+        return service.id.includes('live')
+      } else if (serviceType === 'followers_foreign' && platform === 'threads') {
+        return service.id.includes('followers')
+      } else if (serviceType === 'likes_foreign' && platform === 'threads') {
+        return service.id.includes('likes')
+      } else if (serviceType === 'live_foreign' && platform === 'naver') {
+        return service.id.includes('live') || service.id.includes('tv')
+      } else if (serviceType === 'followers_korean' && platform === 'youtube') {
+        return service.id.includes('subscribers')
+      } else if (serviceType === 'page_likes_foreign' && platform === 'facebook') {
+        return service.id.includes('page_likes')
+      } else if (serviceType === 'post_likes_foreign' && platform === 'facebook') {
+        return service.id.includes('post_likes')
+      } else if (serviceType === 'video_views_foreign' && platform === 'facebook') {
+        return service.id.includes('video_views')
+      } else if (serviceType === 'comments_foreign' && platform === 'facebook') {
+        return service.id.includes('comments')
+      } else if (platform === 'recommended') {
+        // 추천서비스는 각 플랫폼의 인기 서비스들을 매핑
+        if (serviceType === 'instagram_followers') {
+          return service.id.includes('followers') && (service.name.includes('인스타그램') || service.name.includes('Instagram'))
+        } else if (serviceType === 'instagram_likes') {
+          return service.id.includes('likes') && (service.name.includes('인스타그램') || service.name.includes('Instagram'))
+        } else if (serviceType === 'instagram_popular') {
+          return service.id.includes('popular') && (service.name.includes('인스타그램') || service.name.includes('Instagram'))
+        } else if (serviceType === 'youtube_subscribers') {
+          return service.id.includes('subscribers') && (service.name.includes('YouTube') || service.name.includes('유튜브'))
+        } else if (serviceType === 'youtube_views') {
+          return service.id.includes('views') && (service.name.includes('YouTube') || service.name.includes('유튜브'))
+        } else if (serviceType === 'tiktok_followers') {
+          return service.id.includes('followers') && (service.name.includes('틱톡') || service.name.includes('TikTok'))
+        } else if (serviceType === 'tiktok_views') {
+          return service.id.includes('views') && (service.name.includes('틱톡') || service.name.includes('TikTok'))
+        } else if (serviceType === 'facebook_page_likes') {
+          return service.id.includes('page_likes') && (service.name.includes('페이스북') || service.name.includes('Facebook'))
+        } else if (serviceType === 'twitter_followers') {
+          return service.id.includes('followers') && (service.name.includes('트위터') || service.name.includes('Twitter') || service.name.includes('X'))
+        }
+      }
+      return false
+    })
+  }
+
   const services = getServicesForPlatform(selectedPlatform)
+  const detailedServices = getDetailedServices(selectedPlatform, selectedService)
 
-  // snspop API 서비스 ID 매핑
-  const serviceIdMapping = {
-    instagram: {
-      followers_korean: 577,
-      followers_foreign: 855,
-      likes_korean: 790,
-      likes_foreign: 458,
-      comments_korean: 841,
-      comments_foreign: 645,
-      views_korean: 619,
-      views_foreign: 791
-    },
-    youtube: {
-      followers_foreign: 150,
-      followers_korean: 872,
-      likes_foreign: 638,
-      comments_korean: 869,
-      views_foreign: 833,
-      views_korean: 731
-    }
-  }
+  // 플랫폼 정보 가져오기
+  const platformInfo = getPlatformInfo(selectedPlatform)
 
   // 수량 옵션 생성
-  const getQuantityOptions = (platform, service) => {
-    if (platform === 'instagram') {
-      switch (service) {
-        case 'followers_foreign': return [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000]
-        case 'followers_korean': return [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000]
-        case 'likes_foreign': return [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 25000, 30000, 40000, 50000]
-        case 'likes_korean': return [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
-        case 'comments_korean': return [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100]
-        case 'comments_foreign': return [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000]
-        default: return [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
+  const getQuantityOptions = (platform, serviceId) => {
+    if (selectedDetailedService) {
+      const min = selectedDetailedService.min
+      const max = selectedDetailedService.max
+      
+      // 10개 단위로 수량 옵션 생성
+      const options = []
+      let current = min
+      
+      // 최소값을 10의 배수로 조정
+      const adjustedMin = Math.ceil(min / 10) * 10
+      current = Math.max(min, adjustedMin)
+      
+      while (current <= max && options.length < 50) {
+        options.push(current)
+        current += 10
       }
-    } else if (platform === 'youtube') {
-      switch (service) {
-        case 'followers_foreign': return [100]
-        case 'followers_korean': return [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
-        case 'likes_foreign': return [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000]
-        case 'comments_korean': return [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
-        case 'views_foreign': return [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000, 150000, 200000, 250000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 1500000, 2000000, 2500000, 3000000, 4000000, 5000000, 6000000, 7000000, 8000000, 9000000, 10000000]
-        case 'views_korean': return [4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000]
-        default: return [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
+      
+      // 최대값이 포함되지 않았다면 추가
+      if (options.length > 0 && options[options.length - 1] < max) {
+        options.push(max)
       }
-    } else if (platform === 'naver') {
-      return [1] // 제작중이므로 수량 옵션을 1개로 제한
-    } else if (['recommended', 'event', 'top-exposure', 'account-management', 'package', 'other', 'threads', 'news-media', 'experience-group', 'kakao', 'store-marketing', 'app-marketing', 'seo-traffic'].includes(platform)) {
-      return [1, 5, 10, 20, 50, 100] // 서비스 유형들은 기본 수량 옵션
+      
+      return options
     }
-    return [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
+    
+    // 기본 수량 옵션 (10개 단위)
+    return [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000]
   }
 
   const quantityOptions = getQuantityOptions(selectedPlatform, selectedService)
@@ -217,14 +256,13 @@ const Home = () => {
 
   // 가격 계산 (SMM KINGS 가격 사용)
   useEffect(() => {
-    if (!selectedPlatform || !selectedService || quantity <= 0) {
+    if (!selectedPlatform || !selectedDetailedService || quantity <= 0) {
       setTotalPrice(0)
       return
     }
     
     // SMM KINGS 가격 사용
-    const smmkingsPrice = getSMMKingsServicePrice(selectedPlatform, selectedService)
-    const basePrice = smmkingsPrice * quantity
+    const basePrice = selectedDetailedService.price * quantity
     
     // 할인 적용
     let discount = 0
@@ -238,11 +276,12 @@ const Home = () => {
     
     const finalPrice = basePrice * (1 - discount / 100)
     setTotalPrice(Math.round(finalPrice))
-  }, [selectedService, quantity, selectedPlatform])
+  }, [selectedDetailedService, quantity, selectedPlatform])
 
   const handlePlatformSelect = (platformId) => {
     setSelectedPlatform(platformId)
     setSelectedServiceType('recommended')
+    setSelectedDetailedService(null)
     
     // 플랫폼에 따라 기본 서비스 설정
     if (['recommended', 'event', 'top-exposure', 'account-management', 'package', 'other', 'threads', 'news-media', 'experience-group', 'kakao', 'store-marketing', 'app-marketing', 'seo-traffic'].includes(platformId)) {
@@ -260,14 +299,33 @@ const Home = () => {
 
   const handleServiceSelect = (serviceId) => {
     setSelectedService(serviceId)
-    const newQuantityOptions = getQuantityOptions(selectedPlatform, serviceId)
-    if (!newQuantityOptions.includes(quantity)) {
-      setQuantity(newQuantityOptions[0])
+    setSelectedDetailedService(null)
+    
+    // 세부 서비스가 있으면 첫 번째 것을 기본 선택
+    const detailedServices = getDetailedServices(selectedPlatform, serviceId)
+    if (detailedServices.length > 0) {
+      setSelectedDetailedService(detailedServices[0])
+      setQuantity(detailedServices[0].min)
     }
   }
 
+  const handleDetailedServiceSelect = (detailedService) => {
+    setSelectedDetailedService(detailedService)
+    setQuantity(detailedService.min)
+  }
+
   const handleQuantityChange = (newQuantity) => {
-    setQuantity(newQuantity)
+    if (selectedDetailedService) {
+      const min = selectedDetailedService.min
+      const max = selectedDetailedService.max
+      
+      // 최소/최대 범위 내에서만 수량 변경 허용
+      if (newQuantity >= min && newQuantity <= max) {
+        setQuantity(newQuantity)
+      }
+    } else {
+      setQuantity(newQuantity)
+    }
   }
 
   const handlePremiumCheck = () => {
@@ -288,6 +346,11 @@ const Home = () => {
       return
     }
 
+    if (!selectedDetailedService) {
+      alert('세부 서비스를 선택해주세요.')
+      return
+    }
+
     if (!link.trim()) {
       alert('링크를 입력해주세요!')
       return
@@ -302,23 +365,8 @@ const Home = () => {
     setIsLoading(true)
 
     try {
-      const serviceId = serviceIdMapping[selectedPlatform]?.[selectedService]
-      
-      if (!serviceId) {
-        alert('지원하지 않는 서비스입니다.')
-        return
-      }
-
-      // SMM KINGS 서비스 ID 가져오기
-      const smmkingsServiceId = getSMMKingsServiceId(selectedPlatform, selectedService)
-      
-      if (!smmkingsServiceId) {
-        alert('선택한 서비스에 대한 SMM KINGS 매핑을 찾을 수 없습니다.')
-        return
-      }
-
       const orderData = {
-        serviceId: smmkingsServiceId, // SMM KINGS 실제 서비스 ID 사용
+        serviceId: selectedDetailedService.smmkings_id,
         link: link.trim(),
         quantity,
         runs: 1,
@@ -344,9 +392,9 @@ const Home = () => {
         const paymentData = {
           orderId: result.order,
           platform: selectedPlatform,
-          serviceName: services.find(s => s.id === selectedService)?.name || selectedService,
+          serviceName: selectedDetailedService.name,
           quantity: quantity,
-          unitPrice: platformInfo.unitPrice,
+          unitPrice: selectedDetailedService.price,
           totalPrice: totalPrice,
           link: link.trim(),
           comments: comments.trim(),
@@ -376,8 +424,9 @@ const Home = () => {
         id: Date.now(),
         platform: selectedPlatform,
         service: selectedService,
+        detailedService: selectedDetailedService,
         quantity,
-        unitPrice: platformInfo.unitPrice,
+        unitPrice: selectedDetailedService?.price || 0,
         totalPrice,
         timestamp: new Date().toISOString()
       }
@@ -433,7 +482,7 @@ const Home = () => {
       
       {/* Service Type Selection */}
       <div className="service-type-selection">
-        <h3>세부 서비스를 선택해주세요</h3>
+        <h3>서비스 타입을 선택해주세요</h3>
         
         {/* Premium Quality Check Button */}
         <div className="service-item premium-check" onClick={handlePremiumCheck}>
@@ -470,15 +519,40 @@ const Home = () => {
         </div>
       </div>
       
-                {/* Order Form */}
-      {selectedService && (
+      {/* Detailed Service Selection */}
+      {selectedService && detailedServices.length > 0 && (
+        <div className="detailed-service-selection">
+          <h3>세부 서비스를 선택해주세요</h3>
+          <div className="detailed-service-list">
+            {detailedServices.map((service) => (
+              <div 
+                key={service.id} 
+                className={`detailed-service-item ${selectedDetailedService?.id === service.id ? 'selected' : ''}`}
+                onClick={() => handleDetailedServiceSelect(service)}
+              >
+                <div className="detailed-service-content">
+                  <div className="detailed-service-info">
+                    <div className="detailed-service-name">{service.name}</div>
+                    <div className="detailed-service-range">최소: {service.min.toLocaleString()} ~ 최대: {service.max.toLocaleString()}</div>
+                  </div>
+                  <div className="detailed-service-price">{service.price.toFixed(2)}원</div>
+                </div>
+                </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Order Form */}
+      {selectedDetailedService && (
         <div className="order-form">
           <h3>주문 정보 입력</h3>
           
           {/* Service Description */}
           <div className="service-description">
             <h4>선택된 서비스</h4>
-            <p>{services.find(s => s.id === selectedService)?.description}</p>
+            <p>{selectedDetailedService.name}</p>
+            <p>1개당 {selectedDetailedService.price.toFixed(2)}원 | 최소: {selectedDetailedService.min.toLocaleString()} ~ 최대: {selectedDetailedService.max.toLocaleString()}</p>
           </div>
           
           {/* Quantity Selection */}
@@ -488,12 +562,12 @@ const Home = () => {
               <button 
                 className="quantity-btn" 
                 onClick={() => {
-                  const currentIndex = quantityOptions.indexOf(quantity)
-                  if (currentIndex > 0) {
-                    handleQuantityChange(quantityOptions[currentIndex - 1])
+                  const newQuantity = Math.max(selectedDetailedService.min, quantity - 10)
+                  if (newQuantity >= selectedDetailedService.min) {
+                    handleQuantityChange(newQuantity)
                   }
                 }}
-                disabled={quantityOptions.indexOf(quantity) === 0}
+                disabled={quantity <= selectedDetailedService.min}
               >
                 -
               </button>
@@ -506,24 +580,26 @@ const Home = () => {
               <button 
                 className="quantity-btn"
                 onClick={() => {
-                  const currentIndex = quantityOptions.indexOf(quantity)
-                  if (currentIndex < quantityOptions.length - 1) {
-                    handleQuantityChange(quantityOptions[currentIndex + 1])
+                  const newQuantity = Math.min(selectedDetailedService.max, quantity + 10)
+                  if (newQuantity <= selectedDetailedService.max) {
+                    handleQuantityChange(newQuantity)
                   }
                 }}
-                disabled={quantityOptions.indexOf(quantity) === quantityOptions.length - 1}
+                disabled={quantity >= selectedDetailedService.max}
               >
                 +
               </button>
-                  </div>
+                </div>
             <div className="quantity-info">
-              <p>1개당 {platformInfo.unitPrice}원</p>
+              <p>1개당 {selectedDetailedService.price.toFixed(2)}원</p>
+              <p>최소: {selectedDetailedService.min.toLocaleString()} ~ 최대: {selectedDetailedService.max.toLocaleString()}</p>
+              <p>10개 단위로 조정 가능</p>
               {getDiscount(quantity) > 0 && (
                 <p className="discount-applied">{getDiscount(quantity)}% 할인 적용</p>
               )}
         </div>
       </div>
-      
+
           {/* Link Input */}
           <div className="form-group">
             <label>링크 입력</label>
@@ -571,7 +647,7 @@ const Home = () => {
           <div className="price-display">
             <div className="total-price">{totalPrice.toLocaleString()}원</div>
             <div className="price-label">총 금액</div>
-          </div>
+              </div>
 
           {/* Action Buttons */}
           <div className="action-buttons">

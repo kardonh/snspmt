@@ -1,5 +1,10 @@
 export const getPlatformInfo = (platform) => {
   const platforms = {
+    recommended: {
+      name: '추천서비스',
+      unitPrice: 20,
+      services: ['instagram_followers', 'instagram_likes', 'instagram_popular', 'youtube_subscribers', 'youtube_views', 'tiktok_followers', 'tiktok_views', 'facebook_page_likes', 'twitter_followers']
+    },
     instagram: {
       name: '인스타그램',
       unitPrice: 25,
@@ -8,17 +13,22 @@ export const getPlatformInfo = (platform) => {
     youtube: {
       name: '유튜브',
       unitPrice: 30,
-      services: ['followers_foreign', 'followers_korean', 'likes_foreign', 'comments_korean', 'views_foreign', 'views_korean']
+      services: ['followers_korean', 'likes_foreign', 'views_foreign']
     },
     tiktok: {
       name: '틱톡',
       unitPrice: 22,
-      services: ['likes_foreign', 'followers_foreign', 'views_foreign', 'comments_foreign']
+      services: ['likes_foreign', 'followers_foreign', 'views_foreign', 'comments_foreign', 'shares_foreign', 'story_foreign', 'live_foreign']
+    },
+    threads: {
+      name: '스레드',
+      unitPrice: 25,
+      services: ['followers_foreign', 'likes_foreign']
     },
     facebook: {
       name: '페이스북',
       unitPrice: 20,
-      services: ['followers_korean', 'followers_foreign', 'likes_korean', 'likes_foreign', 'comments_korean']
+      services: ['page_likes_foreign', 'post_likes_foreign', 'video_views_foreign', 'comments_foreign']
     },
     twitter: {
       name: '트위터',
@@ -26,9 +36,9 @@ export const getPlatformInfo = (platform) => {
       services: ['followers_real']
     },
     naver: {
-      name: '제작중',
-      unitPrice: 0,
-      services: ['under_development']
+      name: '네이버',
+      unitPrice: 15,
+      services: ['live_foreign']
     }
   }
   

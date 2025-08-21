@@ -144,6 +144,29 @@
   font-weight: 500;
 }
 
+/* 관리자 메뉴 스타일 */
+.admin-separator {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 1rem 0;
+}
+
+.admin-item {
+  border-left: 3px solid transparent;
+}
+
+.admin-item:hover {
+  background: rgba(220, 38, 38, 0.1);
+  border-left-color: #dc2626;
+}
+
+.admin-item.active {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+  border-left-color: #dc2626;
+}
+
 /* Business Information */
 .business-info {
   margin-top: auto;
