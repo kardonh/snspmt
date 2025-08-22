@@ -9,9 +9,9 @@ import sqlite3
 app = Flask(__name__)
 CORS(app)  # 모든 origin에서의 요청 허용
 
-# snspop API 설정
-SNSPOP_API_URL = 'https://snspop.com/api/v2'
-API_KEY = '5fccf26387249db082e60791afd7c358'
+# SMM KINGS API 설정
+SMMKINGS_API_URL = 'https://smmkings.com/api/v2'
+API_KEY = 'aa91dd380c10cf5fd875cb2b5626dd37'
 
 # 주문 데이터 저장소 (실제 프로덕션에서는 데이터베이스 사용)
 orders_db = {}
@@ -25,8 +25,8 @@ def proxy_api():
         # API 키 추가
         data['key'] = API_KEY
         
-        # snspop API로 요청 전달
-        response = requests.post(SNSPOP_API_URL, json=data, timeout=30)
+        # SMM KINGS API로 요청 전달
+        response = requests.post(SMMKINGS_API_URL, json=data, timeout=30)
         
         # 주문 생성인 경우 로컬에 저장
         if data.get('action') == 'add' and response.status_code == 200:
@@ -66,10 +66,10 @@ def get_user_orders():
         if user_id not in orders_db:
             return jsonify({'orders': []}), 200
         
-        # 주문 상태 업데이트 (snspop API에서 최신 상태 조회)
+        # 주문 상태 업데이트 (SMM KINGS API에서 최신 상태 조회)
         for order in orders_db[user_id]:
             try:
-                status_response = requests.post(SNSPOP_API_URL, json={
+                status_response = requests.post(SMMKINGS_API_URL, json={
                     'key': API_KEY,
                     'action': 'status',
                     'order': order['id']
@@ -105,9 +105,9 @@ def get_order_detail(order_id):
         if not order:
             return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
         
-        # snspop API에서 최신 상태 조회
+        # SMM KINGS API에서 최신 상태 조회
         try:
-            status_response = requests.post(SNSPOP_API_URL, json={
+            status_response = requests.post(SMMKINGS_API_URL, json={
                 'key': API_KEY,
                 'action': 'status',
                 'order': order_id
@@ -125,20 +125,20 @@ def get_order_detail(order_id):
         return jsonify({'error': f'주문 상세 조회 실패: {str(e)}'}), 500
 
 @app.route('/api/services', methods=['GET'])
-def get_snspop_services():
-    """snspop API에서 실제 서비스 목록 조회"""
+def get_smmkings_services():
+    """SMM KINGS API에서 실제 서비스 목록 조회"""
     try:
-        response = requests.post(SNSPOP_API_URL, json={
+        response = requests.post(SMMKINGS_API_URL, json={
             'key': API_KEY,
             'action': 'services'
         }, timeout=30)
         
         if response.status_code == 200:
             services_data = response.json()
-            print(f"Snspop API Services Response: {services_data}")  # 디버깅용
+            print(f"SMM KINGS API Services Response: {services_data}")  # 디버깅용
             return jsonify(services_data), 200
         else:
-            return jsonify({'error': f'Snspop API 오류: {response.status_code}'}), response.status_code
+            return jsonify({'error': f'SMM KINGS API 오류: {response.status_code}'}), response.status_code
             
     except Exception as e:
         return jsonify({'error': f'서비스 조회 실패: {str(e)}'}), 500
