@@ -320,8 +320,35 @@
 /* 서비스 목록 */
 .service-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 24px;
+}
+
+/* 서비스 그리드 반응형 조정 */
+@media (max-width: 1200px) {
+  .service-list {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 900px) {
+  .service-list {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .service-list {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .service-list {
+    gap: 14px;
+  }
 }
 
 .service-item {
@@ -458,6 +485,19 @@
     0 8px 16px rgba(0, 0, 0, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(135, 206, 235, 0.1);
+}
+
+/* 주문 폼 반응형 조정 */
+@media (max-width: 768px) {
+  .order-form {
+    padding: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-form {
+    padding: 20px;
+  }
 }
 
 .order-form h3 {
@@ -946,15 +986,24 @@
 }
 
 /* 반응형 디자인 */
+@media (max-width: 1400px) {
+  .platform-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 18px;
+  }
+}
+
 @media (max-width: 1200px) {
   .platform-grid {
     grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
   }
 }
 
 @media (max-width: 900px) {
   .platform-grid {
     grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
   }
   
   .service-list {
@@ -969,7 +1018,6 @@
   
   .platform-grid {
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(6, 1fr);
     gap: 12px;
   }
   
@@ -1087,8 +1135,7 @@
   }
   
   .platform-grid {
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(6, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }
   
