@@ -35,6 +35,10 @@ def proxy_api():
                 order_id = response_data['order']
                 user_id = request.headers.get('X-User-ID', 'anonymous')
                 
+                # 디버깅용 로그
+                print(f"주문 생성: order_id={order_id}, user_id={user_id}")
+                print(f"주문 데이터: {data}")
+                
                 if user_id not in orders_db:
                     orders_db[user_id] = []
                 
@@ -48,6 +52,8 @@ def proxy_api():
                     'user_id': user_id
                 }
                 orders_db[user_id].append(order_info)
+                print(f"저장된 주문: {order_info}")
+                print(f"현재 orders_db: {orders_db}")
         
         # 응답 반환
         return jsonify(response.json()), response.status_code
@@ -63,7 +69,12 @@ def get_user_orders():
     try:
         user_id = request.args.get('user_id', 'anonymous')
         
+        # 디버깅용 로그
+        print(f"주문 조회 요청: user_id={user_id}")
+        print(f"현재 orders_db: {orders_db}")
+        
         if user_id not in orders_db:
+            print(f"사용자 {user_id}의 주문이 없음")
             return jsonify({'orders': []}), 200
         
         # 주문 상태 업데이트 (SMM KINGS API에서 최신 상태 조회)
