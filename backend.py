@@ -32,8 +32,9 @@ monthly_costs = {}  # {year_month: total_cost}
 def calculate_and_store_cost(service_id, quantity, total_price):
     """주문의 원가를 계산하고 월별 통계에 저장"""
     try:
-        # 원가 계산 (총 가격의 2/3로 가정 - 실제 원가)
-        cost_rate = 2/3  # 원가율 66.67%
+        # 원가 계산 (총 가격의 1/1.5 = 2/3 = 66.67% - 실제 원가)
+        # 현재 가격이 1.5배 인상된 가격이므로, 실제 원가는 1/1.5배
+        cost_rate = 1/1.5  # 원가율 66.67%
         cost = total_price * cost_rate
         
         # 현재 월 키 생성
@@ -293,15 +294,15 @@ def get_admin_stats():
         """, (one_month_ago.strftime('%Y-%m-%d'),))
         monthly_users = cursor.fetchone()['monthly_users']
         
-        # 총 매출액
-        cursor.execute("SELECT SUM(total_amount) as total_revenue FROM orders WHERE status = 'completed'")
+        # 총 매출액 (포인트 충전 금액)
+        cursor.execute("SELECT SUM(price) as total_revenue FROM purchases WHERE status = 'approved'")
         total_revenue = cursor.fetchone()['total_revenue'] or 0
         
-        # 한 달 매출액
+        # 한 달 매출액 (포인트 충전 금액)
         cursor.execute("""
-            SELECT SUM(total_amount) as monthly_revenue 
-            FROM orders 
-            WHERE status = 'completed' AND created_at >= ?
+            SELECT SUM(price) as monthly_revenue 
+            FROM purchases 
+            WHERE status = 'approved' AND createdAt >= ?
         """, (one_month_ago.strftime('%Y-%m-%d'),))
         monthly_revenue = cursor.fetchone()['monthly_revenue'] or 0
         
