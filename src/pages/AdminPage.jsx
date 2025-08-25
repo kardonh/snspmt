@@ -176,7 +176,8 @@ const AdminPage = () => {
         totalRevenue: 2500000,
         monthlyRevenue: 180000,
         totalSMMKingsCharge: 1800000,
-        monthlySMMKingsCharge: 120000
+        monthlySMMKingsCharge: 120000,
+        monthlyCost: 96000
       }
       
       setStats(mockData)
@@ -200,23 +201,23 @@ const AdminPage = () => {
     const currentYear = now.getFullYear()
     
     let monthlyRevenue = 0
-    let monthlyCharge = 0
     
     purchases.forEach(purchase => {
       const purchaseDate = new Date(purchase.createdAt)
       if (purchaseDate.getMonth() === currentMonth && purchaseDate.getFullYear() === currentYear) {
         if (purchase.status === 'approved') {
           monthlyRevenue += purchase.price || 0
-          monthlyCharge += purchase.price || 0
         }
       }
     })
     
-    const monthlyProfit = monthlyRevenue - monthlyCharge
+    // 백엔드에서 받은 월 원가 사용
+    const monthlyCost = stats.monthlyCost || 0
+    const monthlyProfit = monthlyRevenue - monthlyCost
     
     setMonthlyStats({
       monthlyRevenue,
-      monthlyCharge,
+      monthlyCost,
       monthlyProfit
     })
   }
@@ -386,8 +387,8 @@ const AdminPage = () => {
             </div>
             <div className="monthly-item">
               <RefreshCw size={20} />
-              <span>월 충전액</span>
-              <strong>{formatCurrency(monthlyStats.monthlyCharge)}</strong>
+              <span>월 원가</span>
+              <strong>{formatCurrency(monthlyStats.monthlyCost)}</strong>
             </div>
             <div className="monthly-item">
               <TrendingDown size={20} />

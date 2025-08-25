@@ -26,6 +26,33 @@ purchases_db = {}  # 구매 신청 내역
 users_db = {}  # 사용자 정보
 user_sessions = {}  # 실시간 접속 사용자
 
+# 월별 원가 통계 저장소
+monthly_costs = {}  # {year_month: total_cost}
+
+def calculate_and_store_cost(service_id, quantity, total_price):
+    """주문의 원가를 계산하고 월별 통계에 저장"""
+    try:
+        # 원가 계산 (총 가격의 80%로 가정 - 실제로는 더 정확한 계산 필요)
+        cost_rate = 0.8  # 원가율 80%
+        cost = total_price * cost_rate
+        
+        # 현재 월 키 생성
+        current_month = datetime.now().strftime('%Y-%m')
+        
+        # 월별 원가 통계 업데이트
+        if current_month not in monthly_costs:
+            monthly_costs[current_month] = 0
+        
+        monthly_costs[current_month] += cost
+        
+        print(f"원가 계산 및 저장: service_id={service_id}, quantity={quantity}, total_price={total_price}, cost={cost}, monthly_costs={monthly_costs}")
+        
+        return cost
+        
+    except Exception as e:
+        print(f"원가 계산 오류: {str(e)}")
+        return 0
+
 @app.route('/api', methods=['POST'])
 def proxy_api():
     try:
@@ -49,6 +76,14 @@ def proxy_api():
                 print(f"주문 생성: order_id={order_id}, user_id={user_id}")
                 print(f"주문 데이터: {data}")
                 
+                # 원가 계산 및 저장
+                service_id = data.get('service')
+                quantity = data.get('quantity', 0)
+                total_price = data.get('price', 0)  # 프론트엔드에서 전달된 총 가격
+                
+                if total_price > 0:
+                    calculate_and_store_cost(service_id, quantity, total_price)
+                
                 if user_id not in orders_db:
                     orders_db[user_id] = []
                 
@@ -70,7 +105,8 @@ def proxy_api():
                     'old_posts': data.get('old_posts', 0),
                     'status': 'pending',
                     'created_at': datetime.now().isoformat(),
-                    'user_id': user_id
+                    'user_id': user_id,
+                    'total_price': total_price
                 }
                 orders_db[user_id].append(order_info)
                 print(f"저장된 주문: {order_info}")
@@ -281,6 +317,10 @@ def get_admin_stats():
         """, (one_month_ago.strftime('%Y-%m-%d'),))
         monthly_smmkings_charge = cursor.fetchone()['monthly_smmkings_charge'] or 0
         
+        # 현재 월의 원가 계산 (메모리에서 관리되는 원가 데이터 사용)
+        current_month = now.strftime('%Y-%m')
+        monthly_cost = monthly_costs.get(current_month, 0)
+        
         conn.close()
         
         return jsonify({
@@ -291,7 +331,8 @@ def get_admin_stats():
                 'totalRevenue': total_revenue,
                 'monthlyRevenue': monthly_revenue,
                 'totalSMMKingsCharge': total_smmkings_charge,
-                'monthlySMMKingsCharge': monthly_smmkings_charge
+                'monthlySMMKingsCharge': monthly_smmkings_charge,
+                'monthlyCost': monthly_cost
             }
         })
         

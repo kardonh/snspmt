@@ -760,7 +760,8 @@ const Home = () => {
         posts: 0,
         delay: 0,
         expiry: '',
-        oldPosts: 0
+        oldPosts: 0,
+        price: totalPrice  // 총 가격 추가
       }
 
       const transformedData = transformOrderData(orderData)
