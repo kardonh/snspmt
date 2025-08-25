@@ -488,11 +488,17 @@ def get_purchase_history():
     """구매 내역 조회"""
     try:
         user_id = request.args.get('user_id')
-        if not user_id:
-            return jsonify({'error': 'user_id is required'}), 400
         
-        history = purchases_db.get(user_id, [])
-        return jsonify({'history': history}), 200
+        if user_id:
+            # 특정 사용자의 구매 내역 조회
+            history = purchases_db.get(user_id, [])
+            return jsonify({'history': history}), 200
+        else:
+            # 관리자용: 모든 구매 내역 조회
+            all_history = {}
+            for uid, purchases in purchases_db.items():
+                all_history[uid] = purchases
+            return jsonify({'history': all_history}), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

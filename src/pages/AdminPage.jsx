@@ -53,25 +53,17 @@ const AdminPage = () => {
 
   // 관리자 이메일 체크
   useEffect(() => {
-    console.log('AdminPage useEffect - currentUser:', currentUser)
-    
     if (!currentUser) {
-      console.log('No currentUser, redirecting to home')
       navigate('/')
       return
     }
 
-    console.log('Current user email:', currentUser.email)
-    
     // 관리자 이메일 체크
     if (currentUser.email !== 'tambleofficial@gmail.com') {
-      console.log('Not admin user, redirecting to home')
       alert('관리자만 접근할 수 있습니다.')
       navigate('/')
       return
     }
-
-    console.log('Admin user confirmed, loading data')
     // 관리자 데이터 로드
     loadAdminData()
   }, [currentUser, navigate])
@@ -79,7 +71,7 @@ const AdminPage = () => {
   const loadAdminData = async () => {
     try {
       setLoading(true)
-      console.log('Loading admin data...')
+  
       
       // 백엔드 서버 URL 확인
       const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : ''
@@ -92,10 +84,7 @@ const AdminPage = () => {
         fetch(`${baseUrl}/api/admin/users`)
       ])
       
-      console.log('API responses:', { statsResponse, transactionsResponse, usersResponse })
-      console.log('Stats response status:', statsResponse.status)
-      console.log('Transactions response status:', transactionsResponse.status)
-      console.log('Users response status:', usersResponse.status)
+      
       
       // 응답 내용 확인
       const statsText = await statsResponse.text()
@@ -103,10 +92,7 @@ const AdminPage = () => {
       const purchasesText = await purchasesResponse.text()
       const usersText = await usersResponse.text()
       
-      console.log('Stats response text:', statsText.substring(0, 200))
-      console.log('Transactions response text:', transactionsText.substring(0, 200))
-      console.log('Purchases response text:', purchasesText.substring(0, 200))
-      console.log('Users response text:', usersText.substring(0, 200))
+      
       
       if (!statsResponse.ok || !transactionsResponse.ok || !purchasesResponse.ok || !usersResponse.ok) {
         throw new Error(`API 요청 실패: Stats ${statsResponse.status}, Transactions ${transactionsResponse.status}, Purchases ${purchasesResponse.status}, Users ${usersResponse.status}`)
@@ -124,7 +110,7 @@ const AdminPage = () => {
         throw new Error('API 응답이 유효한 JSON이 아닙니다')
       }
       
-      console.log('API data:', { statsData, transactionsData, purchasesData })
+      
       
       if (statsData.success) {
         setStats(statsData.data)

@@ -661,14 +661,6 @@ const Home = () => {
     }
     
     const finalPrice = basePrice * (1 - discount / 100)
-    console.log('가격 계산:', {
-      selectedPlatform,
-      selectedDetailedService: selectedDetailedService?.name,
-      quantity,
-      basePrice,
-      discount,
-      finalPrice
-    })
     setTotalPrice(Math.round(finalPrice))
   }, [selectedDetailedService, quantity, selectedPlatform])
 
@@ -728,9 +720,7 @@ const Home = () => {
     alert('주문 방법에 대한 상세한 가이드를 확인할 수 있습니다.')
   }
 
-  const handleInquiryClick = () => {
-    alert('1:1 문의 기능이 실행됩니다.')
-  }
+
 
   const handlePurchase = async () => {
     if (!currentUser) {
@@ -1124,13 +1114,7 @@ const Home = () => {
 
 
 
-      {/* 1:1 Inquiry Button */}
-      <div className="inquiry-button">
-        <button className="inquiry-btn" onClick={handleInquiryClick}>
-          <MessageCircle size={20} />
-          1:1 문의
-        </button>
-      </div>
+
 
     </div>
   )
