@@ -35,10 +35,75 @@
   font-weight: 600;
 }
 
+/* 모바일 헤더 스타일 */
+.mobile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  height: 60px;
+}
+
+.mobile-logo h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.5px;
+}
+
+.mobile-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-guest {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.mobile-logout-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-logout-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 768px) {
   .status-content {
-    flex-direction: column;
-    gap: 4px;
-    text-align: center;
+    display: none;
+  }
+  
+  .status-bar {
+    padding: 0;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-header {
+    display: none;
   }
 }

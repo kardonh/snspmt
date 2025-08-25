@@ -1,10 +1,10 @@
 import axios from 'axios'
 
 // SMM KINGS API 기본 설정
-const API_BASE_URL = 'http://localhost:8000/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://snsinto.onrender.com/api'
 
 // 기본 API 키 (SMM KINGS API 키)
-const DEFAULT_API_KEY = 'aa91dd380c10cf5fd875cb2b5626dd37'
+const DEFAULT_API_KEY = import.meta.env.VITE_SMMKINGS_API_KEY || 'your_api_key_here'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -47,11 +47,15 @@ export const smmkingsApi = {
   
   // 주문 생성
   createOrder: (orderData, userId) => {
+    // 보안상 민감한 정보는 로그에서 제거
+    console.log("주문 생성 완료")
+
     const config = {
       headers: {
         'X-User-ID': userId
       }
     }
+
     return apiClient.post('', { 
       action: 'add',
       ...orderData 
@@ -104,7 +108,45 @@ export const smmkingsApi = {
   getUserOrders: (userId) => apiClient.get(`/orders?user_id=${userId}`),
   
   // 특정 주문 상세 정보 조회
-  getOrderDetail: (orderId, userId) => apiClient.get(`/orders/${orderId}?user_id=${userId}`)
+  getOrderDetail: (orderId, userId) => apiClient.get(`/orders/${orderId}?user_id=${userId}`),
+  
+  // 포인트 관련 API
+  // 사용자 포인트 조회
+  getUserPoints: (userId) => apiClient.get(`/points?user_id=${userId}`),
+  
+  // 사용자 포인트 차감
+  deductUserPoints: (userId, points) => apiClient.put('/points', { userId, points }),
+  
+  // 포인트 구매 신청
+  createPurchase: (purchaseData) => apiClient.post('/purchases', purchaseData),
+  
+  // 구매 내역 조회
+  getPurchaseHistory: (userId) => apiClient.get(`/purchases?user_id=${userId}`),
+  
+  // 관리자용 구매 신청 목록 조회
+  getPendingPurchases: () => apiClient.get('/admin/purchases/pending'),
+  
+  // 구매 신청 승인/거절
+  updatePurchaseStatus: (purchaseId, status) => apiClient.put(`/admin/purchases/${purchaseId}`, { status }),
+  
+  // 사용자 관련 API
+  // 사용자 등록
+  registerUser: (userData) => apiClient.post('/users/register', userData),
+  
+  // 사용자 로그인
+  userLogin: (userId) => apiClient.post('/users/login', { userId }),
+  
+  // 사용자 활동 업데이트
+  updateUserActivity: (userId) => apiClient.post('/users/activity', { userId }),
+  
+  // 관리자용 사용자 정보 조회
+  getUsersInfo: () => apiClient.get('/admin/users'),
+  
+  // 개별 사용자 정보 조회
+  getUserInfo: (userId) => apiClient.get(`/users/${userId}`),
+  
+  // 포인트 구매 내역 엑셀 다운로드
+  exportPurchases: () => apiClient.get('/admin/export/purchases')
 }
 
 // 에러 처리 헬퍼 함수

@@ -9,11 +9,30 @@ import csv
 import io
 
 app = Flask(__name__)
-CORS(app)  # 모든 origin에서의 요청 허용
+
+# 보안 헤더 추가
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
+    return response
+
+# CORS 설정 - 프로덕션 환경에서는 특정 도메인만 허용
+if os.environ.get('FLASK_ENV') == 'development':
+    CORS(app)  # 개발 환경에서는 모든 origin 허용
+else:
+    # 프로덕션 환경에서는 특정 도메인만 허용
+    CORS(app, origins=[
+        'https://snsinto.onrender.com',
+        'https://yourdomain.com'  # 실제 도메인으로 변경
+    ])
 
 # smmpanel.kr API 설정
 SMMPANEL_API_URL = 'https://smmpanel.kr/api/v2'
-API_KEY = '9c86d44a161840eb7dfc7396fb1ecf94'
+API_KEY = os.environ.get('SMMPANEL_API_KEY', 'your_api_key_here')
 
 # 주문 데이터 저장소 (실제 프로덕션에서는 데이터베이스 사용)
 orders_db = {}
@@ -46,7 +65,8 @@ def calculate_and_store_cost(service_id, quantity, total_price):
         
         monthly_costs[current_month] += cost
         
-        print(f"원가 계산 및 저장: service_id={service_id}, quantity={quantity}, total_price={total_price}, cost={cost}, monthly_costs={monthly_costs}")
+        # 보안상 민감한 정보는 로그에서 제거
+        print(f"원가 계산 완료: service_id={service_id}, cost={cost}")
         
         return cost
         
@@ -73,9 +93,8 @@ def proxy_api():
                 order_id = response_data['order']
                 user_id = request.headers.get('X-User-ID', 'anonymous')
                 
-                # 디버깅용 로그
-                print(f"주문 생성: order_id={order_id}, user_id={user_id}")
-                print(f"주문 데이터: {data}")
+                # 보안상 민감한 정보는 로그에서 제거
+                print(f"주문 생성 완료: order_id={order_id}")
                 
                 # 원가 계산 및 저장
                 service_id = data.get('service')
@@ -110,8 +129,7 @@ def proxy_api():
                     'total_price': total_price
                 }
                 orders_db[user_id].append(order_info)
-                print(f"저장된 주문: {order_info}")
-                print(f"현재 orders_db: {orders_db}")
+                print(f"주문 저장 완료: {order_id}")
         
         # 응답 반환
         return jsonify(response.json()), response.status_code
@@ -128,8 +146,7 @@ def get_user_orders():
         user_id = request.args.get('user_id', 'anonymous')
         
         # 디버깅용 로그
-        print(f"주문 조회 요청: user_id={user_id}")
-        print(f"현재 orders_db: {orders_db}")
+        print(f"주문 조회 요청: {user_id}")
         
         if user_id not in orders_db:
             print(f"사용자 {user_id}의 주문이 없음")

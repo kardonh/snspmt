@@ -30,10 +30,7 @@
   flex-shrink: 0;
 }
 
-/* Sidebar Toggle Button */
-.sidebar-toggle {
-  display: none;
-}
+
 
 /* Sidebar Container */
 .sidebar-container {
@@ -90,26 +87,6 @@
 
 /* 모바일 스타일 */
 @media (max-width: 768px) {
-  .sidebar-toggle {
-    display: block !important;
-    position: fixed;
-    top: 80px;
-    left: 16px;
-    z-index: 1000;
-    background: #3b82f6;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 12px;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transition: all 0.2s ease;
-  }
-  
-  .sidebar-toggle:hover {
-    background: #2563eb;
-    transform: translateY(-1px);
-  }
   
   .layout-content {
     flex-direction: column;
@@ -121,6 +98,7 @@
     margin-left: 0 !important;
     width: 100% !important;
     padding: 16px;
+    padding-bottom: 80px; /* 하단 탭 바를 위한 여백 */
   }
   
   .sidebar-container {
@@ -176,5 +154,6 @@
   
   .main-content {
     padding: 12px;
+    padding-bottom: 80px; /* 하단 탭 바를 위한 여백 */
   }
 }

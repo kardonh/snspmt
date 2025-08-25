@@ -8,6 +8,7 @@ import OrderPage from './pages/OrderPage'
 import PaymentPage from './pages/PaymentPage'
 import OrderCompletePage from './pages/OrderCompletePage'
 import OrdersPage from './pages/OrdersPage'
+import PointsPage from './pages/PointsPage'
 import SettingsPage from './pages/SettingsPage'
 import InfoPage from './pages/InfoPage'
 import FAQPage from './pages/FAQPage'
@@ -27,8 +28,9 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/order/:platform/:serviceId" element={<ProtectedRoute><OrderPage /></ProtectedRoute>} />
                 <Route path="/payment/:platform" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
-                <Route path="/order-complete" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
+                <Route path="/order-complete/:orderId" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+                <Route path="/points" element={<ProtectedRoute><PointsPage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/info" element={<InfoPage />} />

@@ -578,3 +578,153 @@
     border-radius: 12px;
   }
 }
+
+/* 포인트 사용 스타일 */
+.points-usage {
+  margin-top: 16px;
+}
+
+.points-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f8faff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.current-points {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.points-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.toggle-input {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 48px;
+  height: 24px;
+  background: #cbd5e1;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.toggle-slider:before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-input:checked + .toggle-slider {
+  background: #667eea;
+}
+
+.toggle-input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+.points-details {
+  padding: 20px;
+  background: #f8faff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.price-breakdown {
+  margin-bottom: 16px;
+}
+
+.price-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.price-item.final-price {
+  border-top: 2px solid #e2e8f0;
+  margin-top: 8px;
+  padding-top: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.insufficient-points {
+  padding: 16px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.insufficient-points p {
+  margin: 0 0 12px 0;
+  color: #92400e;
+  font-weight: 600;
+}
+
+.charge-points-btn {
+  padding: 8px 16px;
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.charge-points-btn:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .points-info {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+  
+  .points-details {
+    padding: 16px;
+  }
+  
+  .price-item {
+    font-size: 13px;
+  }
+  
+  .price-item.final-price {
+    font-size: 15px;
+  }
+}

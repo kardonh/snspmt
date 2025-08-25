@@ -18,6 +18,10 @@ const OrderPage = () => {
   const [comments, setComments] = useState('')
   const [explanation, setExplanation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [userPoints, setUserPoints] = useState(0)
+  const [usePoints, setUsePoints] = useState(true)
+  const [pointsToUse, setPointsToUse] = useState(0)
+  const [finalPrice, setFinalPrice] = useState(0)
   
   const platformInfo = getPlatformInfo(platform)
   
@@ -80,6 +84,22 @@ const OrderPage = () => {
   
   const services = getServicesForPlatform(platform)
   
+  // 포인트 로드
+  const loadUserPoints = async () => {
+    if (currentUser) {
+      try {
+        const response = await smmkingsApi.getUserPoints(currentUser.uid)
+        setUserPoints(response.points || 0)
+      } catch (error) {
+        console.error('포인트 조회 실패:', error)
+      }
+    }
+  }
+
+  useEffect(() => {
+    loadUserPoints()
+  }, [currentUser])
+
   useEffect(() => {
     const price = calculatePrice(selectedService, quantity, platform)
     setTotalPrice(price)
@@ -93,6 +113,25 @@ const OrderPage = () => {
       }
     }
   }, [selectedService, quantity, platform])
+
+  // 포인트 사용 계산
+  useEffect(() => {
+    if (usePoints && userPoints > 0) {
+      const maxPointsToUse = Math.min(userPoints, totalPrice)
+      setPointsToUse(maxPointsToUse)
+      setFinalPrice(totalPrice - maxPointsToUse)
+    } else {
+      setPointsToUse(0)
+      setFinalPrice(totalPrice)
+    }
+  }, [usePoints, userPoints, totalPrice])
+
+  // 포인트 부족 시 포인트 충전 페이지로 이동
+  const handleInsufficientPoints = () => {
+    const insufficientAmount = totalPrice - userPoints
+    alert(`포인트가 부족합니다. ${insufficientAmount.toLocaleString()}P가 더 필요합니다. 포인트 충전 페이지로 이동합니다.`)
+    navigate('/points')
+  }
   
   // snspop API 서비스 ID 매핑
   const serviceIdMapping = {
@@ -232,12 +271,18 @@ const OrderPage = () => {
     setQuantity(newQuantity)
   }
   
-    const handlePurchase = async () => {
-      // 입력 검증
-      if (!link.trim()) {
-        alert('링크를 입력해주세요!')
-        return
-      }
+      const handlePurchase = async () => {
+    // 포인트 검증
+    if (usePoints && userPoints < totalPrice) {
+      handleInsufficientPoints()
+      return
+    }
+
+    // 입력 검증
+    if (!link.trim()) {
+      alert('링크를 입력해주세요!')
+      return
+    }
       
       if (((platform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
            (platform === 'youtube' && selectedService === 'comments_korean') ||
@@ -478,22 +523,46 @@ const OrderPage = () => {
       if (result.error) {
         alert(`주문 생성 실패: ${result.error}`)
       } else {
-          // 주문 성공 시 결제 페이지로 이동
-          const paymentData = {
-            orderId: result.order,
-            platform: platform,
-            serviceName: services.find(s => s.id === selectedService)?.name || selectedService,
-            quantity: quantity,
-            unitPrice: platformInfo.unitPrice,
-            totalPrice: totalPrice,
-            link: link.trim(),
-            comments: comments.trim(),
-            explanation: explanation.trim(),
-            discount: getDiscount(quantity)
+        // 포인트 사용 시 포인트 차감
+        if (usePoints && pointsToUse > 0) {
+          try {
+            const userId = currentUser?.uid || currentUser?.email || 'anonymous'
+            const deductResult = await smmkingsApi.deductUserPoints(userId, pointsToUse)
+            
+            if (deductResult.success) {
+              console.log('포인트 차감 성공:', deductResult)
+              // 포인트 잔액 업데이트
+              setUserPoints(deductResult.remainingPoints)
+            } else {
+              console.error('포인트 차감 실패:', deductResult)
+              alert('포인트 차감에 실패했습니다.')
+              return
+            }
+          } catch (error) {
+            console.error('포인트 차감 중 오류:', error)
+            alert('포인트 차감 중 오류가 발생했습니다.')
+            return
           }
-          
-          // 결제 페이지로 이동하면서 주문 데이터 전달
-          navigate(`/payment/${platform}`, { state: { orderData: paymentData } })
+        }
+
+        // 주문 성공 시 결제 페이지로 이동
+        const paymentData = {
+          orderId: result.order,
+          platform: platform,
+          serviceName: services.find(s => s.id === selectedService)?.name || selectedService,
+          quantity: quantity,
+          unitPrice: platformInfo.unitPrice,
+          totalPrice: finalPrice, // 포인트 차감 후 최종 금액
+          pointsUsed: pointsToUse, // 사용된 포인트
+          originalPrice: totalPrice, // 원래 가격
+          link: link.trim(),
+          comments: comments.trim(),
+          explanation: explanation.trim(),
+          discount: getDiscount(quantity)
+        }
+        
+        // 결제 페이지로 이동하면서 주문 데이터 전달
+        navigate(`/payment/${platform}`, { state: { orderData: paymentData } })
       }
     } catch (error) {
       const errorInfo = handleApiError(error)
@@ -757,14 +826,69 @@ const OrderPage = () => {
             </div>
           </div>
         </section>
+
+        {/* Section 5.5: Points Usage */}
+        <section className="order-section">
+          <h2>6 포인트 사용</h2>
+          <div className="points-usage">
+            <div className="points-info">
+              <div className="current-points">
+                <span>현재 포인트: {userPoints.toLocaleString()}P</span>
+              </div>
+              <div className="points-toggle">
+                <label className="toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={usePoints}
+                    onChange={(e) => setUsePoints(e.target.checked)}
+                    className="toggle-input"
+                  />
+                  <span className="toggle-slider"></span>
+                  포인트 사용
+                </label>
+              </div>
+            </div>
+            
+            {usePoints && (
+              <div className="points-details">
+                <div className="price-breakdown">
+                  <div className="price-item">
+                    <span>상품 가격:</span>
+                    <span>{totalPrice.toLocaleString()}원</span>
+                  </div>
+                  <div className="price-item">
+                    <span>사용할 포인트:</span>
+                    <span>-{pointsToUse.toLocaleString()}P</span>
+                  </div>
+                  <div className="price-item final-price">
+                    <span>최종 결제 금액:</span>
+                    <span>{finalPrice.toLocaleString()}원</span>
+                  </div>
+                </div>
+                
+                {userPoints < totalPrice && (
+                  <div className="insufficient-points">
+                    <p>⚠️ 포인트가 부족합니다. {totalPrice - userPoints}P가 더 필요합니다.</p>
+                    <button 
+                      onClick={handleInsufficientPoints}
+                      className="charge-points-btn"
+                    >
+                      포인트 충전하기
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
         
-        {/* Section 6: Pre-order Checklist */}
+        {/* Section 7: Pre-order Checklist */}
         <section className="order-section">
           <h2 
             className="checklist-header"
             onClick={() => setShowChecklist(!showChecklist)}
           >
-            6 주문 전 체크사항 꼭 읽어주세요
+            7 주문 전 체크사항 꼭 읽어주세요
             <ChevronDown className={`chevron ${showChecklist ? 'rotated' : ''}`} />
           </h2>
           {showChecklist && (
