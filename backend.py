@@ -32,8 +32,8 @@ monthly_costs = {}  # {year_month: total_cost}
 def calculate_and_store_cost(service_id, quantity, total_price):
     """주문의 원가를 계산하고 월별 통계에 저장"""
     try:
-        # 원가 계산 (총 가격의 80%로 가정 - 실제로는 더 정확한 계산 필요)
-        cost_rate = 0.8  # 원가율 80%
+        # 원가 계산 (총 가격의 2/3로 가정 - 실제 원가)
+        cost_rate = 2/3  # 원가율 66.67%
         cost = total_price * cost_rate
         
         # 현재 월 키 생성
