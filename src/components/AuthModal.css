@@ -22,9 +22,32 @@
   padding: 40px;
   width: 100%;
   max-width: 450px;
+  max-height: 90vh;
   position: relative;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   animation: modalSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #667eea #f1f5f9;
+}
+
+/* 모달 스크롤바 스타일링 */
+.auth-modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.auth-modal::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.auth-modal::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 3px;
+}
+
+.auth-modal::-webkit-scrollbar-thumb:hover {
+  background: #5a67d8;
 }
 
 @keyframes modalSlideIn {
@@ -98,6 +121,115 @@
 
 .form-group label {
   display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+/* 계정 타입 선택 스타일 */
+.account-type-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.account-type-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background: white;
+  font-size: 12px;
+}
+
+.account-type-option:hover {
+  border-color: #667eea;
+  background: #f8faff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.account-type-option input[type="radio"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #667eea;
+  cursor: pointer;
+}
+
+.account-type-option input[type="radio"]:checked + .account-type-icon + span {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.account-type-icon {
+  color: #9ca3af;
+  transition: all 0.3s ease;
+}
+
+.account-type-option input[type="radio"]:checked ~ .account-type-icon {
+  color: #667eea;
+}
+
+/* 비즈니스 정보 섹션 */
+.business-info-section {
+  background: linear-gradient(135deg, #f8faff 0%, #e6f3ff 100%);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.05);
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #667eea #f1f5f9;
+}
+
+/* 스크롤바 스타일링 (Webkit 브라우저) */
+.business-info-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.business-info-section::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.business-info-section::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 3px;
+}
+
+.business-info-section::-webkit-scrollbar-thumb:hover {
+  background: #5a67d8;
+}
+
+.business-info-title {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.business-info-title svg {
+  color: #667eea;
+}
   align-items: center;
   gap: 8px;
   font-size: 14px;
