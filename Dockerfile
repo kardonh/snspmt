@@ -27,12 +27,16 @@ COPY . .
 # Build frontend
 RUN npm install && npm run build
 
+# Create and set permissions for temporary directories
+RUN mkdir -p /tmp /var/tmp /usr/tmp && chmod 1777 /tmp /var/tmp /usr/tmp
+
 # Expose port
 EXPOSE 8000
 
 # Set environment variables
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
+ENV TMPDIR=/tmp
 
 # Run the application
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "backend:app"]
