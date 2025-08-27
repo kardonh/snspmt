@@ -129,8 +129,9 @@ def get_db_connection():
         finally:
             db_pool.putconn(conn)
     else:
-        # 개발: SQLite
-        conn = sqlite3.connect('orders.db')
+        # 개발: SQLite (쓰기 가능한 디렉토리 사용)
+        db_path = '/tmp/orders.db'
+        conn = sqlite3.connect(db_path)
         try:
             yield conn
         finally:
