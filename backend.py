@@ -121,98 +121,89 @@ def init_db_pool():
 @contextmanager
 def get_db_connection():
     """데이터베이스 연결 (컨텍스트 매니저)"""
-    if os.environ.get('DATABASE_URL') and POSTGRES_AVAILABLE and db_pool:
-        # 프로덕션: PostgreSQL 연결 풀 사용
+    # 항상 PostgreSQL 사용 (SQLite 문제 해결)
+    if POSTGRES_AVAILABLE and db_pool:
+        # PostgreSQL 연결 풀 사용
         conn = db_pool.getconn()
         try:
             yield conn
         finally:
             db_pool.putconn(conn)
     else:
-        # 개발: SQLite (쓰기 가능한 디렉토리 사용)
-        db_path = '/tmp/orders.db'
-        conn = sqlite3.connect(db_path)
-        try:
-            yield conn
-        finally:
-            conn.close()
+        # PostgreSQL 연결 풀이 없으면 직접 연결
+        if POSTGRES_AVAILABLE:
+            conn = psycopg2.connect(os.environ.get('DATABASE_URL', 'postgresql://localhost/snspmt'))
+            try:
+                yield conn
+            finally:
+                conn.close()
+        else:
+            raise Exception("PostgreSQL is required but not available")
 
 def init_database():
     """데이터베이스 초기화"""
+    if not POSTGRES_AVAILABLE:
+        print("PostgreSQL is required but not available")
+        return
+        
     with get_db_connection() as conn:
         cursor = conn.cursor()
         
-        if os.environ.get('DATABASE_URL') and POSTGRES_AVAILABLE:
-            # PostgreSQL 테이블 생성
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS orders (
-                    id SERIAL PRIMARY KEY,
-                    order_id VARCHAR(255) UNIQUE,
-                    user_id VARCHAR(255),
-                    service_id INTEGER,
-                    link TEXT,
-                    quantity INTEGER,
-                    price DECIMAL(10,2),
-                    status VARCHAR(50),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    user_id VARCHAR(255) UNIQUE,
-                    email VARCHAR(255),
-                    display_name VARCHAR(255),
-                    points INTEGER DEFAULT 0,
-                    account_type VARCHAR(50) DEFAULT 'personal',
-                    business_info JSONB,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS purchases (
-                    id SERIAL PRIMARY KEY,
-                    purchase_id VARCHAR(255) UNIQUE,
-                    user_id VARCHAR(255),
-                    amount INTEGER,
-                    price DECIMAL(10,2),
-                    status VARCHAR(50) DEFAULT 'pending',
-                    depositor_name VARCHAR(255),
-                    bank_name VARCHAR(255),
-                    receipt_type VARCHAR(50),
-                    business_info JSONB,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS monthly_costs (
-                    id SERIAL PRIMARY KEY,
-                    month VARCHAR(7),
-                    total_cost DECIMAL(10,2) DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-        else:
-            # SQLite 테이블 생성 (기존 코드 유지)
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS orders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    order_id TEXT UNIQUE,
-                    user_id TEXT,
-                    service_id INTEGER,
-                    link TEXT,
-                    quantity INTEGER,
-                    price REAL,
-                    status TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+        # PostgreSQL 테이블 생성
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS orders (
+                id SERIAL PRIMARY KEY,
+                order_id VARCHAR(255) UNIQUE,
+                user_id VARCHAR(255),
+                service_id INTEGER,
+                link TEXT,
+                quantity INTEGER,
+                price DECIMAL(10,2),
+                status VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(255) UNIQUE,
+                email VARCHAR(255),
+                display_name VARCHAR(255),
+                points INTEGER DEFAULT 0,
+                account_type VARCHAR(50) DEFAULT 'personal',
+                business_info JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS purchases (
+                id SERIAL PRIMARY KEY,
+                purchase_id VARCHAR(255) UNIQUE,
+                user_id VARCHAR(255),
+                amount INTEGER,
+                price DECIMAL(10,2),
+                status VARCHAR(50) DEFAULT 'pending',
+                depositor_name VARCHAR(255),
+                bank_name VARCHAR(255),
+                receipt_type VARCHAR(50),
+                business_info JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS monthly_costs (
+                id SERIAL PRIMARY KEY,
+                month VARCHAR(7),
+                total_cost DECIMAL(10,2) DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         
         conn.commit()
 
