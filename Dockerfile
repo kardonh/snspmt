@@ -40,5 +40,5 @@ ENV TMPDIR=/tmp
 ENV TEMP=/tmp
 ENV TMP=/tmp
 
-# Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "backend:app"]
+# Run the application with Gunicorn config
+CMD ["gunicorn", "-c", "gunicorn.conf.py", "backend:app"]
