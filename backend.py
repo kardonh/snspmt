@@ -7,8 +7,216 @@ import os
 import sqlite3
 import csv
 import io
+import logging
+from contextlib import contextmanager
+import hashlib
+import time
+
+# PostgreSQL 의존성 (개발 환경에서는 선택적)
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    from psycopg2.pool import SimpleConnectionPool
+    POSTGRES_AVAILABLE = True
+except ImportError:
+    POSTGRES_AVAILABLE = False
+    print("PostgreSQL not available, using SQLite for development")
+
+# Redis 캐싱 (선택적)
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    print("Redis not available, caching disabled")
+
+# 임시 디렉토리 설정 (Docker 컨테이너 문제 해결)
+import tempfile
+import sys
+
+# 임시 디렉토리 문제 해결
+def setup_temp_directories():
+    """임시 디렉토리 설정"""
+    temp_dirs = ['/tmp', '/var/tmp', '/usr/tmp', '/app/tmp']
+    for temp_dir in temp_dirs:
+        try:
+            if not os.path.exists(temp_dir):
+                os.makedirs(temp_dir, exist_ok=True)
+        except Exception as e:
+            print(f"임시 디렉토리 생성 실패 {temp_dir}: {e}")
+    
+    # 환경 변수 설정
+    os.environ['TMPDIR'] = '/tmp'
+    os.environ['TEMP'] = '/tmp'
+    os.environ['TMP'] = '/tmp'
+    
+    # tempfile 모듈 재설정
+    tempfile.tempdir = '/tmp'
+
+# 임시 디렉토리 설정 실행
+setup_temp_directories()
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Redis 캐시 클라이언트
+redis_client = None
+
+def init_redis():
+    """Redis 캐시 초기화"""
+    global redis_client
+    if REDIS_AVAILABLE and os.environ.get('REDIS_URL'):
+        try:
+            redis_client = redis.from_url(os.environ.get('REDIS_URL'))
+            # 연결 테스트
+            redis_client.ping()
+            print("Redis 캐시 연결 성공")
+        except Exception as e:
+            print(f"Redis 연결 실패: {e}")
+            redis_client = None
+
+def cache_get(key, expire=300):
+    """캐시에서 데이터 조회"""
+    if redis_client:
+        try:
+            data = redis_client.get(key)
+            return json.loads(data) if data else None
+        except:
+            return None
+    return None
+
+def cache_set(key, data, expire=300):
+    """캐시에 데이터 저장"""
+    if redis_client:
+        try:
+            redis_client.setex(key, expire, json.dumps(data))
+        except:
+            pass
+
+def generate_cache_key(*args):
+    """캐시 키 생성"""
+    key_string = "_".join(str(arg) for arg in args)
+    return hashlib.md5(key_string.encode()).hexdigest()
+
+# 데이터베이스 연결 풀 (프로덕션용)
+db_pool = None
+
+def init_db_pool():
+    """데이터베이스 연결 풀 초기화"""
+    global db_pool
+    if os.environ.get('DATABASE_URL') and POSTGRES_AVAILABLE:
+        try:
+            db_pool = SimpleConnectionPool(
+                minconn=5,  # 최소 연결 수
+                maxconn=20,  # 최대 연결 수
+                dsn=os.environ.get('DATABASE_URL')
+            )
+            print("PostgreSQL 연결 풀 초기화 완료")
+        except Exception as e:
+            print(f"PostgreSQL 연결 풀 초기화 실패: {e}")
+
+@contextmanager
+def get_db_connection():
+    """데이터베이스 연결 (컨텍스트 매니저)"""
+    if os.environ.get('DATABASE_URL') and POSTGRES_AVAILABLE and db_pool:
+        # 프로덕션: PostgreSQL 연결 풀 사용
+        conn = db_pool.getconn()
+        try:
+            yield conn
+        finally:
+            db_pool.putconn(conn)
+    else:
+        # 개발: SQLite
+        conn = sqlite3.connect('orders.db')
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+def init_database():
+    """데이터베이스 초기화"""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        
+        if os.environ.get('DATABASE_URL') and POSTGRES_AVAILABLE:
+            # PostgreSQL 테이블 생성
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS orders (
+                    id SERIAL PRIMARY KEY,
+                    order_id VARCHAR(255) UNIQUE,
+                    user_id VARCHAR(255),
+                    service_id INTEGER,
+                    link TEXT,
+                    quantity INTEGER,
+                    price DECIMAL(10,2),
+                    status VARCHAR(50),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) UNIQUE,
+                    email VARCHAR(255),
+                    display_name VARCHAR(255),
+                    points INTEGER DEFAULT 0,
+                    account_type VARCHAR(50) DEFAULT 'personal',
+                    business_info JSONB,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS purchases (
+                    id SERIAL PRIMARY KEY,
+                    purchase_id VARCHAR(255) UNIQUE,
+                    user_id VARCHAR(255),
+                    amount INTEGER,
+                    price DECIMAL(10,2),
+                    status VARCHAR(50) DEFAULT 'pending',
+                    depositor_name VARCHAR(255),
+                    bank_name VARCHAR(255),
+                    receipt_type VARCHAR(50),
+                    business_info JSONB,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS monthly_costs (
+                    id SERIAL PRIMARY KEY,
+                    month VARCHAR(7),
+                    total_cost DECIMAL(10,2) DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+        else:
+            # SQLite 테이블 생성 (기존 코드 유지)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id TEXT UNIQUE,
+                    user_id TEXT,
+                    service_id INTEGER,
+                    link TEXT,
+                    quantity INTEGER,
+                    price REAL,
+                    status TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+        
+        conn.commit()
+
+# 데이터베이스 초기화
+init_database()
 
 # 보안 헤더 추가
 @app.after_request
@@ -20,19 +228,40 @@ def add_security_headers(response):
     response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
     return response
 
-# CORS 설정 - 프로덕션 환경에서는 특정 도메인만 허용
-if os.environ.get('FLASK_ENV') == 'development':
-    CORS(app)  # 개발 환경에서는 모든 origin 허용
-else:
-    # 프로덕션 환경에서는 특정 도메인만 허용
-    CORS(app, origins=[
-        'https://snsinto.onrender.com',
-        'https://yourdomain.com'  # 실제 도메인으로 변경
-    ])
+# CORS 설정 - 개발 환경에서는 모든 origin 허용
+CORS(app, origins=['http://localhost:3000', 'http://127.0.0.1:3000', 'https://snsinto.onrender.com'])
 
 # smmpanel.kr API 설정
 SMMPANEL_API_URL = 'https://smmpanel.kr/api/v2'
 API_KEY = os.environ.get('SMMPANEL_API_KEY', 'your_api_key_here')
+
+# 레이트 리미팅을 위한 간단한 캐시
+from collections import defaultdict
+import time
+rate_limit_cache = defaultdict(list)
+
+def check_rate_limit(ip, limit=100, window=3600):
+    """레이트 리미팅 체크"""
+    now = time.time()
+    # 윈도우 시간 이전의 요청들 제거
+    rate_limit_cache[ip] = [req_time for req_time in rate_limit_cache[ip] if now - req_time < window]
+    
+    if len(rate_limit_cache[ip]) >= limit:
+        return False
+    
+    rate_limit_cache[ip].append(now)
+    return True
+
+@app.before_request
+def before_request():
+    """요청 전 처리"""
+    # 레이트 리미팅 체크
+    if not check_rate_limit(request.remote_addr):
+        return jsonify({'error': 'Rate limit exceeded'}), 429
+    
+    # 보안 헤더 추가
+    if request.method == 'OPTIONS':
+        return
 
 # 주문 데이터 저장소 (실제 프로덕션에서는 데이터베이스 사용)
 orders_db = {}
@@ -73,6 +302,8 @@ def calculate_and_store_cost(service_id, quantity, total_price):
     except Exception as e:
         print(f"원가 계산 오류: {str(e)}")
         return 0
+
+
 
 @app.route('/api', methods=['POST'])
 def proxy_api():
@@ -212,7 +443,15 @@ def get_order_detail(order_id):
 
 @app.route('/api/services', methods=['GET'])
 def get_smmpanel_services():
-    """smmpanel.kr API에서 실제 서비스 목록 조회"""
+    """smmpanel.kr API에서 실제 서비스 목록 조회 (캐싱 적용)"""
+    # 캐시 키 생성
+    cache_key = generate_cache_key('services', 'smmpanel')
+    
+    # 캐시에서 조회 시도
+    cached_data = cache_get(cache_key, expire=600)  # 10분 캐시
+    if cached_data:
+        return jsonify(cached_data), 200
+    
     try:
         response = requests.post(SMMPANEL_API_URL, json={
             'key': API_KEY,
@@ -221,7 +460,8 @@ def get_smmpanel_services():
         
         if response.status_code == 200:
             services_data = response.json()
-            print(f"smmpanel.kr API Services Response: {services_data}")  # 디버깅용
+            # 캐시에 저장
+            cache_set(cache_key, services_data, expire=600)
             return jsonify(services_data), 200
         else:
             return jsonify({'error': f'smmpanel.kr API 오류: {response.status_code}'}), response.status_code
@@ -290,71 +530,115 @@ def get_db_connection():
 
 @app.route('/api/admin/stats', methods=['GET'])
 def get_admin_stats():
-    """관리자 통계 데이터 제공"""
+    """관리자 통계 데이터 제공 (캐싱 적용)"""
+    # 캐시 키 생성
+    cache_key = generate_cache_key('admin_stats')
+    
+    # 캐시에서 조회 시도 (5분 캐시)
+    cached_data = cache_get(cache_key, expire=300)
+    if cached_data:
+        return jsonify(cached_data), 200
+    
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # 현재 날짜와 한 달 전 날짜 계산
-        now = datetime.now()
-        one_month_ago = now - timedelta(days=30)
-        
-        # 총 가입자 수 (Firebase Auth 사용자 수는 별도로 관리 필요)
-        cursor.execute("SELECT COUNT(DISTINCT user_id) as total_users FROM orders")
-        total_users = cursor.fetchone()['total_users']
-        
-        # 한 달 가입자 수
-        cursor.execute("""
-            SELECT COUNT(DISTINCT user_id) as monthly_users 
-            FROM orders 
-            WHERE created_at >= ?
-        """, (one_month_ago.strftime('%Y-%m-%d'),))
-        monthly_users = cursor.fetchone()['monthly_users']
-        
-        # 총 매출액 (포인트 충전 금액)
-        cursor.execute("SELECT SUM(price) as total_revenue FROM purchases WHERE status = 'approved'")
-        total_revenue = cursor.fetchone()['total_revenue'] or 0
-        
-        # 한 달 매출액 (포인트 충전 금액)
-        cursor.execute("""
-            SELECT SUM(price) as monthly_revenue 
-            FROM purchases 
-            WHERE status = 'approved' AND createdAt >= ?
-        """, (one_month_ago.strftime('%Y-%m-%d'),))
-        monthly_revenue = cursor.fetchone()['monthly_revenue'] or 0
-        
-        # 총 SMM KINGS 충전액 (실제 비용)
-        cursor.execute("SELECT SUM(smmkings_cost) as total_smmkings_charge FROM orders WHERE status = 'completed'")
-        total_smmkings_charge = cursor.fetchone()['total_smmkings_charge'] or 0
-        
-        # 한 달 SMM KINGS 충전액
-        cursor.execute("""
-            SELECT SUM(smmkings_cost) as monthly_smmkings_charge 
-            FROM orders 
-            WHERE status = 'completed' AND created_at >= ?
-        """, (one_month_ago.strftime('%Y-%m-%d'),))
-        monthly_smmkings_charge = cursor.fetchone()['monthly_smmkings_charge'] or 0
-        
-        # 현재 월의 원가 계산 (메모리에서 관리되는 원가 데이터 사용)
-        current_month = now.strftime('%Y-%m')
-        monthly_cost = monthly_costs.get(current_month, 0)
-        
-        conn.close()
-        
-        return jsonify({
-            'success': True,
-            'data': {
-                'totalUsers': total_users,
-                'monthlyUsers': monthly_users,
-                'totalRevenue': total_revenue,
-                'monthlyRevenue': monthly_revenue,
-                'totalSMMKingsCharge': total_smmkings_charge,
-                'monthlySMMKingsCharge': monthly_smmkings_charge,
-                'monthlyCost': monthly_cost
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # 현재 날짜와 한 달 전 날짜 계산
+            now = datetime.now()
+            one_month_ago = now - timedelta(days=30)
+            
+            # 기본값 설정
+            total_users = 0
+            monthly_users = 0
+            total_revenue = 0
+            monthly_revenue = 0
+            total_smmkings_charge = 0
+            monthly_smmkings_charge = 0
+            
+            try:
+                # 총 가입자 수 (Firebase Auth 사용자 수는 별도로 관리 필요)
+                cursor.execute("SELECT COUNT(DISTINCT user_id) FROM orders")
+                result = cursor.fetchone()
+                total_users = result[0] if result else 0
+            except Exception as e:
+                print(f"총 가입자 수 조회 오류: {e}")
+            
+            try:
+                # 한 달 가입자 수
+                cursor.execute("""
+                    SELECT COUNT(DISTINCT user_id) 
+                    FROM orders 
+                    WHERE created_at >= ?
+                """, (one_month_ago.strftime('%Y-%m-%d'),))
+                result = cursor.fetchone()
+                monthly_users = result[0] if result else 0
+            except Exception as e:
+                print(f"한 달 가입자 수 조회 오류: {e}")
+            
+            try:
+                # 총 매출액 (포인트 충전 금액)
+                cursor.execute("SELECT SUM(price) FROM purchases WHERE status = 'approved'")
+                result = cursor.fetchone()
+                total_revenue = result[0] if result and result[0] else 0
+            except Exception as e:
+                print(f"총 매출액 조회 오류: {e}")
+            
+            try:
+                # 한 달 매출액 (포인트 충전 금액)
+                cursor.execute("""
+                    SELECT SUM(price) 
+                    FROM purchases 
+                    WHERE status = 'approved' AND created_at >= ?
+                """, (one_month_ago.strftime('%Y-%m-%d'),))
+                result = cursor.fetchone()
+                monthly_revenue = result[0] if result and result[0] else 0
+            except Exception as e:
+                print(f"한 달 매출액 조회 오류: {e}")
+            
+            try:
+                # 총 SMM KINGS 충전액 (실제 비용)
+                cursor.execute("SELECT SUM(smmkings_cost) FROM orders WHERE status = 'completed'")
+                result = cursor.fetchone()
+                total_smmkings_charge = result[0] if result and result[0] else 0
+            except Exception as e:
+                print(f"총 SMM KINGS 충전액 조회 오류: {e}")
+            
+            try:
+                # 한 달 SMM KINGS 충전액
+                cursor.execute("""
+                    SELECT SUM(smmkings_cost) 
+                    FROM orders 
+                    WHERE status = 'completed' AND created_at >= ?
+                """, (one_month_ago.strftime('%Y-%m-%d'),))
+                result = cursor.fetchone()
+                monthly_smmkings_charge = result[0] if result and result[0] else 0
+            except Exception as e:
+                print(f"한 달 SMM KINGS 충전액 조회 오류: {e}")
+            
+            # 현재 월의 원가 계산 (메모리에서 관리되는 원가 데이터 사용)
+            current_month = now.strftime('%Y-%m')
+            monthly_cost = monthly_costs.get(current_month, 0)
+            
+            result_data = {
+                'success': True,
+                'data': {
+                    'totalUsers': total_users,
+                    'monthlyUsers': monthly_users,
+                    'totalRevenue': total_revenue,
+                    'monthlyRevenue': monthly_revenue,
+                    'totalSMMKingsCharge': total_smmkings_charge,
+                    'monthlySMMKingsCharge': monthly_smmkings_charge,
+                    'monthlyCost': monthly_cost
+                }
             }
-        })
-        
+            
+            # 캐시에 저장
+            cache_set(cache_key, result_data, expire=300)
+            
+            return jsonify(result_data)
+            
     except Exception as e:
+        print(f"관리자 통계 오류: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -364,65 +648,71 @@ def get_admin_stats():
 def get_admin_transactions():
     """충전 및 환불 내역 제공"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # 충전 내역 (완료된 주문)
-        cursor.execute("""
-            SELECT 
-                id,
-                user_id as user,
-                total_amount as amount,
-                created_at as date,
-                status
-            FROM orders 
-            WHERE status = 'completed'
-            ORDER BY created_at DESC
-            LIMIT 20
-        """)
-        charges = []
-        for row in cursor.fetchall():
-            charges.append({
-                'id': row['id'],
-                'user': row['user'],
-                'amount': row['amount'],
-                'date': row['date'],
-                'status': row['status']
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # 충전 내역 (완료된 주문)
+            try:
+                cursor.execute("""
+                    SELECT 
+                        id,
+                        user_id,
+                        price,
+                        created_at,
+                        status
+                    FROM orders 
+                    WHERE status = 'completed'
+                    ORDER BY created_at DESC
+                    LIMIT 20
+                """)
+                charges = []
+                for row in cursor.fetchall():
+                    charges.append({
+                        'id': row[0],
+                        'user': row[1],
+                        'amount': row[2],
+                        'date': row[3],
+                        'status': row[4]
+                    })
+            except Exception as e:
+                print(f"충전 내역 조회 오류: {e}")
+                charges = []
+            
+            # 환불 내역 (취소된 주문)
+            try:
+                cursor.execute("""
+                    SELECT 
+                        id,
+                        user_id,
+                        price,
+                        created_at,
+                        status
+                    FROM orders 
+                    WHERE status = 'cancelled'
+                    ORDER BY created_at DESC
+                    LIMIT 20
+                """)
+                refunds = []
+                for row in cursor.fetchall():
+                    refunds.append({
+                        'id': row[0],
+                        'user': row[1],
+                        'amount': row[2],
+                        'date': row[3],
+                        'reason': '고객 요청'
+                    })
+            except Exception as e:
+                print(f"환불 내역 조회 오류: {e}")
+                refunds = []
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'charges': charges,
+                    'refunds': refunds
+                }
             })
-        
-        # 환불 내역 (취소된 주문)
-        cursor.execute("""
-            SELECT 
-                id,
-                user_id as user,
-                total_amount as amount,
-                created_at as date,
-                '고객 요청' as reason
-            FROM orders 
-            WHERE status = 'cancelled'
-            ORDER BY created_at DESC
-            LIMIT 20
-        """)
-        refunds = []
-        for row in cursor.fetchall():
-            refunds.append({
-                'id': row['id'],
-                'user': row['user'],
-                'amount': row['amount'],
-                'date': row['date'],
-                'reason': row['reason']
-            })
-        
-        conn.close()
-        
-        return jsonify({
-            'success': True,
-            'data': {
-                'charges': charges,
-                'refunds': refunds
-            }
-        })
-        
+            
     except Exception as e:
         return jsonify({
             'success': False,
@@ -863,17 +1153,43 @@ def export_purchases():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# 프론트엔드 정적 파일 서빙
+# 프론트엔드 정적 파일 서빙 (프로덕션 환경에서만)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_frontend(path):
     """프론트엔드 정적 파일 서빙"""
+    # 개발 환경에서는 API만 제공
+    if os.environ.get('FLASK_ENV') == 'development':
+        return jsonify({'message': 'API Server Running', 'status': 'ok'}), 200
+    
+    # 프로덕션 환경에서만 정적 파일 서빙
     if path and os.path.exists(os.path.join('dist', path)):
         return send_from_directory('dist', path)
     else:
         return send_from_directory('dist', 'index.html')
 
+# 성능 모니터링
+@app.before_request
+def start_timer():
+    request.start_time = time.time()
+
+@app.after_request
+def log_request(response):
+    if hasattr(request, 'start_time'):
+        duration = time.time() - request.start_time
+        logger.info(f"{request.method} {request.path} - {response.status_code} - {duration:.3f}s")
+    return response
+
 if __name__ == '__main__':
+    # 데이터베이스 초기화
+    init_database()
+    
+    # 데이터베이스 연결 풀 초기화 (프로덕션용)
+    init_db_pool()
+
+    # Redis 캐시 초기화
+    init_redis()
+    
     # Render 환경에서 포트 설정
     port = int(os.environ.get('PORT', 8000))
     

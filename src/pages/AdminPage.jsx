@@ -74,7 +74,7 @@ const AdminPage = () => {
   
       
       // 백엔드 서버 URL 확인
-      const baseUrl = ''
+      const baseUrl = 'http://localhost:8000'
       
       // 실제 API 호출
       const [statsResponse, transactionsResponse, purchasesResponse, usersResponse] = await Promise.all([
@@ -257,7 +257,7 @@ const AdminPage = () => {
 
   const handlePurchaseAction = async (purchaseId, action) => {
     try {
-      const baseUrl = ''
+      const baseUrl = 'http://localhost:8000'
       
       const response = await fetch(`${baseUrl}/api/admin/purchases/${purchaseId}`, {
         method: 'PUT',

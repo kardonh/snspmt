@@ -39,7 +39,7 @@ VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 
 # SMM API 설정
 VITE_SMMKINGS_API_KEY=your_actual_smmkings_api_key
-VITE_SMMPANEL_API_KEY=your_actual_smmpanel_api_key
+VITE_SMMPANEL_API_KEY=18b03d2cd9babd365fa9bd0c5635a781
 
 # 백엔드 API 설정
 VITE_API_BASE_URL=https://your-domain.com/api

@@ -910,7 +910,7 @@ const Home = () => {
                       {service.time && service.time !== '데이터가 충분하지 않습니다' && (
                         <span className="service-time"> | 평균 완료시간: {service.time}</span>
                       )}
-                    </div>
+          </div>
                   </div>
                   <div className="detailed-service-price">
                     {(selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp') ? 
@@ -919,7 +919,7 @@ const Home = () => {
                     }
                   </div>
                 </div>
-              </div>
+                </div>
             ))}
           </div>
         </div>

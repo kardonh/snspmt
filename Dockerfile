@@ -27,20 +27,8 @@ COPY . .
 # Build frontend
 RUN npm install && npm run build
 
-# Create and set permissions for temporary directories with more explicit setup
-RUN mkdir -p /tmp /var/tmp /usr/tmp /app/tmp && \
-    chmod 1777 /tmp /var/tmp /usr/tmp /app/tmp && \
-    chown -R root:root /tmp /var/tmp /usr/tmp /app/tmp
-
-# Create a startup script to ensure temp directories exist
-RUN echo '#!/bin/bash\n\
-mkdir -p /tmp /var/tmp /usr/tmp /app/tmp\n\
-chmod 1777 /tmp /var/tmp /usr/tmp /app/tmp\n\
-export TMPDIR=/tmp\n\
-export TEMP=/tmp\n\
-export TMP=/tmp\n\
-exec gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 120 backend:app' > /app/start.sh && \
-    chmod +x /app/start.sh
+# Create basic temp directory
+RUN mkdir -p /tmp
 
 # Expose port
 EXPOSE 8000
@@ -52,5 +40,5 @@ ENV TMPDIR=/tmp
 ENV TEMP=/tmp
 ENV TMP=/tmp
 
-# Run the application using the startup script
-CMD ["/app/start.sh"]
+# Run the application
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "backend:app"]
