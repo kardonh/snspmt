@@ -132,13 +132,8 @@ def get_db_connection():
     else:
         # PostgreSQL 연결 풀이 없으면 직접 연결
         if POSTGRES_AVAILABLE:
-            # 기본 postgres 데이터베이스 사용
-            database_url = os.environ.get('DATABASE_URL', 'postgresql://localhost/snspmt')
-            # 데이터베이스 이름을 postgres로 변경
-            if '/snspmt' in database_url:
-                database_url = database_url.replace('/snspmt', '/postgres')
-            elif '/snspmt_db' in database_url:
-                database_url = database_url.replace('/snspmt_db', '/postgres')
+            # 올바른 연결 문자열 하드코딩
+            database_url = "postgresql://snspmt_admin:Snspmt2024!@snspmt-db.cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/postgres"
             
             conn = psycopg2.connect(database_url)
             try:
