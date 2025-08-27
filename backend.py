@@ -213,6 +213,10 @@ def init_database():
 # 데이터베이스 초기화
 init_database()
 
+# Flask 앱 설정
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000, debug=False)
+
 # 보안 헤더 추가
 @app.after_request
 def add_security_headers(response):
