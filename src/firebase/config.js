@@ -6,7 +6,7 @@ import { getAuth, connectAuthEmulator } from "firebase/auth";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyB8zSBVAJ1NsCxBaBCIVBRITt7k-uRebEg",
+  apiKey: "AIzaSyB8zSBVAJ1NsCxBaBClVBRlTt7k-uRebEg",
   authDomain: "snssmm-61f6c.firebaseapp.com",
   projectId: "snssmm-61f6c",
   storageBucket: "snssmm-61f6c.appspot.com",
