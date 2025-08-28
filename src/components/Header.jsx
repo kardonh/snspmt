@@ -21,7 +21,7 @@ const Header = () => {
       <header className="header">
         <div className="header-container">
           <Link to="/" className="logo">
-            SNSINTO
+            소셜리티
           </Link>
         </div>
       </header>
@@ -32,7 +32,7 @@ const Header = () => {
     <header className="header">
       <div className="header-container">
         <Link to="/" className="logo">
-          SNSINTO
+          소셜리티
         </Link>
         <div className="header-right">
           {currentUser ? (

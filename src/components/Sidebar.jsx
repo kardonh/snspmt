@@ -70,7 +70,7 @@ const Sidebar = ({ onClose }) => {
       
       {/* Logo */}
       <div className="sidebar-logo">
-        <h2>SNSinto</h2>
+        <h2>소셜리티</h2>
       </div>
 
       {/* User Status */}
@@ -131,32 +131,32 @@ const Sidebar = ({ onClose }) => {
           className="business-info-toggle"
           onClick={() => setBusinessInfoOpen(!businessInfoOpen)}
         >
-          <span>SNSinto 사업자정보</span>
+          <span>소셜리티 사업자정보</span>
           {businessInfoOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         
         {businessInfoOpen && (
           <div className="business-info-content">
             <div className="info-item">
-              <strong>상호명:</strong> 스마일드래곤주식회사
+              <strong>상호명:</strong> tamble
             </div>
             <div className="info-item">
-              <strong>대표:</strong> 대표 이상필, 문영화
+              <strong>대표:</strong> 서동현
             </div>
             <div className="info-item">
-              <strong>주소:</strong> 경기 고양시 일산동구 백마로 195, SK 엠시티타워 일반동 13F
+              <strong>주소:</strong> 충북 청주시 상당구 사직대로361번길 158-10 3R-7
             </div>
             <div className="info-item">
-              <strong>사업자번호:</strong> 813-87-01236
+              <strong>사업자번호:</strong> 869-02-02736
             </div>
             <div className="info-item">
-              <strong>통신판매:</strong> 제2019-고양일산동-1344
+              <strong>통신판매:</strong> 신고예정
             </div>
             <div className="info-item">
-              <strong>대표번호:</strong> 1877-6533
+              <strong>연락처:</strong> 준비중
             </div>
             <div className="info-item">
-              <strong>이메일:</strong> cs@snsshop.kr
+              <strong>이메일:</strong> 준비중
             </div>
             <div className="info-links">
               <a href="/terms">이용약관</a>
