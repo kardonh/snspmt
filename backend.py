@@ -478,7 +478,11 @@ def root_health_check():
 
 @app.route('/', methods=['GET'])
 def root():
-    return jsonify({'status': 'ok', 'message': 'SNS SMM Service Backend'})
+    return send_from_directory('dist', 'index.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory('dist', path)
 
 # smmpanel.kr API 추가 기능들
 @app.route('/api/balance', methods=['GET'])
