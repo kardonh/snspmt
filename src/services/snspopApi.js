@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 // SMM KINGS API 기본 설정
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : 'https://snsinto.onrender.com/api')
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : 'http://snspmt-alb-new-404094515.ap-northeast-2.elb.amazonaws.com/api')
 
 // 기본 API 키 (SMM KINGS API 키)
 const DEFAULT_API_KEY = import.meta.env.VITE_SMMKINGS_API_KEY || 'your_api_key_here'
