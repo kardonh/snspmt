@@ -1,21 +1,21 @@
 .order-page {
-  padding: 20px 0;
+  padding: 2vh 0;
   position: relative;
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 20vh);
 }
 
 .order-header {
-  margin-bottom: 32px;
+  margin-bottom: 3vh;
   text-align: center;
   background: white;
-  padding: 32px;
-  border-radius: 20px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 3vh 4vw;
+  border-radius: 2vw;
+  box-shadow: 0 0.4vh 0.6vh -1px rgba(0, 0, 0, 0.1), 0 0.2vh 0.4vh -1px rgba(0, 0, 0, 0.06);
   border: 1px solid #e2e8f0;
 }
 
 .order-header h1 {
-  font-size: 28px;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
   font-weight: 600;
   color: #333;
   text-align: center;
@@ -24,43 +24,43 @@
 .order-sections {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 3vh;
 }
 
 .order-section {
   background: white;
-  padding: 32px;
-  border-radius: 20px;
+  padding: 3vh 4vw;
+  border-radius: 2vw;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 0.4vh 0.6vh -1px rgba(0, 0, 0, 0.1), 0 0.2vh 0.4vh -1px rgba(0, 0, 0, 0.06);
 }
 
 .order-section h2 {
-  font-size: 20px;
+  font-size: clamp(1.2rem, 2vw, 1.5rem);
   font-weight: 700;
   color: #1e293b;
-  margin-bottom: 24px;
+  margin-bottom: 2.5vh;
 }
 
 .service-buttons {
   display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 1vw;
+  margin-bottom: 2.5vh;
   flex-wrap: wrap;
 }
 
 .service-btn {
-  padding: 14px 20px;
+  padding: 1.5vh 2vw;
   border: 2px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 1.5vw;
   background: white;
   color: #64748b;
-  font-size: 14px;
+  font-size: clamp(0.9rem, 1.2vw, 1rem);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex: 1;
-  min-width: 120px;
+  min-width: clamp(120px, 15vw, 150px);
   text-align: center;
 }
 
@@ -98,18 +98,18 @@
 
 .quantity-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(80px, 12vw, 120px), 1fr));
+  gap: 1vw;
+  margin-bottom: 1.5vh;
 }
 
 .quantity-option {
-  padding: 14px 16px;
+  padding: 1.5vh 1.5vw;
   border: 2px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 1.5vw;
   background: white;
   color: #64748b;
-  font-size: 14px;
+  font-size: clamp(0.8rem, 1vw, 1rem);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -159,10 +159,10 @@
 
 .link-input-field {
   width: 100%;
-  padding: 16px 20px;
+  padding: 1.5vh 2vw;
   border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  font-size: 16px;
+  border-radius: 1.5vw;
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
   transition: all 0.3s ease;
   background: white;
 }
@@ -190,15 +190,15 @@
 
 .comments-textarea {
   width: 100%;
-  padding: 16px 20px;
+  padding: 1.5vh 2vw;
   border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  font-size: 16px;
+  border-radius: 1.5vw;
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
   resize: vertical;
   font-family: inherit;
   transition: all 0.3s ease;
   background: white;
-  min-height: 100px;
+  min-height: clamp(80px, 12vh, 120px);
 }
 
 .comments-textarea:focus {
@@ -214,15 +214,15 @@
 
 .explanation-textarea {
   width: 100%;
-  padding: 16px 20px;
+  padding: 1.5vh 2vw;
   border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  font-size: 16px;
+  border-radius: 1.5vw;
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
   resize: vertical;
   font-family: inherit;
   background: #f8fafc;
   transition: all 0.3s ease;
-  min-height: 120px;
+  min-height: clamp(100px, 15vh, 140px);
 }
 
 .explanation-textarea:focus {
@@ -473,29 +473,29 @@
   right: 0;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  padding: 20px 24px;
+  padding: 2vh 3vw;
   border-top: 1px solid #e2e8f0;
   display: flex;
-  gap: 16px;
+  gap: 2vw;
   z-index: 1000;
-  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -0.4vh 0.6vh -1px rgba(0, 0, 0, 0.1);
 }
 
 .cart-btn, .purchase-btn {
   flex: 1;
-  padding: 16px 24px;
+  padding: 1.5vh 3vw;
   border: none;
-  border-radius: 16px;
-  font-size: 16px;
+  border-radius: 1.5vw;
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
   font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 1vw;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.05em;
 }
 
 .cart-btn {

@@ -111,9 +111,12 @@ const OrdersPage = () => {
     return (
       <div className="orders-page">
         <div className="orders-container">
-          <div className="loading">
-            <RefreshCw size={32} className="loading-icon" />
-            <p>주문 정보를 불러오는 중...</p>
+          <div className="orders-header">
+            <h1>주문 내역</h1>
+          </div>
+          <div className="loading-simple">
+            <RefreshCw size={24} className="loading-icon" />
+            <span>로딩 중...</span>
           </div>
         </div>
       </div>

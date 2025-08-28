@@ -58,10 +58,20 @@
   text-align: center;
 }
 
+.loading-simple {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: #667eea;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
 .loading-icon {
   animation: spin 1s linear infinite;
   color: #667eea;
-  margin-bottom: 20px;
 }
 
 @keyframes spin {
