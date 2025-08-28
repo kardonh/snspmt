@@ -224,7 +224,7 @@ def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
+    response.headers['Content-Security-Policy'] = "default-src 'self' https://firebase.googleapis.com https://firebaseinstallations.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://firebase.googleapis.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://firebase.googleapis.com https://firebaseinstallations.googleapis.com;"
     return response
 
 # CORS 설정 - 개발 환경에서는 모든 origin 허용
