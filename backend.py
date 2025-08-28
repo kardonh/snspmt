@@ -472,6 +472,14 @@ def get_smmpanel_services():
 def health_check():
     return jsonify({'status': 'ok', 'message': 'Backend server is running'})
 
+@app.route('/health', methods=['GET'])
+def root_health_check():
+    return jsonify({'status': 'ok', 'message': 'Backend server is running'})
+
+@app.route('/', methods=['GET'])
+def root():
+    return jsonify({'status': 'ok', 'message': 'SNS SMM Service Backend'})
+
 # smmpanel.kr API 추가 기능들
 @app.route('/api/balance', methods=['GET'])
 def get_balance():
