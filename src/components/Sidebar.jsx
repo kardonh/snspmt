@@ -70,7 +70,7 @@ const Sidebar = ({ onClose }) => {
       
       {/* Logo */}
       <div className="sidebar-logo">
-        <h2>소셜리티</h2>
+        <h2>Sociality</h2>
       </div>
 
       {/* User Status */}
@@ -131,7 +131,7 @@ const Sidebar = ({ onClose }) => {
           className="business-info-toggle"
           onClick={() => setBusinessInfoOpen(!businessInfoOpen)}
         >
-          <span>소셜리티 사업자정보</span>
+          <span>Sociality 사업자정보</span>
           {businessInfoOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         
