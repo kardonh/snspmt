@@ -99,26 +99,14 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
         )}
 
         <div className="auth-modal-header">
+          <div className="logo-container">
+            <div className="logo">Sociality</div>
+          </div>
           <div className="auth-modal-icon">
             {isLogin ? <LogIn size={32} /> : <UserPlus size={32} />}
           </div>
           <h2>{isLogin ? '로그인' : '회원가입'}</h2>
-          <p>{isLogin ? '계정에 로그인하세요' : '새 계정을 만드세요'}</p>
-          {isLogin && (
-            <div style={{ 
-              background: '#f0f9ff', 
-              border: '1px solid #0ea5e9', 
-              borderRadius: '8px', 
-              padding: '12px', 
-              marginTop: '12px',
-              fontSize: '12px',
-              color: '#0369a1'
-            }}>
-              <strong>테스트 계정:</strong><br/>
-              이메일: test@example.com<br/>
-              비밀번호: 123456
-            </div>
-          )}
+          <p>{isLogin ? 'Sociality에 오신 것을 환영합니다' : 'Sociality 계정을 만들어보세요'}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
