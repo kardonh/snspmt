@@ -238,3 +238,99 @@ def get_admin_users():
             'success': False,
             'error': str(e)
         }), 500
+
+@admin_bp.route('/api/admin/search-account', methods=['GET'])
+def search_account():
+    """계좌 정보 검색"""
+    try:
+        search_query = request.args.get('query', '').strip()
+        
+        if not search_query:
+            return jsonify({
+                'success': False,
+                'error': '검색어를 입력해주세요.'
+            }), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 사용자 ID, 이메일, 계좌번호로 검색
+        cursor.execute("""
+            SELECT DISTINCT
+                user_id,
+                COUNT(*) as order_count,
+                SUM(total_amount) as total_spent,
+                MIN(created_at) as first_order,
+                MAX(created_at) as last_order,
+                SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as completed_amount,
+                SUM(CASE WHEN status = 'pending' THEN total_amount ELSE 0 END) as pending_amount,
+                SUM(CASE WHEN status = 'canceled' THEN total_amount ELSE 0 END) as canceled_amount
+            FROM orders 
+            WHERE user_id LIKE ? OR user_id LIKE ?
+            GROUP BY user_id
+            ORDER BY total_spent DESC
+        """, (f'%{search_query}%', f'%{search_query}%'))
+        
+        accounts = []
+        for row in cursor.fetchall():
+            accounts.append({
+                'userId': row['user_id'],
+                'orderCount': row['order_count'],
+                'totalSpent': row['total_spent'] or 0,
+                'completedAmount': row['completed_amount'] or 0,
+                'pendingAmount': row['pending_amount'] or 0,
+                'canceledAmount': row['canceled_amount'] or 0,
+                'firstOrder': row['first_order'],
+                'lastOrder': row['last_order']
+            })
+        
+        # 최근 주문 내역도 함께 조회
+        recent_orders = []
+        if accounts:
+            user_ids = [account['userId'] for account in accounts]
+            placeholders = ','.join(['?' for _ in user_ids])
+            
+            cursor.execute(f"""
+                SELECT 
+                    id,
+                    user_id,
+                    platform,
+                    service_name,
+                    quantity,
+                    total_amount,
+                    status,
+                    created_at
+                FROM orders 
+                WHERE user_id IN ({placeholders})
+                ORDER BY created_at DESC
+                LIMIT 50
+            """, user_ids)
+            
+            for row in cursor.fetchall():
+                recent_orders.append({
+                    'id': row['id'],
+                    'userId': row['user_id'],
+                    'platform': row['platform'],
+                    'serviceName': row['service_name'],
+                    'quantity': row['quantity'],
+                    'totalAmount': row['total_amount'],
+                    'status': row['status'],
+                    'createdAt': row['created_at']
+                })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'accounts': accounts,
+                'recentOrders': recent_orders,
+                'totalFound': len(accounts)
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

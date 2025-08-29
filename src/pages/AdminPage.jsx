@@ -14,7 +14,11 @@ import {
   ArrowDownRight,
   CheckCircle,
   XCircle,
-  Download
+  Download,
+  Search,
+  User,
+  Clock,
+  Package
 } from 'lucide-react'
 import './AdminPage.css'
 
@@ -50,6 +54,9 @@ const AdminPage = () => {
     recentUsers: [],
     activeUsersList: []
   })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState(null)
+  const [searchLoading, setSearchLoading] = useState(false)
 
   // 관리자 이메일 체크
   useEffect(() => {
@@ -298,7 +305,44 @@ const AdminPage = () => {
   }
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('ko-KR')
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    return date.toLocaleString('ko-KR')
+  }
+
+  const handleSearchAccount = async () => {
+    if (!searchQuery.trim()) {
+      alert('검색어를 입력해주세요.')
+      return
+    }
+
+    try {
+      setSearchLoading(true)
+      const baseUrl = 'http://localhost:8000'
+      const response = await fetch(`${baseUrl}/api/admin/search-account?query=${encodeURIComponent(searchQuery.trim())}`)
+      
+      if (!response.ok) {
+        throw new Error('검색에 실패했습니다.')
+      }
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        setSearchResults(result.data)
+      } else {
+        alert(result.error || '검색에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('계좌 검색 실패:', error)
+      alert('계좌 검색에 실패했습니다.')
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  const clearSearch = () => {
+    setSearchQuery('')
+    setSearchResults(null)
   }
 
   if (loading) {
@@ -465,6 +509,129 @@ const AdminPage = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 계좌 정보 검색 섹션 */}
+      <div className="search-section">
+        <div className="search-header">
+          <h2>계좌 정보 검색</h2>
+          <div className="search-controls">
+            <div className="search-input-wrapper">
+              <Search size={20} className="search-icon" />
+              <input
+                type="text"
+                placeholder="사용자 ID 또는 이메일을 입력하세요"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearchAccount()}
+                className="search-input"
+              />
+            </div>
+            <button 
+              onClick={handleSearchAccount} 
+              disabled={searchLoading}
+              className="search-btn"
+            >
+              {searchLoading ? (
+                <RefreshCw size={16} className="loading-spinner" />
+              ) : (
+                <Search size={16} />
+              )}
+              검색
+            </button>
+            {searchResults && (
+              <button onClick={clearSearch} className="clear-btn">
+                초기화
+              </button>
+            )}
+          </div>
+        </div>
+
+        {searchResults && (
+          <div className="search-results">
+            <div className="search-summary">
+              <h3>검색 결과</h3>
+              <span className="result-count">{searchResults.totalFound}개의 계좌를 찾았습니다</span>
+            </div>
+
+            {/* 계좌 정보 */}
+            <div className="accounts-grid">
+              {searchResults.accounts.map((account, index) => (
+                <div key={index} className="account-card">
+                  <div className="account-header">
+                    <User size={20} />
+                    <h4>{account.userId}</h4>
+                  </div>
+                  <div className="account-stats">
+                    <div className="stat-item">
+                      <span className="stat-label">총 주문:</span>
+                      <span className="stat-value">{account.orderCount}건</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">총 결제:</span>
+                      <span className="stat-value">{formatCurrency(account.totalSpent)}</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">완료:</span>
+                      <span className="stat-value positive">{formatCurrency(account.completedAmount)}</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">대기:</span>
+                      <span className="stat-value pending">{formatCurrency(account.pendingAmount)}</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">취소:</span>
+                      <span className="stat-value negative">{formatCurrency(account.canceledAmount)}</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">첫 주문:</span>
+                      <span className="stat-value">{formatDate(account.firstOrder)}</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">마지막 주문:</span>
+                      <span className="stat-value">{formatDate(account.lastOrder)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 최근 주문 내역 */}
+            {searchResults.recentOrders.length > 0 && (
+              <div className="recent-orders">
+                <h3>최근 주문 내역</h3>
+                <div className="orders-table">
+                  <div className="table-header">
+                    <div className="header-cell">주문번호</div>
+                    <div className="header-cell">사용자</div>
+                    <div className="header-cell">플랫폼</div>
+                    <div className="header-cell">서비스</div>
+                    <div className="header-cell">수량</div>
+                    <div className="header-cell">금액</div>
+                    <div className="header-cell">상태</div>
+                    <div className="header-cell">주문일</div>
+                  </div>
+                  {searchResults.recentOrders.map((order) => (
+                    <div key={order.id} className="table-row">
+                      <div className="table-cell">{order.id}</div>
+                      <div className="table-cell">{order.userId}</div>
+                      <div className="table-cell">{order.platform}</div>
+                      <div className="table-cell">{order.serviceName}</div>
+                      <div className="table-cell">{order.quantity?.toLocaleString()}</div>
+                      <div className="table-cell">{formatCurrency(order.totalAmount)}</div>
+                      <div className={`table-cell status-${order.status}`}>
+                        {order.status === 'completed' ? '완료' : 
+                         order.status === 'pending' ? '대기중' : 
+                         order.status === 'canceled' ? '취소' : order.status}
+                      </div>
+                      <div className="table-cell">{formatDate(order.createdAt)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 포인트 구매 승인 섹션 */}
