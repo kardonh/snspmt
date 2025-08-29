@@ -352,6 +352,12 @@
   margin: 0;
 }
 
+.export-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .export-btn {
   display: flex;
   align-items: center;

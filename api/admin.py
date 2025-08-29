@@ -1,7 +1,9 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 from datetime import datetime, timedelta
 import sqlite3
 import os
+import csv
+import io
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -328,6 +330,104 @@ def search_account():
                 'totalFound': len(accounts)
             }
         })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@admin_bp.route('/api/admin/export/cash-receipts', methods=['GET'])
+def export_cash_receipts():
+    """현금영수증 엑셀 다운로드"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 현금영수증 발급 대상 조회 (완료된 주문 중 현금영수증 요청)
+        cursor.execute("""
+            SELECT 
+                o.id as order_id,
+                o.user_id,
+                o.platform,
+                o.service_name,
+                o.quantity,
+                o.total_amount,
+                o.created_at,
+                o.status,
+                p.receipt_type,
+                p.cash_receipt_phone,
+                p.business_name,
+                p.representative,
+                p.business_number
+            FROM orders o
+            LEFT JOIN purchases p ON o.user_id = p.user_id AND o.created_at = p.created_at
+            WHERE o.status = 'completed' 
+            AND (p.receipt_type = 'cash' OR p.receipt_type IS NULL)
+            ORDER BY o.created_at DESC
+        """)
+        
+        rows = cursor.fetchall()
+        
+        # CSV 데이터 생성
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # 헤더 작성
+        writer.writerow([
+            '주문번호',
+            '사용자ID',
+            '플랫폼',
+            '서비스명',
+            '수량',
+            '결제금액',
+            '주문일시',
+            '상태',
+            '영수증타입',
+            '현금영수증전화번호',
+            '상호명',
+            '대표자명',
+            '사업자번호'
+        ])
+        
+        # 데이터 작성
+        for row in rows:
+            writer.writerow([
+                row['order_id'],
+                row['user_id'],
+                row['platform'],
+                row['service_name'],
+                row['quantity'],
+                row['total_amount'],
+                row['created_at'],
+                row['status'],
+                row['receipt_type'] or '현금영수증',
+                row['cash_receipt_phone'] or '',
+                row['business_name'] or '',
+                row['representative'] or '',
+                row['business_number'] or ''
+            ])
+        
+        conn.close()
+        
+        # 파일명 생성
+        current_date = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'현금영수증_{current_date}.csv'
+        
+        # CSV 데이터를 바이트로 변환
+        output.seek(0)
+        csv_data = output.getvalue().encode('utf-8-sig')  # BOM 추가로 한글 깨짐 방지
+        
+        # 메모리 파일 객체 생성
+        csv_file = io.BytesIO(csv_data)
+        csv_file.seek(0)
+        
+        return send_file(
+            csv_file,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=filename
+        )
         
     except Exception as e:
         return jsonify({

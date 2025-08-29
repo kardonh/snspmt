@@ -262,6 +262,44 @@ const AdminPage = () => {
     }
   }
 
+  const handleExportCashReceipts = async () => {
+    try {
+      const baseUrl = 'http://localhost:8000'
+      const response = await fetch(`${baseUrl}/api/admin/export/cash-receipts`)
+      
+      if (!response.ok) {
+        throw new Error('현금영수증 다운로드에 실패했습니다.')
+      }
+      
+      // 파일 다운로드
+      const blob = await response.blob()
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      
+      // 파일명 추출
+      const contentDisposition = response.headers.get('content-disposition')
+      let filename = '현금영수증.csv'
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '')
+        }
+      }
+      
+      link.setAttribute('download', filename)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      alert('현금영수증 데이터가 다운로드되었습니다.')
+    } catch (error) {
+      console.error('현금영수증 다운로드 실패:', error)
+      alert('현금영수증 다운로드 중 오류가 발생했습니다.')
+    }
+  }
+
   const handlePurchaseAction = async (purchaseId, action) => {
     try {
       const baseUrl = 'http://localhost:8000'
@@ -447,10 +485,16 @@ const AdminPage = () => {
       <div className="transactions-section">
         <div className="transactions-header">
           <h2>포인트 구매 내역</h2>
-          <button onClick={handleExportPurchases} className="export-btn">
-            <Download size={16} />
-            엑셀 다운로드
-          </button>
+          <div className="export-buttons">
+            <button onClick={handleExportPurchases} className="export-btn">
+              <Download size={16} />
+              구매내역 다운로드
+            </button>
+            <button onClick={handleExportCashReceipts} className="export-btn">
+              <Download size={16} />
+              현금영수증 다운로드
+            </button>
+          </div>
         </div>
         <div className="transactions-grid">
           {/* 승인된 구매 내역 */}
