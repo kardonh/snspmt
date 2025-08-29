@@ -65,10 +65,10 @@ export default function SignupPage() {
       <div className="signup-card">
         <div className="signup-header">
           <div className="logo-container">
-            <div className="logo">SNSINTO</div>
+            <div className="logo">Sociality</div>
           </div>
           <h2 className="signup-title">회원가입</h2>
-          <p className="signup-subtitle">SNSINTO 계정을 만들어보세요</p>
+          <p className="signup-subtitle">Sociality 계정을 만들어보세요</p>
         </div>
         
         {error && (

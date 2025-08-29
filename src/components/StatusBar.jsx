@@ -55,7 +55,7 @@ const StatusBar = () => {
       {isMobile && (
         <div className="mobile-header">
           <div className="mobile-logo">
-            <h2>SNSinto</h2>
+            <h2>Sociality</h2>
           </div>
           <div className="mobile-user-info">
             {currentUser ? (
