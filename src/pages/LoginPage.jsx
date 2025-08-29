@@ -30,6 +30,9 @@ export default function LoginPage() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
+          <div className="logo-container">
+            <div className="logo">SNSINTO</div>
+          </div>
           <h2 className="login-title">로그인</h2>
           <p className="login-subtitle">SNSINTO에 오신 것을 환영합니다</p>
         </div>

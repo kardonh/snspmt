@@ -64,9 +64,11 @@ export default function SignupPage() {
     <div className="signup-container">
       <div className="signup-card">
         <div className="signup-header">
+          <div className="logo-container">
+            <div className="logo">SNSINTO</div>
+          </div>
           <h2 className="signup-title">회원가입</h2>
           <p className="signup-subtitle">SNSINTO 계정을 만들어보세요</p>
-          <p style={{color: 'red', fontSize: '14px'}}>테스트: 비즈니스 계정 기능이 구현되었습니다!</p>
         </div>
         
         {error && (
