@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import './AdminPage.css'
 
+// Force rebuild - Admin page with cash receipt download functionality
 const AdminPage = () => {
   const { currentUser } = useAuth()
   const navigate = useNavigate()
@@ -78,10 +79,13 @@ const AdminPage = () => {
   const loadAdminData = async () => {
     try {
       setLoading(true)
+      
+      // Rate limiting 방지를 위한 지연
+      await new Promise(resolve => setTimeout(resolve, 1000))
   
       
       // 백엔드 서버 URL 확인
-      const baseUrl = 'http://localhost:8000'
+      const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : ''
       
       // 실제 API 호출
       const [statsResponse, transactionsResponse, purchasesResponse, usersResponse] = await Promise.all([
@@ -264,7 +268,7 @@ const AdminPage = () => {
 
   const handleExportCashReceipts = async () => {
     try {
-      const baseUrl = 'http://localhost:8000'
+      const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : ''
       const response = await fetch(`${baseUrl}/api/admin/export/cash-receipts`)
       
       if (!response.ok) {
@@ -302,7 +306,7 @@ const AdminPage = () => {
 
   const handlePurchaseAction = async (purchaseId, action) => {
     try {
-      const baseUrl = 'http://localhost:8000'
+      const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : ''
       
       const response = await fetch(`${baseUrl}/api/admin/purchases/${purchaseId}`, {
         method: 'PUT',
@@ -356,7 +360,7 @@ const AdminPage = () => {
 
     try {
       setSearchLoading(true)
-      const baseUrl = 'http://localhost:8000'
+      const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : ''
       const response = await fetch(`${baseUrl}/api/admin/search-account?query=${encodeURIComponent(searchQuery.trim())}`)
       
       if (!response.ok) {
