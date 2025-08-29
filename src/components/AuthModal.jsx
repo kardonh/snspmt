@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { X, LogIn, UserPlus, Mail, Lock, User, Building2, Briefcase } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { X, LogIn, UserPlus, Mail, Lock, User, Building2, Briefcase, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import './AuthModal.css'
 
@@ -16,17 +16,119 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
   const [contactEmail, setContactEmail] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [loginAttempts, setLoginAttempts] = useState(0)
+  const [isLocked, setIsLocked] = useState(false)
+  const [lockoutTime, setLockoutTime] = useState(0)
   
   const { login, signup } = useAuth()
 
+  // 로그인 시도 제한 확인 (AuthModal용)
+  useEffect(() => {
+    if (isLogin) {
+      const attempts = localStorage.getItem('modalLoginAttempts') || 0;
+      const lockoutUntil = localStorage.getItem('modalLockoutUntil') || 0;
+      
+      const now = Date.now();
+      
+      if (lockoutUntil > now) {
+        setIsLocked(true);
+        setLockoutTime(Math.ceil((lockoutUntil - now) / 1000));
+      } else if (lockoutUntil > 0 && lockoutUntil <= now) {
+        localStorage.removeItem('modalLockoutUntil');
+        localStorage.setItem('modalLoginAttempts', '0');
+        setIsLocked(false);
+        setLoginAttempts(0);
+      } else {
+        setLoginAttempts(parseInt(attempts));
+      }
+    }
+  }, [isLogin]);
+
+  // 잠금 시간 카운트다운
+  useEffect(() => {
+    if (isLocked && lockoutTime > 0) {
+      const timer = setTimeout(() => {
+        setLockoutTime(lockoutTime - 1);
+        if (lockoutTime <= 1) {
+          setIsLocked(false);
+          setLoginAttempts(0);
+          localStorage.removeItem('modalLockoutUntil');
+          localStorage.setItem('modalLoginAttempts', '0');
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isLocked, lockoutTime]);
+
+  // 입력 검증
+  const validateInputs = () => {
+    if (!email.trim()) {
+      setError('이메일을 입력해주세요.');
+      return false;
+    }
+    
+    if (!email.includes('@') || !email.includes('.')) {
+      setError('올바른 이메일 형식을 입력해주세요.');
+      return false;
+    }
+    
+    if (!password.trim()) {
+      setError('비밀번호를 입력해주세요.');
+      return false;
+    }
+    
+    if (password.length < 6) {
+      setError('비밀번호는 최소 6자 이상이어야 합니다.');
+      return false;
+    }
+    
+    return true;
+  };
+
+  // 로그인 시도 제한 관리 (AuthModal용)
+  const handleLoginAttempt = (success) => {
+    const now = Date.now();
+    let attempts = parseInt(localStorage.getItem('modalLoginAttempts') || '0');
+    
+    if (success) {
+      localStorage.removeItem('modalLoginAttempts');
+      localStorage.removeItem('modalLockoutUntil');
+      setLoginAttempts(0);
+      setIsLocked(false);
+    } else {
+      attempts += 1;
+      localStorage.setItem('modalLoginAttempts', attempts.toString());
+      setLoginAttempts(attempts);
+      
+      if (attempts >= 5) {
+        const lockoutUntil = now + (15 * 60 * 1000);
+        localStorage.setItem('modalLockoutUntil', lockoutUntil.toString());
+        setIsLocked(true);
+        setLockoutTime(15 * 60);
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    if (isLocked) {
+      setError(`로그인이 잠겨있습니다. ${Math.floor(lockoutTime / 60)}분 ${lockoutTime % 60}초 후에 다시 시도해주세요.`);
+      return;
+    }
+
+    if (!validateInputs()) {
+      return;
+    }
+
     setError('')
     setLoading(true)
 
     try {
       if (isLogin) {
         await login(email, password)
+        handleLoginAttempt(true)
       } else {
         // 비즈니스 계정일 때 필수 정보 확인
         if (accountType === 'business') {
@@ -51,6 +153,11 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
       onClose()
     } catch (error) {
       console.error('Auth error:', error)
+      
+      if (isLogin) {
+        handleLoginAttempt(false)
+      }
+      
       // Firebase 에러 메시지를 한국어로 변환
       let errorMessage = error.message
       if (error.code === 'auth/user-not-found') {
@@ -66,6 +173,13 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.'
       }
+      
+      if (isLogin && loginAttempts >= 4) {
+        errorMessage = '로그인 시도가 너무 많습니다. 15분 후에 다시 시도해주세요.';
+      } else if (isLogin) {
+        errorMessage += ` (${5 - loginAttempts}회 남음)`;
+      }
+      
       setError(errorMessage)
     } finally {
       setLoading(false)

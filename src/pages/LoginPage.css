@@ -104,16 +104,101 @@
   color: #9ca3af;
 }
 
-.login-button {
-  width: 100%;
-  padding: 16px 24px;
-  font-size: 16px;
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.password-toggle:hover {
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.password-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lockout-message {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.lockout-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lockout-content {
+  flex: 1;
+}
+
+.lockout-content strong {
+  color: #dc2626;
+  font-size: 1rem;
   font-weight: 600;
-  margin-top: 8px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.lockout-content p {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0 0 8px 0;
+}
+
+.lockout-timer {
+  color: #dc2626;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: rgba(220, 38, 38, 0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.attempt-warning {
+  background: #fffbeb;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #d97706;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.attempt-warning svg {
+  flex-shrink: 0;
+}
+
+.form-input:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
 .login-button:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
   transform: none !important;
 }
