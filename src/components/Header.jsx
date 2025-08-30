@@ -34,6 +34,17 @@ const Header = () => {
         <Link to="/" className="logo">
           Sociality
         </Link>
+        <nav className="header-nav">
+          <Link to="/services" className="nav-link">
+            서비스
+          </Link>
+          <Link to="/info" className="nav-link">
+            정보
+          </Link>
+          <Link to="/faq" className="nav-link">
+            FAQ
+          </Link>
+        </nav>
         <div className="header-right">
           {currentUser ? (
             <div className="user-info">

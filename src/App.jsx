@@ -13,6 +13,7 @@ import SettingsPage from './pages/SettingsPage'
 import InfoPage from './pages/InfoPage'
 import FAQPage from './pages/FAQPage'
 import ServicePage from './pages/ServicePage'
+import ServicesPage from './pages/ServicesPage'
 import AdminPage from './pages/AdminPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import './App.css'
@@ -36,6 +37,7 @@ function App() {
                 <Route path="/info" element={<InfoPage />} />
                 <Route path="/faq" element={<FAQPage />} />
                 <Route path="/service" element={<ServicePage />} />
+                <Route path="/services" element={<ServicesPage />} />
               </Routes>
             </Layout>
           </div>
