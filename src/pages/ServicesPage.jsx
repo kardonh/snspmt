@@ -1,16 +1,11 @@
 import React, { useState } from 'react';
 import { 
   Instagram, 
-  YouTube, 
-  TikTok, 
-  Twitter, 
-  Facebook, 
-  LinkedIn,
+  Youtube, 
+  MessageCircle,
   Users,
   Heart,
-  MessageCircle,
   Eye,
-  Play,
   TrendingUp,
   CheckCircle,
   Star,
@@ -165,8 +160,8 @@ const ServicesPage = () => {
   const categories = [
     { id: 'all', name: '전체 서비스', icon: <Zap size={20} /> },
     { id: 'instagram', name: 'Instagram', icon: <Instagram size={20} /> },
-    { id: 'youtube', name: 'YouTube', icon: <YouTube size={20} /> },
-    { id: 'tiktok', name: 'TikTok', icon: <TikTok size={20} /> }
+    { id: 'youtube', name: 'YouTube', icon: <Youtube size={20} /> },
+    { id: 'tiktok', name: 'TikTok', icon: <MessageCircle size={20} /> }
   ];
 
   const getFilteredServices = () => {
