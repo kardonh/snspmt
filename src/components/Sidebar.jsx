@@ -11,7 +11,8 @@ import {
   ChevronUp,
   X,
   Shield,
-  CreditCard
+  CreditCard,
+  Package
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import './Sidebar.css'
@@ -24,6 +25,7 @@ const Sidebar = ({ onClose }) => {
 
   const menuItems = [
     { id: 'order', name: '주문하기', icon: Star, path: '/', color: '#3b82f6' },
+    { id: 'services', name: '상품목록', icon: Package, path: '/services', color: '#ec4899' },
     { id: 'orders', name: '주문내역', icon: FileText, path: '/orders', color: '#8b5cf6' },
     { id: 'points', name: '포인트 구매', icon: CreditCard, path: '/points', color: '#f59e0b' },
     { id: 'info', name: '상품안내 및 주문방법', icon: Info, path: '/info', color: '#10b981' },
