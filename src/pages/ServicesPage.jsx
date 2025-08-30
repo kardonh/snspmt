@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Instagram, 
   Youtube, 
@@ -16,144 +17,110 @@ import './ServicesPage.css';
 // Force redeploy - Fix 503 Service Unavailable error
 const ServicesPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const navigate = useNavigate();
 
+  // 실제 주문 시스템과 호환되는 서비스 ID 매핑
   const services = {
     instagram: [
       {
-        id: 'ig-followers',
-        name: 'Instagram 팔로워',
-        description: '실제 사용자 팔로워 증가',
+        id: 'followers_korean',
+        name: 'Instagram 팔로워 (한국인)',
+        description: '실제 한국인 사용자 팔로워 증가',
         icon: <Users size={24} />,
-        features: ['실제 사용자', '영구 보장', '24시간 내 시작', '자연스러운 증가'],
-        price: '1,000원부터',
+        features: ['실제 한국인 사용자', '영구 보장', '24시간 내 시작', '자연스러운 증가'],
+        price: '120원',
         delivery: '24-48시간',
         minQuantity: 100,
-        maxQuantity: 10000
+        maxQuantity: 20000,
+        apiId: 577
       },
       {
-        id: 'ig-likes',
-        name: 'Instagram 좋아요',
+        id: 'followers_foreign',
+        name: 'Instagram 팔로워 (외국인)',
+        description: '실제 외국인 사용자 팔로워 증가',
+        icon: <Users size={24} />,
+        features: ['실제 외국인 사용자', '영구 보장', '24시간 내 시작', '자연스러운 증가'],
+        price: '1원',
+        delivery: '24-48시간',
+        minQuantity: 100,
+        maxQuantity: 2000,
+        apiId: 855
+      },
+      {
+        id: 'likes_korean',
+        name: 'Instagram 좋아요 (한국인)',
         description: '포스트 좋아요 수 증가',
         icon: <Heart size={24} />,
-        features: ['실제 좋아요', '즉시 적용', '안전한 서비스', '자연스러운 비율'],
-        price: '500원부터',
+        features: ['실제 한국인 좋아요', '즉시 적용', '안전한 서비스', '자연스러운 비율'],
+        price: '120원',
         delivery: '즉시',
         minQuantity: 50,
-        maxQuantity: 5000
+        maxQuantity: 5000,
+        apiId: 790
       },
       {
-        id: 'ig-comments',
-        name: 'Instagram 댓글',
-        description: '포스트 댓글 수 증가',
-        icon: <MessageCircle size={24} />,
-        features: ['실제 댓글', '다양한 언어', '자연스러운 내용', '24시간 내 적용'],
-        price: '2,000원부터',
-        delivery: '24시간',
-        minQuantity: 10,
-        maxQuantity: 1000
-      },
-      {
-        id: 'ig-views',
-        name: 'Instagram 조회수',
+        id: 'views_korean',
+        name: 'Instagram 조회수 (한국인)',
         description: '스토리/릴스 조회수 증가',
         icon: <Eye size={24} />,
         features: ['실제 조회수', '즉시 적용', '자연스러운 증가', '안전한 서비스'],
-        price: '300원부터',
+        price: '120원',
         delivery: '즉시',
         minQuantity: 100,
-        maxQuantity: 10000
+        maxQuantity: 10000,
+        apiId: 619
       }
     ],
     youtube: [
       {
-        id: 'yt-subscribers',
-        name: 'YouTube 구독자',
-        description: '실제 구독자 수 증가',
+        id: 'subscribers_foreign',
+        name: 'YouTube 구독자 (외국인)',
+        description: '실제 외국인 구독자 수 증가',
         icon: <Users size={24} />,
-        features: ['실제 구독자', '영구 보장', '자연스러운 증가', '알고리즘 친화적'],
-        price: '2,000원부터',
+        features: ['실제 외국인 구독자', '영구 보장', '자연스러운 증가', '알고리즘 친화적'],
+        price: '30원',
         delivery: '24-72시간',
         minQuantity: 100,
-        maxQuantity: 5000
+        maxQuantity: 5000,
+        apiId: 1001
       },
       {
-        id: 'yt-views',
-        name: 'YouTube 조회수',
+        id: 'views_foreign',
+        name: 'YouTube 조회수 (외국인)',
         description: '동영상 조회수 증가',
         icon: <Eye size={24} />,
         features: ['실제 조회수', '즉시 적용', '자연스러운 증가', '알고리즘 최적화'],
-        price: '1,000원부터',
+        price: '30원',
         delivery: '즉시',
         minQuantity: 1000,
-        maxQuantity: 100000
-      },
-      {
-        id: 'yt-likes',
-        name: 'YouTube 좋아요',
-        description: '동영상 좋아요 수 증가',
-        icon: <Heart size={24} />,
-        features: ['실제 좋아요', '즉시 적용', '자연스러운 비율', '안전한 서비스'],
-        price: '500원부터',
-        delivery: '즉시',
-        minQuantity: 100,
-        maxQuantity: 10000
-      },
-      {
-        id: 'yt-comments',
-        name: 'YouTube 댓글',
-        description: '동영상 댓글 수 증가',
-        icon: <MessageCircle size={24} />,
-        features: ['실제 댓글', '다양한 언어', '자연스러운 내용', '24시간 내 적용'],
-        price: '3,000원부터',
-        delivery: '24시간',
-        minQuantity: 10,
-        maxQuantity: 500
+        maxQuantity: 100000,
+        apiId: 1002
       }
     ],
     tiktok: [
       {
-        id: 'tt-followers',
-        name: 'TikTok 팔로워',
-        description: '실제 팔로워 수 증가',
+        id: 'followers_foreign',
+        name: 'TikTok 팔로워 (외국인)',
+        description: '실제 외국인 팔로워 수 증가',
         icon: <Users size={24} />,
-        features: ['실제 사용자', '영구 보장', '24시간 내 시작', '자연스러운 증가'],
-        price: '1,500원부터',
+        features: ['실제 외국인 사용자', '영구 보장', '24시간 내 시작', '자연스러운 증가'],
+        price: '22원',
         delivery: '24-48시간',
         minQuantity: 100,
-        maxQuantity: 10000
+        maxQuantity: 10000,
+        apiId: 702
       },
       {
-        id: 'tt-likes',
-        name: 'TikTok 좋아요',
+        id: 'likes_foreign',
+        name: 'TikTok 좋아요 (외국인)',
         description: '동영상 좋아요 수 증가',
         icon: <Heart size={24} />,
-        features: ['실제 좋아요', '즉시 적용', '자연스러운 비율', '알고리즘 최적화'],
-        price: '800원부터',
+        features: ['실제 외국인 좋아요', '즉시 적용', '자연스러운 비율', '알고리즘 최적화'],
+        price: '22원',
         delivery: '즉시',
         minQuantity: 100,
-        maxQuantity: 10000
-      },
-      {
-        id: 'tt-views',
-        name: 'TikTok 조회수',
-        description: '동영상 조회수 증가',
-        icon: <Eye size={24} />,
-        features: ['실제 조회수', '즉시 적용', '자연스러운 증가', '트렌딩 최적화'],
-        price: '500원부터',
-        delivery: '즉시',
-        minQuantity: 1000,
-        maxQuantity: 100000
-      },
-      {
-        id: 'tt-shares',
-        name: 'TikTok 공유',
-        description: '동영상 공유 수 증가',
-        icon: <TrendingUp size={24} />,
-        features: ['실제 공유', '즉시 적용', '바이럴 효과', '알고리즘 부스트'],
-        price: '1,200원부터',
-        delivery: '즉시',
-        minQuantity: 50,
-        maxQuantity: 5000
+        maxQuantity: 10000,
+        apiId: 244
       }
     ]
   };
@@ -170,6 +137,19 @@ const ServicesPage = () => {
       return Object.values(services).flat();
     }
     return services[selectedCategory] || [];
+  };
+
+  const handleOrder = (service) => {
+    // 플랫폼과 서비스 ID를 추출하여 주문 페이지로 이동
+    const platform = Object.keys(services).find(key => 
+      services[key].some(s => s.id === service.id)
+    );
+    
+    if (platform && service.id) {
+      navigate(`/order/${platform}/${service.id}`);
+    } else {
+      alert('주문할 수 없는 서비스입니다.');
+    }
   };
 
   return (
@@ -243,11 +223,11 @@ const ServicesPage = () => {
                 </div>
               </div>
 
-              <div className="service-actions">
-                <button className="order-btn">
-                  <Star size={16} />
-                  주문하기
-                </button>
+                              <div className="service-actions">
+                  <button className="order-btn" onClick={() => handleOrder(service)}>
+                    <Star size={16} />
+                    주문하기
+                  </button>
                 <button className="info-btn">
                   <MessageCircle size={16} />
                   상세정보
