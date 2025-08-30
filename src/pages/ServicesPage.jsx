@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import './ServicesPage.css';
 
+// Force redeploy - Fix 503 Service Unavailable error
 const ServicesPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
 
