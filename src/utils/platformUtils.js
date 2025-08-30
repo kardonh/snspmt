@@ -54,11 +54,11 @@ export const calculatePrice = (service, quantity, platform) => {
       case 'followers_korean': // 한국인 팔로워: 120원
         basePrice = 120 * quantity
         break
-      case 'followers_foreign': // 외국인 팔로워: 기본 단가 사용
-        basePrice = getPlatformInfo(platform).unitPrice * quantity
+      case 'followers_foreign': // 외국인 팔로워: 1원
+        basePrice = 1 * quantity
         break
-      case 'likes_korean': // 한국인 좋아요: 7원
-        basePrice = 7 * quantity
+      case 'likes_korean': // 한국인 좋아요: 120원
+        basePrice = 120 * quantity
         break
       case 'likes_foreign': // 외국인 좋아요: 1원
         basePrice = 1 * quantity
@@ -69,11 +69,11 @@ export const calculatePrice = (service, quantity, platform) => {
       case 'comments_foreign': // 외국인 랜덤 댓글: 50원
         basePrice = 50 * quantity
         break
-      case 'views_korean': // 한국인 조회수: 1원
-        basePrice = 1 * quantity
+      case 'views_korean': // 한국인 조회수: 120원
+        basePrice = 120 * quantity
         break
-      case 'views_foreign': // 외국인 조회수: 0.5원
-        basePrice = 0.5 * quantity
+      case 'views_foreign': // 외국인 조회수: 1원
+        basePrice = 1 * quantity
         break
       default:
         basePrice = getPlatformInfo(platform).unitPrice * quantity
@@ -81,23 +81,11 @@ export const calculatePrice = (service, quantity, platform) => {
   } else if (platform === 'youtube') {
     // YouTube 서비스별 단가 적용
     switch (service) {
-      case 'followers_foreign': // 외국인 구독자: 50원
-        basePrice = 50 * quantity
+      case 'subscribers_foreign': // 외국인 구독자: 30원
+        basePrice = 30 * quantity
         break
-      case 'followers_korean': // 리얼 한국인 구독자: 500원
-        basePrice = 500 * quantity
-        break
-      case 'likes_foreign': // 외국인 좋아요: 7원
-        basePrice = 7 * quantity
-        break
-      case 'comments_korean': // AI 랜덤 한국인 댓글: 150원
-        basePrice = 150 * quantity
-        break
-      case 'views_foreign': // 외국인 조회수: 7원
-        basePrice = 7 * quantity
-        break
-      case 'views_korean': // 리얼 한국인 조회수: 25원
-        basePrice = 25 * quantity
+      case 'views_foreign': // 외국인 조회수: 30원
+        basePrice = 30 * quantity
         break
       default:
         basePrice = getPlatformInfo(platform).unitPrice * quantity
@@ -105,17 +93,14 @@ export const calculatePrice = (service, quantity, platform) => {
   } else if (platform === 'tiktok') {
     // TikTok 서비스별 단가 적용
     switch (service) {
-      case 'likes_foreign': // 외국인 좋아요: 6원
-        basePrice = 6 * quantity
+      case 'likes_foreign': // 외국인 좋아요: 22원
+        basePrice = 22 * quantity
         break
-      case 'followers_foreign': // 외국인 계정 팔로워: 20원
-        basePrice = 20 * quantity
+      case 'followers_foreign': // 외국인 계정 팔로워: 22원
+        basePrice = 22 * quantity
         break
-      case 'views_foreign': // 외국인 조회수: 2원
-        basePrice = 2 * quantity
-        break
-      case 'comments_foreign': // 외국인 랜덤 댓글: 200원
-        basePrice = 200 * quantity
+      case 'views_foreign': // 외국인 조회수: 22원
+        basePrice = 22 * quantity
         break
       default:
         basePrice = getPlatformInfo(platform).unitPrice * quantity
