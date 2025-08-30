@@ -561,8 +561,16 @@ const OrderPage = () => {
           discount: getDiscount(quantity)
         }
         
-        // 결제 페이지로 이동하면서 주문 데이터 전달
-        navigate(`/payment/${platform}`, { state: { orderData: paymentData } })
+        console.log('Payment data:', paymentData)
+        console.log('Navigating to payment page...')
+        
+        try {
+          // 결제 페이지로 이동하면서 주문 데이터 전달
+          navigate(`/payment/${platform}`, { state: { orderData: paymentData } })
+        } catch (navigationError) {
+          console.error('Navigation error:', navigationError)
+          alert('결제 페이지로 이동 중 오류가 발생했습니다. 다시 시도해주세요.')
+        }
       }
     } catch (error) {
       const errorInfo = handleApiError(error)

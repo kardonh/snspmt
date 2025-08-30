@@ -47,8 +47,7 @@ export const smmkingsApi = {
   
   // 주문 생성
   createOrder: (orderData, userId) => {
-    // 보안상 민감한 정보는 로그에서 제거
-    console.log("주문 생성 완료")
+    console.log("주문 생성 시작:", orderData)
 
     const config = {
       headers: {
@@ -59,7 +58,13 @@ export const smmkingsApi = {
     return apiClient.post('', { 
       action: 'add',
       ...orderData 
-    }, config)
+    }, config).then(response => {
+      console.log("API 응답:", response)
+      return response
+    }).catch(error => {
+      console.error("API 오류:", error)
+      throw error
+    })
   },
   
   // 주문 상태 조회
