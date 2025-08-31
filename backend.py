@@ -1020,7 +1020,7 @@ def user_login():
 
 @app.route('/api/users/activity', methods=['POST'])
 def update_user_activity():
-    """사용자 활동 업데이트"""
+    """사용자 활동 업데이트 (최적화됨)"""
     try:
         data = request.get_json()
         user_id = data.get('userId')
@@ -1028,9 +1028,22 @@ def update_user_activity():
         if not user_id:
             return jsonify({'error': 'userId is required'}), 400
         
+        # 사용자 활동 업데이트 제한 (30분마다만 허용)
+        current_time = datetime.now()
+        if user_id in user_sessions:
+            last_update = user_sessions[user_id].get('lastActivityUpdate')
+            if last_update:
+                last_update_time = datetime.fromisoformat(last_update)
+                time_diff = (current_time - last_update_time).total_seconds()
+                
+                # 30분(1800초) 이내에 이미 업데이트된 경우 스킵
+                if time_diff < 1800:
+                    return jsonify({'success': True, 'message': 'Activity already updated recently'}), 200
+        
         # 실시간 접속 사용자 활동 시간 업데이트
         if user_id in user_sessions:
-            user_sessions[user_id]['lastActivity'] = datetime.now().isoformat()
+            user_sessions[user_id]['lastActivity'] = current_time.isoformat()
+            user_sessions[user_id]['lastActivityUpdate'] = current_time.isoformat()
         
         return jsonify({'success': True}), 200
         

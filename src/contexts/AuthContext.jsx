@@ -106,14 +106,14 @@ export function AuthProvider({ children }) {
           // 로그인 기록
           await smmkingsApi.userLogin(user.uid);
           
-          // 주기적으로 활동 업데이트 (5분마다)
+          // 주기적으로 활동 업데이트 (30분마다로 최적화)
           const activityInterval = setInterval(async () => {
             try {
               await smmkingsApi.updateUserActivity(user.uid);
             } catch (error) {
               console.error('활동 업데이트 실패:', error);
             }
-          }, 5 * 60 * 1000); // 5분
+          }, 30 * 60 * 1000); // 30분으로 최적화
           
           // 컴포넌트 언마운트 시 인터벌 정리
           return () => clearInterval(activityInterval);
