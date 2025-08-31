@@ -540,6 +540,11 @@ def health_check():
 def root():
     return send_from_directory('dist', 'index.html')
 
+@app.route('/admin', methods=['GET'])
+def admin_page():
+    """관리자 페이지 서빙"""
+    return send_from_directory('dist', 'index.html')
+
 @app.route('/<path:path>')
 def serve_static(path):
     return send_from_directory('dist', path)
@@ -592,12 +597,22 @@ def cancel_orders():
     except Exception as e:
         return jsonify({'error': f'취소 실패: {str(e)}'}), 500
 
-# 관리자 API 엔드포인트
-def get_db_connection():
-    db_path = os.path.join(os.path.dirname(__file__), 'orders.db')
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
+# 관리자 API 엔드포인트 (PostgreSQL 사용)
+def get_admin_db_connection():
+    """관리자 API용 PostgreSQL 연결"""
+    try:
+        if POSTGRES_AVAILABLE and db_pool:
+            # PostgreSQL 연결 풀 사용
+            conn = db_pool.getconn()
+            return conn
+        else:
+            # 직접 연결
+            database_url = "postgresql://snspmt_admin:Snspmt2024!@snspmt-db.cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/postgres"
+            conn = psycopg2.connect(database_url)
+            return conn
+    except Exception as e:
+        print(f"관리자 DB 연결 실패: {e}")
+        raise e
 
 @app.route('/api/admin/stats', methods=['GET'])
 def get_admin_stats():
@@ -611,7 +626,7 @@ def get_admin_stats():
         return jsonify(cached_data), 200
     
     try:
-        with get_db_connection() as conn:
+        with get_admin_db_connection() as conn:
             cursor = conn.cursor()
             
             # 현재 날짜와 한 달 전 날짜 계산
@@ -639,7 +654,7 @@ def get_admin_stats():
                 cursor.execute("""
                     SELECT COUNT(DISTINCT user_id) 
                     FROM orders 
-                    WHERE created_at >= ?
+                    WHERE created_at >= %s
                 """, (one_month_ago.strftime('%Y-%m-%d'),))
                 result = cursor.fetchone()
                 monthly_users = result[0] if result else 0
@@ -659,7 +674,7 @@ def get_admin_stats():
                 cursor.execute("""
                     SELECT SUM(price) 
                     FROM purchases 
-                    WHERE status = 'approved' AND created_at >= ?
+                    WHERE status = 'approved' AND created_at >= %s
                 """, (one_month_ago.strftime('%Y-%m-%d'),))
                 result = cursor.fetchone()
                 monthly_revenue = result[0] if result and result[0] else 0
@@ -679,7 +694,7 @@ def get_admin_stats():
                 cursor.execute("""
                     SELECT SUM(smmkings_cost) 
                     FROM orders 
-                    WHERE status = 'completed' AND created_at >= ?
+                    WHERE status = 'completed' AND created_at >= %s
                 """, (one_month_ago.strftime('%Y-%m-%d'),))
                 result = cursor.fetchone()
                 monthly_smmkings_charge = result[0] if result and result[0] else 0
@@ -719,7 +734,7 @@ def get_admin_stats():
 def get_admin_transactions():
     """충전 및 환불 내역 제공"""
     try:
-        with get_db_connection() as conn:
+        with get_admin_db_connection() as conn:
             cursor = conn.cursor()
             
             # 충전 내역 (완료된 주문)
