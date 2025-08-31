@@ -122,6 +122,18 @@ def cache_get(key, expire=300):
             return None
     return None
 
+def cache_set_with_compression(key, data, expire=300):
+    """압축된 데이터를 캐시에 저장 (성능 향상)"""
+    if redis_client:
+        try:
+            # 데이터 압축
+            compressed_data = json.dumps(data, separators=(',', ':'))
+            redis_client.setex(key, expire, compressed_data)
+            return True
+        except:
+            return False
+    return False
+
 def cache_set(key, data, expire=300):
     """캐시에 데이터 저장"""
     if redis_client:
@@ -245,20 +257,59 @@ def init_database():
         
         conn.commit()
 
+# 데이터베이스 인덱스 생성 (성능 최적화)
+def create_database_indexes():
+    """데이터베이스 인덱스 생성"""
+    try:
+        with get_admin_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # 주문 테이블 인덱스
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at)")
+            
+            # 사용자 테이블 인덱스
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at)")
+            
+            # 구매 내역 테이블 인덱스
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_purchases_user_id ON purchases(user_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_purchases_status ON purchases(status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_purchases_created_at ON purchases(created_at)")
+            
+            conn.commit()
+            print("데이터베이스 인덱스 생성 완료")
+            
+    except Exception as e:
+        print(f"인덱스 생성 실패: {e}")
+
 # 데이터베이스 초기화
 init_database()
+create_database_indexes()
 
 # Flask 앱 설정
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=False)
 
-# 보안 헤더 추가
+# 보안 헤더 및 성능 모니터링 추가
 @app.after_request
-def add_security_headers(response):
+def add_security_headers_and_monitoring(response):
+    # 보안 헤더
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    
+    # 성능 모니터링
+    if hasattr(request, 'start_time'):
+        response_time = time.time() - request.start_time
+        response.headers['X-Response-Time'] = f'{response_time:.3f}s'
+        
+        # 느린 응답 로깅 (1초 이상)
+        if response_time > 1.0:
+            print(f"⚠️ 느린 응답 감지: {request.path} - {response_time:.3f}초")
+    
     # CSP 헤더 임시 제거 (Firebase 오류 해결 후 재추가)
     # response.headers['Content-Security-Policy'] = "default-src 'self' https://*.firebase.googleapis.com https://*.firebaseinstallations.googleapis.com https://*.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebase.googleapis.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.firebase.googleapis.com https://*.firebaseinstallations.googleapis.com https://*.googleapis.com https://*.google.com; img-src 'self' data: https:; font-src 'self' data:;"
     return response
@@ -290,6 +341,9 @@ def check_rate_limit(ip, limit=1000, window=3600):
 @app.before_request
 def before_request():
     """요청 전 처리"""
+    # 요청 시작 시간 기록
+    request.start_time = time.time()
+    
     # 레이트 리미팅 체크
     if not check_rate_limit(request.remote_addr):
         return jsonify({'error': 'Rate limit exceeded'}), 429
