@@ -13,6 +13,14 @@ const OrderPage = () => {
   const navigate = useNavigate()
   const { currentUser } = useAuth()
   const [selectedService, setSelectedService] = useState(serviceId || 'followers_korean')
+  
+  // 디버깅: 서비스 ID 확인
+  useEffect(() => {
+    console.log('=== OrderPage 디버깅 ===')
+    console.log('URL 파라미터:', { platform, serviceId })
+    console.log('초기 selectedService:', selectedService)
+    console.log('사용 가능한 서비스:', services)
+  }, [platform, serviceId, selectedService, services])
   const [quantity, setQuantity] = useState(200)
   const [totalPrice, setTotalPrice] = useState(0)
   const [showChecklist, setShowChecklist] = useState(false)
@@ -479,6 +487,13 @@ const OrderPage = () => {
         }
       }
 
+      // 서비스 선택 검증 추가
+      if (!selectedService || selectedService === 'undefined') {
+        console.error('서비스가 선택되지 않음:', { selectedService, serviceId, platform })
+        alert('주문할 서비스를 선택해주세요.')
+        return
+      }
+      
       setIsLoading(true)
       
       try {
@@ -491,6 +506,7 @@ const OrderPage = () => {
         console.log('Selected Service ID:', serviceId)
         
         if (!serviceId) {
+          console.error('서비스 ID 매핑 실패:', { platform, selectedService, serviceIdMapping })
           alert('지원하지 않는 서비스입니다.')
           return
         }

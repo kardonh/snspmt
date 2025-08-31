@@ -789,7 +789,7 @@ def get_admin_transactions():
 def get_pending_purchases():
     """대기 중인 구매 내역 조회"""
     try:
-        with get_db_connection() as conn:
+        with get_admin_db_connection() as conn:
             cursor = conn.cursor()
             
             cursor.execute("""

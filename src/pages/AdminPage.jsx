@@ -105,6 +105,13 @@ const AdminPage = () => {
       const purchasesData = await purchasesResponse.json()
       const usersData = await usersResponse.json()
       
+      // 디버깅 로그 추가
+      console.log('=== AdminPage 데이터 로드 디버깅 ===')
+      console.log('Stats Response:', statsData)
+      console.log('Transactions Response:', transactionsData)
+      console.log('Purchases Response:', purchasesData)
+      console.log('Users Response:', usersData)
+      
       // 데이터 설정
       if (statsData.success) {
         setStats(statsData.data)
@@ -115,6 +122,7 @@ const AdminPage = () => {
       }
       
       if (purchasesData.success && purchasesData.purchases) {
+        console.log('포인트 구매 데이터 설정:', purchasesData.purchases)
         setPendingPurchases(purchasesData.purchases)
         
         // 승인된 구매와 거절된 구매 분리
@@ -127,6 +135,9 @@ const AdminPage = () => {
         // 월별 통계 계산
         const allPurchases = [...approved, ...rejected]
         calculateMonthlyStats(allPurchases)
+      } else {
+        console.error('포인트 구매 데이터 로드 실패:', purchasesData)
+        setPendingPurchases([])
       }
       
       if (usersData) {
