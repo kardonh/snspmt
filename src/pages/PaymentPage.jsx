@@ -83,22 +83,21 @@ const PaymentPage = () => {
 
     setIsProcessing(true)
 
-    try {
-      // 1단계: 결제 처리 (시뮬레이션)
-      let paymentMessage = ''
-      switch (selectedPaymentMethod) {
-        case 'toss':
-          paymentMessage = '토스페이 결제를 진행합니다...'
-          break
-        case 'kakao':
-          paymentMessage = '카카오페이 결제를 진행합니다...'
-          break
-        case 'naver':
-          paymentMessage = '네이버페이 결제를 진행합니다...'
-          break
-        case 'card':
-          paymentMessage = '신용카드 결제를 진행합니다...'
-          break
+    // 1단계: 결제 처리 (시뮬레이션)
+    let paymentMessage = ''
+    switch (selectedPaymentMethod) {
+      case 'toss':
+        paymentMessage = '토스페이 결제를 진행합니다...'
+        break
+      case 'kakao':
+        paymentMessage = '카카오페이 결제를 진행합니다...'
+        break
+      case 'naver':
+        paymentMessage = '네이버페이 결제를 진행합니다...'
+        break
+      case 'card':
+        paymentMessage = '신용카드 결제를 진행합니다...'
+        break
       case 'bank':
         paymentMessage = '계좌이체를 진행합니다...'
         break
@@ -109,10 +108,12 @@ const PaymentPage = () => {
         paymentMessage = '결제를 진행합니다...'
     }
 
-      // 2단계: 포인트 차감 및 SNS 플레이스 API 호출
-      console.log('결제 완료, 포인트 차감 및 SNS 플레이스 API 호출 시작...')
-      
+    // 2초 후 실제 처리 시작
+    setTimeout(async () => {
       try {
+        // 2단계: 포인트 차감 및 SNS 플레이스 API 호출
+        console.log('결제 완료, 포인트 차감 및 SNS 플레이스 API 호출 시작...')
+        
         // 1. 포인트 차감
         const deductResponse = await fetch('/api/points', {
           method: 'PUT',
