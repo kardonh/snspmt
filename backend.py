@@ -504,38 +504,7 @@ def get_smmpanel_services():
     except Exception as e:
         return jsonify({'error': f'서비스 조회 실패: {str(e)}'}), 500
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    """헬스 체크 엔드포인트"""
-    try:
-        # 임시 디렉토리 권한 확인
-        temp_dir = os.environ.get('TEMP_DIR', '/tmp')
-        temp_dir_writable = os.access(temp_dir, os.W_OK)
-        
-        # 데이터베이스 연결 확인
-        db_status = "unknown"
-        try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute('SELECT 1')
-                db_status = "healthy"
-        except Exception as e:
-            db_status = f"unhealthy: {str(e)}"
-        
-        return {
-            'status': 'healthy',
-            'timestamp': datetime.utcnow().isoformat(),
-            'temp_dir': temp_dir,
-            'temp_dir_writable': temp_dir_writable,
-            'database': db_status,
-            'environment': os.environ.get('FLASK_ENV', 'unknown')
-        }, 200
-    except Exception as e:
-        return {
-            'status': 'unhealthy',
-            'error': str(e),
-            'timestamp': datetime.utcnow().isoformat()
-        }, 500
+
 
 @app.route('/', methods=['GET'])
 def root():
