@@ -82,7 +82,6 @@ const AdminPage = () => {
       
       // Rate limiting 방지를 위한 지연
       await new Promise(resolve => setTimeout(resolve, 1000))
-  
       
       // 백엔드 서버 URL 확인
       const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : ''
@@ -95,34 +94,18 @@ const AdminPage = () => {
         fetch(`${baseUrl}/api/admin/users`)
       ])
       
-      
-      
-      // 응답 내용 확인
-      const statsText = await statsResponse.text()
-      const transactionsText = await transactionsResponse.text()
-      const purchasesText = await purchasesResponse.text()
-      const usersText = await usersResponse.text()
-      
-      
-      
+      // 응답 상태 확인
       if (!statsResponse.ok || !transactionsResponse.ok || !purchasesResponse.ok || !usersResponse.ok) {
         throw new Error(`API 요청 실패: Stats ${statsResponse.status}, Transactions ${transactionsResponse.status}, Purchases ${purchasesResponse.status}, Users ${usersResponse.status}`)
       }
       
-      // JSON 파싱 시도
-      let statsData, transactionsData, purchasesData, usersData
-      try {
-        statsData = JSON.parse(statsText)
-        transactionsData = JSON.parse(transactionsText)
-        purchasesData = JSON.parse(purchasesText)
-        usersData = JSON.parse(usersText)
-      } catch (parseError) {
-        console.error('JSON 파싱 실패:', parseError)
-        throw new Error('API 응답이 유효한 JSON이 아닙니다')
-      }
+      // JSON 파싱
+      const statsData = await statsResponse.json()
+      const transactionsData = await transactionsResponse.json()
+      const purchasesData = await purchasesResponse.json()
+      const usersData = await usersResponse.json()
       
-      
-      
+      // 데이터 설정
       if (statsData.success) {
         setStats(statsData.data)
       }
@@ -131,40 +114,12 @@ const AdminPage = () => {
         setTransactions(transactionsData.data)
       }
       
-      if (purchasesData.purchases) {
+      if (purchasesData.success && purchasesData.purchases) {
         setPendingPurchases(purchasesData.purchases)
         
         // 승인된 구매와 거절된 구매 분리
-        const approved = []
-        const rejected = []
-        
-        // 모든 구매 내역을 가져오기 위해 추가 API 호출
-        try {
-          const allPurchasesResponse = await fetch(`${baseUrl}/api/purchases`)
-          if (allPurchasesResponse.ok) {
-            const allPurchasesData = await allPurchasesResponse.json()
-            if (allPurchasesData.history) {
-              // 모든 사용자의 구매 내역을 하나로 합치기
-              const allPurchases = []
-              for (const userPurchases of Object.values(allPurchasesData.history)) {
-                if (Array.isArray(userPurchases)) {
-                  allPurchases.push(...userPurchases)
-                }
-              }
-              
-              // 승인/거절된 구매 분리
-              allPurchases.forEach(purchase => {
-                if (purchase.status === 'approved') {
-                  approved.push(purchase)
-                } else if (purchase.status === 'rejected') {
-                  rejected.push(purchase)
-                }
-              })
-            }
-          }
-        } catch (error) {
-          console.error('전체 구매 내역 조회 실패:', error)
-        }
+        const approved = purchasesData.purchases.filter(p => p.status === 'approved')
+        const rejected = purchasesData.purchases.filter(p => p.status === 'rejected')
         
         setApprovedPurchases(approved)
         setRejectedPurchases(rejected)
@@ -180,26 +135,25 @@ const AdminPage = () => {
 
     } catch (error) {
       console.error('관리자 데이터 로드 실패:', error)
-      // API 실패 시 임시 데이터 사용
-      const mockData = {
-        totalUsers: 1250,
-        monthlyUsers: 89,
-        totalRevenue: 2500000,
-        monthlyRevenue: 180000,
-        totalSMMKingsCharge: 1800000,
-        monthlySMMKingsCharge: 120000,
-        monthlyCost: 96000
-      }
-      
-      setStats(mockData)
+      // API 실패 시 기본 데이터 사용
+      setStats({
+        totalUsers: 0,
+        monthlyUsers: 0,
+        totalRevenue: 0,
+        monthlyRevenue: 0,
+        totalSMMKingsCharge: 0,
+        monthlySMMKingsCharge: 0
+      })
       setTransactions({
-        charges: [
-          { id: 1, user: 'user1@example.com', amount: 50000, date: '2024-01-15', status: 'completed' },
-          { id: 2, user: 'user2@example.com', amount: 30000, date: '2024-01-14', status: 'completed' }
-        ],
-        refunds: [
-          { id: 1, user: 'user4@example.com', amount: 25000, date: '2024-01-12', reason: '서비스 미제공' }
-        ]
+        charges: [],
+        refunds: []
+      })
+      setUsersInfo({
+        totalUsers: 0,
+        activeUsers: 0,
+        newUsersToday: 0,
+        newUsersWeek: 0,
+        recentUsers: []
       })
     } finally {
       setLoading(false)

@@ -186,59 +186,60 @@ def init_database():
     with get_db_connection() as conn:
         cursor = conn.cursor()
         
-        # PostgreSQL 테이블 생성
+        # SQLite 테이블 생성 (PostgreSQL 문법 수정)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS orders (
-                id SERIAL PRIMARY KEY,
-                order_id VARCHAR(255) UNIQUE,
-                user_id VARCHAR(255),
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id TEXT UNIQUE,
+                user_id TEXT,
                 service_id INTEGER,
                 link TEXT,
                 quantity INTEGER,
-                price DECIMAL(10,2),
-                status VARCHAR(50),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                price REAL,
+                status TEXT,
+                smmkings_cost REAL DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                user_id VARCHAR(255) UNIQUE,
-                email VARCHAR(255),
-                display_name VARCHAR(255),
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT UNIQUE,
+                email TEXT,
+                display_name TEXT,
                 points INTEGER DEFAULT 0,
-                account_type VARCHAR(50) DEFAULT 'personal',
-                business_info JSONB,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                account_type TEXT DEFAULT 'personal',
+                business_info TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                last_activity TEXT DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS purchases (
-                id SERIAL PRIMARY KEY,
-                purchase_id VARCHAR(255) UNIQUE,
-                user_id VARCHAR(255),
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                purchase_id TEXT UNIQUE,
+                user_id TEXT,
                 amount INTEGER,
-                price DECIMAL(10,2),
-                status VARCHAR(50) DEFAULT 'pending',
-                depositor_name VARCHAR(255),
-                bank_name VARCHAR(255),
-                receipt_type VARCHAR(50),
-                business_info JSONB,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                price REAL,
+                status TEXT DEFAULT 'pending',
+                depositor_name TEXT,
+                bank_name TEXT,
+                receipt_type TEXT,
+                business_info TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS monthly_costs (
-                id SERIAL PRIMARY KEY,
-                month VARCHAR(7),
-                total_cost DECIMAL(10,2) DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                month TEXT,
+                total_cost REAL DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
@@ -616,14 +617,7 @@ def get_admin_db_connection():
 
 @app.route('/api/admin/stats', methods=['GET'])
 def get_admin_stats():
-    """관리자 통계 데이터 제공 (캐싱 적용)"""
-    # 캐시 키 생성
-    cache_key = generate_cache_key('admin_stats')
-    
-    # 캐시에서 조회 시도 (5분 캐시)
-    cached_data = cache_get(cache_key, expire=300)
-    if cached_data:
-        return jsonify(cached_data), 200
+    """관리자 통계 데이터 제공 (수정됨)"""
     
     try:
         with get_admin_db_connection() as conn:
@@ -642,8 +636,8 @@ def get_admin_stats():
             monthly_smmkings_charge = 0
             
             try:
-                # 총 가입자 수 (Firebase Auth 사용자 수는 별도로 관리 필요)
-                cursor.execute("SELECT COUNT(DISTINCT user_id) FROM orders")
+                # 총 가입자 수 (users 테이블에서 조회)
+                cursor.execute("SELECT COUNT(*) FROM users")
                 result = cursor.fetchone()
                 total_users = result[0] if result else 0
             except Exception as e:
@@ -652,8 +646,8 @@ def get_admin_stats():
             try:
                 # 한 달 가입자 수
                 cursor.execute("""
-                    SELECT COUNT(DISTINCT user_id) 
-                    FROM orders 
+                    SELECT COUNT(*) 
+                    FROM users 
                     WHERE created_at >= %s
                 """, (one_month_ago.strftime('%Y-%m-%d'),))
                 result = cursor.fetchone()
@@ -701,9 +695,15 @@ def get_admin_stats():
             except Exception as e:
                 print(f"한 달 SMM KINGS 충전액 조회 오류: {e}")
             
-            # 현재 월의 원가 계산 (메모리에서 관리되는 원가 데이터 사용)
+            # 현재 월의 원가 계산
             current_month = now.strftime('%Y-%m')
-            monthly_cost = monthly_costs.get(current_month, 0)
+            monthly_cost = 0
+            try:
+                cursor.execute("SELECT total_cost FROM monthly_costs WHERE month = %s", (current_month,))
+                result = cursor.fetchone()
+                monthly_cost = result[0] if result else 0
+            except Exception as e:
+                print(f"월별 원가 조회 오류: {e}")
             
             result_data = {
                 'success': True,
@@ -718,9 +718,6 @@ def get_admin_stats():
                 }
             }
             
-            # 캐시에 저장
-            cache_set(cache_key, result_data, expire=300)
-            
             return jsonify(result_data)
             
     except Exception as e:
@@ -732,12 +729,12 @@ def get_admin_stats():
 
 @app.route('/api/admin/transactions', methods=['GET'])
 def get_admin_transactions():
-    """충전 및 환불 내역 제공"""
+    """충전 및 환불 내역 제공 (수정됨)"""
     try:
         with get_admin_db_connection() as conn:
             cursor = conn.cursor()
             
-            # 충전 내역 (완료된 주문)
+            # 충전 내역 (purchases 테이블에서 조회)
             try:
                 cursor.execute("""
                     SELECT 
@@ -746,8 +743,8 @@ def get_admin_transactions():
                         price,
                         created_at,
                         status
-                    FROM orders 
-                    WHERE status = 'completed'
+                    FROM purchases 
+                    WHERE status = 'approved'
                     ORDER BY created_at DESC
                     LIMIT 20
                 """)
@@ -764,7 +761,7 @@ def get_admin_transactions():
                 print(f"충전 내역 조회 오류: {e}")
                 charges = []
             
-            # 환불 내역 (취소된 주문)
+            # 환불 내역 (purchases 테이블에서 조회)
             try:
                 cursor.execute("""
                     SELECT 
@@ -773,8 +770,8 @@ def get_admin_transactions():
                         price,
                         created_at,
                         status
-                    FROM orders 
-                    WHERE status = 'cancelled'
+                    FROM purchases 
+                    WHERE status = 'rejected'
                     ORDER BY created_at DESC
                     LIMIT 20
                 """)
@@ -785,7 +782,7 @@ def get_admin_transactions():
                         'user': row[1],
                         'amount': row[2],
                         'date': row[3],
-                        'reason': '고객 요청'
+                        'reason': '관리자 거절'
                     })
             except Exception as e:
                 print(f"환불 내역 조회 오류: {e}")
@@ -797,6 +794,57 @@ def get_admin_transactions():
                     'charges': charges,
                     'refunds': refunds
                 }
+            })
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 관리자 구매 내역 API
+@app.route('/api/admin/purchases/pending', methods=['GET'])
+def get_pending_purchases():
+    """대기 중인 구매 내역 조회"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT 
+                    id,
+                    purchase_id,
+                    user_id,
+                    amount,
+                    price,
+                    status,
+                    depositor_name,
+                    bank_name,
+                    receipt_type,
+                    created_at
+                FROM purchases 
+                WHERE status = 'pending'
+                ORDER BY created_at DESC
+            """)
+            
+            purchases = []
+            for row in cursor.fetchall():
+                purchases.append({
+                    'id': row[0],
+                    'purchaseId': row[1],
+                    'userId': row[2],
+                    'amount': row[3],
+                    'price': row[4],
+                    'status': row[5],
+                    'depositorName': row[6],
+                    'bankName': row[7],
+                    'receiptType': row[8],
+                    'createdAt': row[9]
+                })
+            
+            return jsonify({
+                'success': True,
+                'purchases': purchases
             })
             
     except Exception as e:
@@ -1067,51 +1115,67 @@ def update_user_activity():
 
 @app.route('/api/admin/users', methods=['GET'])
 def get_users_info():
-    """관리자용 사용자 정보 조회"""
+    """관리자용 사용자 정보 조회 (수정됨)"""
     try:
-        # 실시간 접속 사용자 필터링 (30분 이내 활동)
-        now = datetime.now()
-        active_users = {}
-        for user_id, session in user_sessions.items():
-            last_activity = datetime.fromisoformat(session['lastActivity'])
-            if (now - last_activity).total_seconds() < 1800:  # 30분
-                active_users[user_id] = session
-        
-        # 사용자 통계 계산
-        total_users = len(users_db)
-        active_users_count = len(active_users)
-        
-        # 오늘 신규 가입자 수 계산
-        today = now.date()
-        new_users_today = 0
-        for user_data in users_db.values():
-            registered_date = datetime.fromisoformat(user_data['registeredAt']).date()
-            if registered_date == today:
-                new_users_today += 1
-        
-        # 이번 주 신규 가입자 수 계산
-        week_ago = today - timedelta(days=7)
-        new_users_week = 0
-        for user_data in users_db.values():
-            registered_date = datetime.fromisoformat(user_data['registeredAt']).date()
-            if registered_date >= week_ago:
-                new_users_week += 1
-        
-        # 사용자 목록 (최근 50명)
-        recent_users = list(users_db.values())
-        recent_users.sort(key=lambda x: x['lastLoginAt'], reverse=True)
-        recent_users = recent_users[:50]
-        
-        return jsonify({
-            'totalUsers': total_users,
-            'activeUsers': active_users_count,
-            'newUsersToday': new_users_today,
-            'newUsersWeek': new_users_week,
-            'recentUsers': recent_users,
-            'activeUsersList': list(active_users.keys())
-        }), 200
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # 총 사용자 수
+            cursor.execute("SELECT COUNT(*) FROM users")
+            total_users = cursor.fetchone()[0]
+            
+            # 실시간 접속 사용자 수 (30분 이내 활동)
+            now = datetime.now()
+            thirty_minutes_ago = now - timedelta(minutes=30)
+            cursor.execute("""
+                SELECT COUNT(*) FROM users 
+                WHERE last_activity >= ?
+            """, (thirty_minutes_ago.strftime('%Y-%m-%d %H:%M:%S'),))
+            active_users = cursor.fetchone()[0]
+            
+            # 오늘 신규 가입자 수
+            today = now.strftime('%Y-%m-%d')
+            cursor.execute("""
+                SELECT COUNT(*) FROM users 
+                WHERE DATE(created_at) = ?
+            """, (today,))
+            new_users_today = cursor.fetchone()[0]
+            
+            # 이번 주 신규 가입자 수
+            week_ago = (now - timedelta(days=7)).strftime('%Y-%m-%d')
+            cursor.execute("""
+                SELECT COUNT(*) FROM users 
+                WHERE DATE(created_at) >= ?
+            """, (week_ago,))
+            new_users_week = cursor.fetchone()[0]
+            
+            # 최근 사용자 목록 (최근 50명)
+            cursor.execute("""
+                SELECT user_id, email, display_name, created_at, last_activity
+                FROM users 
+                ORDER BY created_at DESC 
+                LIMIT 50
+            """)
+            recent_users = []
+            for row in cursor.fetchall():
+                recent_users.append({
+                    'userId': row[0],
+                    'email': row[1],
+                    'displayName': row[2],
+                    'createdAt': row[3],
+                    'lastActivity': row[4]
+                })
+            
+            return jsonify({
+                'totalUsers': total_users,
+                'activeUsers': active_users,
+                'newUsersToday': new_users_today,
+                'newUsersWeek': new_users_week,
+                'recentUsers': recent_users
+            }), 200
         
     except Exception as e:
+        print(f"사용자 정보 조회 오류: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/users/<user_id>', methods=['GET'])
