@@ -275,8 +275,8 @@ from collections import defaultdict
 import time
 rate_limit_cache = defaultdict(list)
 
-def check_rate_limit(ip, limit=100, window=3600):
-    """레이트 리미팅 체크"""
+def check_rate_limit(ip, limit=1000, window=3600):
+    """레이트 리미팅 체크 (완화됨)"""
     now = time.time()
     # 윈도우 시간 이전의 요청들 제거
     rate_limit_cache[ip] = [req_time for req_time in rate_limit_cache[ip] if now - req_time < window]
@@ -955,20 +955,7 @@ def get_purchase_history():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/admin/purchases/pending', methods=['GET'])
-def get_pending_purchases():
-    """관리자용 대기중인 구매 신청 목록"""
-    try:
-        pending_purchases = []
-        for user_id, purchases in purchases_db.items():
-            for purchase in purchases:
-                if purchase['status'] == 'pending':
-                    pending_purchases.append(purchase)
-        
-        return jsonify({'purchases': pending_purchases}), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/users/register', methods=['POST'])
 def register_user():
