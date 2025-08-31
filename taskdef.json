@@ -2,8 +2,8 @@
   "family": "snspmt-task",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
-  "cpu": "512",
-  "memory": "1024",
+  "cpu": "1024",
+  "memory": "2048",
   "executionRoleArn": "arn:aws:iam::868812195478:role/ecsTaskExecutionRole",
   "containerDefinitions": [
     {
@@ -35,8 +35,23 @@
         {
           "name": "AWS_DEFAULT_REGION",
           "value": "ap-northeast-2"
+        },
+        {
+          "name": "TEMP_DIR",
+          "value": "/tmp"
+        },
+        {
+          "name": "TMPDIR",
+          "value": "/tmp"
         }
       ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
+        "interval": 60,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 120
+      },
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {

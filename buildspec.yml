@@ -8,12 +8,15 @@ phases:
       - aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 868812195478.dkr.ecr.ap-northeast-2.amazonaws.com
       - REPOSITORY_URI=868812195478.dkr.ecr.ap-northeast-2.amazonaws.com/snspmt-app
       - IMAGE_TAG=latest
+      - TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+      - echo Build timestamp: $TIMESTAMP
   build:
     commands:
       - echo Build started on `date`
       - echo Building the Docker image...
-      - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+      - docker build --no-cache -t $REPOSITORY_URI:$IMAGE_TAG .
       - docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:$IMAGE_TAG
+      - echo Docker image built successfully
   post_build:
     commands:
       - echo Build completed on `date`
@@ -21,6 +24,7 @@ phases:
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - echo Writing image definitions file...
       - printf '{"ImageURI":"%s"}' $REPOSITORY_URI:$IMAGE_TAG > imageDefinitions.json
+      - echo Image definitions file created
 
 artifacts:
   files:

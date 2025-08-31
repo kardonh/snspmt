@@ -1,0 +1,5 @@
+[33mde7ada4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix order creation navigation and error handling
+[33mb2da1c2[m Fix price calculation and runtime error handling
+[33mea57ccc[m Add product catalog button to sidebar and bottom tab bar
+[33mfd7817c[m Fix service ID mapping to resolve 'Incorrect service ID' error
+[33mca9cfd1[m Fix browser zoom layout issues with responsive design improvements

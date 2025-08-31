@@ -27,8 +27,10 @@ COPY . .
 # Build frontend
 RUN npm install && npm run build
 
-# Create basic temp directory
-RUN mkdir -p /tmp
+# Create temp directories with proper permissions (수정된 부분)
+RUN mkdir -p /tmp && chmod 777 /tmp
+RUN mkdir -p /app/tmp && chmod 777 /app/tmp
+RUN mkdir -p /usr/tmp && chmod 777 /usr/tmp
 
 # Expose port
 EXPOSE 8000
@@ -39,6 +41,7 @@ ENV PYTHONPATH=/app
 ENV TMPDIR=/tmp
 ENV TEMP=/tmp
 ENV TMP=/tmp
+ENV TEMP_DIR=/tmp
 
 # Run the application with Flask directly
 CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=8000"]

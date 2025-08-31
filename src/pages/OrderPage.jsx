@@ -6,6 +6,8 @@ import { smmkingsApi, handleApiError, transformOrderData } from '../services/sns
 import { useAuth } from '../contexts/AuthContext'
 import './OrderPage.css'
 
+// Force redeploy - Prevent rollback and fix deployment issues
+// 강제 재배포 - 롤백 방지 및 배포 문제 해결
 const OrderPage = () => {
   const { platform, serviceId } = useParams()
   const navigate = useNavigate()
