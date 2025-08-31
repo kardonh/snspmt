@@ -346,11 +346,18 @@ def proxy_api():
         # 클라이언트로부터 받은 데이터
         data = request.get_json()
         
+        # 상세 로깅 추가
+        print(f"=== 주문 생성 요청 시작 ===")
+        print(f"요청 데이터: {data}")
+        print(f"사용자 ID: {request.headers.get('X-User-ID', 'anonymous')}")
+        
         # API 키 추가
         data['key'] = API_KEY
         
         # smmpanel.kr API로 요청 전달
+        print(f"smmpanel.kr API 요청 전송...")
         response = requests.post(SMMPANEL_API_URL, json=data, timeout=30)
+        print(f"smmpanel.kr API 응답: {response.status_code} - {response.text}")
         
         # 주문 생성인 경우 로컬에 저장
         if data.get('action') == 'add' and response.status_code == 200:
@@ -398,11 +405,17 @@ def proxy_api():
                 print(f"주문 저장 완료: {order_id}")
         
         # 응답 반환
+        print(f"=== 주문 생성 요청 완료 ===")
+        print(f"최종 응답: {response.status_code} - {response.json()}")
         return jsonify(response.json()), response.status_code
         
     except requests.exceptions.RequestException as e:
+        print(f"=== 주문 생성 실패 (RequestException) ===")
+        print(f"오류: {str(e)}")
         return jsonify({'error': f'API 요청 실패: {str(e)}'}), 500
     except Exception as e:
+        print(f"=== 주문 생성 실패 (일반 오류) ===")
+        print(f"오류: {str(e)}")
         return jsonify({'error': f'서버 오류: {str(e)}'}), 500
 
 @app.route('/api/orders', methods=['GET'])
@@ -1073,7 +1086,7 @@ def update_user_activity():
 def get_users_info():
     """관리자용 사용자 정보 조회 (수정됨)"""
     try:
-        with get_db_connection() as conn:
+        with get_admin_db_connection() as conn:
             cursor = conn.cursor()
             
             # 총 사용자 수
@@ -1085,7 +1098,7 @@ def get_users_info():
             thirty_minutes_ago = now - timedelta(minutes=30)
             cursor.execute("""
                 SELECT COUNT(*) FROM users 
-                WHERE last_activity >= ?
+                WHERE last_activity >= %s
             """, (thirty_minutes_ago.strftime('%Y-%m-%d %H:%M:%S'),))
             active_users = cursor.fetchone()[0]
             
@@ -1093,7 +1106,7 @@ def get_users_info():
             today = now.strftime('%Y-%m-%d')
             cursor.execute("""
                 SELECT COUNT(*) FROM users 
-                WHERE DATE(created_at) = ?
+                WHERE created_at::date = %s
             """, (today,))
             new_users_today = cursor.fetchone()[0]
             
@@ -1101,7 +1114,7 @@ def get_users_info():
             week_ago = (now - timedelta(days=7)).strftime('%Y-%m-%d')
             cursor.execute("""
                 SELECT COUNT(*) FROM users 
-                WHERE DATE(created_at) >= ?
+                WHERE created_at::date >= %s
             """, (week_ago,))
             new_users_week = cursor.fetchone()[0]
             
