@@ -186,10 +186,10 @@ def init_database():
     with get_db_connection() as conn:
         cursor = conn.cursor()
         
-        # SQLite 테이블 생성 (PostgreSQL 문법 수정)
+        # PostgreSQL 테이블 생성
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS orders (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 order_id TEXT UNIQUE,
                 user_id TEXT,
                 service_id INTEGER,
@@ -198,27 +198,27 @@ def init_database():
                 price REAL,
                 status TEXT,
                 smmkings_cost REAL DEFAULT 0,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 user_id TEXT UNIQUE,
                 email TEXT,
                 display_name TEXT,
                 points INTEGER DEFAULT 0,
                 account_type TEXT DEFAULT 'personal',
                 business_info TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                last_activity TEXT DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS purchases (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 purchase_id TEXT UNIQUE,
                 user_id TEXT,
                 amount INTEGER,
@@ -228,18 +228,18 @@ def init_database():
                 bank_name TEXT,
                 receipt_type TEXT,
                 business_info TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS monthly_costs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 month TEXT,
                 total_cost REAL DEFAULT 0,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
