@@ -351,72 +351,114 @@ def proxy_api():
         print(f"요청 데이터: {data}")
         print(f"사용자 ID: {request.headers.get('X-User-ID', 'anonymous')}")
         
-        # API 키 추가
-        data['key'] = API_KEY
+        # 우리 플랫폼에서 직접 주문 처리
+        print(f"우리 플랫폼에서 주문 처리 시작...")
         
-        # smmpanel.kr API로 요청 전달
-        print(f"smmpanel.kr API 요청 전송...")
-        response = requests.post(SMMPANEL_API_URL, json=data, timeout=30)
-        print(f"smmpanel.kr API 응답: {response.status_code} - {response.text}")
+        # 주문 데이터 검증
+        service_id = data.get('service')
+        link = data.get('link')
+        quantity = data.get('quantity')
         
-        # 주문 생성인 경우 로컬에 저장
-        if data.get('action') == 'add' and response.status_code == 200:
-            response_data = response.json()
-            if response_data.get('order'):
-                order_id = response_data['order']
-                user_id = request.headers.get('X-User-ID', 'anonymous')
-                
-                # 보안상 민감한 정보는 로그에서 제거
-                print(f"주문 생성 완료: order_id={order_id}")
-                
-                # 원가 계산 및 저장
-                service_id = data.get('service')
-                quantity = data.get('quantity', 0)
-                total_price = data.get('price', 0)  # 프론트엔드에서 전달된 총 가격
-                
-                if total_price > 0:
-                    calculate_and_store_cost(service_id, quantity, total_price)
-                
-                if user_id not in orders_db:
-                    orders_db[user_id] = []
-                
-                # snspop API 지원 파라미터들 추가
-                order_info = {
-                    'id': order_id,
-                    'service': data.get('service'),
-                    'link': data.get('link'),
-                    'quantity': data.get('quantity'),
-                    'runs': data.get('runs', 1),
-                    'interval': data.get('interval', 0),
-                    'comments': data.get('comments', ''),
-                    'username': data.get('username', ''),
-                    'min': data.get('min', 0),
-                    'max': data.get('max', 0),
-                    'posts': data.get('posts', 0),
-                    'delay': data.get('delay', 0),
-                    'expiry': data.get('expiry', ''),
-                    'old_posts': data.get('old_posts', 0),
-                    'status': 'pending',
-                    'created_at': datetime.now().isoformat(),
-                    'user_id': user_id,
-                    'total_price': total_price
-                }
-                orders_db[user_id].append(order_info)
-                print(f"주문 저장 완료: {order_id}")
+        if not service_id or not link or not quantity:
+            return jsonify({'error': '필수 주문 정보가 누락되었습니다.'}), 400
         
-        # 응답 반환
-        print(f"=== 주문 생성 요청 완료 ===")
-        print(f"최종 응답: {response.status_code} - {response.json()}")
-        return jsonify(response.json()), response.status_code
+        # 사용자 ID 가져오기
+        user_id = request.headers.get('X-User-ID', 'anonymous')
         
-    except requests.exceptions.RequestException as e:
-        print(f"=== 주문 생성 실패 (RequestException) ===")
-        print(f"오류: {str(e)}")
-        return jsonify({'error': f'API 요청 실패: {str(e)}'}), 500
+        # 주문 ID 생성 (우리 플랫폼 고유)
+        order_id = f"SNSPMT_{int(time.time())}_{user_id[:8]}"
+        
+        # 주문 정보 구성
+        order_info = {
+            'id': order_id,
+            'service': service_id,
+            'link': link,
+            'quantity': quantity,
+            'runs': data.get('runs', 1),
+            'interval': data.get('interval', 0),
+            'comments': data.get('comments', ''),
+            'username': data.get('username', ''),
+            'min': data.get('min', 0),
+            'max': data.get('max', 0),
+            'posts': data.get('posts', 0),
+            'delay': data.get('delay', 0),
+            'expiry': data.get('expiry', ''),
+            'old_posts': data.get('old_posts', 0),
+            'status': 'pending',
+            'created_at': datetime.now().isoformat(),
+            'user_id': user_id,
+            'total_price': data.get('price', 0)
+        }
+        
+        # 로컬 주문 데이터베이스에 저장
+        if user_id not in orders_db:
+            orders_db[user_id] = []
+        
+        orders_db[user_id].append(order_info)
+        print(f"주문 저장 완료: {order_id}")
+        
+        # 성공 응답 반환
+        success_response = {
+            'order': order_id,
+            'status': 'pending',
+            'message': '주문이 성공적으로 생성되었습니다.'
+        }
+        
+        print(f"=== 주문 생성 완료 ===")
+        print(f"주문 ID: {order_id}")
+        return jsonify(success_response), 200
+        
     except Exception as e:
-        print(f"=== 주문 생성 실패 (일반 오류) ===")
+        print(f"=== 주문 생성 실패 ===")
         print(f"오류: {str(e)}")
-        return jsonify({'error': f'서버 오류: {str(e)}'}), 500
+        return jsonify({'error': f'주문 생성 실패: {str(e)}'}), 500
+
+@app.route('/api/sns-place/order', methods=['POST'])
+def sns_place_order():
+    """SNS 플레이스 API로 주문 전송"""
+    try:
+        data = request.get_json()
+        user_id = request.headers.get('X-User-ID', 'anonymous')
+        
+        print(f"=== SNS 플레이스 주문 요청 ===")
+        print(f"사용자 ID: {user_id}")
+        print(f"주문 데이터: {data}")
+        
+        # SNS 플레이스 API 호출 (실제 구현 시 여기에 API 키와 엔드포인트 설정)
+        # 현재는 시뮬레이션으로 성공 응답 반환
+        
+        # 주문 데이터 검증
+        service_id = data.get('service')
+        link = data.get('link')
+        quantity = data.get('quantity')
+        
+        if not service_id or not link or not quantity:
+            return jsonify({'error': '필수 주문 정보가 누락되었습니다.'}), 400
+        
+        # SNS 플레이스 주문 ID 생성 (실제로는 API 응답에서 받아옴)
+        sns_place_order_id = f"SNS_PLACE_{int(time.time())}_{user_id[:8]}"
+        
+        # 주문 상태를 'processing'으로 업데이트
+        if user_id in orders_db:
+            for order in orders_db[user_id]:
+                if order['id'] == data.get('orderId'):
+                    order['status'] = 'processing'
+                    order['sns_place_order_id'] = sns_place_order_id
+                    order['sns_place_status'] = 'submitted'
+                    break
+        
+        print(f"SNS 플레이스 주문 성공: {sns_place_order_id}")
+        
+        return jsonify({
+            'success': True,
+            'orderId': sns_place_order_id,
+            'status': 'submitted',
+            'message': 'SNS 플레이스에 주문이 성공적으로 전송되었습니다.'
+        }), 200
+        
+    except Exception as e:
+        print(f"SNS 플레이스 주문 실패: {str(e)}")
+        return jsonify({'error': f'SNS 플레이스 주문 실패: {str(e)}'}), 500
 
 @app.route('/api/orders', methods=['GET'])
 def get_user_orders():
@@ -850,26 +892,55 @@ def update_user_points():
         data = request.get_json()
         user_id = data.get('userId')
         points_to_deduct = data.get('points')
+        order_id = data.get('orderId')
+        
+        print(f"=== 포인트 차감 요청 ===")
+        print(f"사용자 ID: {user_id}")
+        print(f"차감 포인트: {points_to_deduct}")
+        print(f"주문 ID: {order_id}")
         
         if not user_id or points_to_deduct is None:
             return jsonify({'error': 'userId and points are required'}), 400
         
         current_points = points_db.get(user_id, 0)
+        print(f"현재 포인트: {current_points}")
         
         if current_points < points_to_deduct:
-            return jsonify({'error': 'Insufficient points'}), 400
+            return jsonify({'error': f'포인트가 부족합니다. 현재: {current_points}P, 필요: {points_to_deduct}P'}), 400
         
+        # 포인트 차감
         points_db[user_id] = current_points - points_to_deduct
         
-        print(f"포인트 차감: 사용자 {user_id}에서 {points_to_deduct}P 차감 (잔액: {points_db[user_id]}P)")
+        # 포인트 사용 내역 저장
+        if user_id not in purchases_db:
+            purchases_db[user_id] = []
+        
+        purchase_record = {
+            'id': f"purchase_{int(time.time())}",
+            'purchase_id': order_id,
+            'user_id': user_id,
+            'amount': points_to_deduct,
+            'price': points_to_deduct,  # 1포인트 = 1원
+            'status': 'approved',
+            'created_at': datetime.now().isoformat(),
+            'type': 'order_payment',
+            'order_id': order_id
+        }
+        
+        purchases_db[user_id].append(purchase_record)
+        
+        print(f"포인트 차감 완료: 사용자 {user_id}에서 {points_to_deduct}P 차감 (잔액: {points_db[user_id]}P)")
+        print(f"구매 내역 저장: {purchase_record}")
         
         return jsonify({
             'success': True,
             'remainingPoints': points_db[user_id],
+            'pointsUsed': points_to_deduct,
             'message': '포인트가 성공적으로 차감되었습니다.'
         }), 200
         
     except Exception as e:
+        print(f"포인트 차감 실패: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def get_user_points():

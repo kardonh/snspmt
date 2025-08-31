@@ -83,21 +83,22 @@ const PaymentPage = () => {
 
     setIsProcessing(true)
 
-    // 선택된 결제 방법에 따른 처리
-    let paymentMessage = ''
-    switch (selectedPaymentMethod) {
-      case 'toss':
-        paymentMessage = '토스페이 결제를 진행합니다...'
-        break
-      case 'kakao':
-        paymentMessage = '카카오페이 결제를 진행합니다...'
-        break
-      case 'naver':
-        paymentMessage = '네이버페이 결제를 진행합니다...'
-        break
-      case 'card':
-        paymentMessage = '신용카드 결제를 진행합니다...'
-        break
+    try {
+      // 1단계: 결제 처리 (시뮬레이션)
+      let paymentMessage = ''
+      switch (selectedPaymentMethod) {
+        case 'toss':
+          paymentMessage = '토스페이 결제를 진행합니다...'
+          break
+        case 'kakao':
+          paymentMessage = '카카오페이 결제를 진행합니다...'
+          break
+        case 'naver':
+          paymentMessage = '네이버페이 결제를 진행합니다...'
+          break
+        case 'card':
+          paymentMessage = '신용카드 결제를 진행합니다...'
+          break
       case 'bank':
         paymentMessage = '계좌이체를 진행합니다...'
         break
@@ -108,18 +109,77 @@ const PaymentPage = () => {
         paymentMessage = '결제를 진행합니다...'
     }
 
-    // 실제 결제 처리 로직을 여기에 구현
-    // 현재는 시뮬레이션
-    setTimeout(() => {
-      setIsProcessing(false)
-      setPaymentSuccess(true)
+      // 2단계: 포인트 차감 및 SNS 플레이스 API 호출
+      console.log('결제 완료, 포인트 차감 및 SNS 플레이스 API 호출 시작...')
       
-      // 3초 후 주문 완료 페이지로 이동
-      setTimeout(() => {
-        navigate(`/order-complete/${orderData.orderId || 'temp'}`, { 
-          state: { orderData: orderData } 
+      try {
+        // 1. 포인트 차감
+        const deductResponse = await fetch('/api/points', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-ID': orderData.userId || 'anonymous'
+          },
+          body: JSON.stringify({
+            userId: orderData.userId || 'anonymous',
+            points: orderData.totalPrice, // 총 결제 금액만큼 포인트 차감
+            orderId: orderData.orderId
+          })
         })
-      }, 3000)
+        
+        if (!deductResponse.ok) {
+          const deductError = await deductResponse.json()
+          throw new Error(`포인트 차감 실패: ${deductError.error}`)
+        }
+        
+        const deductResult = await deductResponse.json()
+        console.log('포인트 차감 성공:', deductResult)
+        
+        // 2. SNS 플레이스 API 호출
+        const snsPlaceResponse = await fetch('/api/sns-place/order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-ID': orderData.userId || 'anonymous'
+          },
+          body: JSON.stringify({
+            service: orderData.serviceId,
+            link: orderData.link,
+            quantity: orderData.quantity,
+            comments: orderData.comments || '',
+            explanation: orderData.explanation || '',
+            orderId: orderData.orderId,
+            pointsUsed: orderData.totalPrice
+          })
+        })
+        
+        if (snsPlaceResponse.ok) {
+          const snsPlaceData = await snsPlaceResponse.json()
+          console.log('SNS 플레이스 주문 성공:', snsPlaceData)
+          
+          // 주문 성공 시 처리
+          setIsProcessing(false)
+          setPaymentSuccess(true)
+          
+          // 3초 후 주문 완료 페이지로 이동
+          setTimeout(() => {
+            navigate(`/order-complete/${orderData.orderId || 'temp'}`, { 
+              state: { 
+                orderData: orderData,
+                snsPlaceOrderId: snsPlaceData.orderId,
+                pointsUsed: orderData.totalPrice,
+                remainingPoints: deductResult.remainingPoints
+              } 
+            })
+          }, 3000)
+        } else {
+          throw new Error('SNS 플레이스 주문 실패')
+        }
+      } catch (error) {
+        console.error('포인트 차감 또는 SNS 플레이스 API 호출 실패:', error)
+        alert(`주문 처리 중 오류가 발생했습니다: ${error.message}`)
+        setIsProcessing(false)
+      }
     }, 2000)
   }
 
