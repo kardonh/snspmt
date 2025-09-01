@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta 
 import os
 import sqlite3
 import csv
@@ -11,6 +11,14 @@ import logging
 from contextlib import contextmanager
 import hashlib
 import time
+
+# Admin blueprint import
+try:
+    from api.admin import admin_bp
+    ADMIN_AVAILABLE = True
+except ImportError as e:
+    print(f"Admin blueprint import failed: {e}")
+    ADMIN_AVAILABLE = False
 
 # PostgreSQL 의존성 (개발 환경에서는 선택적)
 try:
@@ -61,6 +69,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Admin blueprint 등록
+if ADMIN_AVAILABLE:
+    app.register_blueprint(admin_bp)
+    print("Admin blueprint registered successfully")
+else:
+    print("Admin blueprint not available")
 
 # 헬스 체크 엔드포인트 추가 (ECS 헬스 체크용)
 @app.route('/health')
@@ -408,13 +423,42 @@ def proxy_api():
         # 우리 플랫폼에서 직접 주문 처리
         print(f"우리 플랫폼에서 주문 처리 시작...")
         
-        # 주문 데이터 검증
+        # 주문 데이터 검증 (더 상세한 검증)
         service_id = data.get('service')
         link = data.get('link')
         quantity = data.get('quantity')
+        price = data.get('price', 0)
         
-        if not service_id or not link or not quantity:
-            return jsonify({'error': '필수 주문 정보가 누락되었습니다.'}), 400
+        # 필수 필드 검증
+        missing_fields = []
+        if not service_id:
+            missing_fields.append('service')
+        if not link:
+            missing_fields.append('link')
+        if not quantity:
+            missing_fields.append('quantity')
+        
+        if missing_fields:
+            error_msg = f'필수 주문 정보가 누락되었습니다: {", ".join(missing_fields)}'
+            print(f"검증 실패: {error_msg}")
+            return jsonify({
+                'type': 'validation_error',
+                'message': error_msg,
+                'missing_fields': missing_fields
+            }), 400
+        
+        # 데이터 타입 검증
+        try:
+            service_id = int(service_id)
+            quantity = int(quantity)
+            price = float(price) if price else 0
+        except (ValueError, TypeError) as e:
+            error_msg = f'데이터 타입 오류: service_id와 quantity는 숫자여야 합니다.'
+            print(f"타입 검증 실패: {error_msg}")
+            return jsonify({
+                'type': 'validation_error',
+                'message': error_msg
+            }), 400
         
         # 사용자 ID 가져오기
         user_id = request.headers.get('X-User-ID', 'anonymous')

@@ -1,17 +1,33 @@
 from flask import Blueprint, jsonify, request, send_file
 from datetime import datetime, timedelta
-import sqlite3
 import os
 import csv
 import io
 
+# PostgreSQL 의존성
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    POSTGRES_AVAILABLE = True
+except ImportError:
+    POSTGRES_AVAILABLE = False
+    print("PostgreSQL not available in admin module")
+
 admin_bp = Blueprint('admin', __name__)
 
 def get_db_connection():
-    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'orders.db')
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """PostgreSQL 연결 (backend.py와 동일한 설정)"""
+    if POSTGRES_AVAILABLE:
+        try:
+            # backend.py와 동일한 연결 문자열 사용
+            database_url = "postgresql://snspmt_admin:Snspmt2024!@snspmt-db.cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/postgres"
+            conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+            return conn
+        except Exception as e:
+            print(f"PostgreSQL 연결 실패: {e}")
+            raise e
+    else:
+        raise Exception("PostgreSQL is required but not available")
 
 @admin_bp.route('/api/admin/stats', methods=['GET'])
 def get_admin_stats():
@@ -24,27 +40,27 @@ def get_admin_stats():
         now = datetime.now()
         one_month_ago = now - timedelta(days=30)
         
-        # 총 가입자 수 (Firebase Auth 사용자 수는 별도로 관리 필요)
-        cursor.execute("SELECT COUNT(DISTINCT user_id) as total_users FROM orders")
+        # 총 가입자 수 (users 테이블에서 조회)
+        cursor.execute("SELECT COUNT(*) as total_users FROM users")
         total_users = cursor.fetchone()['total_users']
         
         # 한 달 가입자 수
         cursor.execute("""
-            SELECT COUNT(DISTINCT user_id) as monthly_users 
-            FROM orders 
-            WHERE created_at >= ?
+            SELECT COUNT(*) as monthly_users 
+            FROM users 
+            WHERE created_at >= %s
         """, (one_month_ago.strftime('%Y-%m-%d'),))
         monthly_users = cursor.fetchone()['monthly_users']
         
-        # 총 매출액
-        cursor.execute("SELECT SUM(total_amount) as total_revenue FROM orders WHERE status = 'completed'")
+        # 총 매출액 (purchases 테이블에서 조회)
+        cursor.execute("SELECT SUM(price) as total_revenue FROM purchases WHERE status = 'approved'")
         total_revenue = cursor.fetchone()['total_revenue'] or 0
         
         # 한 달 매출액
         cursor.execute("""
-            SELECT SUM(total_amount) as monthly_revenue 
-            FROM orders 
-            WHERE status = 'completed' AND created_at >= ?
+            SELECT SUM(price) as monthly_revenue 
+            FROM purchases 
+            WHERE status = 'approved' AND created_at >= %s
         """, (one_month_ago.strftime('%Y-%m-%d'),))
         monthly_revenue = cursor.fetchone()['monthly_revenue'] or 0
         
@@ -56,7 +72,7 @@ def get_admin_stats():
         cursor.execute("""
             SELECT SUM(smmkings_cost) as monthly_smmkings_charge 
             FROM orders 
-            WHERE status = 'completed' AND created_at >= ?
+            WHERE status = 'completed' AND created_at >= %s
         """, (one_month_ago.strftime('%Y-%m-%d'),))
         monthly_smmkings_charge = cursor.fetchone()['monthly_smmkings_charge'] or 0
         
@@ -256,27 +272,32 @@ def search_account():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 사용자 ID, 이메일, 계좌번호로 검색
+        # 사용자 ID, 이메일로 검색
         cursor.execute("""
             SELECT DISTINCT
-                user_id,
-                COUNT(*) as order_count,
-                SUM(total_amount) as total_spent,
-                MIN(created_at) as first_order,
-                MAX(created_at) as last_order,
-                SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as completed_amount,
-                SUM(CASE WHEN status = 'pending' THEN total_amount ELSE 0 END) as pending_amount,
-                SUM(CASE WHEN status = 'canceled' THEN total_amount ELSE 0 END) as canceled_amount
-            FROM orders 
-            WHERE user_id LIKE ? OR user_id LIKE ?
-            GROUP BY user_id
+                u.user_id,
+                u.email,
+                u.display_name,
+                COUNT(o.id) as order_count,
+                COALESCE(SUM(o.price), 0) as total_spent,
+                MIN(o.created_at) as first_order,
+                MAX(o.created_at) as last_order,
+                COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.price ELSE 0 END), 0) as completed_amount,
+                COALESCE(SUM(CASE WHEN o.status = 'pending' THEN o.price ELSE 0 END), 0) as pending_amount,
+                COALESCE(SUM(CASE WHEN o.status = 'canceled' THEN o.price ELSE 0 END), 0) as canceled_amount
+            FROM users u
+            LEFT JOIN orders o ON u.user_id = o.user_id
+            WHERE u.user_id LIKE %s OR u.email LIKE %s OR u.display_name LIKE %s
+            GROUP BY u.user_id, u.email, u.display_name
             ORDER BY total_spent DESC
-        """, (f'%{search_query}%', f'%{search_query}%'))
+        """, (f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
         
         accounts = []
         for row in cursor.fetchall():
             accounts.append({
                 'userId': row['user_id'],
+                'email': row['email'],
+                'displayName': row['display_name'],
                 'orderCount': row['order_count'],
                 'totalSpent': row['total_spent'] or 0,
                 'completedAmount': row['completed_amount'] or 0,
@@ -290,16 +311,15 @@ def search_account():
         recent_orders = []
         if accounts:
             user_ids = [account['userId'] for account in accounts]
-            placeholders = ','.join(['?' for _ in user_ids])
+            placeholders = ','.join(['%s' for _ in user_ids])
             
             cursor.execute(f"""
                 SELECT 
                     id,
                     user_id,
-                    platform,
-                    service_name,
+                    service_id,
                     quantity,
-                    total_amount,
+                    price,
                     status,
                     created_at
                 FROM orders 
@@ -312,10 +332,9 @@ def search_account():
                 recent_orders.append({
                     'id': row['id'],
                     'userId': row['user_id'],
-                    'platform': row['platform'],
-                    'serviceName': row['service_name'],
+                    'serviceId': row['service_id'],
                     'quantity': row['quantity'],
-                    'totalAmount': row['total_amount'],
+                    'totalAmount': row['price'],
                     'status': row['status'],
                     'createdAt': row['created_at']
                 })
