@@ -194,34 +194,48 @@ export const transformOrderData = (orderData) => {
   
   // 안전한 값 변환을 위한 헬퍼 함수
   const safeString = (value) => {
-    if (value === undefined || value === null) return ''
-    return String(value).trim()
+    try {
+      if (value === undefined || value === null) return ''
+      const str = String(value)
+      return str ? str.trim() : ''
+    } catch (error) {
+      console.warn('safeString error:', error, 'value:', value)
+      return ''
+    }
   }
   
   const safeNumber = (value) => {
-    if (value === undefined || value === null) return 0
-    const num = Number(value)
-    return isNaN(num) ? 0 : num
+    try {
+      if (value === undefined || value === null) return 0
+      const num = Number(value)
+      return isNaN(num) ? 0 : num
+    } catch (error) {
+      console.warn('safeNumber error:', error, 'value:', value)
+      return 0
+    }
   }
   
+  // orderData가 undefined인 경우 기본값 사용
+  const safeOrderData = orderData || {}
+  
   const transformed = {
-    service: orderData.serviceId, // SMM KINGS 서비스 ID
-    link: safeString(orderData.link),
-    quantity: safeNumber(orderData.quantity),
-    runs: safeNumber(orderData.runs || 1),
-    interval: safeNumber(orderData.interval || 0),
-    comments: safeString(orderData.comments),
-    username: safeString(orderData.username),
-    min: safeNumber(orderData.min),
-    max: safeNumber(orderData.max),
-    posts: safeNumber(orderData.posts),
-    delay: safeNumber(orderData.delay),
-    expiry: safeString(orderData.expiry),
-    old_posts: safeNumber(orderData.old_posts),
-    country: safeString(orderData.country),
-    device: safeString(orderData.device),
-    type_of_traffic: safeString(orderData.type_of_traffic),
-    google_keyword: safeString(orderData.google_keyword),
+    service: safeOrderData.serviceId || '', // SMM KINGS 서비스 ID
+    link: safeString(safeOrderData.link),
+    quantity: safeNumber(safeOrderData.quantity),
+    runs: safeNumber(safeOrderData.runs || 1),
+    interval: safeNumber(safeOrderData.interval || 0),
+    comments: safeString(safeOrderData.comments),
+    username: safeString(safeOrderData.username),
+    min: safeNumber(safeOrderData.min),
+    max: safeNumber(safeOrderData.max),
+    posts: safeNumber(safeOrderData.posts),
+    delay: safeNumber(safeOrderData.delay),
+    expiry: safeString(safeOrderData.expiry),
+    old_posts: safeNumber(safeOrderData.old_posts),
+    country: safeString(safeOrderData.country),
+    device: safeString(safeOrderData.device),
+    type_of_traffic: safeString(safeOrderData.type_of_traffic),
+    google_keyword: safeString(safeOrderData.google_keyword),
     key: 'your_api_key_here'
   }
   

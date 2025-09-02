@@ -21,6 +21,14 @@ const OrderPage = () => {
     console.log('초기 selectedService:', selectedService)
     console.log('사용 가능한 서비스:', services)
   }, [platform, serviceId, selectedService, services])
+  
+  // selectedService 상태 변화 추적
+  useEffect(() => {
+    console.log('selectedService 상태 변화:', selectedService)
+    console.log('selectedService 타입:', typeof selectedService)
+    console.log('selectedService 값:', selectedService)
+  }, [selectedService])
+  
   const [quantity, setQuantity] = useState(200)
   const [totalPrice, setTotalPrice] = useState(0)
   const [showChecklist, setShowChecklist] = useState(false)
@@ -504,17 +512,35 @@ const OrderPage = () => {
           return
         }
         
+        console.log('=== handlePurchase 디버깅 ===')
         console.log('Platform:', platform)
         console.log('Selected Service:', selectedService)
+        console.log('Selected Service Type:', typeof selectedService)
+        console.log('Selected Service Value:', selectedService)
+        console.log('Services Array:', services)
+        console.log('Current Services:', services.map(s => ({ id: s.id, name: s.name })))
+        
+        // selectedService가 유효한지 확인
+        if (!selectedService || selectedService === 'undefined' || selectedService === undefined) {
+          console.error('유효하지 않은 selectedService:', selectedService)
+          alert('주문할 서비스를 선택해주세요.')
+          return
+        }
+        
+        // 안전한 값 준비
+        const safeLink = link && typeof link === 'string' ? link.trim() : ''
+        const safeQuantity = quantity && !isNaN(Number(quantity)) ? Number(quantity) : 0
+        const safeComments = comments && typeof comments === 'string' ? comments.trim() : ''
+        const safeExplanation = explanation && typeof explanation === 'string' ? explanation.trim() : ''
         
         const orderData = {
           serviceId: selectedService, // selectedService를 직접 사용
-          link: link.trim() || '',
-          quantity: quantity || 0,
+          link: safeLink,
+          quantity: safeQuantity,
           runs: 1, // 기본 실행 횟수
           interval: 0, // 즉시 실행
-          comments: (comments || '').trim(), // 커스텀 댓글 (댓글 서비스인 경우)
-          explanation: (explanation || '').trim(), // 설명 (추가 요청사항)
+          comments: safeComments, // 커스텀 댓글 (댓글 서비스인 경우)
+          explanation: safeExplanation, // 설명 (추가 요청사항)
           username: '', // 사용자명 (구독 서비스인 경우)
           min: 0,
           max: 0,
