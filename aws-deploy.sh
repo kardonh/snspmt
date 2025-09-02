@@ -67,3 +67,4 @@ fi
 echo "✅ 배포 완료!"
 echo "🌐 애플리케이션 URL: https://yourdomain.com"
 echo "📊 ECS 콘솔: https://console.aws.amazon.com/ecs/home?region=$AWS_REGION#/clusters/$ECS_CLUSTER"
+으

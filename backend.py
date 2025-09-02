@@ -336,20 +336,7 @@ def create_database_indexes():
 init_database()
 create_database_indexes()
 
-# 헬스체크 엔드포인트 (ELB용)
-@app.route('/health', methods=['GET'])
-def health_check():
-    """ELB 헬스체크용 엔드포인트"""
-    try:
-        # 데이터베이스 연결 테스트
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
-            cursor.fetchone()
-            conn.close()
-        return jsonify({'status': 'healthy', 'database': 'connected'}), 200
-    except Exception as e:
-        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+
 
 # Flask 앱 설정
 if __name__ == '__main__':
