@@ -539,24 +539,24 @@ def proxy_api():
             if user_id not in orders_db:
                 orders_db[user_id] = []
             
-            order_info = {
-                'id': order_id,
-                'service': service_id,
-                'link': link,
-                'quantity': quantity,
-                'runs': data.get('runs', 1),
-                'interval': data.get('interval', 0),
-                'comments': data.get('comments', ''),
-                'username': data.get('username', ''),
-                'min': data.get('min', 0),
-                'max': data.get('max', 0),
-                'posts': data.get('posts', 0),
-                'delay': data.get('delay', 0),
-                'expiry': data.get('expiry', ''),
-                'old_posts': data.get('old_posts', 0),
-                'status': 'pending',
-                'created_at': datetime.now().isoformat(),
-                'user_id': user_id,
+        order_info = {
+            'id': order_id,
+            'service': service_id,
+            'link': link,
+            'quantity': quantity,
+            'runs': data.get('runs', 1),
+            'interval': data.get('interval', 0),
+            'comments': data.get('comments', ''),
+            'username': data.get('username', ''),
+            'min': data.get('min', 0),
+            'max': data.get('max', 0),
+            'posts': data.get('posts', 0),
+            'delay': data.get('delay', 0),
+            'expiry': data.get('expiry', ''),
+            'old_posts': data.get('old_posts', 0),
+            'status': 'pending',
+            'created_at': datetime.now().isoformat(),
+            'user_id': user_id,
                 'total_price': price
             }
             orders_db[user_id].append(order_info)
@@ -707,16 +707,16 @@ def complete_order_payment(order_id):
                                 print(f"주문 처리 시작 알림 전송 완료: {user_id}")
                             except Exception as e:
                                 print(f"알림 전송 실패: {e}")
-                        
-                        return jsonify({
-                            'success': True,
+        
+        return jsonify({
+            'success': True,
                             'orderId': order_id,
                             'externalOrderId': external_order_id,
                             'status': 'processing',
                             'message': '결제가 완료되었고 주문이 처리 중입니다.',
                             'points_used': order['price'],
                             'remaining_points': points_db[user_id]
-                        }), 200
+        }), 200
                     else:
                         print(f"smmpanel.kr API 오류: {response.status_code} - {response.text}")
                         # API 실패 시 포인트 환불
@@ -724,8 +724,8 @@ def complete_order_payment(order_id):
                         return jsonify({
                             'error': '외부 API 전송에 실패했습니다. 포인트가 환불되었습니다.'
                         }), 500
-                        
-                except Exception as e:
+        
+    except Exception as e:
                     print(f"smmpanel.kr API 전송 실패: {e}")
                     # API 실패 시 포인트 환불
                     points_db[user_id] = current_points
@@ -787,27 +787,27 @@ def get_user_orders():
                     
                     # 외부 주문 ID가 있으면 smmpanel.kr API에서 최신 상태 조회
                     if order['external_order_id']:
-                        try:
-                            status_response = requests.post(SMMPANEL_API_URL, json={
-                                'key': API_KEY,
-                                'action': 'status',
+            try:
+                status_response = requests.post(SMMPANEL_API_URL, json={
+                    'key': API_KEY,
+                    'action': 'status',
                                 'order': order['external_order_id']
-                            }, timeout=10)
-                            
-                            if status_response.status_code == 200:
-                                status_data = status_response.json()
-                                if 'status' in status_data:
-                                    order['status'] = status_data['status']
+                }, timeout=10)
+                
+                if status_response.status_code == 200:
+                    status_data = status_response.json()
+                    if 'status' in status_data:
+                        order['status'] = status_data['status']
                                     # PostgreSQL 상태 업데이트
                                     cursor.execute("""
                                         UPDATE orders 
                                         SET status = %s, updated_at = %s
                                         WHERE order_id = %s
                                     """, (status_data['status'], datetime.now(), order['id']))
-                                if 'start_count' in status_data:
-                                    order['start_count'] = status_data['start_count']
-                                if 'remains' in status_data:
-                                    order['remains'] = status_data['remains']
+                    if 'start_count' in status_data:
+                        order['start_count'] = status_data['start_count']
+                    if 'remains' in status_data:
+                        order['remains'] = status_data['remains']
                         except Exception as e:
                             print(f"외부 API 상태 조회 실패: {e}")
                     
@@ -821,8 +821,8 @@ def get_user_orders():
             # 로컬 메모리에서 조회 (백업)
             if user_id not in orders_db:
                 return jsonify({'orders': []}), 200
-            
-            return jsonify({'orders': orders_db[user_id]}), 200
+        
+        return jsonify({'orders': orders_db[user_id]}), 200
         
     except Exception as e:
         return jsonify({'error': f'주문 조회 실패: {str(e)}'}), 500
