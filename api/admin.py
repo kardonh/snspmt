@@ -40,45 +40,78 @@ def get_admin_stats():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # 데이터베이스 테이블 존재 여부 확인
+        cursor.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public'
+        """)
+        existing_tables = [row['table_name'] for row in cursor.fetchall()]
+        print(f"존재하는 테이블: {existing_tables}")
+        
         # 현재 날짜와 한 달 전 날짜 계산
         now = datetime.now()
         one_month_ago = now - timedelta(days=30)
         
         # 총 가입자 수 (users 테이블에서 조회)
-        cursor.execute("SELECT COUNT(*) as total_users FROM users")
-        total_users = cursor.fetchone()['total_users']
+        try:
+            cursor.execute("SELECT COUNT(*) as total_users FROM users")
+            total_users = cursor.fetchone()['total_users']
+        except Exception as e:
+            print(f"users 테이블 조회 실패: {e}")
+            total_users = 0
         
         # 한 달 가입자 수
-        cursor.execute("""
-            SELECT COUNT(*) as monthly_users 
-            FROM users 
-            WHERE created_at >= %s
-        """, (one_month_ago.strftime('%Y-%m-%d'),))
-        monthly_users = cursor.fetchone()['monthly_users']
+        try:
+            cursor.execute("""
+                SELECT COUNT(*) as monthly_users 
+                FROM users 
+                WHERE created_at >= %s
+            """, (one_month_ago.strftime('%Y-%m-%d'),))
+            monthly_users = cursor.fetchone()['monthly_users']
+        except Exception as e:
+            print(f"monthly_users 조회 실패: {e}")
+            monthly_users = 0
         
         # 총 매출액 (purchases 테이블에서 조회)
-        cursor.execute("SELECT SUM(price) as total_revenue FROM purchases WHERE status = 'approved'")
-        total_revenue = cursor.fetchone()['total_revenue'] or 0
+        try:
+            cursor.execute("SELECT SUM(price) as total_revenue FROM purchases WHERE status = 'approved'")
+            total_revenue = cursor.fetchone()['total_revenue'] or 0
+        except Exception as e:
+            print(f"total_revenue 조회 실패: {e}")
+            total_revenue = 0
         
         # 한 달 매출액
-        cursor.execute("""
-            SELECT SUM(price) as monthly_revenue 
-            FROM purchases 
-            WHERE status = 'approved' AND created_at >= %s
-        """, (one_month_ago.strftime('%Y-%m-%d'),))
-        monthly_revenue = cursor.fetchone()['monthly_revenue'] or 0
+        try:
+            cursor.execute("""
+                SELECT SUM(price) as monthly_revenue 
+                FROM purchases 
+                WHERE status = 'approved' AND created_at >= %s
+            """, (one_month_ago.strftime('%Y-%m-%d'),))
+            monthly_revenue = cursor.fetchone()['monthly_revenue'] or 0
+        except Exception as e:
+            print(f"monthly_revenue 조회 실패: {e}")
+            monthly_revenue = 0
         
         # 총 SMM KINGS 충전액 (실제 비용)
-        cursor.execute("SELECT SUM(smmkings_cost) as total_smmkings_charge FROM orders WHERE status = 'completed'")
-        total_smmkings_charge = cursor.fetchone()['total_smmkings_charge'] or 0
+        try:
+            cursor.execute("SELECT SUM(smmkings_cost) as total_smmkings_charge FROM orders WHERE status = 'completed'")
+            total_smmkings_charge = cursor.fetchone()['total_smmkings_charge'] or 0
+        except Exception as e:
+            print(f"total_smmkings_charge 조회 실패: {e}")
+            total_smmkings_charge = 0
         
         # 한 달 SMM KINGS 충전액
-        cursor.execute("""
-            SELECT SUM(smmkings_cost) as monthly_smmkings_charge 
-            FROM orders 
-            WHERE status = 'completed' AND created_at >= %s
-        """, (one_month_ago.strftime('%Y-%m-%d'),))
-        monthly_smmkings_charge = cursor.fetchone()['monthly_smmkings_charge'] or 0
+        try:
+            cursor.execute("""
+                SELECT SUM(smmkings_cost) as monthly_smmkings_charge 
+                FROM orders 
+                WHERE status = 'completed' AND created_at >= %s
+            """, (one_month_ago.strftime('%Y-%m-%d'),))
+            monthly_smmkings_charge = cursor.fetchone()['monthly_smmkings_charge'] or 0
+        except Exception as e:
+            print(f"monthly_smmkings_charge 조회 실패: {e}")
+            monthly_smmkings_charge = 0
         
         conn.close()
         
@@ -95,6 +128,7 @@ def get_admin_stats():
         })
         
     except Exception as e:
+        print(f"Admin stats API 오류: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
