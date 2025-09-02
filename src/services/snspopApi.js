@@ -186,30 +186,42 @@ export const handleApiError = (error) => {
 export const transformOrderData = (orderData) => {
   console.log('transformOrderData input:', orderData)
   
-  // serviceId가 없으면 에러 발생
-  if (!orderData.serviceId) {
+  // serviceId가 없거나 undefined인 경우 에러 발생
+  if (!orderData.serviceId || orderData.serviceId === 'undefined') {
     console.error('서비스 ID가 누락되었습니다:', orderData)
     throw new Error('서비스를 선택해주세요.')
   }
   
+  // 안전한 값 변환을 위한 헬퍼 함수
+  const safeString = (value) => {
+    if (value === undefined || value === null) return ''
+    return String(value).trim()
+  }
+  
+  const safeNumber = (value) => {
+    if (value === undefined || value === null) return 0
+    const num = Number(value)
+    return isNaN(num) ? 0 : num
+  }
+  
   const transformed = {
     service: orderData.serviceId, // SMM KINGS 서비스 ID
-    link: orderData.link,
-    quantity: orderData.quantity,
-    runs: orderData.runs || 1,
-    interval: orderData.interval || 0,
-    comments: orderData.comments || '',
-    username: orderData.username || '',
-    min: orderData.min || 0,
-    max: orderData.max || 0,
-    posts: orderData.posts || 0,
-    delay: orderData.delay || 0,
-    expiry: orderData.expiry || '',
-    old_posts: orderData.old_posts || 0,
-    country: orderData.country || '',
-    device: orderData.device || '',
-    type_of_traffic: orderData.type_of_traffic || '',
-    google_keyword: orderData.google_keyword || '',
+    link: safeString(orderData.link),
+    quantity: safeNumber(orderData.quantity),
+    runs: safeNumber(orderData.runs || 1),
+    interval: safeNumber(orderData.interval || 0),
+    comments: safeString(orderData.comments),
+    username: safeString(orderData.username),
+    min: safeNumber(orderData.min),
+    max: safeNumber(orderData.max),
+    posts: safeNumber(orderData.posts),
+    delay: safeNumber(orderData.delay),
+    expiry: safeString(orderData.expiry),
+    old_posts: safeNumber(orderData.old_posts),
+    country: safeString(orderData.country),
+    device: safeString(orderData.device),
+    type_of_traffic: safeString(orderData.type_of_traffic),
+    google_keyword: safeString(orderData.google_keyword),
     key: 'your_api_key_here'
   }
   

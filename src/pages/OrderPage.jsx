@@ -508,13 +508,13 @@ const OrderPage = () => {
         console.log('Selected Service:', selectedService)
         
         const orderData = {
-          serviceId: selectedService, // selectedService를 직접 serviceId로 사용
-          link: link.trim(),
-          quantity,
+          serviceId: selectedService, // selectedService를 직접 사용
+          link: link.trim() || '',
+          quantity: quantity || 0,
           runs: 1, // 기본 실행 횟수
           interval: 0, // 즉시 실행
-          comments: comments.trim(), // 커스텀 댓글 (댓글 서비스인 경우)
-          explanation: explanation.trim(), // 설명 (추가 요청사항)
+          comments: (comments || '').trim(), // 커스텀 댓글 (댓글 서비스인 경우)
+          explanation: (explanation || '').trim(), // 설명 (추가 요청사항)
           username: '', // 사용자명 (구독 서비스인 경우)
           min: 0,
           max: 0,
