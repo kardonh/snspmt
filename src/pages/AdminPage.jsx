@@ -58,6 +58,10 @@ const AdminPage = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState(null)
   const [searchLoading, setSearchLoading] = useState(false)
+  const [selectedPurchases, setSelectedPurchases] = useState([])
+  const [processingPurchase, setProcessingPurchase] = useState(null)
+  const [pendingSearchQuery, setPendingSearchQuery] = useState('')
+  const [filteredPendingPurchases, setFilteredPendingPurchases] = useState([])
 
   // 관리자 이메일 체크
   useEffect(() => {
@@ -352,6 +356,183 @@ const AdminPage = () => {
     setSearchResults(null)
   }
 
+  // 포인트 구매 신청 관리 함수들
+  const handlePurchaseSelect = (purchaseId) => {
+    setSelectedPurchases(prev => 
+      prev.includes(purchaseId) 
+        ? prev.filter(id => id !== purchaseId)
+        : [...prev, purchaseId]
+    )
+  }
+
+  const handleSelectAllPurchases = () => {
+    if (selectedPurchases.length === filteredPendingPurchases.length) {
+      setSelectedPurchases([])
+    } else {
+      setSelectedPurchases(filteredPendingPurchases.map(p => p.id))
+    }
+  }
+
+  const handleApprovePurchase = async (purchaseId) => {
+    try {
+      setProcessingPurchase(purchaseId)
+      
+      const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : ''
+      const response = await fetch(`${baseUrl}/api/admin/purchases/${purchaseId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': currentUser?.email || 'admin'
+        },
+        body: JSON.stringify({ status: 'approved' })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || '승인 실패')
+      }
+
+      const result = await response.json()
+      alert(`승인 완료: ${result.message}`)
+      
+      // 데이터 새로고침
+      loadAdminData()
+      setSelectedPurchases(prev => prev.filter(id => id !== purchaseId))
+      
+    } catch (error) {
+      console.error('구매 승인 실패:', error)
+      alert(`승인 실패: ${error.message}`)
+    } finally {
+      setProcessingPurchase(null)
+    }
+  }
+
+  const handleRejectPurchase = async (purchaseId) => {
+    const reason = prompt('거절 사유를 입력하세요:')
+    if (!reason) return
+
+    try {
+      setProcessingPurchase(purchaseId)
+      
+      const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : ''
+      const response = await fetch(`${baseUrl}/api/admin/purchases/${purchaseId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': currentUser?.email || 'admin'
+        },
+        body: JSON.stringify({ status: 'rejected' })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || '거절 실패')
+      }
+
+      const result = await response.json()
+      alert(`거절 완료: ${result.message}`)
+      
+      // 데이터 새로고침
+      loadAdminData()
+      setSelectedPurchases(prev => prev.filter(id => id !== purchaseId))
+      
+    } catch (error) {
+      console.error('구매 거절 실패:', error)
+      alert(`거절 실패: ${error.message}`)
+    } finally {
+      setProcessingPurchase(null)
+    }
+  }
+
+  const handleBulkApprove = async () => {
+    if (selectedPurchases.length === 0) {
+      alert('승인할 구매 신청을 선택해주세요.')
+      return
+    }
+
+    if (!confirm(`${selectedPurchases.length}개의 구매 신청을 일괄 승인하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      setProcessingPurchase('bulk')
+      
+      // 기존 API 구조에 맞게 개별 승인 처리
+      let successCount = 0
+      let failCount = 0
+      
+      for (const purchaseId of selectedPurchases) {
+        try {
+          const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : ''
+          const response = await fetch(`${baseUrl}/api/admin/purchases/${purchaseId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-User-ID': currentUser?.email || 'admin'
+            },
+            body: JSON.stringify({ status: 'approved' })
+          })
+
+          if (response.ok) {
+            successCount++
+          } else {
+            failCount++
+          }
+        } catch (error) {
+          failCount++
+          console.error(`구매 ${purchaseId} 승인 실패:`, error)
+        }
+      }
+      
+      alert(`일괄 승인 완료: ${successCount}개 성공, ${failCount}개 실패`)
+      
+      // 데이터 새로고침
+      loadAdminData()
+      setSelectedPurchases([])
+      
+    } catch (error) {
+      console.error('일괄 승인 실패:', error)
+      alert(`일괄 승인 실패: ${error.message}`)
+    } finally {
+      setProcessingPurchase(null)
+    }
+  }
+
+  // 승인 요청 검색 및 필터링
+  const filterPendingPurchases = (query) => {
+    if (!query.trim()) {
+      setFilteredPendingPurchases(pendingPurchases)
+      return
+    }
+
+    const filtered = pendingPurchases.filter(purchase => {
+      const searchTerm = query.toLowerCase()
+      return (
+        purchase.depositorName?.toLowerCase().includes(searchTerm) ||
+        purchase.userId?.toLowerCase().includes(searchTerm) ||
+        purchase.bankName?.toLowerCase().includes(searchTerm) ||
+        purchase.amount?.toString().includes(searchTerm) ||
+        purchase.price?.toString().includes(searchTerm) ||
+        formatDate(purchase.createdAt).includes(searchTerm)
+      )
+    })
+    setFilteredPendingPurchases(filtered)
+  }
+
+  // 검색어 변경 시 필터링 실행
+  useEffect(() => {
+    filterPendingPurchases(pendingSearchQuery)
+  }, [pendingSearchQuery, pendingPurchases])
+
+  const handlePendingSearch = () => {
+    filterPendingPurchases(pendingSearchQuery)
+  }
+
+  const clearPendingSearch = () => {
+    setPendingSearchQuery('')
+    setFilteredPendingPurchases(pendingPurchases)
+  }
+
   if (loading) {
     return (
       <div className="admin-loading">
@@ -447,6 +628,136 @@ const AdminPage = () => {
               <strong>{formatCurrency(monthlyStats.monthlyProfit)}</strong>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* 대기 중인 구매 신청 섹션 */}
+      <div className="pending-purchases-section">
+        <div className="pending-header">
+          <h2>대기 중인 포인트 구매 신청</h2>
+          <div className="pending-controls">
+            <button 
+              onClick={handleSelectAllPurchases} 
+              className="select-all-btn"
+            >
+              {selectedPurchases.length === filteredPendingPurchases.length ? '전체 해제' : '전체 선택'}
+            </button>
+            <button 
+              onClick={handleBulkApprove} 
+              disabled={selectedPurchases.length === 0 || processingPurchase === 'bulk'}
+              className="bulk-approve-btn"
+            >
+              {processingPurchase === 'bulk' ? (
+                <>
+                  <RefreshCw size={16} className="loading-spinner" />
+                  처리 중...
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={16} />
+                  선택 항목 일괄 승인 ({selectedPurchases.length})
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* 검색 필터 */}
+        <div className="pending-search-section">
+          <div className="search-input-wrapper">
+            <Search size={20} className="search-icon" />
+            <input
+              type="text"
+              placeholder="입금자명, 사용자 ID, 은행명, 금액으로 검색..."
+              value={pendingSearchQuery}
+              onChange={(e) => setPendingSearchQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handlePendingSearch()}
+              className="pending-search-input"
+            />
+          </div>
+          <button 
+            onClick={handlePendingSearch} 
+            className="pending-search-btn"
+          >
+            <Search size={16} />
+            검색
+          </button>
+          {pendingSearchQuery && (
+            <button onClick={clearPendingSearch} className="clear-pending-btn">
+              초기화
+            </button>
+          )}
+        </div>
+
+        {/* 검색 결과 요약 */}
+        {pendingSearchQuery && (
+          <div className="pending-search-summary">
+            <span className="search-result-count">
+              검색 결과: {filteredPendingPurchases.length}건
+              {filteredPendingPurchases.length !== pendingPurchases.length && (
+                <span className="total-count"> (전체 {pendingPurchases.length}건 중)</span>
+              )}
+            </span>
+          </div>
+        )}
+        
+        <div className="pending-purchases-list">
+          {filteredPendingPurchases.length === 0 ? (
+            <div className="no-pending">
+              {pendingSearchQuery ? '검색 결과가 없습니다.' : '대기 중인 구매 신청이 없습니다.'}
+            </div>
+          ) : (
+            filteredPendingPurchases.map(purchase => (
+              <div key={purchase.id} className="pending-purchase-item">
+                <div className="purchase-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedPurchases.includes(purchase.id)}
+                    onChange={() => handlePurchaseSelect(purchase.id)}
+                    disabled={processingPurchase === purchase.id}
+                  />
+                </div>
+                <div className="purchase-info">
+                  <div className="purchase-user">
+                    <strong>{purchase.depositorName}</strong>
+                    <span className="purchase-id">ID: {purchase.userId}</span>
+                  </div>
+                  <div className="purchase-details">
+                    <span className="purchase-amount">{purchase.amount.toLocaleString()}P</span>
+                    <span className="purchase-price">{formatCurrency(purchase.price)}</span>
+                    <span className="purchase-bank">{purchase.bankName}</span>
+                    <span className="purchase-date">{formatDate(purchase.createdAt)}</span>
+                  </div>
+                </div>
+                <div className="purchase-actions">
+                  <button
+                    onClick={() => handleApprovePurchase(purchase.id)}
+                    disabled={processingPurchase === purchase.id}
+                    className="approve-btn"
+                  >
+                    {processingPurchase === purchase.id ? (
+                      <RefreshCw size={16} className="loading-spinner" />
+                    ) : (
+                      <CheckCircle size={16} />
+                    )}
+                    승인
+                  </button>
+                  <button
+                    onClick={() => handleRejectPurchase(purchase.id)}
+                    disabled={processingPurchase === purchase.id}
+                    className="reject-btn"
+                  >
+                    {processingPurchase === purchase.id ? (
+                      <RefreshCw size={16} className="loading-spinner" />
+                    ) : (
+                      <XCircle size={16} />
+                    )}
+                    거절
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

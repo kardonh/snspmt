@@ -111,73 +111,49 @@ const PaymentPage = () => {
     // 2초 후 실제 처리 시작
     setTimeout(async () => {
       try {
-        // 2단계: 포인트 차감 및 SNS 플레이스 API 호출
-        console.log('결제 완료, 포인트 차감 및 SNS 플레이스 API 호출 시작...')
+        // 2단계: 주문 결제 완료 및 외부 API 전송
+        console.log('결제 완료, 주문 결제 완료 API 호출 시작...')
         
-        // 1. 포인트 차감
-        const deductResponse = await fetch('/api/points', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-User-ID': orderData.userId || 'anonymous'
-          },
-          body: JSON.stringify({
-            userId: orderData.userId || 'anonymous',
-            points: orderData.totalPrice, // 총 결제 금액만큼 포인트 차감
-            orderId: orderData.orderId
-          })
-        })
-        
-        if (!deductResponse.ok) {
-          const deductError = await deductResponse.json()
-          throw new Error(`포인트 차감 실패: ${deductError.error}`)
-        }
-        
-        const deductResult = await deductResponse.json()
-        console.log('포인트 차감 성공:', deductResult)
-        
-        // 2. SNS 플레이스 API 호출
-        const snsPlaceResponse = await fetch('/api/sns-place/order', {
+        // 주문 결제 완료 API 호출 (포인트 차감 + 외부 API 전송)
+        const completePaymentResponse = await fetch(`/api/orders/${orderData.orderId}/complete-payment`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-User-ID': orderData.userId || 'anonymous'
           },
           body: JSON.stringify({
-            service: orderData.serviceId,
-            link: orderData.link,
-            quantity: orderData.quantity,
+            // 추가 주문 옵션들 (필요한 경우)
             comments: orderData.comments || '',
-            explanation: orderData.explanation || '',
-            orderId: orderData.orderId,
-            pointsUsed: orderData.totalPrice
+            explanation: orderData.explanation || ''
           })
         })
         
-        if (snsPlaceResponse.ok) {
-          const snsPlaceData = await snsPlaceResponse.json()
-          console.log('SNS 플레이스 주문 성공:', snsPlaceData)
-          
-          // 주문 성공 시 처리
-          setIsProcessing(false)
-          setPaymentSuccess(true)
-          
-          // 3초 후 주문 완료 페이지로 이동
-          setTimeout(() => {
-            navigate(`/order-complete/${orderData.orderId || 'temp'}`, { 
-              state: { 
-                orderData: orderData,
-                snsPlaceOrderId: snsPlaceData.orderId,
-                pointsUsed: orderData.totalPrice,
-                remainingPoints: deductResult.remainingPoints
-              } 
-            })
-          }, 3000)
-        } else {
-          throw new Error('SNS 플레이스 주문 실패')
+        if (!completePaymentResponse.ok) {
+          const errorData = await completePaymentResponse.json()
+          throw new Error(errorData.error || '주문 결제 완료 실패')
         }
+        
+        const completeResult = await completePaymentResponse.json()
+        console.log('주문 결제 완료 성공:', completeResult)
+        
+        // 주문 성공 시 처리
+        setIsProcessing(false)
+        setPaymentSuccess(true)
+        
+        // 3초 후 주문 완료 페이지로 이동
+        setTimeout(() => {
+          navigate(`/order-complete/${orderData.orderId || 'temp'}`, { 
+            state: { 
+              orderData: orderData,
+              externalOrderId: completeResult.externalOrderId,
+              pointsUsed: completeResult.points_used,
+              remainingPoints: completeResult.remaining_points
+            } 
+          })
+        }, 3000)
+        
       } catch (error) {
-        console.error('포인트 차감 또는 SNS 플레이스 API 호출 실패:', error)
+        console.error('주문 결제 완료 실패:', error)
         alert(`주문 처리 중 오류가 발생했습니다: ${error.message}`)
         setIsProcessing(false)
       }

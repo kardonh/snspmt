@@ -12,13 +12,27 @@ from contextlib import contextmanager
 import hashlib
 import time
 
-# Admin blueprint import
+# Blueprint imports
 try:
     from api.admin import admin_bp
     ADMIN_AVAILABLE = True
 except ImportError as e:
     print(f"Admin blueprint import failed: {e}")
     ADMIN_AVAILABLE = False
+
+try:
+    from api.notifications import notifications_bp
+    NOTIFICATIONS_AVAILABLE = True
+except ImportError as e:
+    print(f"Notifications blueprint import failed: {e}")
+    NOTIFICATIONS_AVAILABLE = False
+
+try:
+    from api.analytics import analytics_bp
+    ANALYTICS_AVAILABLE = True
+except ImportError as e:
+    print(f"Analytics blueprint import failed: {e}")
+    ANALYTICS_AVAILABLE = False
 
 # PostgreSQL 의존성 (개발 환경에서는 선택적)
 try:
@@ -70,12 +84,24 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Admin blueprint 등록
+# Blueprint 등록
 if ADMIN_AVAILABLE:
     app.register_blueprint(admin_bp)
     print("Admin blueprint registered successfully")
 else:
     print("Admin blueprint not available")
+
+if NOTIFICATIONS_AVAILABLE:
+    app.register_blueprint(notifications_bp)
+    print("Notifications blueprint registered successfully")
+else:
+    print("Notifications blueprint not available")
+
+if ANALYTICS_AVAILABLE:
+    app.register_blueprint(analytics_bp)
+    print("Analytics blueprint registered successfully")
+else:
+    print("Analytics blueprint not available")
 
 # 헬스 체크 엔드포인트 추가 (ECS 헬스 체크용)
 @app.route('/health')
@@ -224,8 +250,10 @@ def init_database():
                 quantity INTEGER,
                 price REAL,
                 status TEXT,
+                external_order_id TEXT,
                 smmkings_cost REAL DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
@@ -420,9 +448,6 @@ def proxy_api():
         print(f"요청 데이터: {data}")
         print(f"사용자 ID: {request.headers.get('X-User-ID', 'anonymous')}")
         
-        # 우리 플랫폼에서 직접 주문 처리
-        print(f"우리 플랫폼에서 주문 처리 시작...")
-        
         # 주문 데이터 검증 (더 상세한 검증)
         service_id = data.get('service')
         link = data.get('link')
@@ -463,43 +488,88 @@ def proxy_api():
         # 사용자 ID 가져오기
         user_id = request.headers.get('X-User-ID', 'anonymous')
         
+        # 포인트 잔액 확인 (결제 전 검증)
+        if price > 0:
+            current_points = points_db.get(user_id, 0)
+            if current_points < price:
+                return jsonify({
+                    'type': 'payment_error',
+                    'message': f'포인트가 부족합니다. 현재: {current_points}P, 필요: {price}P'
+                }), 400
+            
+            print(f"포인트 잔액 확인: {user_id} - 현재: {current_points}P, 필요: {price}P")
+        
         # 주문 ID 생성 (우리 플랫폼 고유)
         order_id = f"SNSPMT_{int(time.time())}_{user_id[:8]}"
         
-        # 주문 정보 구성
-        order_info = {
-            'id': order_id,
-            'service': service_id,
-            'link': link,
-            'quantity': quantity,
-            'runs': data.get('runs', 1),
-            'interval': data.get('interval', 0),
-            'comments': data.get('comments', ''),
-            'username': data.get('username', ''),
-            'min': data.get('min', 0),
-            'max': data.get('max', 0),
-            'posts': data.get('posts', 0),
-            'delay': data.get('delay', 0),
-            'expiry': data.get('expiry', ''),
-            'old_posts': data.get('old_posts', 0),
-            'status': 'pending',
-            'created_at': datetime.now().isoformat(),
-            'user_id': user_id,
-            'total_price': data.get('price', 0)
-        }
+        # PostgreSQL에 주문 저장
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, status, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (order_id, user_id, service_id, link, quantity, price, 'pending', datetime.now()))
+                conn.commit()
+                print(f"PostgreSQL 주문 저장 완료: {order_id}")
+        except Exception as e:
+            print(f"PostgreSQL 저장 실패: {e}")
+            # 로컬 메모리에도 백업 저장
+            if user_id not in orders_db:
+                orders_db[user_id] = []
+            
+            order_info = {
+                'id': order_id,
+                'service': service_id,
+                'link': link,
+                'quantity': quantity,
+                'runs': data.get('runs', 1),
+                'interval': data.get('interval', 0),
+                'comments': data.get('comments', ''),
+                'username': data.get('username', ''),
+                'min': data.get('min', 0),
+                'max': data.get('max', 0),
+                'posts': data.get('posts', 0),
+                'delay': data.get('delay', 0),
+                'expiry': data.get('expiry', ''),
+                'old_posts': data.get('old_posts', 0),
+                'status': 'pending',
+                'created_at': datetime.now().isoformat(),
+                'user_id': user_id,
+                'total_price': price
+            }
+            orders_db[user_id].append(order_info)
         
-        # 로컬 주문 데이터베이스에 저장
-        if user_id not in orders_db:
-            orders_db[user_id] = []
+        # 주문을 'pending_payment' 상태로 저장 (결제 대기)
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE orders 
+                    SET status = 'pending_payment', updated_at = %s
+                    WHERE order_id = %s
+                """, (datetime.now(), order_id))
+                conn.commit()
+                print(f"주문 상태를 'pending_payment'로 업데이트: {order_id}")
+        except Exception as e:
+            print(f"주문 상태 업데이트 실패: {e}")
         
-        orders_db[user_id].append(order_info)
-        print(f"주문 저장 완료: {order_id}")
+        # 알림 생성 (알림 시스템이 사용 가능한 경우)
+        if NOTIFICATIONS_AVAILABLE:
+            try:
+                from api.notifications import notify_order_status_change
+                notify_order_status_change(user_id, order_id, None, 'pending')
+                print(f"주문 생성 알림 전송 완료: {user_id}")
+            except Exception as e:
+                print(f"알림 전송 실패: {e}")
         
         # 성공 응답 반환
         success_response = {
             'order': order_id,
-            'status': 'pending',
-            'message': '주문이 성공적으로 생성되었습니다.'
+            'status': 'pending_payment',
+            'message': '주문이 생성되었습니다. 결제를 완료해주세요.',
+            'price': price,
+            'current_points': points_db.get(user_id, 0)
         }
         
         print(f"=== 주문 생성 완료 ===")
@@ -511,52 +581,145 @@ def proxy_api():
         print(f"오류: {str(e)}")
         return jsonify({'error': f'주문 생성 실패: {str(e)}'}), 500
 
-@app.route('/api/sns-place/order', methods=['POST'])
-def sns_place_order():
-    """SNS 플레이스 API로 주문 전송"""
+@app.route('/api/orders/<order_id>/complete-payment', methods=['POST'])
+def complete_order_payment(order_id):
+    """주문 결제 완료 및 외부 API 전송"""
     try:
         data = request.get_json()
         user_id = request.headers.get('X-User-ID', 'anonymous')
         
-        print(f"=== SNS 플레이스 주문 요청 ===")
+        print(f"=== 주문 결제 완료 요청 ===")
+        print(f"주문 ID: {order_id}")
         print(f"사용자 ID: {user_id}")
-        print(f"주문 데이터: {data}")
         
-        # SNS 플레이스 API 호출 (실제 구현 시 여기에 API 키와 엔드포인트 설정)
-        # 현재는 시뮬레이션으로 성공 응답 반환
-        
-        # 주문 데이터 검증
-        service_id = data.get('service')
-        link = data.get('link')
-        quantity = data.get('quantity')
-        
-        if not service_id or not link or not quantity:
-            return jsonify({'error': '필수 주문 정보가 누락되었습니다.'}), 400
-        
-        # SNS 플레이스 주문 ID 생성 (실제로는 API 응답에서 받아옴)
-        sns_place_order_id = f"SNS_PLACE_{int(time.time())}_{user_id[:8]}"
-        
-        # 주문 상태를 'processing'으로 업데이트
-        if user_id in orders_db:
-            for order in orders_db[user_id]:
-                if order['id'] == data.get('orderId'):
-                    order['status'] = 'processing'
-                    order['sns_place_order_id'] = sns_place_order_id
-                    order['sns_place_status'] = 'submitted'
-                    break
-        
-        print(f"SNS 플레이스 주문 성공: {sns_place_order_id}")
-        
-        return jsonify({
-            'success': True,
-            'orderId': sns_place_order_id,
-            'status': 'submitted',
-            'message': 'SNS 플레이스에 주문이 성공적으로 전송되었습니다.'
-        }), 200
+        # 주문 정보 조회
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT order_id, user_id, service_id, link, quantity, price, status
+                    FROM orders 
+                    WHERE order_id = %s AND user_id = %s
+                """, (order_id, user_id))
+                
+                order = cursor.fetchone()
+                if not order:
+                    return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
+                
+                if order['status'] != 'pending_payment':
+                    return jsonify({'error': '결제 대기 상태가 아닙니다.'}), 400
+                
+                # 포인트 차감
+                current_points = points_db.get(user_id, 0)
+                if current_points < order['price']:
+                    return jsonify({
+                        'type': 'payment_error',
+                        'message': f'포인트가 부족합니다. 현재: {current_points}P, 필요: {order["price"]}P'
+                    }), 400
+                
+                # 포인트 차감
+                points_db[user_id] = current_points - order['price']
+                print(f"포인트 차감 완료: {user_id}에서 {order['price']}P 차감 (잔액: {points_db[user_id]}P)")
+                
+                # smmpanel.kr API로 주문 전송
+                try:
+                    print(f"smmpanel.kr API로 주문 전송 시작...")
+                    
+                    # API 요청 데이터 구성
+                    api_data = {
+                        'service': order['service_id'],
+                        'link': order['link'],
+                        'quantity': order['quantity']
+                    }
+                    
+                    # 추가 옵션들 추가 (data에서 가져옴)
+                    if data.get('runs'):
+                        api_data['runs'] = data.get('runs')
+                    if data.get('interval'):
+                        api_data['interval'] = data.get('interval')
+                    if data.get('comments'):
+                        api_data['comments'] = data.get('comments')
+                    if data.get('username'):
+                        api_data['username'] = data.get('username')
+                    if data.get('min'):
+                        api_data['min'] = data.get('min')
+                    if data.get('max'):
+                        api_data['max'] = data.get('max')
+                    if data.get('posts'):
+                        api_data['posts'] = data.get('posts')
+                    if data.get('delay'):
+                        api_data['delay'] = data.get('delay')
+                    if data.get('expiry'):
+                        api_data['expiry'] = data.get('expiry')
+                    if data.get('old_posts'):
+                        api_data['old_posts'] = data.get('old_posts')
+                    
+                    # smmpanel.kr API 호출
+                    response = requests.post(SMMPANEL_API_URL, json={
+                        'key': API_KEY,
+                        'action': 'add',
+                        **api_data
+                    }, timeout=30)
+                    
+                    if response.status_code == 200:
+                        api_response = response.json()
+                        print(f"smmpanel.kr API 응답: {api_response}")
+                        
+                        # API 응답에서 외부 주문 ID 추출
+                        external_order_id = api_response.get('order')
+                        
+                        # PostgreSQL에 외부 주문 ID 업데이트
+                        cursor.execute("""
+                            UPDATE orders 
+                            SET external_order_id = %s, status = 'processing', updated_at = %s
+                            WHERE order_id = %s
+                        """, (external_order_id, datetime.now(), order_id))
+                        conn.commit()
+                        
+                        print(f"smmpanel.kr 주문 전송 성공: {external_order_id}")
+                        
+                        # 알림 생성 (알림 시스템이 사용 가능한 경우)
+                        if NOTIFICATIONS_AVAILABLE:
+                            try:
+                                from api.notifications import notify_order_status_change
+                                notify_order_status_change(user_id, order_id, 'pending_payment', 'processing')
+                                print(f"주문 처리 시작 알림 전송 완료: {user_id}")
+                            except Exception as e:
+                                print(f"알림 전송 실패: {e}")
+                        
+                        return jsonify({
+                            'success': True,
+                            'orderId': order_id,
+                            'externalOrderId': external_order_id,
+                            'status': 'processing',
+                            'message': '결제가 완료되었고 주문이 처리 중입니다.',
+                            'points_used': order['price'],
+                            'remaining_points': points_db[user_id]
+                        }), 200
+                    else:
+                        print(f"smmpanel.kr API 오류: {response.status_code} - {response.text}")
+                        # API 실패 시 포인트 환불
+                        points_db[user_id] = current_points
+                        return jsonify({
+                            'error': '외부 API 전송에 실패했습니다. 포인트가 환불되었습니다.'
+                        }), 500
+                        
+                except Exception as e:
+                    print(f"smmpanel.kr API 전송 실패: {e}")
+                    # API 실패 시 포인트 환불
+                    points_db[user_id] = current_points
+                    return jsonify({
+                        'error': f'외부 API 전송 실패: {str(e)}. 포인트가 환불되었습니다.'
+                    }), 500
+                    
+        except Exception as e:
+            print(f"데이터베이스 오류: {e}")
+            return jsonify({'error': f'데이터베이스 오류: {str(e)}'}), 500
         
     except Exception as e:
-        print(f"SNS 플레이스 주문 실패: {str(e)}")
-        return jsonify({'error': f'SNS 플레이스 주문 실패: {str(e)}'}), 500
+        print(f"=== 주문 결제 완료 실패 ===")
+        print(f"오류: {str(e)}")
+        return jsonify({'error': f'주문 결제 완료 실패: {str(e)}'}), 500
 
 @app.route('/api/orders', methods=['GET'])
 def get_user_orders():
@@ -567,31 +730,78 @@ def get_user_orders():
         # 디버깅용 로그
         print(f"주문 조회 요청: {user_id}")
         
-        if user_id not in orders_db:
-            print(f"사용자 {user_id}의 주문이 없음")
-            return jsonify({'orders': []}), 200
-        
-        # 주문 상태 업데이트 (smmpanel.kr API에서 최신 상태 조회)
-        for order in orders_db[user_id]:
-            try:
-                status_response = requests.post(SMMPANEL_API_URL, json={
-                    'key': API_KEY,
-                    'action': 'status',
-                    'order': order['id']
-                }, timeout=10)
+        # PostgreSQL에서 주문 조회
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT 
+                        order_id,
+                        service_id,
+                        link,
+                        quantity,
+                        price,
+                        status,
+                        external_order_id,
+                        created_at,
+                        updated_at
+                    FROM orders 
+                    WHERE user_id = %s
+                    ORDER BY created_at DESC
+                """, (user_id,))
                 
-                if status_response.status_code == 200:
-                    status_data = status_response.json()
-                    if 'status' in status_data:
-                        order['status'] = status_data['status']
-                    if 'start_count' in status_data:
-                        order['start_count'] = status_data['start_count']
-                    if 'remains' in status_data:
-                        order['remains'] = status_data['remains']
-            except:
-                pass  # 상태 조회 실패 시 기존 상태 유지
-        
-        return jsonify({'orders': orders_db[user_id]}), 200
+                orders = []
+                for row in cursor.fetchall():
+                    order = {
+                        'id': row['order_id'],
+                        'service': row['service_id'],
+                        'link': row['link'],
+                        'quantity': row['quantity'],
+                        'price': float(row['price'] or 0),
+                        'status': row['status'],
+                        'external_order_id': row['external_order_id'],
+                        'created_at': row['created_at'].isoformat() if row['created_at'] else None,
+                        'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
+                    }
+                    
+                    # 외부 주문 ID가 있으면 smmpanel.kr API에서 최신 상태 조회
+                    if order['external_order_id']:
+                        try:
+                            status_response = requests.post(SMMPANEL_API_URL, json={
+                                'key': API_KEY,
+                                'action': 'status',
+                                'order': order['external_order_id']
+                            }, timeout=10)
+                            
+                            if status_response.status_code == 200:
+                                status_data = status_response.json()
+                                if 'status' in status_data:
+                                    order['status'] = status_data['status']
+                                    # PostgreSQL 상태 업데이트
+                                    cursor.execute("""
+                                        UPDATE orders 
+                                        SET status = %s, updated_at = %s
+                                        WHERE order_id = %s
+                                    """, (status_data['status'], datetime.now(), order['id']))
+                                if 'start_count' in status_data:
+                                    order['start_count'] = status_data['start_count']
+                                if 'remains' in status_data:
+                                    order['remains'] = status_data['remains']
+                        except Exception as e:
+                            print(f"외부 API 상태 조회 실패: {e}")
+                    
+                    orders.append(order)
+                
+                conn.commit()
+                return jsonify({'orders': orders}), 200
+                
+        except Exception as e:
+            print(f"PostgreSQL 조회 실패: {e}")
+            # 로컬 메모리에서 조회 (백업)
+            if user_id not in orders_db:
+                return jsonify({'orders': []}), 200
+            
+            return jsonify({'orders': orders_db[user_id]}), 200
         
     except Exception as e:
         return jsonify({'error': f'주문 조회 실패: {str(e)}'}), 500
@@ -984,6 +1194,242 @@ def points_endpoint():
     else:
         return get_user_points()
 
+# 포인트 구매 승인/거절 API
+@app.route('/api/purchases/<purchase_id>/approve', methods=['PUT'])
+def approve_purchase(purchase_id):
+    """포인트 구매 신청 승인"""
+    try:
+        user_id = request.headers.get('X-User-ID', 'anonymous')
+        
+        # 관리자 권한 확인 (실제로는 더 엄격한 인증 필요)
+        if not user_id or user_id == 'anonymous':
+            return jsonify({'error': '관리자 권한이 필요합니다.'}), 403
+        
+        # PostgreSQL에서 구매 신청 조회
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, user_id, points, amount, status, created_at
+                    FROM purchases 
+                    WHERE id = %s
+                """, (purchase_id,))
+                
+                purchase = cursor.fetchone()
+                if not purchase:
+                    return jsonify({'error': '구매 신청을 찾을 수 없습니다.'}), 404
+                
+                if purchase['status'] != 'pending':
+                    return jsonify({'error': '승인 대기 상태가 아닙니다.'}), 400
+                
+                # 포인트 추가
+                current_points = points_db.get(purchase['user_id'], 0)
+                points_db[purchase['user_id']] = current_points + purchase['points']
+                
+                # 구매 상태를 'approved'로 업데이트
+                cursor.execute("""
+                    UPDATE purchases 
+                    SET status = 'approved', updated_at = %s
+                    WHERE id = %s
+                """, (datetime.now(), purchase_id))
+                conn.commit()
+                
+                print(f"구매 승인 완료: {purchase_id} - {purchase['user_id']}에게 {purchase['points']}P 추가")
+                
+                # 알림 생성 (알림 시스템이 사용 가능한 경우)
+                if NOTIFICATIONS_AVAILABLE:
+                    try:
+                        from api.notifications import notify_points_charged
+                        notify_points_charged(purchase['user_id'], purchase['points'], purchase['amount'])
+                        print(f"포인트 충전 알림 전송 완료: {purchase['user_id']}")
+                    except Exception as e:
+                        print(f"알림 전송 실패: {e}")
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'{purchase["points"]}P가 성공적으로 추가되었습니다.',
+                    'purchase_id': purchase_id,
+                    'user_id': purchase['user_id'],
+                    'points_added': purchase['points'],
+                    'remaining_points': points_db[purchase['user_id']]
+                }), 200
+                
+        except Exception as e:
+            print(f"데이터베이스 오류: {e}")
+            return jsonify({'error': f'데이터베이스 오류: {str(e)}'}), 500
+        
+    except Exception as e:
+        print(f"구매 승인 실패: {str(e)}")
+        return jsonify({'error': f'구매 승인 실패: {str(e)}'}), 500
+
+@app.route('/api/purchases/<purchase_id>/reject', methods=['PUT'])
+def reject_purchase(purchase_id):
+    """포인트 구매 신청 거절"""
+    try:
+        user_id = request.headers.get('X-User-ID', 'anonymous')
+        data = request.get_json()
+        reason = data.get('reason', '관리자에 의해 거절되었습니다.')
+        
+        # 관리자 권한 확인
+        if not user_id or user_id == 'anonymous':
+            return jsonify({'error': '관리자 권한이 필요합니다.'}), 403
+        
+        # PostgreSQL에서 구매 신청 조회
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, user_id, points, amount, status, created_at
+                    FROM purchases 
+                    WHERE id = %s
+                """, (purchase_id,))
+                
+                purchase = cursor.fetchone()
+                if not purchase:
+                    return jsonify({'error': '구매 신청을 찾을 수 없습니다.'}), 404
+                
+                if purchase['status'] != 'pending':
+                    return jsonify({'error': '승인 대기 상태가 아닙니다.'}), 400
+                
+                # 구매 상태를 'rejected'로 업데이트
+                cursor.execute("""
+                    UPDATE purchases 
+                    SET status = 'rejected', updated_at = %s, rejection_reason = %s
+                    WHERE id = %s
+                """, (datetime.now(), reason, purchase_id))
+                conn.commit()
+                
+                print(f"구매 거절 완료: {purchase_id} - {purchase['user_id']}의 {purchase['points']}P 신청 거절")
+                
+                # 알림 생성 (알림 시스템이 사용 가능한 경우)
+                if NOTIFICATIONS_AVAILABLE:
+                    try:
+                        from api.notifications import create_notification
+                        create_notification(
+                            purchase['user_id'],
+                            'purchase_rejected',
+                            '포인트 구매 신청 거절',
+                            f'포인트 구매 신청이 거절되었습니다. 사유: {reason}',
+                            {'purchase_id': purchase_id, 'points': purchase['points'], 'amount': purchase['amount']}
+                        )
+                        print(f"구매 거절 알림 전송 완료: {purchase['user_id']}")
+                    except Exception as e:
+                        print(f"알림 전송 실패: {e}")
+                
+                return jsonify({
+                    'success': True,
+                    'message': '구매 신청이 거절되었습니다.',
+                    'purchase_id': purchase_id,
+                    'user_id': purchase['user_id'],
+                    'rejection_reason': reason
+                }), 200
+                
+        except Exception as e:
+            print(f"데이터베이스 오류: {e}")
+            return jsonify({'error': f'데이터베이스 오류: {str(e)}'}), 500
+        
+    except Exception as e:
+        print(f"구매 거절 실패: {str(e)}")
+        return jsonify({'error': f'구매 거절 실패: {str(e)}'}), 500
+
+@app.route('/api/purchases/bulk-approve', methods=['POST'])
+def bulk_approve_purchases():
+    """여러 포인트 구매 신청 일괄 승인"""
+    try:
+        user_id = request.headers.get('X-User-ID', 'anonymous')
+        data = request.get_json()
+        purchase_ids = data.get('purchase_ids', [])
+        
+        # 관리자 권한 확인
+        if not user_id or user_id == 'anonymous':
+            return jsonify({'error': '관리자 권한이 필요합니다.'}), 403
+        
+        if not purchase_ids:
+            return jsonify({'error': '승인할 구매 신청을 선택해주세요.'}), 400
+        
+        approved_count = 0
+        failed_count = 0
+        results = []
+        
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                
+                for purchase_id in purchase_ids:
+                    try:
+                        # 구매 신청 조회
+                        cursor.execute("""
+                            SELECT id, user_id, points, amount, status
+                            FROM purchases 
+                            WHERE id = %s AND status = 'pending'
+                        """, (purchase_id,))
+                        
+                        purchase = cursor.fetchone()
+                        if not purchase:
+                            results.append({
+                                'purchase_id': purchase_id,
+                                'success': False,
+                                'message': '구매 신청을 찾을 수 없거나 이미 처리되었습니다.'
+                            })
+                            failed_count += 1
+                            continue
+                        
+                        # 포인트 추가
+                        current_points = points_db.get(purchase['user_id'], 0)
+                        points_db[purchase['user_id']] = current_points + purchase['points']
+                        
+                        # 구매 상태를 'approved'로 업데이트
+                        cursor.execute("""
+                            UPDATE purchases 
+                            SET status = 'approved', updated_at = %s
+                            WHERE id = %s
+                        """, (datetime.now(), purchase_id))
+                        
+                        approved_count += 1
+                        results.append({
+                            'purchase_id': purchase_id,
+                            'success': True,
+                            'message': f'{purchase["points"]}P 추가 완료',
+                            'user_id': purchase['user_id'],
+                            'points_added': purchase['points']
+                        })
+                        
+                        # 알림 생성
+                        if NOTIFICATIONS_AVAILABLE:
+                            try:
+                                from api.notifications import notify_points_charged
+                                notify_points_charged(purchase['user_id'], purchase['points'], purchase['amount'])
+                            except Exception as e:
+                                print(f"알림 전송 실패: {e}")
+                        
+                    except Exception as e:
+                        results.append({
+                            'purchase_id': purchase_id,
+                            'success': False,
+                            'message': f'처리 실패: {str(e)}'
+                        })
+                        failed_count += 1
+                
+                conn.commit()
+                
+                print(f"일괄 승인 완료: {approved_count}개 승인, {failed_count}개 실패")
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'{approved_count}개의 구매 신청이 승인되었습니다.',
+                    'approved_count': approved_count,
+                    'failed_count': failed_count,
+                    'results': results
+                }), 200
+                
+        except Exception as e:
+            print(f"데이터베이스 오류: {e}")
+            return jsonify({'error': f'데이터베이스 오류: {str(e)}'}), 500
+        
+    except Exception as e:
+        print(f"일괄 승인 실패: {str(e)}")
+        return jsonify({'error': f'일괄 승인 실패: {str(e)}'}), 500
+
 def update_user_points():
     """사용자 포인트 차감"""
     try:
@@ -1371,6 +1817,15 @@ def update_purchase_status(purchase_id):
             points_db[user_id] = current_points + purchase['amount']
             
             print(f"포인트 승인: 사용자 {user_id}에게 {purchase['amount']}P 추가 (총 {points_db[user_id]}P)")
+            
+            # 포인트 충전 완료 알림 (알림 시스템이 사용 가능한 경우)
+            if NOTIFICATIONS_AVAILABLE:
+                try:
+                    from api.notifications import notify_points_charged
+                    notify_points_charged(user_id, purchase['amount'], points_db[user_id])
+                    print(f"포인트 충전 알림 전송 완료: {user_id}")
+                except Exception as e:
+                    print(f"포인트 충전 알림 전송 실패: {e}")
         
         return jsonify({
             'success': True,

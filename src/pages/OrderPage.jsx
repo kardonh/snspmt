@@ -534,6 +534,10 @@ const OrderPage = () => {
         console.log('Transformed Data:', transformedData)
         
       const userId = currentUser?.uid || currentUser?.email || 'anonymous'
+      // 주문 데이터에 포인트 사용 정보 추가
+      transformedData.price = finalPrice // 최종 결제 금액
+      transformedData.pointsToUse = pointsToUse // 사용할 포인트
+      
       const result = await smmkingsApi.createOrder(transformedData, userId)
 
       console.log('Order created successfully:', result)
@@ -541,27 +545,8 @@ const OrderPage = () => {
       if (result.error) {
         alert(`주문 생성 실패: ${result.error}`)
       } else {
-        // 포인트 사용 시 포인트 차감
-        if (usePoints && pointsToUse > 0) {
-          try {
-            const userId = currentUser?.uid || currentUser?.email || 'anonymous'
-            const deductResult = await smmkingsApi.deductUserPoints(userId, pointsToUse)
-            
-            if (deductResult.success) {
-              console.log('포인트 차감 성공:', deductResult)
-              // 포인트 잔액 업데이트
-              setUserPoints(deductResult.remainingPoints)
-            } else {
-              console.error('포인트 차감 실패:', deductResult)
-              alert('포인트 차감에 실패했습니다.')
-              return
-            }
-          } catch (error) {
-            console.error('포인트 차감 중 오류:', error)
-            alert('포인트 차감 중 오류가 발생했습니다.')
-            return
-          }
-        }
+        // 주문 생성 완료, 포인트는 아직 차감되지 않음
+        console.log('주문 생성 완료, 결제 대기 중:', result)
 
         // 주문 성공 시 결제 페이지로 이동
         const paymentData = {

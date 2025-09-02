@@ -802,6 +802,285 @@
   font-weight: 600;
 }
 
+/* 대기 중인 구매 신청 섹션 */
+.pending-purchases-section {
+  margin: 30px 0;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.pending-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.pending-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.pending-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.select-all-btn {
+  padding: 8px 16px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.select-all-btn:hover {
+  background: #5a6268;
+}
+
+.bulk-approve-btn {
+  padding: 8px 16px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s;
+}
+
+.bulk-approve-btn:hover:not(:disabled) {
+  background: #218838;
+}
+
+.bulk-approve-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.pending-purchases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.no-pending {
+  text-align: center;
+  padding: 40px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.pending-purchase-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s;
+}
+
+.pending-purchase-item:hover {
+  background: #e9ecef;
+  border-color: #dee2e6;
+}
+
+.purchase-checkbox {
+  flex-shrink: 0;
+}
+
+.purchase-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.purchase-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.purchase-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.purchase-user strong {
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.purchase-id {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.purchase-details {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.purchase-amount {
+  font-weight: bold;
+  color: #28a745;
+  font-size: 1.1rem;
+}
+
+.purchase-price {
+  color: #007bff;
+  font-weight: 500;
+}
+
+.purchase-bank {
+  color: #6c757d;
+  background: #e9ecef;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.purchase-date {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.purchase-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.approve-btn, .reject-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.approve-btn {
+  background: #28a745;
+  color: white;
+}
+
+.approve-btn:hover:not(:disabled) {
+  background: #218838;
+}
+
+.reject-btn {
+  background: #dc3545;
+  color: white;
+}
+
+.reject-btn:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.approve-btn:disabled, .reject-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+/* 승인 요청 검색 섹션 */
+.pending-search-section {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.pending-search-input {
+  flex: 1;
+  padding: 8px 12px 8px 40px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: white;
+  position: relative;
+}
+
+.pending-search-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.pending-search-btn {
+  padding: 8px 16px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s;
+}
+
+.pending-search-btn:hover {
+  background: #0056b3;
+}
+
+.clear-pending-btn {
+  padding: 8px 16px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.clear-pending-btn:hover {
+  background: #5a6268;
+}
+
+.pending-search-summary {
+  margin-bottom: 15px;
+  padding: 8px 12px;
+  background: #e3f2fd;
+  border-radius: 6px;
+  border-left: 4px solid #2196f3;
+}
+
+.search-result-count {
+  font-size: 0.9rem;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.total-count {
+  color: #6c757d;
+  font-weight: normal;
+}
+
 /* 반응형 디자인 */
 @media (max-width: 768px) {
   .admin-page {
@@ -857,6 +1136,15 @@
   
   .search-input {
     min-width: auto;
+    width: 100%;
+  }
+
+  .pending-search-section {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .pending-search-input {
     width: 100%;
   }
   
