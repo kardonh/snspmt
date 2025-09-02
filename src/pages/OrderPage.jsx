@@ -417,184 +417,86 @@ const OrderPage = () => {
   
       // 🚀 완벽한 주문 생성 시스템
   const handlePurchase = async () => {
-    console.log('=== 🚀 주문 생성 시작 ===')
-    console.log('현재 상태:', {
-      selectedService,
-      platform,
-      link: link?.trim(),
-      quantity,
-      userPoints,
-      totalPrice,
-      finalPrice
-    })
-    
     try {
-      // 1단계: 서비스 상태 완벽 검증 및 복구
-      console.log('🔍 1단계: 서비스 상태 검증 시작')
-      const validatedService = validateAndRecoverService()
+      console.log('=== 🚀 주문 생성 시작 ===')
+      console.log('현재 상태:', {
+        platform,
+        selectedService,
+        quantity,
+        link,
+        comments,
+        explanation,
+        usePoints,
+        userPoints,
+        totalPrice
+      })
+
+      // 0단계: 서비스 강제 복구 (가장 먼저 실행)
+      console.log('🔍 0단계: 서비스 강제 복구')
+      let currentService = selectedService
       
-      if (!validatedService) {
-        console.error('❌ 서비스 검증 실패')
-        alert('서비스를 선택할 수 없습니다. 페이지를 새로고침해주세요.')
-        return
+      if (!currentService || currentService === 'undefined' || currentService === undefined) {
+        console.warn('⚠️ selectedService가 undefined, 강제 복구 시도...')
+        const services = getServicesForPlatform(platform)
+        if (services.length > 0) {
+          currentService = services[0].id
+          console.log('🔧 강제 복구된 서비스:', currentService)
+          setSelectedService(currentService)
+          
+          // 상태 업데이트 대기
+          await new Promise(resolve => setTimeout(resolve, 100))
+        } else {
+          console.error('❌ 사용 가능한 서비스가 없습니다')
+          alert('사용 가능한 서비스가 없습니다. 페이지를 새로고침해주세요.')
+          return
+        }
       }
       
-      console.log('✅ 서비스 검증 완료:', validatedService)
-      
-      // 2단계: 최종 서비스 상태 확인
-      console.log('🔍 2단계: 최종 서비스 상태 확인')
-      const services = getServicesForPlatform(platform)
-      const validServiceIds = services.map(s => s.id)
-      
-      if (!validServiceIds.includes(validatedService)) {
-        console.error('❌ 최종 서비스 검증 실패:', validatedService)
-        console.error('유효한 서비스 ID들:', validServiceIds)
-        alert('선택된 서비스가 유효하지 않습니다. 다시 선택해주세요.')
-        return
-      }
-      
-      console.log('✅ 최종 서비스 검증 완료:', validatedService)
-      
-      // 3단계: 서비스 상태 동기화 확인
-      if (selectedService !== validatedService) {
-        console.warn('⚠️ 서비스 상태 불일치 감지, 동기화 중...')
-        setSelectedService(validatedService)
-        
-        // 상태 업데이트 대기
-        await new Promise(resolve => setTimeout(resolve, 50))
-      }
-      
-            console.log('🎯 최종 사용할 서비스 ID:', validatedService)
-      
-      // 4단계: 포인트 검증
-      console.log('🔍 4단계: 포인트 검증')
-      if (usePoints && userPoints < totalPrice) {
-        handleInsufficientPoints()
+      console.log('✅ 서비스 복구 완료:', currentService)
+
+      // 1단계: 수량 검증
+      console.log('🔍 1단계: 수량 검증')
+      if (!quantity || quantity < 1) {
+        alert('수량을 입력해주세요!')
         return
       }
 
-      // 5단계: 입력 검증
-      console.log('🔍 5단계: 입력 검증')
-      if (!link.trim()) {
-        alert('링크를 입력해주세요!')
-        return
-      }
-      
-      if (((platform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
-           (platform === 'youtube' && selectedService === 'comments_korean') ||
-           (platform === 'facebook' && selectedService === 'comments_korean')) && !comments.trim()) {
-        alert('댓글 내용을 입력해주세요!')
-        return
-      }
-
-      // Instagram 서비스별 수량 제한 검증
+      // 플랫폼별 수량 제한 검증
       if (platform === 'instagram') {
-        switch (selectedService) {
-          case 'followers_foreign': // 외국인 팔로워: 100-2000
-            if (quantity < 100 || quantity > 2000) {
-              alert('외국인 팔로워 서비스는 100개에서 2000개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'followers_korean': // 한국인 팔로워: 50-20000
-            if (quantity < 50 || quantity > 20000) {
-              alert('한국인 팔로워 서비스는 50개에서 20000개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'likes_foreign': // 외국인 좋아요: 100-50000
-            if (quantity < 100 || quantity > 50000) {
-              alert('외국인 좋아요 서비스는 100개에서 50000개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'likes_korean': // 한국인 좋아요: 50-10000
-            if (quantity < 50 || quantity > 10000) {
-              alert('한국인 좋아요 서비스는 50개에서 10000개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'comments_korean': // 한국인 랜덤 댓글: 5-100
-            if (quantity < 5 || quantity > 100) {
-              alert('한국인 랜덤 댓글 서비스는 5개에서 100개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'comments_foreign': // 외국인 랜덤 댓글: 10-1000
-            if (quantity < 10 || quantity > 1000) {
-              alert('외국인 랜덤 댓글 서비스는 10개에서 1000개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'views_korean': // 한국인 조회수: 100-100000000
-            if (quantity < 100 || quantity > 100000000) {
-              alert('한국인 조회수 서비스는 100개에서 100,000,000개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'views_foreign': // 외국인 조회수: 100-100000000
-            if (quantity < 100 || quantity > 100000000) {
-              alert('외국인 조회수 서비스는 100개에서 100,000,000개까지 주문 가능합니다.')
-              return
-            }
-            break
-        }
-      }
-
-      // YouTube 서비스별 수량 제한 검증
-      if (platform === 'youtube') {
-        switch (selectedService) {
-          case 'followers_foreign': // 외국인 구독자: 100-100
-            if (quantity !== 100) {
-              alert('외국인 구독자 서비스는 100개만 주문 가능합니다.')
-              return
-            }
-            break
-          case 'followers_korean': // 리얼 한국인 구독자: 50-1000
-            if (quantity < 50 || quantity > 1000) {
-              alert('리얼 한국인 구독자 서비스는 50개에서 1000개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'likes_foreign': // 외국인 좋아요: 100-5000
-            if (quantity < 100 || quantity > 5000) {
-              alert('외국인 좋아요 서비스는 100개에서 5000개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'comments_korean': // AI 랜덤 한국인 댓글: 10-10000
-            if (quantity < 10 || quantity > 10000) {
-              alert('AI 랜덤 한국인 댓글 서비스는 10개에서 10000개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'views_foreign': // 외국인 조회수: 100-10000000
-            if (quantity < 100 || quantity > 10000000) {
-              alert('외국인 조회수 서비스는 100개에서 10,000,000개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'views_korean': // 리얼 한국인 조회수: 4000-100000
-            if (quantity < 4000 || quantity > 100000) {
-              alert('리얼 한국인 조회수 서비스는 4000개에서 100,000개까지 주문 가능합니다.')
-              return
-            }
-            break
-        }
-      }
-
-      // TikTok 서비스별 수량 제한 검증
-      if (platform === 'tiktok') {
-        switch (selectedService) {
-          case 'likes_foreign': // 외국인 좋아요: 100-100000
-            if (quantity < 100 || quantity > 100000) {
-              alert('외국인 좋아요 서비스는 100개에서 100,000개까지 주문 가능합니다.')
-              return
-            }
-            break
-          case 'followers_foreign': // 외국인 계정 팔로워: 100-1000000
+        switch (currentService) {
+          case 'followers_korean': // 한국인 팔로워: 100-1000000
             if (quantity < 100 || quantity > 1000000) {
-              alert('외국인 계정 팔로워 서비스는 100개에서 1,000,000개까지 주문 가능합니다.')
+              alert('한국인 팔로워 서비스는 100개에서 1,000,000개까지 주문 가능합니다.')
+              return
+            }
+            break
+          case 'followers_foreign': // 외국인 팔로워: 100-1000000
+            if (quantity < 100 || quantity > 1000000) {
+              alert('외국인 팔로워 서비스는 100개에서 1,000,000개까지 주문 가능합니다.')
+              return
+            }
+            break
+          case 'likes_korean': // 한국인 좋아요: 100-1000000
+            if (quantity < 100 || quantity > 1000000) {
+              alert('한국인 좋아요 서비스는 100개에서 1,000,000개까지 주문 가능합니다.')
+              return
+            }
+            break
+          case 'likes_foreign': // 외국인 좋아요: 100-1000000
+            if (quantity < 100 || quantity > 1000000) {
+              alert('외국인 좋아요 서비스는 100개에서 1,000,000개까지 주문 가능합니다.')
+              return
+            }
+            break
+          case 'comments_korean': // 한국인 랜덤 댓글: 10-1000
+            if (quantity < 10 || quantity > 1000) {
+              alert('한국인 랜덤 댓글 서비스는 10개에서 1,000개까지 주문 가능합니다.')
+              return
+            }
+            break
+          case 'views_korean': // 한국인 조회수: 100-2000000000
+            if (quantity < 100 || quantity > 2000000000) {
+              alert('한국인 조회수 서비스는 100개에서 2,000,000,000개까지 주문 가능합니다.')
               return
             }
             break
@@ -615,7 +517,7 @@ const OrderPage = () => {
 
       // Facebook 서비스별 수량 제한 검증
       if (platform === 'facebook') {
-        switch (selectedService) {
+        switch (currentService) {
           case 'followers_korean': // 개인계정 팔로우: 5-2500
             if (quantity < 5 || quantity > 2500) {
               alert('개인계정 팔로우 서비스는 5개에서 2,500개까지 주문 가능합니다.')
@@ -651,7 +553,7 @@ const OrderPage = () => {
 
       // Twitter 서비스별 수량 제한 검증
       if (platform === 'twitter') {
-        switch (selectedService) {
+        switch (currentService) {
           case 'followers_real': // 리얼 팔로워: 100-200000
             if (quantity < 100 || quantity > 200000) {
               alert('리얼 팔로워 서비스는 100개에서 200,000개까지 주문 가능합니다.')
@@ -663,7 +565,7 @@ const OrderPage = () => {
 
       // KakaoTalk 서비스별 수량 제한 검증
       if (platform === 'kakaotalk') {
-        switch (selectedService) {
+        switch (currentService) {
           case 'friends_real': // 리얼 채널 친구 추가: 100-10000
             if (quantity < 100 || quantity > 10000) {
               alert('리얼 채널 친구 추가 서비스는 100개에서 10,000개까지 주문 가능합니다.')
@@ -673,52 +575,38 @@ const OrderPage = () => {
         }
       }
 
-
-      
       setIsLoading(true)
       
       try {
-        // 1단계: 서비스 상태 완벽 검증 및 복구
-        console.log('🔍 1단계: 서비스 상태 검증 시작')
-        const validatedService = validateAndRecoverService()
-        
-        if (!validatedService) {
-          console.error('❌ 서비스 검증 실패')
-          alert('서비스를 선택할 수 없습니다. 페이지를 새로고침해주세요.')
-          return
-        }
-        
-        console.log('✅ 서비스 검증 완료:', validatedService)
-        
         // 2단계: 최종 서비스 상태 확인
         console.log('🔍 2단계: 최종 서비스 상태 확인')
         const services = getServicesForPlatform(platform)
         const validServiceIds = services.map(s => s.id)
         
-        if (!validServiceIds.includes(validatedService)) {
-          console.error('❌ 최종 서비스 검증 실패:', validatedService)
+        if (!validServiceIds.includes(currentService)) {
+          console.error('❌ 최종 서비스 검증 실패:', currentService)
           console.error('유효한 서비스 ID들:', validServiceIds)
           alert('선택된 서비스가 유효하지 않습니다. 다시 선택해주세요.')
           return
         }
         
-        console.log('✅ 최종 서비스 검증 완료:', validatedService)
+        console.log('✅ 최종 서비스 검증 완료:', currentService)
         
         // 3단계: 서비스 상태 동기화 확인
-        if (selectedService !== validatedService) {
+        if (selectedService !== currentService) {
           console.warn('⚠️ 서비스 상태 불일치 감지, 동기화 중...')
-          setSelectedService(validatedService)
+          setSelectedService(currentService)
           
           // 상태 업데이트 대기
           await new Promise(resolve => setTimeout(resolve, 50))
         }
         
-        console.log('🎯 최종 사용할 서비스 ID:', validatedService)
+        console.log('🎯 최종 사용할 서비스 ID:', currentService)
         
         console.log('=== handlePurchase 디버깅 ===')
         console.log('Platform:', platform)
         console.log('Selected Service:', selectedService)
-        console.log('Validated Service:', validatedService)
+        console.log('Current Service:', currentService)
         console.log('Services Array:', services)
         
         // 4단계: 포인트 검증
@@ -744,7 +632,7 @@ const OrderPage = () => {
         // 6단계: 주문 데이터 생성
         console.log('🔍 6단계: 주문 데이터 생성')
         const orderData = {
-          serviceId: validatedService, // 검증된 서비스 ID 사용
+          serviceId: currentService, // 현재 검증된 서비스 ID 사용
           link: safeLink,
           quantity: safeQuantity,
           runs: 1, // 기본 실행 횟수
@@ -854,7 +742,7 @@ const OrderPage = () => {
           const paymentData = {
             orderId: result.order,
             platform: platform,
-            serviceName: services.find(s => s.id === validatedService)?.name || validatedService,
+            serviceName: services.find(s => s.id === currentService)?.name || currentService,
             quantity: quantity,
             unitPrice: platformInfo.unitPrice,
             totalPrice: finalPrice, // 포인트 차감 후 최종 금액

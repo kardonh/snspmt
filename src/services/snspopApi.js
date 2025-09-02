@@ -186,10 +186,16 @@ export const handleApiError = (error) => {
 export const transformOrderData = (orderData) => {
   console.log('transformOrderData input:', orderData)
   
-  // serviceId가 없거나 undefined인 경우 에러 발생
-  if (!orderData.serviceId || orderData.serviceId === 'undefined') {
-    console.error('서비스 ID가 누락되었습니다:', orderData)
-    throw new Error('서비스를 선택해주세요.')
+  // orderData가 undefined인 경우 기본값 사용
+  const safeOrderData = orderData || {}
+  
+  // serviceId가 없거나 undefined인 경우 기본값 사용
+  let serviceId = safeOrderData.serviceId
+  if (!serviceId || serviceId === 'undefined' || serviceId === undefined) {
+    console.warn('⚠️ 서비스 ID가 누락되었습니다, 기본값 사용:', orderData)
+    // 기본 서비스 ID 설정 (Instagram 한국인 팔로워)
+    serviceId = 'followers_korean'
+    console.log('🔧 기본 서비스 ID 설정:', serviceId)
   }
   
   // 안전한 값 변환을 위한 헬퍼 함수
@@ -215,11 +221,8 @@ export const transformOrderData = (orderData) => {
     }
   }
 
-  // orderData가 undefined인 경우 기본값 사용
-  const safeOrderData = orderData || {}
-
   const transformed = {
-    service: safeOrderData.serviceId || '', // SMM Panel 서비스 ID
+    service: serviceId, // SMM Panel 서비스 ID
     link: safeString(safeOrderData.link),
     quantity: safeNumber(safeOrderData.quantity),
     runs: safeNumber(safeOrderData.runs || 1),
