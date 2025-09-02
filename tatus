@@ -317,3 +317,8 @@
  TAB ...................................... Complete filename & cycle.
  SHIFT-TAB ...................... ESC-TAB   Complete filename & reverse cycle.
  ctrl-L ................................... Complete filename, list all.
+[33m1469813[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix missing service field in order creation API
+[33mc1eca77[m Fix admin.py database connection function missing
+[33m5d35679[m Add admin purchase approval system with search functionality and fix API compatibility issues
+[33m0f295d0[m Fix admin API endpoints and improve order validation
+[33m7c20c05[m  PaymentPage.jsx 문법 오류 수정 - try-catch 블록 구조 개선

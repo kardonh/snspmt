@@ -453,10 +453,24 @@ def proxy_api():
         # 상세 로깅 추가
         print(f"=== 주문 생성 요청 시작 ===")
         print(f"요청 데이터: {data}")
+        print(f"요청 데이터 타입: {type(data)}")
+        print(f"요청 데이터 키들: {list(data.keys()) if data else 'None'}")
         print(f"사용자 ID: {request.headers.get('X-User-ID', 'anonymous')}")
         
         # 주문 데이터 검증 (더 상세한 검증)
         service_id = data.get('service')
+        print(f"서비스 ID (service): {service_id}")
+        print(f"서비스 ID 타입: {type(service_id)}")
+        
+        # serviceId도 확인
+        service_id_alt = data.get('serviceId')
+        print(f"서비스 ID (serviceId): {service_id_alt}")
+        
+        # 둘 중 하나라도 있으면 사용
+        if not service_id and service_id_alt:
+            service_id = service_id_alt
+            print(f"serviceId를 service로 사용: {service_id}")
+        
         link = data.get('link')
         quantity = data.get('quantity')
         price = data.get('price', 0)

@@ -186,8 +186,16 @@ export const handleApiError = (error) => {
 export const transformOrderData = (orderData) => {
   console.log('transformOrderData input:', orderData) // 디버깅용 로그
   
+  // serviceId가 없으면 service 필드 사용
+  const serviceValue = orderData.serviceId || orderData.service
+  
+  if (!serviceValue) {
+    console.error('서비스 ID가 누락되었습니다:', orderData)
+    throw new Error('서비스 ID가 누락되었습니다.')
+  }
+  
   const transformed = {
-    service: orderData.serviceId, // SMM KINGS 서비스 ID (백엔드에서 필수)
+    service: serviceValue, // SMM KINGS 서비스 ID (백엔드에서 필수)
     link: orderData.link, // 대상 URL 또는 사용자명
     quantity: orderData.quantity,
     runs: orderData.runs || 1, // 실행 횟수 (기본값: 1)
