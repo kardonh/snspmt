@@ -414,9 +414,9 @@ def complete_order_payment(order_id):
                         'error': f'외부 API 전송 실패: {str(e)}'
                     }), 500
                     
-            except Exception as e:
-                print(f"데이터베이스 오류: {e}")
-                return jsonify({'error': f'데이터베이스 오류: {str(e)}'}), 500
+        except Exception as e:
+            print(f"데이터베이스 오류: {e}")
+            return jsonify({'error': f'데이터베이스 오류: {str(e)}'}), 500
         
     except Exception as e:
         print(f"=== 주문 결제 완료 실패 ===")
