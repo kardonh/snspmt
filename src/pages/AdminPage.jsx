@@ -62,6 +62,8 @@ const AdminPage = () => {
   const [processingPurchase, setProcessingPurchase] = useState(null)
   const [pendingSearchQuery, setPendingSearchQuery] = useState('')
   const [filteredPendingPurchases, setFilteredPendingPurchases] = useState([])
+  const [error, setError] = useState(null)
+  const [lastUpdate, setLastUpdate] = useState(null)
 
   // 관리자 이메일 체크
   useEffect(() => {
@@ -83,6 +85,8 @@ const AdminPage = () => {
   const loadAdminData = async () => {
     try {
       setLoading(true)
+      setError(null) // 이전 에러 초기화
+      setLastUpdate(new Date().toISOString()) // 데이터 업데이트 타임스탬프 설정
       
       // Rate limiting 방지를 위한 지연
       await new Promise(resolve => setTimeout(resolve, 1000))
@@ -190,6 +194,14 @@ const AdminPage = () => {
         stack: error.stack,
         name: error.name
       })
+      
+      // 사용자에게 에러 알림
+      if (error.message.includes('API 요청 실패')) {
+        console.warn('일부 API가 실패했지만 기본 데이터로 계속 진행합니다.')
+        setError('일부 데이터를 불러오는데 실패했습니다. 기본 데이터로 표시됩니다.')
+      } else {
+        setError('데이터를 불러오는데 실패했습니다.')
+      }
       
       // API 실패 시 기본 데이터 사용
       setStats({

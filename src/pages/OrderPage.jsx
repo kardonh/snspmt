@@ -46,6 +46,24 @@ const OrderPage = () => {
     }
   }, [serviceId])
   
+  // 컴포넌트 마운트 시 selectedService가 유효한지 확인하고 수정
+  useEffect(() => {
+    const services = getServicesForPlatform(platform)
+    const validServiceIds = services.map(s => s.id)
+    
+    console.log('=== 서비스 유효성 검증 ===')
+    console.log('현재 selectedService:', selectedService)
+    console.log('유효한 서비스 ID들:', validServiceIds)
+    console.log('selectedService가 유효한가?', validServiceIds.includes(selectedService))
+    
+    // selectedService가 유효하지 않으면 첫 번째 유효한 서비스로 설정
+    if (!selectedService || !validServiceIds.includes(selectedService)) {
+      const firstValidService = validServiceIds[0]
+      console.log('selectedService가 유효하지 않음, 첫 번째 서비스로 설정:', firstValidService)
+      setSelectedService(firstValidService)
+    }
+  }, [platform, selectedService])
+  
   const [quantity, setQuantity] = useState(200)
   const [totalPrice, setTotalPrice] = useState(0)
   const [showChecklist, setShowChecklist] = useState(false)
@@ -126,10 +144,21 @@ const OrderPage = () => {
     console.log('이전 selectedService:', selectedService)
     
     if (serviceId && serviceId !== 'undefined' && serviceId !== undefined) {
-      setSelectedService(serviceId)
-      console.log('새로운 selectedService 설정:', serviceId)
+      // 서비스 ID가 유효한지 확인
+      const services = getServicesForPlatform(platform)
+      const validServiceIds = services.map(s => s.id)
+      
+      if (validServiceIds.includes(serviceId)) {
+        setSelectedService(serviceId)
+        console.log('새로운 selectedService 설정:', serviceId)
+      } else {
+        console.error('유효하지 않은 서비스 ID:', serviceId)
+        console.error('유효한 서비스 ID들:', validServiceIds)
+        alert('유효하지 않은 서비스입니다. 다시 선택해주세요.')
+      }
     } else {
       console.error('유효하지 않은 서비스 ID:', serviceId)
+      alert('서비스를 선택해주세요.')
     }
   }
   
@@ -321,13 +350,42 @@ const OrderPage = () => {
   }
   
       const handlePurchase = async () => {
-    // 포인트 검증
+    console.log('=== handlePurchase 시작 ===')
+    console.log('현재 상태:', {
+      selectedService,
+      platform,
+      link: link?.trim(),
+      quantity,
+      userPoints,
+      totalPrice,
+      finalPrice
+    })
+    
+    // 1. selectedService 검증 (가장 중요)
+    if (!selectedService || selectedService === 'undefined' || selectedService === undefined) {
+      console.error('서비스가 선택되지 않음:', { selectedService, serviceId, platform })
+      alert('주문할 서비스를 선택해주세요.')
+      return
+    }
+    
+    // 2. selectedService가 실제로 유효한 서비스인지 확인
+    const services = getServicesForPlatform(platform)
+    const validServiceIds = services.map(s => s.id)
+    
+    if (!validServiceIds.includes(selectedService)) {
+      console.error('유효하지 않은 selectedService:', selectedService)
+      console.error('유효한 서비스 ID들:', validServiceIds)
+      alert('선택된 서비스가 유효하지 않습니다. 다시 선택해주세요.')
+      return
+    }
+    
+    // 3. 포인트 검증
     if (usePoints && userPoints < totalPrice) {
       handleInsufficientPoints()
       return
     }
 
-    // 입력 검증
+    // 4. 입력 검증
     if (!link.trim()) {
       alert('링크를 입력해주세요!')
       return
@@ -551,12 +609,7 @@ const OrderPage = () => {
         console.log('Services Array:', services)
         console.log('Current Services:', services.map(s => ({ id: s.id, name: s.name })))
         
-        // selectedService가 유효한지 확인
-        if (!selectedService || selectedService === 'undefined' || selectedService === undefined) {
-          console.error('유효하지 않은 selectedService:', selectedService)
-          alert('주문할 서비스를 선택해주세요.')
-          return
-        }
+
         
         // 안전한 값 준비
         const safeLink = link && typeof link === 'string' ? link.trim() : ''
