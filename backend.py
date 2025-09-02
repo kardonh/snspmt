@@ -121,10 +121,27 @@ def init_database():
 def index():
     return render_template('index.html')
 
-# 헬스 체크
+# 헬스 체크 - 간단하고 빠른 응답
 @app.route('/health')
 def health_check():
-    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+    try:
+        # 간단한 데이터베이스 연결 테스트
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        
+        return jsonify({
+            'status': 'healthy', 
+            'timestamp': datetime.now().isoformat(),
+            'database': 'connected'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 # 사용자 등록
 @app.route('/api/register', methods=['POST'])
