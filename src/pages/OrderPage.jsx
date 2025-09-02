@@ -12,22 +12,39 @@ const OrderPage = () => {
   const { platform, serviceId } = useParams()
   const navigate = useNavigate()
   const { currentUser } = useAuth()
-  const [selectedService, setSelectedService] = useState(serviceId || 'followers_korean')
   
-  // 디버깅: 서비스 ID 확인
-  useEffect(() => {
-    console.log('=== OrderPage 디버깅 ===')
-    console.log('URL 파라미터:', { platform, serviceId })
-    console.log('초기 selectedService:', selectedService)
-    console.log('사용 가능한 서비스:', services)
-  }, [platform, serviceId, selectedService, services])
+  // selectedService 상태를 더 안전하게 초기화
+  const [selectedService, setSelectedService] = useState(() => {
+    // URL 파라미터에서 serviceId가 있으면 사용, 없으면 기본값 사용
+    const defaultService = 'followers_korean'
+    console.log('=== OrderPage 초기화 ===')
+    console.log('URL serviceId:', serviceId)
+    console.log('URL platform:', platform)
+    
+    if (serviceId && serviceId !== 'undefined' && serviceId !== undefined) {
+      console.log('URL 파라미터에서 serviceId 사용:', serviceId)
+      return serviceId
+    } else {
+      console.log('기본값 사용:', defaultService)
+      return defaultService
+    }
+  })
   
-  // selectedService 상태 변화 추적
+  // selectedService가 변경될 때마다 로깅
   useEffect(() => {
-    console.log('selectedService 상태 변화:', selectedService)
-    console.log('selectedService 타입:', typeof selectedService)
-    console.log('selectedService 값:', selectedService)
+    console.log('=== selectedService 상태 변화 ===')
+    console.log('새로운 selectedService:', selectedService)
+    console.log('타입:', typeof selectedService)
+    console.log('값:', selectedService)
   }, [selectedService])
+  
+  // URL 파라미터가 변경될 때 selectedService 업데이트
+  useEffect(() => {
+    if (serviceId && serviceId !== 'undefined' && serviceId !== undefined) {
+      console.log('URL 파라미터 변경으로 selectedService 업데이트:', serviceId)
+      setSelectedService(serviceId)
+    }
+  }, [serviceId])
   
   const [quantity, setQuantity] = useState(200)
   const [totalPrice, setTotalPrice] = useState(0)
@@ -101,6 +118,20 @@ const OrderPage = () => {
   }
   
   const services = getServicesForPlatform(platform)
+  
+  // 안전한 서비스 선택 핸들러
+  const handleServiceSelect = (serviceId) => {
+    console.log('=== 서비스 선택 ===')
+    console.log('선택된 서비스 ID:', serviceId)
+    console.log('이전 selectedService:', selectedService)
+    
+    if (serviceId && serviceId !== 'undefined' && serviceId !== undefined) {
+      setSelectedService(serviceId)
+      console.log('새로운 selectedService 설정:', serviceId)
+    } else {
+      console.error('유효하지 않은 서비스 ID:', serviceId)
+    }
+  }
   
   // 포인트 로드
   const loadUserPoints = async () => {
@@ -646,7 +677,7 @@ const OrderPage = () => {
               <button
                 key={service.id}
                 className={`service-btn ${selectedService === service.id ? 'active' : ''}`}
-                onClick={() => setSelectedService(service.id)}
+                onClick={() => handleServiceSelect(service.id)}
               >
                 {service.name}
               </button>

@@ -116,22 +116,43 @@ const AdminPage = () => {
       console.log('Purchases Response:', purchasesData)
       console.log('Users Response:', usersData)
       
-      // 데이터 설정
-      if (statsData.success) {
-        setStats(statsData.data)
+      // 데이터 설정 (더 안전한 방식)
+      if (statsData && (statsData.success || statsData.data)) {
+        const statsToSet = statsData.data || statsData
+        console.log('Stats 데이터 설정:', statsToSet)
+        setStats(statsToSet)
+      } else {
+        console.warn('Stats 데이터가 없거나 잘못된 형식:', statsData)
+        setStats({
+          totalUsers: 0,
+          monthlyUsers: 0,
+          totalRevenue: 0,
+          monthlyRevenue: 0,
+          totalSMMKingsCharge: 0,
+          monthlySMMKingsCharge: 0
+        })
       }
       
-      if (transactionsData.success) {
-        setTransactions(transactionsData.data)
+      if (transactionsData && (transactionsData.success || transactionsData.data)) {
+        const transactionsToSet = transactionsData.data || transactionsData
+        console.log('Transactions 데이터 설정:', transactionsToSet)
+        setTransactions(transactionsToSet)
+      } else {
+        console.warn('Transactions 데이터가 없거나 잘못된 형식:', transactionsData)
+        setTransactions({
+          charges: [],
+          refunds: []
+        })
       }
       
-      if (purchasesData.success && purchasesData.purchases) {
-        console.log('포인트 구매 데이터 설정:', purchasesData.purchases)
-        setPendingPurchases(purchasesData.purchases)
+      if (purchasesData && (purchasesData.success || purchasesData.purchases)) {
+        const purchasesToSet = purchasesData.purchases || purchasesData.data || []
+        console.log('포인트 구매 데이터 설정:', purchasesToSet)
+        setPendingPurchases(purchasesToSet)
         
         // 승인된 구매와 거절된 구매 분리
-        const approved = purchasesData.purchases.filter(p => p.status === 'approved')
-        const rejected = purchasesData.purchases.filter(p => p.status === 'rejected')
+        const approved = purchasesToSet.filter(p => p.status === 'approved')
+        const rejected = purchasesToSet.filter(p => p.status === 'rejected')
         
         setApprovedPurchases(approved)
         setRejectedPurchases(rejected)
@@ -140,16 +161,36 @@ const AdminPage = () => {
         const allPurchases = [...approved, ...rejected]
         calculateMonthlyStats(allPurchases)
       } else {
-        console.error('포인트 구매 데이터 로드 실패:', purchasesData)
+        console.warn('포인트 구매 데이터가 없거나 잘못된 형식:', purchasesData)
         setPendingPurchases([])
+        setApprovedPurchases([])
+        setRejectedPurchases([])
       }
       
-      if (usersData) {
-        setUsersInfo(usersData)
+      if (usersData && (usersData.success || usersData.data)) {
+        const usersToSet = usersData.data || usersData
+        console.log('Users 데이터 설정:', usersToSet)
+        setUsersInfo(usersToSet)
+      } else {
+        console.warn('Users 데이터가 없거나 잘못된 형식:', usersData)
+        setUsersInfo({
+          totalUsers: 0,
+          activeUsers: 0,
+          newUsersToday: 0,
+          newUsersWeek: 0,
+          recentUsers: [],
+          activeUsersList: []
+        })
       }
 
     } catch (error) {
       console.error('관리자 데이터 로드 실패:', error)
+      console.error('에러 상세 정보:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
+      
       // API 실패 시 기본 데이터 사용
       setStats({
         totalUsers: 0,
@@ -163,12 +204,21 @@ const AdminPage = () => {
         charges: [],
         refunds: []
       })
+      setPendingPurchases([])
+      setApprovedPurchases([])
+      setRejectedPurchases([])
       setUsersInfo({
         totalUsers: 0,
         activeUsers: 0,
         newUsersToday: 0,
         newUsersWeek: 0,
-        recentUsers: []
+        recentUsers: [],
+        activeUsersList: []
+      })
+      setMonthlyStats({
+        monthlyRevenue: 0,
+        monthlyCharge: 0,
+        monthlyProfit: 0
       })
     } finally {
       setLoading(false)
