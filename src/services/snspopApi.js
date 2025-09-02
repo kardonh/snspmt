@@ -184,8 +184,10 @@ export const handleApiError = (error) => {
 
 // 주문 데이터 변환 헬퍼 함수 (SMM KINGS API v2 구조)
 export const transformOrderData = (orderData) => {
-  return {
-    service: orderData.serviceId, // SMM KINGS 서비스 ID
+  console.log('transformOrderData input:', orderData) // 디버깅용 로그
+  
+  const transformed = {
+    service: orderData.serviceId, // SMM KINGS 서비스 ID (백엔드에서 필수)
     link: orderData.link, // 대상 URL 또는 사용자명
     quantity: orderData.quantity,
     runs: orderData.runs || 1, // 실행 횟수 (기본값: 1)
@@ -203,6 +205,9 @@ export const transformOrderData = (orderData) => {
     type_of_traffic: orderData.typeOfTraffic || '', // 트래픽 타입 (웹 트래픽용)
     google_keyword: orderData.googleKeyword || '' // 구글 키워드 (웹 트래픽용)
   }
+  
+  console.log('transformOrderData output:', transformed) // 디버깅용 로그
+  return transformed
 }
 
 export default smmkingsApi
