@@ -29,6 +29,10 @@ def get_db_connection():
     else:
         raise Exception("PostgreSQL is required but not available")
 
+def get_admin_db_connection():
+    """관리자용 PostgreSQL 연결 (backend.py와 호환)"""
+    return get_db_connection()
+
 @admin_bp.route('/api/admin/stats', methods=['GET'])
 def get_admin_stats():
     """관리자 통계 데이터 제공"""
