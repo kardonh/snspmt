@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ShoppingBag, ChevronDown, Star } from 'lucide-react'
 import { getPlatformInfo, calculatePrice } from '../utils/platformUtils'
-import { smmkingsApi, handleApiError, transformOrderData } from '../services/snspopApi'
+import { smmpanelApi, handleApiError, transformOrderData } from '../services/snspopApi'
 import { useAuth } from '../contexts/AuthContext'
 import './OrderPage.css'
 
@@ -13,22 +13,67 @@ const OrderPage = () => {
   const navigate = useNavigate()
   const { currentUser } = useAuth()
   
-  // selectedService 상태를 더 안전하게 초기화
+  // 🚀 완벽한 서비스 상태 관리 시스템
   const [selectedService, setSelectedService] = useState(() => {
-    // URL 파라미터에서 serviceId가 있으면 사용, 없으면 기본값 사용
+    // 1단계: URL 파라미터에서 serviceId 추출
+    const urlServiceId = serviceId && serviceId !== 'undefined' && serviceId !== undefined ? serviceId : null
+    
+    // 2단계: 기본 서비스 결정
     const defaultService = 'followers_korean'
-    console.log('=== OrderPage 초기화 ===')
+    
+    // 3단계: 최종 서비스 결정
+    const finalService = urlServiceId || defaultService
+    
+    console.log('=== 🚀 OrderPage 완벽 초기화 ===')
     console.log('URL serviceId:', serviceId)
     console.log('URL platform:', platform)
+    console.log('URL에서 추출된 서비스:', urlServiceId)
+    console.log('기본 서비스:', defaultService)
+    console.log('최종 선택된 서비스:', finalService)
     
-    if (serviceId && serviceId !== 'undefined' && serviceId !== undefined) {
-      console.log('URL 파라미터에서 serviceId 사용:', serviceId)
-      return serviceId
-    } else {
-      console.log('기본값 사용:', defaultService)
-      return defaultService
-    }
+    return finalService
   })
+  
+  // 🔍 서비스 상태 검증 및 복구 시스템
+  const validateAndRecoverService = useCallback(() => {
+    const services = getServicesForPlatform(platform)
+    const validServiceIds = services.map(s => s.id)
+    
+    console.log('=== 🔍 서비스 상태 검증 ===')
+    console.log('현재 selectedService:', selectedService)
+    console.log('유효한 서비스 ID들:', validServiceIds)
+    console.log('검증 결과:', validServiceIds.includes(selectedService))
+    
+    // 문제가 있는 경우 즉시 복구
+    if (!selectedService || !validServiceIds.includes(selectedService)) {
+      const recoveryService = validServiceIds[0]
+      console.log('⚠️ 서비스 상태 문제 감지, 복구 중...')
+      console.log('복구 대상 서비스:', recoveryService)
+      
+      setSelectedService(recoveryService)
+      return recoveryService
+    }
+    
+    console.log('✅ 서비스 상태 정상')
+    return selectedService
+  }, [platform, selectedService])
+  
+  // 🔧 강제 서비스 설정 시스템
+  const forceSetValidService = useCallback((serviceId) => {
+    if (!serviceId) return false
+    
+    const services = getServicesForPlatform(platform)
+    const validServiceIds = services.map(s => s.id)
+    
+    if (validServiceIds.includes(serviceId)) {
+      console.log('🔧 강제 서비스 설정:', serviceId)
+      setSelectedService(serviceId)
+      return true
+    } else {
+      console.error('❌ 유효하지 않은 서비스 ID:', serviceId)
+      return false
+    }
+  }, [platform])
   
   // selectedService가 변경될 때마다 로깅
   useEffect(() => {
@@ -51,7 +96,7 @@ const OrderPage = () => {
     const services = getServicesForPlatform(platform)
     const validServiceIds = services.map(s => s.id)
     
-    console.log('=== 서비스 유효성 검증 ===')
+    console.log('=== 🔍 서비스 유효성 검증 ===')
     console.log('현재 selectedService:', selectedService)
     console.log('유효한 서비스 ID들:', validServiceIds)
     console.log('selectedService가 유효한가?', validServiceIds.includes(selectedService))
@@ -59,10 +104,10 @@ const OrderPage = () => {
     // selectedService가 유효하지 않으면 첫 번째 유효한 서비스로 설정
     if (!selectedService || !validServiceIds.includes(selectedService)) {
       const firstValidService = validServiceIds[0]
-      console.log('selectedService가 유효하지 않음, 첫 번째 서비스로 설정:', firstValidService)
+      console.log('⚠️ selectedService가 유효하지 않음, 첫 번째 서비스로 설정:', firstValidService)
       setSelectedService(firstValidService)
     }
-  }, [platform, selectedService])
+  }, [platform]) // selectedService 의존성 제거하여 무한 루프 방지
   
   const [quantity, setQuantity] = useState(200)
   const [totalPrice, setTotalPrice] = useState(0)
@@ -137,29 +182,50 @@ const OrderPage = () => {
   
   const services = getServicesForPlatform(platform)
   
-  // 안전한 서비스 선택 핸들러
+  // 🎯 완벽한 서비스 선택 핸들러
   const handleServiceSelect = (serviceId) => {
-    console.log('=== 서비스 선택 ===')
+    console.log('=== 🎯 서비스 선택 시작 ===')
     console.log('선택된 서비스 ID:', serviceId)
     console.log('이전 selectedService:', selectedService)
+    console.log('현재 플랫폼:', platform)
     
-    if (serviceId && serviceId !== 'undefined' && serviceId !== undefined) {
-      // 서비스 ID가 유효한지 확인
-      const services = getServicesForPlatform(platform)
-      const validServiceIds = services.map(s => s.id)
-      
-      if (validServiceIds.includes(serviceId)) {
-        setSelectedService(serviceId)
-        console.log('새로운 selectedService 설정:', serviceId)
-      } else {
-        console.error('유효하지 않은 서비스 ID:', serviceId)
-        console.error('유효한 서비스 ID들:', validServiceIds)
-        alert('유효하지 않은 서비스입니다. 다시 선택해주세요.')
-      }
-    } else {
-      console.error('유효하지 않은 서비스 ID:', serviceId)
-      alert('서비스를 선택해주세요.')
+    // 1단계: 입력값 검증
+    if (!serviceId || serviceId === 'undefined' || serviceId === undefined) {
+      console.error('❌ 유효하지 않은 서비스 ID 입력:', serviceId)
+      alert('유효한 서비스를 선택해주세요.')
+      return
     }
+    
+    // 2단계: 서비스 유효성 검증
+    const services = getServicesForPlatform(platform)
+    const validServiceIds = services.map(s => s.id)
+    
+    if (!validServiceIds.includes(serviceId)) {
+      console.error('❌ 존재하지 않는 서비스 ID:', serviceId)
+      console.error('유효한 서비스 ID들:', validServiceIds)
+      alert('선택한 서비스가 존재하지 않습니다. 다시 선택해주세요.')
+      return
+    }
+    
+    // 3단계: 서비스 설정 및 로깅
+    console.log('✅ 유효한 서비스 선택 확인')
+    console.log('이전 서비스:', selectedService)
+    console.log('새로운 서비스:', serviceId)
+    
+    setSelectedService(serviceId)
+    
+    // 4단계: 설정 완료 확인
+    console.log('🎉 서비스 선택 완료:', serviceId)
+    
+    // 5단계: 추가 검증
+    setTimeout(() => {
+      if (selectedService === serviceId) {
+        console.log('✅ 서비스 상태 동기화 완료')
+      } else {
+        console.warn('⚠️ 서비스 상태 동기화 지연, 강제 설정 시도')
+        forceSetValidService(serviceId)
+      }
+    }, 100)
   }
   
   // 포인트 로드
@@ -349,8 +415,9 @@ const OrderPage = () => {
     setQuantity(newQuantity)
   }
   
-      const handlePurchase = async () => {
-    console.log('=== handlePurchase 시작 ===')
+      // 🚀 완벽한 주문 생성 시스템
+  const handlePurchase = async () => {
+    console.log('=== 🚀 주문 생성 시작 ===')
     console.log('현재 상태:', {
       selectedService,
       platform,
@@ -361,35 +428,57 @@ const OrderPage = () => {
       finalPrice
     })
     
-    // 1. selectedService 검증 (가장 중요)
-    if (!selectedService || selectedService === 'undefined' || selectedService === undefined) {
-      console.error('서비스가 선택되지 않음:', { selectedService, serviceId, platform })
-      alert('주문할 서비스를 선택해주세요.')
-      return
-    }
-    
-    // 2. selectedService가 실제로 유효한 서비스인지 확인
-    const services = getServicesForPlatform(platform)
-    const validServiceIds = services.map(s => s.id)
-    
-    if (!validServiceIds.includes(selectedService)) {
-      console.error('유효하지 않은 selectedService:', selectedService)
-      console.error('유효한 서비스 ID들:', validServiceIds)
-      alert('선택된 서비스가 유효하지 않습니다. 다시 선택해주세요.')
-      return
-    }
-    
-    // 3. 포인트 검증
-    if (usePoints && userPoints < totalPrice) {
-      handleInsufficientPoints()
-      return
-    }
+    try {
+      // 1단계: 서비스 상태 완벽 검증 및 복구
+      console.log('🔍 1단계: 서비스 상태 검증 시작')
+      const validatedService = validateAndRecoverService()
+      
+      if (!validatedService) {
+        console.error('❌ 서비스 검증 실패')
+        alert('서비스를 선택할 수 없습니다. 페이지를 새로고침해주세요.')
+        return
+      }
+      
+      console.log('✅ 서비스 검증 완료:', validatedService)
+      
+      // 2단계: 최종 서비스 상태 확인
+      console.log('🔍 2단계: 최종 서비스 상태 확인')
+      const services = getServicesForPlatform(platform)
+      const validServiceIds = services.map(s => s.id)
+      
+      if (!validServiceIds.includes(validatedService)) {
+        console.error('❌ 최종 서비스 검증 실패:', validatedService)
+        console.error('유효한 서비스 ID들:', validServiceIds)
+        alert('선택된 서비스가 유효하지 않습니다. 다시 선택해주세요.')
+        return
+      }
+      
+      console.log('✅ 최종 서비스 검증 완료:', validatedService)
+      
+      // 3단계: 서비스 상태 동기화 확인
+      if (selectedService !== validatedService) {
+        console.warn('⚠️ 서비스 상태 불일치 감지, 동기화 중...')
+        setSelectedService(validatedService)
+        
+        // 상태 업데이트 대기
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+      
+            console.log('🎯 최종 사용할 서비스 ID:', validatedService)
+      
+      // 4단계: 포인트 검증
+      console.log('🔍 4단계: 포인트 검증')
+      if (usePoints && userPoints < totalPrice) {
+        handleInsufficientPoints()
+        return
+      }
 
-    // 4. 입력 검증
-    if (!link.trim()) {
-      alert('링크를 입력해주세요!')
-      return
-    }
+      // 5단계: 입력 검증
+      console.log('🔍 5단계: 입력 검증')
+      if (!link.trim()) {
+        alert('링크를 입력해주세요!')
+        return
+      }
       
       if (((platform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
            (platform === 'youtube' && selectedService === 'comments_korean') ||
@@ -584,32 +673,67 @@ const OrderPage = () => {
         }
       }
 
-      // 서비스 선택 검증 추가
-      if (!selectedService || selectedService === 'undefined') {
-        console.error('서비스가 선택되지 않음:', { selectedService, serviceId, platform })
-        alert('주문할 서비스를 선택해주세요.')
-        return
-      }
+
       
       setIsLoading(true)
       
       try {
-        // 서비스 ID 검증 강화
-        if (!selectedService) {
-          console.error('서비스가 선택되지 않음:', { selectedService, serviceId, platform })
-          alert('주문할 서비스를 선택해주세요.')
+        // 1단계: 서비스 상태 완벽 검증 및 복구
+        console.log('🔍 1단계: 서비스 상태 검증 시작')
+        const validatedService = validateAndRecoverService()
+        
+        if (!validatedService) {
+          console.error('❌ 서비스 검증 실패')
+          alert('서비스를 선택할 수 없습니다. 페이지를 새로고침해주세요.')
           return
         }
+        
+        console.log('✅ 서비스 검증 완료:', validatedService)
+        
+        // 2단계: 최종 서비스 상태 확인
+        console.log('🔍 2단계: 최종 서비스 상태 확인')
+        const services = getServicesForPlatform(platform)
+        const validServiceIds = services.map(s => s.id)
+        
+        if (!validServiceIds.includes(validatedService)) {
+          console.error('❌ 최종 서비스 검증 실패:', validatedService)
+          console.error('유효한 서비스 ID들:', validServiceIds)
+          alert('선택된 서비스가 유효하지 않습니다. 다시 선택해주세요.')
+          return
+        }
+        
+        console.log('✅ 최종 서비스 검증 완료:', validatedService)
+        
+        // 3단계: 서비스 상태 동기화 확인
+        if (selectedService !== validatedService) {
+          console.warn('⚠️ 서비스 상태 불일치 감지, 동기화 중...')
+          setSelectedService(validatedService)
+          
+          // 상태 업데이트 대기
+          await new Promise(resolve => setTimeout(resolve, 50))
+        }
+        
+        console.log('🎯 최종 사용할 서비스 ID:', validatedService)
         
         console.log('=== handlePurchase 디버깅 ===')
         console.log('Platform:', platform)
         console.log('Selected Service:', selectedService)
-        console.log('Selected Service Type:', typeof selectedService)
-        console.log('Selected Service Value:', selectedService)
+        console.log('Validated Service:', validatedService)
         console.log('Services Array:', services)
-        console.log('Current Services:', services.map(s => ({ id: s.id, name: s.name })))
         
+        // 4단계: 포인트 검증
+        console.log('🔍 4단계: 포인트 검증')
+        if (usePoints && userPoints < totalPrice) {
+          handleInsufficientPoints()
+          return
+        }
 
+        // 5단계: 입력 검증
+        console.log('🔍 5단계: 입력 검증')
+        if (!link.trim()) {
+          alert('링크를 입력해주세요!')
+          return
+        }
         
         // 안전한 값 준비
         const safeLink = link && typeof link === 'string' ? link.trim() : ''
@@ -617,8 +741,10 @@ const OrderPage = () => {
         const safeComments = comments && typeof comments === 'string' ? comments.trim() : ''
         const safeExplanation = explanation && typeof explanation === 'string' ? explanation.trim() : ''
         
+        // 6단계: 주문 데이터 생성
+        console.log('🔍 6단계: 주문 데이터 생성')
         const orderData = {
-          serviceId: selectedService, // selectedService를 직접 사용
+          serviceId: validatedService, // 검증된 서비스 ID 사용
           link: safeLink,
           quantity: safeQuantity,
           runs: 1, // 기본 실행 횟수
@@ -633,60 +759,137 @@ const OrderPage = () => {
           expiry: '',
           oldPosts: 0
         }
+        
+        console.log('✅ 주문 데이터 생성 완료:', orderData)
 
+        // 7단계: 주문 데이터 변환
+        console.log('🔍 7단계: 주문 데이터 변환')
         console.log('Order Data being sent:', orderData)
 
         const transformedData = transformOrderData(orderData)
         console.log('Transformed Data:', transformedData)
         
-      const userId = currentUser?.uid || currentUser?.email || 'anonymous'
-      // 주문 데이터에 포인트 사용 정보 추가
-      transformedData.price = finalPrice // 최종 결제 금액
-      transformedData.pointsToUse = pointsToUse // 사용할 포인트
-      
-      const result = await smmkingsApi.createOrder(transformedData, userId)
-
-      console.log('Order created successfully:', result)
-      
-      if (result.error) {
-        alert(`주문 생성 실패: ${result.error}`)
-      } else {
-        // 주문 생성 완료, 포인트는 아직 차감되지 않음
-        console.log('주문 생성 완료, 결제 대기 중:', result)
-
-        // 주문 성공 시 결제 페이지로 이동
-        const paymentData = {
-          orderId: result.order,
-          platform: platform,
-          serviceName: services.find(s => s.id === selectedService)?.name || selectedService,
-          quantity: quantity,
-          unitPrice: platformInfo.unitPrice,
-          totalPrice: finalPrice, // 포인트 차감 후 최종 금액
-          pointsUsed: pointsToUse, // 사용된 포인트
-          originalPrice: totalPrice, // 원래 가격
-          link: link.trim(),
-          comments: comments.trim(),
-          explanation: explanation.trim(),
-          discount: getDiscount(quantity)
+        // 8단계: SMM Panel API 호출
+        console.log('🔍 8단계: SMM Panel API 호출')
+        console.log('=== 🚀 SMM Panel API 호출 준비 ===')
+        
+        // API 호출 전 최종 검증
+        if (!transformedData.service || transformedData.service === 'undefined') {
+          console.error('❌ API 호출 전 서비스 검증 실패:', transformedData)
+          alert('서비스 정보가 올바르지 않습니다. 다시 시도해주세요.')
+          return
         }
         
-        console.log('Payment data:', paymentData)
-        console.log('Navigating to payment page...')
+        // 사용자 ID 준비
+        const userId = currentUser?.uid || currentUser?.email || 'anonymous'
+        console.log('사용자 ID:', userId)
         
+        // 주문 데이터에 포인트 사용 정보 추가
+        transformedData.price = finalPrice // 최종 결제 금액
+        transformedData.pointsToUse = pointsToUse // 사용할 포인트
+        
+        console.log('🎯 최종 SMM Panel API 호출 데이터:', transformedData)
+        console.log('API 엔드포인트: smmpanelApi.createOrder')
+        
+        // SMM Panel API 호출 시도
+        let result
         try {
-          // 결제 페이지로 이동하면서 주문 데이터 전달
-          navigate(`/payment/${platform}`, { state: { orderData: paymentData } })
-        } catch (navigationError) {
-          console.error('Navigation error:', navigationError)
-          alert('결제 페이지로 이동 중 오류가 발생했습니다. 다시 시도해주세요.')
+          console.log('📡 SMM Panel API 호출 시작...')
+          result = await smmpanelApi.createOrder(transformedData, userId)
+          console.log('📡 SMM Panel API 호출 완료')
+        } catch (apiError) {
+          console.error('❌ SMM Panel API 호출 실패:', apiError)
+          
+          // API 에러 상세 분석
+          if (apiError.response) {
+            console.error('SMM Panel API 응답 에러:', {
+              status: apiError.response.status,
+              data: apiError.response.data,
+              headers: apiError.response.headers
+            })
+            
+            // HTTP 상태 코드별 에러 메시지
+            switch (apiError.response.status) {
+              case 400:
+                alert('잘못된 요청입니다. 입력 정보를 확인해주세요.')
+                break
+              case 401:
+                alert('인증이 필요합니다. 로그인 후 다시 시도해주세요.')
+                break
+              case 403:
+                alert('권한이 없습니다. 관리자에게 문의해주세요.')
+                break
+              case 404:
+                alert('요청한 서비스를 찾을 수 없습니다.')
+                break
+              case 429:
+                alert('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.')
+                break
+              case 500:
+                alert('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+                break
+              default:
+                alert(`SMM Panel API 오류가 발생했습니다. (${apiError.response.status})`)
+            }
+          } else if (apiError.request) {
+            console.error('SMM Panel API 요청 에러:', apiError.request)
+            alert('SMM Panel 서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.')
+          } else {
+            console.error('SMM Panel API 설정 에러:', apiError.message)
+            alert('SMM Panel 요청 설정 중 오류가 발생했습니다.')
+          }
+          
+          throw apiError
         }
-      }
-    } catch (error) {
-      const errorInfo = handleApiError(error)
-      console.error('Order creation failed:', errorInfo)
-      alert(`주문 생성 실패: ${errorInfo.message}`)
+
+        console.log('✅ 주문 생성 성공:', result)
+        
+        if (result.error) {
+          alert(`주문 생성 실패: ${result.error}`)
+        } else {
+          // 주문 생성 완료, 포인트는 아직 차감되지 않음
+          console.log('🎉 주문 생성 완료, 결제 대기 중:', result)
+
+          // 주문 성공 시 결제 페이지로 이동
+          const paymentData = {
+            orderId: result.order,
+            platform: platform,
+            serviceName: services.find(s => s.id === validatedService)?.name || validatedService,
+            quantity: quantity,
+            unitPrice: platformInfo.unitPrice,
+            totalPrice: finalPrice, // 포인트 차감 후 최종 금액
+            pointsUsed: pointsToUse, // 사용된 포인트
+            originalPrice: totalPrice, // 원래 가격
+            link: link.trim(),
+            comments: comments.trim(),
+            explanation: explanation.trim(),
+            discount: getDiscount(quantity)
+          }
+          
+          console.log('💳 결제 데이터:', paymentData)
+          console.log('🚀 결제 페이지로 이동 중...')
+          
+          try {
+            // 결제 페이지로 이동하면서 주문 데이터 전달
+            navigate(`/payment/${platform}`, { state: { orderData: paymentData } })
+          } catch (navigationError) {
+            console.error('❌ 네비게이션 에러:', navigationError)
+            alert('결제 페이지로 이동 중 오류가 발생했습니다. 다시 시도해주세요.')
+          }
+        }
+      } catch (error) {
+        console.error('❌ 주문 생성 중 에러 발생:', error)
+        const errorInfo = handleApiError(error)
+        console.error('Order creation failed:', errorInfo)
+        alert(`주문 생성 실패: ${errorInfo.message}`)
       } finally {
         setIsLoading(false)
+      }
+    } catch (error) {
+      console.error('❌ 전체 주문 프로세스 에러:', error)
+      alert('주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.')
+    } finally {
+      setIsLoading(false)
     }
   }
 

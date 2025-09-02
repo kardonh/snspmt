@@ -1,10 +1,10 @@
 import axios from 'axios'
 
-// SMM KINGS API 기본 설정
+// SMM Panel API 기본 설정
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : 'http://snspmt-alb-new-404094515.ap-northeast-2.elb.amazonaws.com/api')
 
-// 기본 API 키 (SMM KINGS API 키)
-const DEFAULT_API_KEY = import.meta.env.VITE_SMMKINGS_API_KEY || 'your_api_key_here'
+// SMM Panel API 키
+const DEFAULT_API_KEY = import.meta.env.VITE_SMMPANEL_API_KEY || '5efae48d287931cf9bd80a1bc6fdfa6d'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -17,7 +17,7 @@ const apiClient = axios.create({
 // API 요청 인터셉터
 apiClient.interceptors.request.use(
   (config) => {
-    // 우리 API 키를 자동으로 사용
+    // SMM Panel API 키를 자동으로 사용
     if (config.data && typeof config.data === 'object') {
       config.data.key = DEFAULT_API_KEY
     }
@@ -32,13 +32,13 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    console.error('API Error:', error)
+    console.error('SMM Panel API Error:', error)
     return Promise.reject(error)
   }
 )
 
-// SNS SMM 서비스 API 함수들 (SMM KINGS API v2 구조)
-export const smmkingsApi = {
+// SMM Panel API 함수들
+export const smmpanelApi = {
   // 서비스 목록 조회
   getServices: () => apiClient.post('', { action: 'services' }),
   
@@ -47,7 +47,7 @@ export const smmkingsApi = {
   
   // 주문 생성
   createOrder: (orderData, userId) => {
-    console.log("주문 생성 시작:", orderData)
+    console.log("SMM Panel 주문 생성 시작:", orderData)
 
     const config = {
       headers: {
@@ -59,10 +59,10 @@ export const smmkingsApi = {
       action: 'add',
       ...orderData 
     }, config).then(response => {
-      console.log("API 응답:", response)
+      console.log("SMM Panel API 응답:", response)
       return response
     }).catch(error => {
-      console.error("API 오류:", error)
+      console.error("SMM Panel API 오류:", error)
       throw error
     })
   },
@@ -182,7 +182,7 @@ export const handleApiError = (error) => {
   }
 }
 
-// 주문 데이터 변환 헬퍼 함수 (SMM KINGS API v2 구조)
+// 주문 데이터 변환 헬퍼 함수 (SMM Panel API 구조)
 export const transformOrderData = (orderData) => {
   console.log('transformOrderData input:', orderData)
   
@@ -203,7 +203,7 @@ export const transformOrderData = (orderData) => {
       return ''
     }
   }
-  
+
   const safeNumber = (value) => {
     try {
       if (value === undefined || value === null) return 0
@@ -214,12 +214,12 @@ export const transformOrderData = (orderData) => {
       return 0
     }
   }
-  
+
   // orderData가 undefined인 경우 기본값 사용
   const safeOrderData = orderData || {}
-  
+
   const transformed = {
-    service: safeOrderData.serviceId || '', // SMM KINGS 서비스 ID
+    service: safeOrderData.serviceId || '', // SMM Panel 서비스 ID
     link: safeString(safeOrderData.link),
     quantity: safeNumber(safeOrderData.quantity),
     runs: safeNumber(safeOrderData.runs || 1),
@@ -236,11 +236,11 @@ export const transformOrderData = (orderData) => {
     device: safeString(safeOrderData.device),
     type_of_traffic: safeString(safeOrderData.type_of_traffic),
     google_keyword: safeString(safeOrderData.google_keyword),
-    key: 'your_api_key_here'
+    key: '5efae48d287931cf9bd80a1bc6fdfa6d' // SMM Panel API 키
   }
   
   console.log('transformOrderData output:', transformed)
   return transformed
 }
 
-export default smmkingsApi
+export default smmpanelApi
