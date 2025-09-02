@@ -352,7 +352,7 @@ const OrderPage = () => {
         case 'comments_korean': // AI 랜덤 한국인 댓글: 10-10000
           return [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
         case 'views_foreign': // 외국인 조회수: 100-10000000
-          return [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000, 150000, 200000, 250000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 1500000, 2000000, 2500000, 3000000, 4000000, 5000000, 6000000, 7000000, 8000000, 9000000, 10000000]
+          return [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000, 150000, 200000, 250000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 1500000, 2000000, 2500000, 3000000, 4000000, 5000000, 6000000, 7000000, 8000000, 9000000, 10000000, 15000000, 20000000, 25000000, 30000000, 40000000, 50000000, 60000000, 70000000, 80000000, 90000000, 10000000]
         case 'views_korean': // 리얼 한국인 조회수: 4000-100000
           return [4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000]
         default:
@@ -893,5 +893,159 @@ const OrderPage = () => {
     }
   }
 
-  
-  
+  return (
+    <div className="order-page">
+      <div className="order-header">
+        <h1>주문 생성</h1>
+        <p>원하는 서비스를 선택하고 주문을 생성하세요</p>
+      </div>
+
+      <div className="order-content">
+        {/* 플랫폼 선택 */}
+        <div className="platform-selection">
+          <h2>플랫폼 선택</h2>
+          <div className="platform-grid">
+            {Object.entries(platforms).map(([key, platform]) => (
+              <div
+                key={key}
+                className={`platform-card ${selectedPlatform === key ? 'selected' : ''}`}
+                onClick={() => handlePlatformSelect(key)}
+              >
+                <div className="platform-icon">
+                  <img src={platform.icon} alt={platform.name} />
+                </div>
+                <div className="platform-info">
+                  <h3>{platform.name}</h3>
+                  <p>{platform.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 서비스 선택 */}
+        {selectedPlatform && (
+          <div className="service-selection">
+            <h2>서비스 선택</h2>
+            <div className="service-grid">
+              {services.map((service) => (
+                <div
+                  key={service.id}
+                  className={`service-card ${selectedService === service.id ? 'selected' : ''}`}
+                  onClick={() => handleServiceSelect(service.id)}
+                >
+                  <div className="service-info">
+                    <h3>{service.name}</h3>
+                    <p>{service.description}</p>
+                    <div className="service-price">
+                      <span className="price">₩{service.price.toLocaleString()}</span>
+                      <span className="per-1000">/1,000</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 주문 폼 */}
+        {selectedService && (
+          <div className="order-form">
+            <h2>주문 정보 입력</h2>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label htmlFor="link">링크</label>
+                <input
+                  type="url"
+                  id="link"
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                  placeholder="https://..."
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="quantity">수량</label>
+                <input
+                  type="number"
+                  id="quantity"
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                  min="1"
+                  required
+                />
+                <div className="quantity-info">
+                  <span>최소: {platformInfo?.minQuantity || 1}</span>
+                  <span>최대: {platformInfo?.maxQuantity || 100000}</span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="comments">코멘트 (선택사항)</label>
+                <textarea
+                  id="comments"
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                  placeholder="원하는 코멘트를 입력하세요..."
+                  rows="3"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="explanation">설명 (선택사항)</label>
+                <textarea
+                  id="explanation"
+                  value={explanation}
+                  onChange={(e) => setExplanation(e.target.value)}
+                  placeholder="추가 설명이 필요하다면 입력하세요..."
+                  rows="3"
+                />
+              </div>
+
+              {/* 포인트 사용 */}
+              <div className="points-section">
+                <h3>포인트 사용</h3>
+                <div className="points-info">
+                  <span>보유 포인트: {userPoints?.toLocaleString() || 0}점</span>
+                  <span>주문 금액: ₩{totalPrice.toLocaleString()}</span>
+                </div>
+                <div className="points-input">
+                  <input
+                    type="number"
+                    value={pointsToUse}
+                    onChange={(e) => setPointsToUse(parseInt(e.target.value) || 0)}
+                    min="0"
+                    max={Math.min(userPoints || 0, totalPrice)}
+                    placeholder="사용할 포인트"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPointsToUse(Math.min(userPoints || 0, totalPrice))}
+                    className="btn-max-points"
+                  >
+                    최대 사용
+                  </button>
+                </div>
+                <div className="final-price">
+                  <span>최종 결제 금액:</span>
+                  <span className="price">₩{finalPrice.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="btn-submit"
+                disabled={isLoading}
+              >
+                {isLoading ? '주문 생성 중...' : '주문 생성'}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default OrderPage
