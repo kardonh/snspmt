@@ -8,7 +8,7 @@ import {
   deleteUser
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
-import { smmkingsApi } from '../services/snspopApi';
+import { snspopApi } from '../services/snspopApi';
 
 const AuthContext = createContext();
 
@@ -49,7 +49,7 @@ export function AuthProvider({ children }) {
             });
           }
           
-          return smmkingsApi.registerUser(userData);
+          return snspopApi.registerUser(userData);
         });
       });
   }
@@ -97,7 +97,7 @@ export function AuthProvider({ children }) {
       if (user) {
         try {
           // 사용자 정보 저장 (기본 정보만)
-          await smmkingsApi.registerUser({
+          await snspopApi.registerUser({
             userId: user.uid,
             email: user.email,
             displayName: user.displayName || ''
