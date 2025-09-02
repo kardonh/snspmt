@@ -300,6 +300,11 @@ def init_database():
         
         conn.commit()
 
+# 관리자 데이터베이스 연결 함수
+def get_admin_db_connection():
+    """관리자용 PostgreSQL 연결"""
+    return get_db_connection()
+
 # 데이터베이스 인덱스 생성 (성능 최적화)
 def create_database_indexes():
     """데이터베이스 인덱스 생성"""
