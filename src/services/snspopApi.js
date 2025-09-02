@@ -184,37 +184,36 @@ export const handleApiError = (error) => {
 
 // 주문 데이터 변환 헬퍼 함수 (SMM KINGS API v2 구조)
 export const transformOrderData = (orderData) => {
-  console.log('transformOrderData input:', orderData) // 디버깅용 로그
+  console.log('transformOrderData input:', orderData)
   
-  // serviceId가 없으면 service 필드 사용
-  const serviceValue = orderData.serviceId || orderData.service
-  
-  if (!serviceValue) {
+  // serviceId가 없으면 에러 발생
+  if (!orderData.serviceId) {
     console.error('서비스 ID가 누락되었습니다:', orderData)
-    throw new Error('서비스 ID가 누락되었습니다.')
+    throw new Error('서비스를 선택해주세요.')
   }
   
   const transformed = {
-    service: serviceValue, // SMM KINGS 서비스 ID (백엔드에서 필수)
-    link: orderData.link, // 대상 URL 또는 사용자명
+    service: orderData.serviceId, // SMM KINGS 서비스 ID
+    link: orderData.link,
     quantity: orderData.quantity,
-    runs: orderData.runs || 1, // 실행 횟수 (기본값: 1)
-    interval: orderData.interval || 0, // 간격 (분, 기본값: 0)
-    comments: orderData.comments || '', // 커스텀 댓글
-    username: orderData.username || '', // 사용자명 (구독 서비스용)
-    min: orderData.min || 0, // 최소 수량
-    max: orderData.max || 0, // 최대 수량
-    posts: orderData.posts || 0, // 게시물 수
-    delay: orderData.delay || 0, // 지연 시간
-    expiry: orderData.expiry || '', // 만료일
-    old_posts: orderData.oldPosts || 0, // 이전 게시물 수
-    country: orderData.country || '', // 국가 (웹 트래픽용)
-    device: orderData.device || '', // 디바이스 (웹 트래픽용)
-    type_of_traffic: orderData.typeOfTraffic || '', // 트래픽 타입 (웹 트래픽용)
-    google_keyword: orderData.googleKeyword || '' // 구글 키워드 (웹 트래픽용)
+    runs: orderData.runs || 1,
+    interval: orderData.interval || 0,
+    comments: orderData.comments || '',
+    username: orderData.username || '',
+    min: orderData.min || 0,
+    max: orderData.max || 0,
+    posts: orderData.posts || 0,
+    delay: orderData.delay || 0,
+    expiry: orderData.expiry || '',
+    old_posts: orderData.old_posts || 0,
+    country: orderData.country || '',
+    device: orderData.device || '',
+    type_of_traffic: orderData.type_of_traffic || '',
+    google_keyword: orderData.google_keyword || '',
+    key: 'your_api_key_here'
   }
   
-  console.log('transformOrderData output:', transformed) // 디버깅용 로그
+  console.log('transformOrderData output:', transformed)
   return transformed
 }
 

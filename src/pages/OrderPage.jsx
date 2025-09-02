@@ -497,40 +497,36 @@ const OrderPage = () => {
       setIsLoading(true)
       
       try {
-        // 올바른 서비스 ID 가져오기
-        const serviceId = serviceIdMapping[platform]?.[selectedService]
+        // 서비스 ID 검증 강화
+        if (!selectedService) {
+          console.error('서비스가 선택되지 않음:', { selectedService, serviceId, platform })
+          alert('주문할 서비스를 선택해주세요.')
+          return
+        }
         
         console.log('Platform:', platform)
         console.log('Selected Service:', selectedService)
-        console.log('Service ID Mapping:', serviceIdMapping[platform])
-        console.log('Selected Service ID:', serviceId)
         
-        if (!serviceId) {
-          console.error('서비스 ID 매핑 실패:', { platform, selectedService, serviceIdMapping })
-          alert('지원하지 않는 서비스입니다.')
-          return
-        }
-
-      const orderData = {
-        serviceId,
+        const orderData = {
+          serviceId: selectedService, // selectedService를 직접 serviceId로 사용
           link: link.trim(),
-        quantity,
-        runs: 1, // 기본 실행 횟수
-        interval: 0, // 즉시 실행
+          quantity,
+          runs: 1, // 기본 실행 횟수
+          interval: 0, // 즉시 실행
           comments: comments.trim(), // 커스텀 댓글 (댓글 서비스인 경우)
           explanation: explanation.trim(), // 설명 (추가 요청사항)
-        username: '', // 사용자명 (구독 서비스인 경우)
-        min: 0,
-        max: 0,
-        posts: 0,
-        delay: 0,
-        expiry: '',
-        oldPosts: 0
-      }
+          username: '', // 사용자명 (구독 서비스인 경우)
+          min: 0,
+          max: 0,
+          posts: 0,
+          delay: 0,
+          expiry: '',
+          oldPosts: 0
+        }
 
         console.log('Order Data being sent:', orderData)
 
-      const transformedData = transformOrderData(orderData)
+        const transformedData = transformOrderData(orderData)
         console.log('Transformed Data:', transformedData)
         
       const userId = currentUser?.uid || currentUser?.email || 'anonymous'
