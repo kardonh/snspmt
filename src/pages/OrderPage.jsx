@@ -232,7 +232,7 @@ const OrderPage = () => {
   const loadUserPoints = async () => {
     if (currentUser) {
       try {
-        const response = await smmkingsApi.getUserPoints(currentUser.uid)
+        const response = await smmpanelApi.getUserPoints(currentUser.uid)
         setUserPoints(response.points || 0)
       } catch (error) {
         console.error('포인트 조회 실패:', error)

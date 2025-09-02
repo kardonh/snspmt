@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { smmkingsApi } from '../services/snspopApi'
+import smmpanelApi from '../services/snspopApi'
 import { Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, Eye } from 'lucide-react'
 import './OrdersPage.css'
 
@@ -24,7 +24,7 @@ const OrdersPage = () => {
       setError(null)
       
       const userId = currentUser.uid || currentUser.email
-      const response = await smmkingsApi.getUserOrders(userId)
+              const response = await snspopApi.getUserOrders(userId)
       
       if (response.orders) {
         setOrders(response.orders)
@@ -93,7 +93,7 @@ const OrdersPage = () => {
   const handleViewDetail = async (order) => {
     try {
       const userId = currentUser.uid || currentUser.email
-      const response = await smmkingsApi.getOrderDetail(order.id, userId)
+              const response = await snspopApi.getOrderDetail(order.id, userId)
       setSelectedOrder(response)
       setShowOrderDetail(true)
     } catch (err) {

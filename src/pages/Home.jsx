@@ -30,7 +30,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getPlatformInfo, calculatePrice } from '../utils/platformUtils'
-import { smmkingsApi, handleApiError, transformOrderData } from '../services/snspopApi'
+import smmpanelApi, { handleApiError, transformOrderData } from '../services/snspopApi'
 import { getSMMKingsServiceId, getSMMKingsServicePrice, getAvailableServices, getSMMKingsServiceMin, getSMMKingsServiceMax } from '../utils/smmkingsMapping'
 import './Home.css'
 
@@ -766,7 +766,7 @@ const Home = () => {
 
       const transformedData = transformOrderData(orderData)
       const userId = currentUser?.uid || currentUser?.email || 'anonymous'
-      const result = await smmkingsApi.createOrder(transformedData, userId)
+              const result = await snspopApi.createOrder(transformedData, userId)
 
       if (result.error) {
         alert(`주문 생성 실패: ${result.error}`)

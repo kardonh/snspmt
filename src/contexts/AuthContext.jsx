@@ -8,7 +8,7 @@ import {
   deleteUser
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
-import { snspopApi } from '../services/snspopApi';
+import smmpanelApi from '../services/snspopApi';
 
 const AuthContext = createContext();
 
@@ -104,12 +104,12 @@ export function AuthProvider({ children }) {
           });
           
           // 로그인 기록
-          await smmkingsApi.userLogin(user.uid);
+          await snspopApi.userLogin(user.uid);
           
           // 주기적으로 활동 업데이트 (30분마다로 최적화)
           const activityInterval = setInterval(async () => {
             try {
-              await smmkingsApi.updateUserActivity(user.uid);
+              await snspopApi.updateUserActivity(user.uid);
             } catch (error) {
               console.error('활동 업데이트 실패:', error);
             }

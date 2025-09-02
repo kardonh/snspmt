@@ -243,6 +243,4 @@ export const transformOrderData = (orderData) => {
   return transformed
 }
 
-export const snspopApi = smmpanelApi
-
 export default smmpanelApi
