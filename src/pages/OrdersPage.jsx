@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import smmpanelApi from '../services/snspopApi'
+import { smmpanelApi } from '../services/snspopApi'
 import { Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, Eye } from 'lucide-react'
 import './OrdersPage.css'
 
@@ -24,10 +24,13 @@ const OrdersPage = () => {
       setError(null)
       
       const userId = currentUser.uid || currentUser.email
-              const response = await snspopApi.getUserOrders(userId)
       
-      if (response.orders) {
-        setOrders(response.orders)
+      // 올바른 API 호출
+      const response = await fetch(`/api/orders?user_id=${userId}`)
+      const data = await response.json()
+      
+      if (response.ok && data.orders) {
+        setOrders(data.orders)
       } else {
         setOrders([])
       }
@@ -49,6 +52,8 @@ const OrdersPage = () => {
         return <Clock size={20} className="status-icon pending" />
       case 'processing':
         return <RefreshCw size={20} className="status-icon processing" />
+      case 'pending_payment':
+        return <AlertCircle size={20} className="status-icon pending" />
       default:
         return <AlertCircle size={20} className="status-icon unknown" />
     }
@@ -64,6 +69,8 @@ const OrdersPage = () => {
         return '대기중'
       case 'processing':
         return '처리중'
+      case 'pending_payment':
+        return '결제대기'
       default:
         return '알 수 없음'
     }
@@ -79,6 +86,8 @@ const OrdersPage = () => {
         return 'status-pending'
       case 'processing':
         return 'status-processing'
+      case 'pending_payment':
+        return 'status-pending'
       default:
         return 'status-unknown'
     }
@@ -92,13 +101,12 @@ const OrdersPage = () => {
 
   const handleViewDetail = async (order) => {
     try {
-      const userId = currentUser.uid || currentUser.email
-              const response = await snspopApi.getOrderDetail(order.id, userId)
-      setSelectedOrder(response)
+      // 주문 상세 정보는 이미 orders 배열에 있으므로 직접 사용
+      setSelectedOrder(order)
       setShowOrderDetail(true)
     } catch (err) {
       console.error('주문 상세 정보 로드 실패:', err)
-      setError('주문 상세 정보를 불러오는데 실패했습니다.')
+      alert('주문 상세 정보를 불러오는데 실패했습니다.')
     }
   }
 

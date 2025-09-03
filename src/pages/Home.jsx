@@ -1,37 +1,26 @@
-import React, { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import React, { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
-  Star, 
-  Package, 
-  Trophy, 
-  FileText, 
-  Folder, 
   Instagram, 
   Youtube, 
-  Facebook, 
-  MessageCircle, 
-  Twitter, 
-  Globe, 
+  MessageCircle,
   Users,
-  ShoppingBag, 
-  Phone, 
-  BarChart3,
-  HelpCircle,
-  CheckCircle,
-  Sparkles,
-  ArrowRight,
-  ChevronDown,
-  ShoppingBag as ShoppingBagIcon,
-  MessageSquare,
-  Home as HomeIcon,
-  Smartphone,
+  Heart,
+  Eye,
   TrendingUp,
-  MoreHorizontal
+  CheckCircle,
+  Star,
+  Zap,
+  Package,
+  Trophy,
+  Folder,
+  Facebook,
+  Twitter,
+  Globe,
+  MessageSquare
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { getPlatformInfo, calculatePrice } from '../utils/platformUtils'
-import smmpanelApi, { handleApiError, transformOrderData } from '../services/snspopApi'
-import { getSMMKingsServiceId, getSMMKingsServicePrice, getAvailableServices, getSMMKingsServiceMin, getSMMKingsServiceMax } from '../utils/smmkingsMapping'
+import { transformOrderData } from '../services/snspopApi'
 import './Home.css'
 
 const Home = () => {
@@ -748,7 +737,7 @@ const Home = () => {
 
     try {
       const orderData = {
-        serviceId: selectedDetailedService.smmkings_id,
+        serviceId: selectedDetailedService.id, // smmkings_id 대신 id 사용
         link: link.trim(),
         quantity,
         runs: 1,
@@ -764,9 +753,31 @@ const Home = () => {
         price: totalPrice  // 총 가격 추가
       }
 
+      console.log('=== 주문 데이터 생성 ===')
+      console.log('Order Data:', orderData)
+      console.log('Selected Detailed Service:', selectedDetailedService)
+
       const transformedData = transformOrderData(orderData)
+      console.log('Transformed Data:', transformedData)
+      
       const userId = currentUser?.uid || currentUser?.email || 'anonymous'
-              const result = await snspopApi.createOrder(transformedData, userId)
+      
+      // 올바른 API 호출
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': userId
+        },
+        body: JSON.stringify(transformedData)
+      })
+
+      const result = await response.json()
+      console.log('API Response:', result)
+
+      if (!response.ok) {
+        throw new Error(result.error || '주문 생성에 실패했습니다.')
+      }
 
       if (result.error) {
         alert(`주문 생성 실패: ${result.error}`)
@@ -794,9 +805,8 @@ const Home = () => {
         }
       }
     } catch (error) {
-      const errorInfo = handleApiError(error)
-      console.error('Order creation failed:', errorInfo)
-      alert(`주문 생성 실패: ${errorInfo.message}`)
+      console.error('Order creation error:', error)
+      alert(`주문 생성 실패: ${error.message}`)
     } finally {
       setIsLoading(false)
     }
