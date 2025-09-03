@@ -4,7 +4,6 @@ import { AuthProvider } from './contexts/AuthContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import Layout from './components/Layout'
 import Home from './pages/Home'
-import OrderPage from './pages/OrderPage'
 import PaymentPage from './pages/PaymentPage'
 import OrderCompletePage from './pages/OrderCompletePage'
 import OrdersPage from './pages/OrdersPage'
@@ -27,7 +26,6 @@ function App() {
             <Layout>
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/order/:platform/:serviceId" element={<ProtectedRoute><OrderPage /></ProtectedRoute>} />
                 <Route path="/payment/:platform" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
                 <Route path="/order-complete/:orderId" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
