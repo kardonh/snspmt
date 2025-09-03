@@ -12,7 +12,8 @@ import {
   RefreshCw,
   TrendingUp,
   DollarSign,
-  Activity
+  Activity,
+  Info
 } from 'lucide-react'
 import './AdminPage.css'
 
@@ -28,7 +29,9 @@ const AdminPage = () => {
     totalUsers: 0,
     totalOrders: 0,
     totalRevenue: 0,
-    pendingPurchases: 0
+    pendingPurchases: 0,
+    todayOrders: 0,
+    todayRevenue: 0
   })
 
   // 사용자 데이터
@@ -85,7 +88,9 @@ const AdminPage = () => {
           totalUsers: data.totalUsers || 0,
           totalOrders: data.totalOrders || 0,
           totalRevenue: data.totalRevenue || 0,
-          pendingPurchases: data.pendingPurchases || 0
+          pendingPurchases: data.pendingPurchases || 0,
+          todayOrders: data.todayOrders || 0,
+          todayRevenue: data.todayRevenue || 0
         })
       }
     } catch (error) {
@@ -183,6 +188,64 @@ const AdminPage = () => {
     }
   }
 
+  // 데이터 내보내기 함수
+  const handleExportData = async (type) => {
+    let dataToExport = [];
+    let filename = '';
+
+    if (type === 'users') {
+      dataToExport = users.map(user => ({
+        '사용자 ID': user.userId,
+        '이메일': user.email,
+        '포인트': user.points,
+        '가입일': user.createdAt,
+        '마지막 활동': user.lastActivity
+      }));
+      filename = 'users_data.csv';
+    } else if (type === 'orders') {
+      dataToExport = orders.map(order => ({
+        '주문 ID': order.orderId,
+        '플랫폼': order.platform,
+        '서비스': order.service,
+        '수량': order.quantity,
+        '금액': order.amount,
+        '상태': order.status,
+        '주문일': order.createdAt
+      }));
+      filename = 'orders_data.csv';
+    } else if (type === 'purchases') {
+      dataToExport = pendingPurchases.map(purchase => ({
+        '신청 ID': purchase.id,
+        '사용자 ID': purchase.userId,
+        '이메일': purchase.email,
+        '구매 포인트': purchase.points,
+        '결제 금액': purchase.amount,
+        '신청일': purchase.createdAt,
+        '상태': purchase.status
+      }));
+      filename = 'purchase_requests_data.csv';
+    }
+
+    if (dataToExport.length === 0) {
+      alert('내보낼 데이터가 없습니다.');
+      return;
+    }
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + dataToExport.map(row => 
+      Object.values(row).map(val => `"${val}"`).join(',')
+    ).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   // 검색 필터링 함수들
   const filteredUsers = users.filter(user => 
     user.userId?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
@@ -201,44 +264,115 @@ const AdminPage = () => {
 
   // 탭 렌더링
   const renderDashboard = () => (
-    <div className="dashboard-grid">
-      <div className="stat-card">
-        <div className="stat-icon users">
-          <Users size={24} />
+    <div className="dashboard-content">
+      <div className="dashboard-grid">
+        <div className="stat-card">
+          <div className="stat-icon users">
+            <Users size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>총 사용자</h3>
+            <p className="stat-number">{dashboardData.totalUsers.toLocaleString()}</p>
+            <p className="stat-label">전체 등록된 사용자</p>
+          </div>
         </div>
-        <div className="stat-content">
-          <h3>총 사용자</h3>
-          <p className="stat-number">{dashboardData.totalUsers.toLocaleString()}</p>
+
+        <div className="stat-card">
+          <div className="stat-icon orders">
+            <ShoppingCart size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>총 주문</h3>
+            <p className="stat-number">{dashboardData.totalOrders.toLocaleString()}</p>
+            <p className="stat-label">전체 주문 건수</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon revenue">
+            <DollarSign size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>총 매출</h3>
+            <p className="stat-number">₩{dashboardData.totalRevenue.toLocaleString()}</p>
+            <p className="stat-label">전체 누적 매출</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon pending">
+            <Activity size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>대기 중인 구매</h3>
+            <p className="stat-number">{dashboardData.pendingPurchases}</p>
+            <p className="stat-label">승인 대기 건수</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon today">
+            <TrendingUp size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>오늘 주문</h3>
+            <p className="stat-number">{dashboardData.todayOrders}</p>
+            <p className="stat-label">오늘 신규 주문</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon today-revenue">
+            <BarChart3 size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>오늘 매출</h3>
+            <p className="stat-number">₩{dashboardData.todayRevenue.toLocaleString()}</p>
+            <p className="stat-label">오늘 신규 매출</p>
+          </div>
         </div>
       </div>
 
-      <div className="stat-card">
-        <div className="stat-icon orders">
-          <ShoppingCart size={24} />
-        </div>
-        <div className="stat-content">
-          <h3>총 주문</h3>
-          <p className="stat-number">{dashboardData.totalOrders.toLocaleString()}</p>
+      <div className="dashboard-actions">
+        <div className="action-buttons">
+          <button 
+            className="btn-export"
+            onClick={() => handleExportData('users')}
+            title="사용자 데이터 내보내기"
+          >
+            <Download size={16} />
+            사용자 내보내기
+          </button>
+          <button 
+            className="btn-export"
+            onClick={() => handleExportData('orders')}
+            title="주문 데이터 내보내기"
+          >
+            <Download size={16} />
+            주문 내보내기
+          </button>
+          <button 
+            className="btn-export"
+            onClick={() => handleExportData('purchases')}
+            title="구매 신청 데이터 내보내기"
+          >
+            <Download size={16} />
+            구매 신청 내보내기
+          </button>
         </div>
       </div>
 
-      <div className="stat-card">
-        <div className="stat-icon revenue">
-          <DollarSign size={24} />
-        </div>
-        <div className="stat-content">
-          <h3>총 매출</h3>
-          <p className="stat-number">₩{dashboardData.totalRevenue.toLocaleString()}</p>
-        </div>
-      </div>
-
-      <div className="stat-card">
-        <div className="stat-icon pending">
-          <Activity size={24} />
-        </div>
-        <div className="stat-content">
-          <h3>대기 중인 구매</h3>
-          <p className="stat-number">{dashboardData.pendingPurchases}</p>
+      <div className="dashboard-info">
+        <div className="info-card">
+          <div className="info-header">
+            <Info size={20} />
+            <h4>시스템 정보</h4>
+          </div>
+          <div className="info-content">
+            <p><strong>마지막 업데이트:</strong> {lastUpdate}</p>
+            <p><strong>데이터 상태:</strong> <span className="status-ok">정상</span></p>
+            <p><strong>API 연결:</strong> <span className="status-ok">연결됨</span></p>
+          </div>
         </div>
       </div>
     </div>

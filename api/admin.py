@@ -33,7 +33,7 @@ def get_admin_db_connection():
     """관리자용 PostgreSQL 연결 (backend.py와 호환)"""
     return get_db_connection()
 
-@admin_bp.route('/api/admin/stats', methods=['GET'])
+@admin_bp.route('/stats', methods=['GET'])
 def get_admin_stats():
     """관리자 통계 데이터 제공"""
     try:
@@ -49,481 +49,303 @@ def get_admin_stats():
         existing_tables = [row['table_name'] for row in cursor.fetchall()]
         print(f"존재하는 테이블: {existing_tables}")
         
-        # 현재 날짜와 한 달 전 날짜 계산
+        # 현재 날짜와 하루 전 날짜 계산
         now = datetime.now()
-        one_month_ago = now - timedelta(days=30)
+        one_day_ago = now - timedelta(days=1)
         
-        # 총 가입자 수 (users 테이블에서 조회)
+        # 총 사용자 수 (points 테이블에서 조회)
         try:
-            cursor.execute("SELECT COUNT(*) as total_users FROM users")
+            cursor.execute("SELECT COUNT(*) as total_users FROM points")
             total_users = cursor.fetchone()['total_users']
         except Exception as e:
-            print(f"users 테이블 조회 실패: {e}")
+            print(f"points 테이블 조회 실패: {e}")
             total_users = 0
         
-        # 한 달 가입자 수
+        # 총 주문 수 (orders 테이블에서 조회)
         try:
-            cursor.execute("""
-                SELECT COUNT(*) as monthly_users 
-                FROM users 
-                WHERE created_at >= %s
-            """, (one_month_ago.strftime('%Y-%m-%d'),))
-            monthly_users = cursor.fetchone()['monthly_users']
+            cursor.execute("SELECT COUNT(*) as total_orders FROM orders")
+            total_orders = cursor.fetchone()['total_orders']
         except Exception as e:
-            print(f"monthly_users 조회 실패: {e}")
-            monthly_users = 0
+            print(f"orders 테이블 조회 실패: {e}")
+            total_orders = 0
         
-        # 총 매출액 (purchases 테이블에서 조회)
+        # 총 매출액 (point_purchases 테이블에서 조회)
         try:
-            cursor.execute("SELECT SUM(price) as total_revenue FROM purchases WHERE status = 'approved'")
+            cursor.execute("SELECT SUM(price) as total_revenue FROM point_purchases WHERE status = 'approved'")
             total_revenue = cursor.fetchone()['total_revenue'] or 0
         except Exception as e:
             print(f"total_revenue 조회 실패: {e}")
             total_revenue = 0
         
-        # 한 달 매출액
+        # 대기 중인 포인트 구매 신청 수
+        try:
+            cursor.execute("SELECT COUNT(*) as pending_purchases FROM point_purchases WHERE status = 'pending'")
+            pending_purchases = cursor.fetchone()['pending_purchases']
+        except Exception as e:
+            print(f"pending_purchases 조회 실패: {e}")
+            pending_purchases = 0
+        
+        # 오늘 주문 수
         try:
             cursor.execute("""
-                SELECT SUM(price) as monthly_revenue 
-                FROM purchases 
-                WHERE status = 'approved' AND created_at >= %s
-            """, (one_month_ago.strftime('%Y-%m-%d'),))
-            monthly_revenue = cursor.fetchone()['monthly_revenue'] or 0
-        except Exception as e:
-            print(f"monthly_revenue 조회 실패: {e}")
-            monthly_revenue = 0
-        
-        # 총 SMM KINGS 충전액 (실제 비용)
-        try:
-            cursor.execute("SELECT SUM(smmkings_cost) as total_smmkings_charge FROM orders WHERE status = 'completed'")
-            total_smmkings_charge = cursor.fetchone()['total_smmkings_charge'] or 0
-        except Exception as e:
-            print(f"total_smmkings_charge 조회 실패: {e}")
-            total_smmkings_charge = 0
-        
-        # 한 달 SMM KINGS 충전액
-        try:
-            cursor.execute("""
-                SELECT SUM(smmkings_cost) as monthly_smmkings_charge 
+                SELECT COUNT(*) as today_orders 
                 FROM orders 
-                WHERE status = 'completed' AND created_at >= %s
-            """, (one_month_ago.strftime('%Y-%m-%d'),))
-            monthly_smmkings_charge = cursor.fetchone()['monthly_smmkings_charge'] or 0
+                WHERE DATE(created_at) = CURRENT_DATE
+            """)
+            today_orders = cursor.fetchone()['today_orders']
         except Exception as e:
-            print(f"monthly_smmkings_charge 조회 실패: {e}")
-            monthly_smmkings_charge = 0
+            print(f"today_orders 조회 실패: {e}")
+            today_orders = 0
         
+        # 오늘 매출액
+        try:
+            cursor.execute("""
+                SELECT SUM(price) as today_revenue 
+                FROM point_purchases 
+                WHERE status = 'approved' AND DATE(created_at) = CURRENT_DATE
+            """)
+            today_revenue = cursor.fetchone()['today_revenue'] or 0
+        except Exception as e:
+            print(f"today_revenue 조회 실패: {e}")
+            today_revenue = 0
+        
+        stats = {
+            'totalUsers': total_users,
+            'totalOrders': total_orders,
+            'totalRevenue': float(total_revenue),
+            'pendingPurchases': pending_purchases,
+            'todayOrders': today_orders,
+            'todayRevenue': float(today_revenue)
+        }
+        
+        cursor.close()
         conn.close()
         
-        return jsonify({
-            'success': True,
-            'data': {
-                'totalUsers': total_users,
-                'monthlyUsers': monthly_users,
-                'totalRevenue': total_revenue,
-                'monthlyRevenue': monthly_revenue,
-                'totalSMMKingsCharge': total_smmkings_charge,
-                'monthlySMMKingsCharge': monthly_smmkings_charge
-            }
-        })
+        return jsonify(stats), 200
         
     except Exception as e:
-        print(f"Admin stats API 오류: {str(e)}")
+        print(f"관리자 통계 조회 실패: {e}")
+        # 에러 발생 시 기본값 반환
         return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            'totalUsers': 0,
+            'totalOrders': 0,
+            'totalRevenue': 0,
+            'pendingPurchases': 0,
+            'todayOrders': 0,
+            'todayRevenue': 0
+        }), 200
 
-@admin_bp.route('/api/admin/transactions', methods=['GET'])
-def get_admin_transactions():
-    """충전 및 환불 내역 제공"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # 테이블 존재 여부 확인
-        cursor.execute("""
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_name = 'orders'
-            );
-        """)
-        
-        if not cursor.fetchone()[0]:
-            return jsonify({
-                'success': True,
-                'data': {
-                    'charges': [],
-                    'refunds': []
-                }
-            })
-        
-        # 충전 내역 (완료된 주문)
-        cursor.execute("""
-            SELECT 
-                id,
-                user_id as user,
-                total_amount as amount,
-                created_at as date,
-                status
-            FROM orders 
-            WHERE status = 'completed'
-            ORDER BY created_at DESC
-            LIMIT 20
-        """)
-        charges = []
-        for row in cursor.fetchall():
-            charges.append({
-                'id': row['id'],
-                'user': row['user'],
-                'amount': row['amount'],
-                'date': row['date'],
-                'status': row['status']
-            })
-        
-        # 환불 내역 (취소된 주문)
-        cursor.execute("""
-            SELECT 
-                id,
-                user_id as user,
-                total_amount as amount,
-                created_at as date,
-                '고객 요청' as reason
-            FROM orders 
-            WHERE status = 'cancelled'
-            ORDER BY created_at DESC
-            LIMIT 20
-        """)
-        refunds = []
-        for row in cursor.fetchall():
-            refunds.append({
-                'id': row['id'],
-                'user': row['user'],
-                'amount': row['amount'],
-                'date': row['date'],
-                'reason': row['reason']
-            })
-        
-        conn.close()
-        
-        return jsonify({
-            'success': True,
-            'data': {
-                'charges': charges,
-                'refunds': refunds
-            }
-        })
-        
-    except Exception as e:
-        print(f"Transactions API 오류: {e}")
-        return jsonify({
-            'success': True,
-            'data': {
-                'charges': [],
-                'refunds': []
-            }
-        }), 200  # 500 대신 200 반환
-
-@admin_bp.route('/api/admin/orders', methods=['GET'])
-def get_admin_orders():
-    """모든 주문 내역 제공"""
+@admin_bp.route('/users', methods=['GET'])
+def get_admin_users():
+    """관리자용 사용자 목록 조회"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute("""
             SELECT 
-                id,
                 user_id,
-                platform,
-                service_name,
-                quantity,
-                total_amount,
-                status,
+                points,
                 created_at,
                 updated_at
-            FROM orders 
+            FROM points 
             ORDER BY created_at DESC
-            LIMIT 100
-        """)
-        
-        orders = []
-        for row in cursor.fetchall():
-            orders.append({
-                'id': row['id'],
-                'userId': row['user_id'],
-                'platform': row['platform'],
-                'serviceName': row['service_name'],
-                'quantity': row['quantity'],
-                'totalAmount': row['total_amount'],
-                'status': row['status'],
-                'createdAt': row['created_at'],
-                'updatedAt': row['updated_at']
-            })
-        
-        conn.close()
-        
-        return jsonify({
-            'success': True,
-            'data': orders
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@admin_bp.route('/api/admin/users', methods=['GET'])
-def get_admin_users():
-    """사용자 목록 제공"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # 테이블 존재 여부 확인
-        cursor.execute("""
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_name = 'orders'
-            );
-        """)
-        
-        if not cursor.fetchone()[0]:
-            return jsonify({
-                'success': True,
-                'data': []
-            })
-        
-        cursor.execute("""
-            SELECT 
-                user_id,
-                COUNT(*) as order_count,
-                SUM(total_amount) as total_spent,
-                MIN(created_at) as first_order,
-                MAX(created_at) as last_order
-            FROM orders 
-            GROUP BY user_id
-            ORDER BY total_spent DESC
         """)
         
         users = []
         for row in cursor.fetchall():
-            users.append({
+            user = {
                 'userId': row['user_id'],
-                'orderCount': row['order_count'],
-                'totalSpent': row['total_spent'] or 0,
-                'firstOrder': row['first_order'],
-                'lastOrder': row['last_order']
-            })
-        
-        conn.close()
-        
-        return jsonify({
-            'success': True,
-            'data': users
-        })
-        
-    except Exception as e:
-        print(f"Users API 오류: {e}")
-        return jsonify({
-            'success': True,
-            'data': []
-        }), 200  # 500 대신 200 반환
-
-@admin_bp.route('/api/admin/search-account', methods=['GET'])
-def search_account():
-    """계좌 정보 검색"""
-    try:
-        search_query = request.args.get('query', '').strip()
-        
-        if not search_query:
-            return jsonify({
-                'success': False,
-                'error': '검색어를 입력해주세요.'
-            }), 400
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # 사용자 ID, 이메일로 검색
-        cursor.execute("""
-            SELECT DISTINCT
-                u.user_id,
-                u.email,
-                u.display_name,
-                COUNT(o.id) as order_count,
-                COALESCE(SUM(o.price), 0) as total_spent,
-                MIN(o.created_at) as first_order,
-                MAX(o.created_at) as last_order,
-                COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.price ELSE 0 END), 0) as completed_amount,
-                COALESCE(SUM(CASE WHEN o.status = 'pending' THEN o.price ELSE 0 END), 0) as pending_amount,
-                COALESCE(SUM(CASE WHEN o.status = 'canceled' THEN o.price ELSE 0 END), 0) as canceled_amount
-            FROM users u
-            LEFT JOIN orders o ON u.user_id = o.user_id
-            WHERE u.user_id LIKE %s OR u.email LIKE %s OR u.display_name LIKE %s
-            GROUP BY u.user_id, u.email, u.display_name
-            ORDER BY total_spent DESC
-        """, (f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
-        
-        accounts = []
-        for row in cursor.fetchall():
-            accounts.append({
-                'userId': row['user_id'],
-                'email': row['email'],
-                'displayName': row['display_name'],
-                'orderCount': row['order_count'],
-                'totalSpent': row['total_spent'] or 0,
-                'completedAmount': row['completed_amount'] or 0,
-                'pendingAmount': row['pending_amount'] or 0,
-                'canceledAmount': row['canceled_amount'] or 0,
-                'firstOrder': row['first_order'],
-                'lastOrder': row['last_order']
-            })
-        
-        # 최근 주문 내역도 함께 조회
-        recent_orders = []
-        if accounts:
-            user_ids = [account['userId'] for account in accounts]
-            placeholders = ','.join(['%s' for _ in user_ids])
-            
-            cursor.execute(f"""
-                SELECT 
-                    id,
-                    user_id,
-                    service_id,
-                    quantity,
-                    price,
-                    status,
-                    created_at
-                FROM orders 
-                WHERE user_id IN ({placeholders})
-                ORDER BY created_at DESC
-                LIMIT 50
-            """, user_ids)
-            
-            for row in cursor.fetchall():
-                recent_orders.append({
-                    'id': row['id'],
-                    'userId': row['user_id'],
-                    'serviceId': row['service_id'],
-                    'quantity': row['quantity'],
-                    'totalAmount': row['price'],
-                    'status': row['status'],
-                    'createdAt': row['created_at']
-                })
-        
-        conn.close()
-        
-        return jsonify({
-            'success': True,
-            'data': {
-                'accounts': accounts,
-                'recentOrders': recent_orders,
-                'totalFound': len(accounts)
+                'email': row['user_id'],  # user_id를 이메일로 사용
+                'points': row['points'],
+                'createdAt': row['created_at'].isoformat() if row['created_at'] else None,
+                'lastActivity': row['updated_at'].isoformat() if row['updated_at'] else None
             }
-        })
+            users.append(user)
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(users), 200
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        print(f"사용자 목록 조회 실패: {e}")
+        return jsonify([]), 200
 
-@admin_bp.route('/api/admin/export/cash-receipts', methods=['GET'])
-def export_cash_receipts():
-    """현금영수증 엑셀 다운로드"""
+@admin_bp.route('/transactions', methods=['GET'])
+def get_admin_transactions():
+    """관리자용 주문/거래 목록 조회"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 현금영수증 발급 대상 조회 (완료된 주문 중 현금영수증 요청)
         cursor.execute("""
             SELECT 
-                o.id as order_id,
-                o.user_id,
-                o.platform,
-                o.service_name,
-                o.quantity,
-                o.total_amount,
-                o.created_at,
-                o.status,
-                p.receipt_type,
-                p.cash_receipt_phone,
-                p.business_name,
-                p.representative,
-                p.business_number
-            FROM orders o
-            LEFT JOIN purchases p ON o.user_id = p.user_id AND o.created_at = p.created_at
-            WHERE o.status = 'completed' 
-            AND (p.receipt_type = 'cash' OR p.receipt_type IS NULL)
-            ORDER BY o.created_at DESC
+                order_id,
+                user_id,
+                service_id,
+                link,
+                quantity,
+                price,
+                status,
+                created_at
+            FROM orders 
+            ORDER BY created_at DESC
         """)
         
-        rows = cursor.fetchall()
+        orders = []
+        for row in cursor.fetchall():
+            order = {
+                'orderId': f"ORD_{row['order_id']}",
+                'platform': 'SNS',  # 기본값
+                'service': f"서비스 {row['service_id']}",
+                'quantity': row['quantity'],
+                'amount': float(row['price']),
+                'status': row['status'],
+                'createdAt': row['created_at'].isoformat() if row['created_at'] else None
+            }
+            orders.append(order)
         
-        # CSV 데이터 생성
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        # 헤더 작성
-        writer.writerow([
-            '주문번호',
-            '사용자ID',
-            '플랫폼',
-            '서비스명',
-            '수량',
-            '결제금액',
-            '주문일시',
-            '상태',
-            '영수증타입',
-            '현금영수증전화번호',
-            '상호명',
-            '대표자명',
-            '사업자번호'
-        ])
-        
-        # 데이터 작성
-        for row in rows:
-            writer.writerow([
-                row['order_id'],
-                row['user_id'],
-                row['platform'],
-                row['service_name'],
-                row['quantity'],
-                row['total_amount'],
-                row['created_at'],
-                row['status'],
-                row['receipt_type'] or '현금영수증',
-                row['cash_receipt_phone'] or '',
-                row['business_name'] or '',
-                row['representative'] or '',
-                row['business_number'] or ''
-            ])
-        
+        cursor.close()
         conn.close()
         
-        # 파일명 생성
-        current_date = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'현금영수증_{current_date}.csv'
-        
-        # CSV 데이터를 바이트로 변환
-        output.seek(0)
-        csv_data = output.getvalue().encode('utf-8-sig')  # BOM 추가로 한글 깨짐 방지
-        
-        # 메모리 파일 객체 생성
-        csv_file = io.BytesIO(csv_data)
-        csv_file.seek(0)
-        
-        return send_file(
-            csv_file,
-            mimetype='text/csv',
-            as_attachment=True,
-            download_name=filename
-        )
+        return jsonify(orders), 200
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        print(f"주문 목록 조회 실패: {e}")
+        return jsonify([]), 200
+
+@admin_bp.route('/purchases', methods=['GET'])
+def get_admin_purchases():
+    """관리자용 포인트 구매 신청 목록 조회"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                purchase_id,
+                user_id,
+                amount,
+                price,
+                status,
+                created_at
+            FROM point_purchases 
+            ORDER BY created_at DESC
+        """)
+        
+        purchases = []
+        for row in cursor.fetchall():
+            purchase = {
+                'id': row['purchase_id'],
+                'userId': row['user_id'],
+                'email': row['user_id'],  # user_id를 이메일로 사용
+                'points': row['amount'],
+                'amount': float(row['price']),
+                'status': row['status'],
+                'createdAt': row['created_at'].isoformat() if row['created_at'] else None
+            }
+            purchases.append(purchase)
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(purchases), 200
+        
+    except Exception as e:
+        print(f"구매 신청 목록 조회 실패: {e}")
+        return jsonify([]), 200
+
+@admin_bp.route('/purchases/<int:purchase_id>', methods=['PUT'])
+def update_purchase_status(purchase_id):
+    """포인트 구매 신청 상태 업데이트 (승인/거절)"""
+    try:
+        data = request.get_json()
+        status = data.get('status')
+        
+        if status not in ['approved', 'rejected']:
+            return jsonify({'error': '잘못된 상태값입니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if status == 'approved':
+            # 구매 신청 승인 시 사용자 포인트 증가
+            cursor.execute("""
+                UPDATE point_purchases 
+                SET status = %s, updated_at = CURRENT_TIMESTAMP 
+                WHERE purchase_id = %s
+            """, (status, purchase_id))
+            
+            # 사용자 포인트 증가
+            cursor.execute("""
+                UPDATE points 
+                SET points = points + (
+                    SELECT amount FROM point_purchases WHERE purchase_id = %s
+                ),
+                updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = (
+                    SELECT user_id FROM point_purchases WHERE purchase_id = %s
+                )
+            """, (purchase_id, purchase_id))
+            
+        else:
+            # 거절 시 상태만 업데이트
+            cursor.execute("""
+                UPDATE point_purchases 
+                SET status = %s, updated_at = CURRENT_TIMESTAMP 
+                WHERE purchase_id = %s
+            """, (status, purchase_id))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'message': '상태가 업데이트되었습니다.'}), 200
+        
+    except Exception as e:
+        print(f"구매 신청 상태 업데이트 실패: {e}")
+        return jsonify({'error': '상태 업데이트에 실패했습니다.'}), 500
+
+@admin_bp.route('/search-account', methods=['GET'])
+def search_account():
+    """계정 검색 (기존 기능 유지)"""
+    try:
+        query = request.args.get('query', '')
+        if not query:
+            return jsonify({'error': '검색어를 입력해주세요.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 사용자 검색 (user_id 또는 이메일로 검색)
+        cursor.execute("""
+            SELECT 
+                user_id,
+                points,
+                created_at,
+                updated_at
+            FROM points 
+            WHERE user_id ILIKE %s
+            ORDER BY created_at DESC
+        """, (f'%{query}%',))
+        
+        users = []
+        for row in cursor.fetchall():
+            user = {
+                'userId': row['user_id'],
+                'email': row['user_id'],
+                'points': row['points'],
+                'createdAt': row['created_at'].isoformat() if row['created_at'] else None,
+                'lastActivity': row['updated_at'].isoformat() if row['updated_at'] else None
+            }
+            users.append(user)
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'users': users}), 200
+        
+    except Exception as e:
+        print(f"계정 검색 실패: {e}")
+        return jsonify({'error': '검색에 실패했습니다.'}), 500
