@@ -49,7 +49,7 @@ export function AuthProvider({ children }) {
             });
           }
           
-          return snspopApi.registerUser(userData);
+          return smmpanelApi.registerUser(userData);
         });
       });
   }
@@ -97,19 +97,19 @@ export function AuthProvider({ children }) {
       if (user) {
         try {
           // 사용자 정보 저장 (기본 정보만)
-          await snspopApi.registerUser({
+          await smmpanelApi.registerUser({
             userId: user.uid,
             email: user.email,
             displayName: user.displayName || ''
           });
           
           // 로그인 기록
-          await snspopApi.userLogin(user.uid);
+          await smmpanelApi.userLogin(user.uid);
           
           // 주기적으로 활동 업데이트 (30분마다로 최적화)
           const activityInterval = setInterval(async () => {
             try {
-              await snspopApi.updateUserActivity(user.uid);
+              await smmpanelApi.updateUserActivity(user.uid);
             } catch (error) {
               console.error('활동 업데이트 실패:', error);
             }

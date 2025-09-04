@@ -30,7 +30,7 @@ def get_db_connection():
         conn = psycopg2.connect(DATABASE_URL)
         print("데이터베이스 연결 성공")
         return conn
-        except Exception as e:
+    except Exception as e:
         print(f"데이터베이스 연결 실패: {e}")
         # 연결 실패 시 SQLite로 폴백
         print("SQLite로 폴백 시도...")
