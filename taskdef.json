@@ -22,7 +22,7 @@
         },
         {
           "name": "DATABASE_URL",
-          "value": "postgresql://snspmt_admin:Snspmt2024!@snspmt-db.cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/postgres"
+          "value": "postgresql://snspmt_admin:Snspmt2024!@snspmt-db.cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt"
         },
         {
           "name": "SMMPANEL_API_KEY",

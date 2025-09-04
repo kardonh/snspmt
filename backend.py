@@ -3,8 +3,8 @@ from flask_cors import CORS
 import os
 import json
 import sqlite3
-import psycopg2
-from psycopg2.extras import RealDictCursor
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
 from datetime import datetime
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -13,9 +13,12 @@ import uuid
 # Flask 앱 생성
 app = Flask(__name__)
 CORS(app)
-
-# 환경 변수 설정
+    
+    # 환경 변수 설정
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/snspmt')
+# AWS RDS용 데이터베이스 URL 수정
+if 'rds.amazonaws.com' in DATABASE_URL and 'snspmt_db' in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace('snspmt_db', 'snspmt')
 SMMPANEL_API_URL = 'https://smmpanel.kr/api/v2'
 API_KEY = os.getenv('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
 
@@ -23,11 +26,22 @@ API_KEY = os.getenv('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
 def get_db_connection():
     """PostgreSQL 데이터베이스 연결"""
     try:
+        print(f"데이터베이스 연결 시도: {DATABASE_URL}")
         conn = psycopg2.connect(DATABASE_URL)
+        print("데이터베이스 연결 성공")
         return conn
-    except Exception as e:
+        except Exception as e:
         print(f"데이터베이스 연결 실패: {e}")
-        return None
+        # 연결 실패 시 SQLite로 폴백
+        print("SQLite로 폴백 시도...")
+        try:
+            conn = sqlite3.connect('orders.db')
+            conn.row_factory = sqlite3.Row
+            print("SQLite 연결 성공")
+            return conn
+        except Exception as sqlite_error:
+            print(f"SQLite 연결도 실패: {sqlite_error}")
+            return None
 
 # SQLite 연결 함수 (로컬 개발용)
 def get_sqlite_connection():
@@ -38,18 +52,23 @@ def get_sqlite_connection():
         return conn
     except Exception as e:
         print(f"SQLite 연결 실패: {e}")
-        return None
+    return None
 
 # 데이터베이스 초기화
 def init_database():
     """데이터베이스 테이블 초기화"""
     try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
+        conn = get_db_connection()
+        if conn is None:
+            print("데이터베이스 연결을 할 수 없습니다.")
+    return False
+
+        with conn:
+        cursor = conn.cursor()
+        
             # orders 테이블 생성
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS orders (
+            CREATE TABLE IF NOT EXISTS orders (
                     order_id SERIAL PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
                     service_id INTEGER NOT NULL,
@@ -78,8 +97,8 @@ def init_database():
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS points (
                     user_id VARCHAR(255) PRIMARY KEY,
-                    points INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                points INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -92,9 +111,9 @@ def init_database():
                     amount INTEGER NOT NULL,
                     price DECIMAL(10,2) NOT NULL,
                     status VARCHAR(50) DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
             """)
             
             # notifications 테이블 생성
@@ -109,12 +128,14 @@ def init_database():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
-            conn.commit()
+        
+        conn.commit()
             print("데이터베이스 초기화 완료")
+            return True
             
     except Exception as e:
         print(f"데이터베이스 초기화 실패: {e}")
+        return False
 
 # 정적 파일 서빙
 @app.route('/<path:filename>')
@@ -292,7 +313,7 @@ def create_order():
                 
                 order_id = cursor.fetchone()[0]
                 conn.commit()
-                print(f"주문 저장 완료: {order_id}")
+        print(f"주문 저장 완료: {order_id}")
                 
         except Exception as e:
             print(f"데이터베이스 저장 실패: {e}")
@@ -341,9 +362,9 @@ def complete_order_payment(order_id):
                 """, (order_id, user_id))
                 
                 order = cursor.fetchone()
-                if not order:
-                    return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
-                
+        if not order:
+            return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
+        
                 if order['status'] != 'pending_payment':
                     return jsonify({'error': '결제 대기 상태가 아닙니다.'}), 400
                 
@@ -392,13 +413,13 @@ def complete_order_payment(order_id):
                         api_data['old_posts'] = data.get('old_posts')
                     
                     # smmpanel.kr API 호출
-                    response = requests.post(SMMPANEL_API_URL, json={
-                        'key': API_KEY,
+        response = requests.post(SMMPANEL_API_URL, json={
+            'key': API_KEY,
                         'action': 'add',
                         **api_data
-                    }, timeout=30)
-                    
-                    if response.status_code == 200:
+        }, timeout=30)
+        
+        if response.status_code == 200:
                         api_response = response.json()
                         print(f"smmpanel.kr API 응답: {api_response}")
                         
@@ -406,7 +427,7 @@ def complete_order_payment(order_id):
                         external_order_id = api_response.get('order')
                         
                         # PostgreSQL에 외부 주문 ID 업데이트
-                        cursor.execute("""
+                cursor.execute("""
                             UPDATE orders 
                             SET external_order_id = %s, status = 'processing', updated_at = %s
                             WHERE order_id = %s
@@ -416,7 +437,7 @@ def complete_order_payment(order_id):
                         print(f"smmpanel.kr 주문 전송 성공: {external_order_id}")
                         
                         return jsonify({
-                            'success': True,
+                'success': True,
                             'orderId': order_id,
                             'externalOrderId': external_order_id,
                             'status': 'processing',
@@ -429,18 +450,18 @@ def complete_order_payment(order_id):
                         return jsonify({
                             'error': '외부 API 전송에 실패했습니다.'
                         }), 500
-                        
-                except Exception as e:
+            
+    except Exception as e:
                     print(f"smmpanel.kr API 전송 실패: {e}")
-                    return jsonify({
+        return jsonify({
                         'error': f'외부 API 전송 실패: {str(e)}'
-                    }), 500
-                    
+        }), 500
+
         except Exception as e:
             print(f"데이터베이스 오류: {e}")
             return jsonify({'error': f'데이터베이스 오류: {str(e)}'}), 500
         
-    except Exception as e:
+            except Exception as e:
         print(f"=== 주문 결제 완료 실패 ===")
         print(f"오류: {str(e)}")
         return jsonify({'error': f'주문 결제 완료 실패: {str(e)}'}), 500
@@ -457,25 +478,25 @@ def get_user_orders():
         # PostgreSQL에서 주문 조회
         try:
             with get_db_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT 
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
                         order_id,
                         service_id,
                         link,
                         quantity,
-                        price,
-                        status,
+                    price,
+                    status,
                         external_order_id,
                         created_at,
                         updated_at
                     FROM orders 
                     WHERE user_id = %s
-                    ORDER BY created_at DESC
+                ORDER BY created_at DESC
                 """, (user_id,))
-                
+            
                 orders = []
-                for row in cursor.fetchall():
+            for row in cursor.fetchall():
                     order = {
                         'id': row['order_id'],
                         'service': row['service_id'],
@@ -490,8 +511,8 @@ def get_user_orders():
                     orders.append(order)
                 
                 return jsonify({'orders': orders}), 200
-                
-        except Exception as e:
+            
+    except Exception as e:
             print(f"데이터베이스 조회 실패: {e}")
             return jsonify({'error': '주문 조회에 실패했습니다.'}), 500
         
@@ -523,9 +544,9 @@ def get_user_points():
                 else:
                     points = 0
                 
-                return jsonify({'points': points}), 200
-                
-        except Exception as e:
+        return jsonify({'points': points}), 200
+        
+    except Exception as e:
             print(f"포인트 조회 실패: {e}")
             return jsonify({'error': '포인트 조회에 실패했습니다.'}), 500
         
@@ -558,13 +579,13 @@ def create_point_purchase():
                 
                 purchase_id = cursor.fetchone()[0]
                 conn.commit()
-                
-                return jsonify({
+        
+        return jsonify({
                     'purchase_id': purchase_id,
                     'message': '포인트 구매 요청이 생성되었습니다.'
                 }), 200
-                
-        except Exception as e:
+        
+    except Exception as e:
             print(f"구매 요청 저장 실패: {e}")
             return jsonify({'error': '구매 요청 저장에 실패했습니다.'}), 500
         
@@ -612,8 +633,8 @@ def get_purchase_history():
                     purchases.append(purchase)
                 
                 return jsonify({'purchases': purchases}), 200
-                
-        except Exception as e:
+        
+    except Exception as e:
             print(f"구매 내역 조회 실패: {e}")
             return jsonify({'error': '구매 내역 조회에 실패했습니다.'}), 500
         
@@ -634,8 +655,8 @@ def get_user_info():
         # PostgreSQL에서 사용자 정보 조회
         try:
             with get_db_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
+            cursor = conn.cursor()
+            cursor.execute("""
                     SELECT 
                         user_id,
                         points,
