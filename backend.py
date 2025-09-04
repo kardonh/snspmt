@@ -3,8 +3,8 @@ from flask_cors import CORS
 import os
 import json
 import sqlite3
-import psycopg2
-from psycopg2.extras import RealDictCursor
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
 from datetime import datetime
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -13,8 +13,8 @@ import uuid
 # Flask 앱 생성
 app = Flask(__name__)
 CORS(app)
-
-# 환경 변수 설정
+    
+    # 환경 변수 설정
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/snspmt')
 # AWS RDS용 데이터베이스 URL 수정
 if 'rds.amazonaws.com' in DATABASE_URL and 'snspmt_db' in DATABASE_URL:
@@ -30,7 +30,7 @@ def get_db_connection():
         conn = psycopg2.connect(DATABASE_URL)
         print("데이터베이스 연결 성공")
         return conn
-    except Exception as e:
+        except Exception as e:
         print(f"데이터베이스 연결 실패: {e}")
         # 연결 실패 시 SQLite로 폴백
         print("SQLite로 폴백 시도...")
@@ -315,12 +315,12 @@ def create_order():
                 conn.commit()
         print(f"주문 저장 완료: {order_id}")
                 
-        except Exception as e:
-            print(f"데이터베이스 저장 실패: {e}")
-            return jsonify({
-                'type': 'database_error',
-                'message': '주문 저장에 실패했습니다.'
-            }), 500
+    except Exception as e:
+        print(f"데이터베이스 저장 실패: {e}")
+        return jsonify({
+            'type': 'database_error',
+            'message': '주문 저장에 실패했습니다.'
+        }), 500
         
         # 성공 응답 반환
         success_response = {
