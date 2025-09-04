@@ -123,10 +123,10 @@ export const smmpanelApi = {
   deductUserPoints: (userId, points) => apiClient.put('/points', { userId, points }),
   
   // 포인트 구매 신청
-  createPurchase: (purchaseData) => apiClient.post('/purchases', purchaseData),
+  createPurchase: (purchaseData) => apiClient.post('/points/purchase', purchaseData),
   
   // 구매 내역 조회
-  getPurchaseHistory: (userId) => apiClient.get(`/purchases?user_id=${userId}`),
+  getPurchaseHistory: (userId) => apiClient.get(`/points/purchase-history?user_id=${userId}`),
   
   // 관리자용 구매 신청 목록 조회
   getPendingPurchases: () => apiClient.get('/admin/purchases/pending'),
@@ -136,13 +136,13 @@ export const smmpanelApi = {
   
   // 사용자 관련 API
   // 사용자 등록
-  registerUser: (userData) => apiClient.post('/users/register', userData),
+  registerUser: (userData) => apiClient.post('/register', userData),
   
   // 사용자 로그인
-  userLogin: (userId) => apiClient.post('/users/login', { userId }),
+  userLogin: (userId) => apiClient.post('/login', { userId }),
   
   // 사용자 활동 업데이트
-  updateUserActivity: (userId) => apiClient.post('/users/activity', { userId }),
+  updateUserActivity: (userId) => apiClient.post('/activity', { userId }),
   
   // 관리자용 사용자 정보 조회
   getUsersInfo: () => apiClient.get('/admin/users'),
