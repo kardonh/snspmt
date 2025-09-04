@@ -749,13 +749,13 @@ const Home = () => {
       return
     }
 
-    if (!link.trim()) {
+    if (!link || !link.trim()) {
       alert('링크를 입력해주세요!')
       return
     }
 
     if (((selectedPlatform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
-         (selectedPlatform === 'youtube' && selectedService === 'comments_korean')) && !comments.trim()) {
+         (selectedPlatform === 'youtube' && selectedService === 'comments_korean')) && (!comments || !comments.trim())) {
       alert('댓글 내용을 입력해주세요!')
       return
     }
@@ -772,11 +772,11 @@ const Home = () => {
     try {
       const orderData = {
         serviceId: selectedDetailedService.id, // smmkings_id 대신 id 사용
-        link: link.trim(),
+        link: (link || '').trim(),
         quantity,
         runs: 1,
         interval: 0,
-        comments: comments.trim(),
+        comments: (comments || '').trim(),
         username: '',
         min: 0,
         max: 0,
@@ -823,8 +823,8 @@ const Home = () => {
           quantity: quantity,
           unitPrice: selectedDetailedService.price,
           totalPrice: totalPrice,
-          link: link.trim(),
-          comments: comments.trim(),
+          link: (link || '').trim(),
+          comments: (comments || '').trim(),
           discount: getDiscount(quantity)
         }
         
@@ -1144,7 +1144,7 @@ const Home = () => {
                 className="form-control"
                 rows="4"
               />
-              <div className="char-count">{comments.length}/200</div>
+              <div className="char-count">{(comments || '').length}/200</div>
                 </div>
           )}
 
