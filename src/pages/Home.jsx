@@ -17,7 +17,8 @@ import {
   Facebook,
   Twitter,
   Globe,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { transformOrderData } from '../services/snspopApi'
@@ -37,6 +38,17 @@ const Home = () => {
   const [comments, setComments] = useState('')
   const [explanation, setExplanation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+
+  // 컴포넌트 마운트 시 기본 서비스 자동 선택
+  useEffect(() => {
+    if (selectedPlatform && selectedService && !selectedDetailedService) {
+      const detailedServices = getDetailedServices(selectedPlatform, selectedService)
+      if (detailedServices && detailedServices.length > 0) {
+        setSelectedDetailedService(detailedServices[0])
+        setQuantity(detailedServices[0].min)
+      }
+    }
+  }, [selectedPlatform, selectedService, selectedDetailedService])
 
   // 인스타그램 세부 서비스 데이터
   const instagramDetailedServices = {
@@ -502,6 +514,16 @@ const Home = () => {
     }
   }
 
+  // 사용 가능한 서비스 목록 가져오기
+  const getAvailableServices = (platform) => {
+    // 기본 서비스 목록 (실제로는 API에서 가져와야 함)
+    return [
+      { id: 'followers_korean', name: '한국인 팔로워', price: 1000, min: 10, max: 10000 },
+      { id: 'likes_korean', name: '한국인 좋아요', price: 500, min: 10, max: 10000 },
+      { id: 'comments_korean', name: '한국인 댓글', price: 2000, min: 5, max: 1000 }
+    ]
+  }
+
   // 서비스 타입별 세부 서비스 목록 (기존 로직 유지)
   const getDetailedServicesLegacy = (platform, serviceType) => {
     const availableServices = getAvailableServices(platform)
@@ -575,6 +597,11 @@ const Home = () => {
   const detailedServices = getDetailedServices(selectedPlatform, selectedService)
 
   // 플랫폼 정보 가져오기
+  const getPlatformInfo = (platformId) => {
+    const platform = platforms.find(p => p.id === platformId)
+    return platform || { name: '알 수 없음', icon: Globe, color: '#6b7280' }
+  }
+
   const platformInfo = getPlatformInfo(selectedPlatform)
 
   // 수량 옵션 생성
@@ -678,7 +705,7 @@ const Home = () => {
     
     // 세부 서비스가 있으면 첫 번째 것을 기본 선택
     const detailedServices = getDetailedServices(selectedPlatform, serviceId)
-    if (detailedServices.length > 0) {
+    if (detailedServices && detailedServices.length > 0) {
       setSelectedDetailedService(detailedServices[0])
       setQuantity(detailedServices[0].min)
     }
@@ -730,6 +757,13 @@ const Home = () => {
     if (((selectedPlatform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
          (selectedPlatform === 'youtube' && selectedService === 'comments_korean')) && !comments.trim()) {
       alert('댓글 내용을 입력해주세요!')
+      return
+    }
+
+    // selectedDetailedService가 undefined인 경우 강제로 기본값 설정
+    if (!selectedDetailedService || !selectedDetailedService.id) {
+      console.error('⚠️ selectedDetailedService가 undefined입니다:', selectedDetailedService)
+      alert('서비스 선택에 문제가 있습니다. 페이지를 새로고침하고 다시 시도해주세요.')
       return
     }
 
