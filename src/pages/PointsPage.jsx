@@ -51,7 +51,7 @@ const PointsPage = () => {
 
   const loadUserPoints = async () => {
     try {
-              const response = await snspopApi.getUserPoints(currentUser.uid)
+              const response = await smmpanelApi.getUserPoints(currentUser.uid)
       setUserPoints(response.points || 0)
     } catch (error) {
       console.error('포인트 조회 실패:', error)
@@ -60,7 +60,7 @@ const PointsPage = () => {
 
   const loadPurchaseHistory = async () => {
     try {
-              const response = await snspopApi.getPurchaseHistory(currentUser.uid)
+              const response = await smmpanelApi.getPurchaseHistory(currentUser.uid)
       setPurchaseHistory(response.history || [])
     } catch (error) {
       console.error('구매 내역 조회 실패:', error)
@@ -69,7 +69,7 @@ const PointsPage = () => {
 
   const loadUserInfo = async () => {
     try {
-              const response = await snspopApi.getUserInfo(currentUser.uid)
+              const response = await smmpanelApi.getUserInfo(currentUser.uid)
       console.log('사용자 정보 로드:', response)
       setUserInfo(response.user || null)
     } catch (error) {
@@ -139,7 +139,7 @@ const PointsPage = () => {
         status: 'pending'
       }
 
-              const response = await snspopApi.createPurchase(purchaseData)
+              const response = await smmpanelApi.createPurchase(purchaseData)
       
       if (response.success) {
         alert('포인트 구매 신청이 완료되었습니다. 관리자 승인 후 포인트가 추가됩니다.')

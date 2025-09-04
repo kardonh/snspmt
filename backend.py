@@ -13,8 +13,8 @@ import uuid
 # Flask 앱 생성
 app = Flask(__name__)
 CORS(app)
-    
-    # 환경 변수 설정
+
+# 환경 변수 설정
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/snspmt')
 # AWS RDS용 데이터베이스 URL 수정
 if 'rds.amazonaws.com' in DATABASE_URL and 'snspmt_db' in DATABASE_URL:
