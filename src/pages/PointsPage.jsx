@@ -139,7 +139,7 @@ const PointsPage = () => {
         status: 'pending'
       }
 
-              const response = await smmpanelApi.createPurchase(purchaseData)
+              const response = await smmpanelApi.createPurchase(purchaseData, currentUser.uid)
       
       if (response.success) {
         alert('포인트 구매 신청이 완료되었습니다. 관리자 승인 후 포인트가 추가됩니다.')

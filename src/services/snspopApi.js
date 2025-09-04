@@ -123,7 +123,14 @@ export const smmpanelApi = {
   deductUserPoints: (userId, points) => apiClient.put('/points', { userId, points }),
   
   // 포인트 구매 신청
-  createPurchase: (purchaseData) => apiClient.post('/points/purchase', purchaseData),
+  createPurchase: (purchaseData, userId) => {
+    const config = {
+      headers: {
+        'X-User-ID': userId
+      }
+    }
+    return apiClient.post('/points/purchase', purchaseData, config)
+  },
   
   // 구매 내역 조회
   getPurchaseHistory: (userId) => apiClient.get(`/points/purchase-history?user_id=${userId}`),
