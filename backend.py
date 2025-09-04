@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 import os
 import json
@@ -116,10 +116,15 @@ def init_database():
     except Exception as e:
         print(f"데이터베이스 초기화 실패: {e}")
 
-# 메인 페이지
+# 정적 파일 서빙
+@app.route('/<path:filename>')
+def static_files(filename):
+    return send_from_directory('dist', filename)
+
+# 메인 페이지 - React 앱 서빙
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return send_from_directory('dist', 'index.html')
 
 # 헬스 체크 - 간단하고 빠른 응답
 @app.route('/health')
