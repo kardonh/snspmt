@@ -3,8 +3,8 @@ from flask_cors import CORS
 import os
 import json
 import sqlite3
-    import psycopg2
-    from psycopg2.extras import RealDictCursor
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from datetime import datetime
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
