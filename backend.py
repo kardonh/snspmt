@@ -548,7 +548,10 @@ def complete_order_payment(order_id):
 def get_user_orders():
     """사용자별 주문 정보 조회"""
     try:
-        user_id = request.args.get('user_id', 'anonymous')
+        user_id = request.args.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
         
         print(f"주문 조회 요청: {user_id}")
         
@@ -596,6 +599,98 @@ def get_user_orders():
     except Exception as e:
         print(f"주문 조회 실패: {e}")
         return jsonify({'error': '주문 조회에 실패했습니다.'}), 500
+
+# 주문 상세 조회
+@app.route('/api/orders/<order_id>', methods=['GET'])
+def get_order_detail(order_id):
+    """특정 주문 상세 정보 조회"""
+    try:
+        user_id = request.args.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    order_id,
+                    user_id,
+                    service_id,
+                    link,
+                    quantity,
+                    price,
+                    status,
+                    created_at,
+                    updated_at
+                FROM orders 
+                WHERE order_id = %s AND user_id = %s
+            """, (order_id, user_id))
+            
+            result = cursor.fetchone()
+            if result:
+                order_detail = {
+                    'order_id': result['order_id'],
+                    'user_id': result['user_id'],
+                    'service_id': result['service_id'],
+                    'link': result['link'],
+                    'quantity': result['quantity'],
+                    'price': float(result['price']),
+                    'status': result['status'],
+                    'created_at': result['created_at'].isoformat() if result['created_at'] else None,
+                    'updated_at': result['updated_at'].isoformat() if result['updated_at'] else None
+                }
+                return jsonify(order_detail), 200
+            else:
+                return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
+                
+    except Exception as e:
+        print(f"주문 상세 조회 실패: {e}")
+        return jsonify({'error': '주문 상세 조회에 실패했습니다.'}), 500
+
+# 포인트 차감
+@app.route('/api/points', methods=['PUT'])
+def deduct_user_points():
+    """사용자 포인트 차감"""
+    try:
+        data = request.get_json()
+        user_id = data.get('userId')
+        points = data.get('points')
+        
+        if not user_id or points is None:
+            return jsonify({'error': '사용자 ID와 포인트가 필요합니다.'}), 400
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # 현재 포인트 확인
+            cursor.execute("SELECT points FROM points WHERE user_id = %s", (user_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+            
+            current_points = result['points']
+            if current_points < points:
+                return jsonify({'error': '포인트가 부족합니다.'}), 400
+            
+            # 포인트 차감
+            cursor.execute("""
+                UPDATE points 
+                SET points = points - %s, updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = %s
+            """, (points, user_id))
+            
+            conn.commit()
+            
+            return jsonify({
+                'message': '포인트가 차감되었습니다.',
+                'remaining_points': current_points - points
+            }), 200
+            
+    except Exception as e:
+        print(f"포인트 차감 실패: {e}")
+        return jsonify({'error': '포인트 차감에 실패했습니다.'}), 500
 
 # 사용자 포인트 조회
 @app.route('/api/points', methods=['GET'])

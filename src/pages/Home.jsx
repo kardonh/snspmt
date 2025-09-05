@@ -421,7 +421,6 @@ const Home = () => {
     { id: 'youtube', name: '유튜브', icon: Youtube, color: '#ff0000' },
     { id: 'facebook', name: '페이스북', icon: Facebook, color: '#1877f2' },
     { id: 'tiktok', name: '틱톡', icon: MessageCircle, color: '#000000' },
-    
     { id: 'threads', name: '스레드', icon: MessageSquare, color: '#000000' },
     { id: 'twitter', name: '트위터', icon: Twitter, color: '#1da1f2' },
     { id: 'naver', name: '네이버', icon: Globe, color: '#03c75a' },
