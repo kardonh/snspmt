@@ -18,6 +18,20 @@ CORS(app)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB 제한
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # 정적 파일 캐시 비활성화
 
+# 앱 시작 시 초기화
+@app.before_first_request
+def initialize_app():
+    """앱 시작 시 초기화"""
+    try:
+        print("🚀 SNS PMT 앱 시작 중...")
+        # 데이터베이스 테이블 초기화
+        init_database()
+        print("✅ 데이터베이스 초기화 완료")
+        print("✅ 앱 시작 완료")
+    except Exception as e:
+        print(f"⚠️ 앱 초기화 중 오류: {e}")
+        # 초기화 실패해도 앱은 계속 실행
+
 # 환경 변수 설정
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/snspmt')
 # AWS RDS용 데이터베이스 URL 수정
@@ -199,9 +213,20 @@ def static_files(filename):
 def index():
     return send_from_directory('dist', 'index.html')
 
-# 헬스 체크 - 간단하고 빠른 응답
+# 헬스 체크 - 초고속 응답 (데이터베이스 연결 없이)
 @app.route('/health')
 def health_check():
+    """초고속 헬스 체크 - ELB용"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'service': 'snspmt'
+    }), 200
+
+# 상세 헬스 체크 - 관리자용
+@app.route('/api/health')
+def detailed_health_check():
+    """상세 헬스 체크 - 데이터베이스 연결 포함"""
     try:
         # 간단한 데이터베이스 연결 테스트
         with get_db_connection() as conn:
@@ -212,13 +237,15 @@ def health_check():
         return jsonify({
             'status': 'healthy', 
             'timestamp': datetime.now().isoformat(),
-            'database': 'connected'
+            'database': 'connected',
+            'service': 'snspmt'
         })
     except Exception as e:
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'service': 'snspmt'
         }), 500
 
 # 사용자 등록

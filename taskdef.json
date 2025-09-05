@@ -47,10 +47,10 @@
       ],
       "healthCheck": {
         "command": ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
-        "interval": 30,
-        "timeout": 5,
-        "retries": 5,
-        "startPeriod": 60
+        "interval": 15,
+        "timeout": 3,
+        "retries": 3,
+        "startPeriod": 30
       },
       "logConfiguration": {
         "logDriver": "awslogs",

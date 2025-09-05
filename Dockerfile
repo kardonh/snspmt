@@ -43,5 +43,5 @@ ENV TEMP=/tmp
 ENV TMP=/tmp
 ENV TEMP_DIR=/tmp
 
-# Run the application with Flask directly
-CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=8000"]
+# Run the application with Gunicorn for production
+CMD ["gunicorn", "--config", "gunicorn.conf.py", "backend:app"]
