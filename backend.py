@@ -18,8 +18,7 @@ CORS(app)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB 제한
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # 정적 파일 캐시 비활성화
 
-# 앱 시작 시 초기화
-@app.before_first_request
+# 앱 시작 시 초기화 (Flask 2.2+ 호환)
 def initialize_app():
     """앱 시작 시 초기화"""
     try:
@@ -31,6 +30,9 @@ def initialize_app():
     except Exception as e:
         print(f"⚠️ 앱 초기화 중 오류: {e}")
         # 초기화 실패해도 앱은 계속 실행
+
+# 앱 시작 시 초기화 실행
+initialize_app()
 
 # 환경 변수 설정
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/snspmt')
