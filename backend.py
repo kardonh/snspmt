@@ -18,7 +18,7 @@ CORS(app)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB 제한
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # 정적 파일 캐시 비활성화
 
-# 앱 시작 시 초기화 (Flask 2.2+ 호환)
+# 앱 시작 시 초기화 함수 (나중에 정의됨)
 def initialize_app():
     """앱 시작 시 초기화"""
     try:
@@ -30,9 +30,6 @@ def initialize_app():
     except Exception as e:
         print(f"⚠️ 앱 초기화 중 오류: {e}")
         # 초기화 실패해도 앱은 계속 실행
-
-# 앱 시작 시 초기화 실행
-initialize_app()
 
 # 환경 변수 설정
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/snspmt')
@@ -72,7 +69,16 @@ def get_db_connection():
             return conn
         except Exception as sqlite_error:
             print(f"SQLite 연결도 실패: {sqlite_error}")
-            return None
+            # SQLite 파일 생성 시도
+            try:
+                import sqlite3
+                conn = sqlite3.connect('/app/orders.db')
+                conn.row_factory = sqlite3.Row
+                print("SQLite 파일 생성 및 연결 성공")
+                return conn
+            except Exception as create_error:
+                print(f"SQLite 파일 생성도 실패: {create_error}")
+                return None
 
 # SQLite 연결 함수 (로컬 개발용)
 def get_sqlite_connection():
@@ -1206,7 +1212,8 @@ except ImportError as e:
 
 # 애플리케이션 시작 시 데이터베이스 초기화
 if __name__ == '__main__':
-    init_database()
+    initialize_app()
     app.run(debug=True, host='0.0.0.0', port=5000)
 else:
-    init_database()
+    # Gunicorn으로 실행될 때 초기화
+    initialize_app()

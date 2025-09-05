@@ -27,10 +27,15 @@ COPY . .
 # Build frontend
 RUN npm install && npm run build
 
-# Create temp directories with proper permissions (수정된 부분)
+# Create temp directories with proper permissions
 RUN mkdir -p /tmp && chmod 777 /tmp
 RUN mkdir -p /app/tmp && chmod 777 /app/tmp
 RUN mkdir -p /usr/tmp && chmod 777 /usr/tmp
+RUN mkdir -p /var/tmp && chmod 777 /var/tmp
+
+# Create writable directories for Gunicorn
+RUN mkdir -p /app/var && chmod 777 /app/var
+RUN mkdir -p /app/logs && chmod 777 /app/logs
 
 # Expose port
 EXPOSE 8000
@@ -38,10 +43,10 @@ EXPOSE 8000
 # Set environment variables
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
-ENV TMPDIR=/tmp
-ENV TEMP=/tmp
-ENV TMP=/tmp
-ENV TEMP_DIR=/tmp
+ENV TMPDIR=/app/var
+ENV TEMP=/app/var
+ENV TMP=/app/var
+ENV TEMP_DIR=/app/var
 
 # Run the application with Gunicorn for production
 CMD ["gunicorn", "--config", "gunicorn.conf.py", "backend:app"]

@@ -4,21 +4,23 @@ import tempfile
 # 임시 디렉토리 설정
 def setup_temp_directories():
     """임시 디렉토리 설정"""
-    temp_dirs = ['/tmp', '/var/tmp', '/usr/tmp', '/app/tmp']
+    temp_dirs = ['/tmp', '/var/tmp', '/usr/tmp', '/app/tmp', '/app/var']
     for temp_dir in temp_dirs:
         try:
             if not os.path.exists(temp_dir):
                 os.makedirs(temp_dir, exist_ok=True)
+            # 권한 설정
+            os.chmod(temp_dir, 0o777)
         except Exception as e:
             print(f"임시 디렉토리 생성 실패 {temp_dir}: {e}")
     
-    # 환경 변수 설정
-    os.environ['TMPDIR'] = '/tmp'
-    os.environ['TEMP'] = '/tmp'
-    os.environ['TMP'] = '/tmp'
+    # 환경 변수 설정 (쓰기 가능한 디렉토리 우선)
+    os.environ['TMPDIR'] = '/app/var'
+    os.environ['TEMP'] = '/app/var'
+    os.environ['TMP'] = '/app/var'
     
     # tempfile 모듈 재설정
-    tempfile.tempdir = '/tmp'
+    tempfile.tempdir = '/app/var'
 
 # 임시 디렉토리 설정 실행
 setup_temp_directories()
