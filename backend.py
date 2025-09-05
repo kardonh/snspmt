@@ -45,22 +45,24 @@ API_KEY = os.getenv('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
 # 추천인 커미션 설정
 REFERRAL_COMMISSION_RATE = 0.15  # 15% 커미션
 
-# PostgreSQL 연결 함수 (메모리 최적화)
+# PostgreSQL 연결 함수 (안전한 연결)
 def get_db_connection():
-    """PostgreSQL 데이터베이스 연결 (메모리 최적화)"""
+    """PostgreSQL 데이터베이스 연결 (안전한 연결)"""
     try:
-        # 연결 풀 설정으로 메모리 사용량 최적화
+        print(f"데이터베이스 연결 시도: {DATABASE_URL}")
+        # 안전한 연결 설정
         conn = psycopg2.connect(
             DATABASE_URL,
             cursor_factory=RealDictCursor,
-            connect_timeout=10,
+            connect_timeout=30,
             application_name='snspmt-app'
         )
-        # 메모리 사용량 최적화 설정
+        # 자동 커밋 비활성화
         conn.autocommit = False
+        print("PostgreSQL 연결 성공")
         return conn
     except Exception as e:
-        print(f"데이터베이스 연결 실패: {e}")
+        print(f"PostgreSQL 연결 실패: {e}")
         # 연결 실패 시 SQLite로 폴백
         print("SQLite로 폴백 시도...")
         try:
@@ -254,27 +256,42 @@ def detailed_health_check():
 @app.route('/api/register', methods=['POST'])
 def register():
     try:
+        print("=== 사용자 등록 API 호출 ===")
         data = request.get_json()
+        print(f"요청 데이터: {data}")
+        
         user_id = data.get('uid') or data.get('userId')
         email = data.get('email')
         referral_code = data.get('referralCode')
         
+        print(f"사용자 ID: {user_id}, 이메일: {email}, 추천인 코드: {referral_code}")
+        
         if not user_id or not email:
+            print("필수 정보 누락")
             return jsonify({'error': '필수 정보가 누락되었습니다.'}), 400
         
-        # PostgreSQL에 사용자 정보 저장
-        with get_db_connection() as conn:
+        # 데이터베이스 연결 확인
+        conn = get_db_connection()
+        if not conn:
+            print("데이터베이스 연결 실패")
+            return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
+        
+        try:
             cursor = conn.cursor()
+            
+            # 사용자 포인트 테이블에 등록
             cursor.execute("""
                 INSERT INTO points (user_id, points) 
                 VALUES (%s, 0) 
                 ON CONFLICT (user_id) DO NOTHING
             """, (user_id,))
+            print(f"사용자 포인트 등록 완료: {user_id}")
             
             # 추천인 코드가 있으면 처리
             if referral_code and referral_code.strip():
                 try:
-                    # 추천인 코드 사용
+                    print(f"추천인 코드 처리 시작: {referral_code}")
+                    # 추천인 코드 조회
                     cursor.execute("""
                         SELECT code_id, referrer_user_id, is_active, expires_at
                         FROM referral_codes 
@@ -297,20 +314,29 @@ def register():
                             WHERE code = %s
                         """, (referral_code.strip().upper(),))
                         
-                        print(f"추천인 코드 적용: {referral_code} -> {user_id}")
+                        print(f"추천인 코드 적용 완료: {referral_code} -> {user_id}")
                     else:
                         print(f"유효하지 않은 추천인 코드: {referral_code}")
                 except Exception as e:
                     print(f"추천인 코드 처리 실패: {e}")
                     # 추천인 코드 처리 실패해도 회원가입은 계속 진행
             
+            # 커밋
             conn.commit()
+            print("데이터베이스 커밋 완료")
+            
+        finally:
+            cursor.close()
+            conn.close()
         
+        print("사용자 등록 성공")
         return jsonify({'message': '사용자 등록 완료'}), 200
         
     except Exception as e:
         print(f"사용자 등록 실패: {e}")
-        return jsonify({'error': '사용자 등록에 실패했습니다.'}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'사용자 등록에 실패했습니다: {str(e)}'}), 500
 
 # 사용자 로그인
 @app.route('/api/login', methods=['POST'])
