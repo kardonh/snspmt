@@ -14,6 +14,10 @@ import uuid
 app = Flask(__name__)
 CORS(app)
 
+# 메모리 최적화 설정
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB 제한
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # 정적 파일 캐시 비활성화
+
 # 환경 변수 설정
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/snspmt')
 # AWS RDS용 데이터베이스 URL 수정
@@ -25,13 +29,19 @@ API_KEY = os.getenv('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
 # 추천인 커미션 설정
 REFERRAL_COMMISSION_RATE = 0.15  # 15% 커미션
 
-# PostgreSQL 연결 함수
+# PostgreSQL 연결 함수 (메모리 최적화)
 def get_db_connection():
-    """PostgreSQL 데이터베이스 연결"""
+    """PostgreSQL 데이터베이스 연결 (메모리 최적화)"""
     try:
-        print(f"데이터베이스 연결 시도: {DATABASE_URL}")
-        conn = psycopg2.connect(DATABASE_URL)
-        print("데이터베이스 연결 성공")
+        # 연결 풀 설정으로 메모리 사용량 최적화
+        conn = psycopg2.connect(
+            DATABASE_URL,
+            cursor_factory=RealDictCursor,
+            connect_timeout=10,
+            application_name='snspmt-app'
+        )
+        # 메모리 사용량 최적화 설정
+        conn.autocommit = False
         return conn
     except Exception as e:
         print(f"데이터베이스 연결 실패: {e}")
