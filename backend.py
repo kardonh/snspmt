@@ -69,15 +69,14 @@ def get_db_connection():
             return conn
         except Exception as sqlite_error:
             print(f"SQLite 연결도 실패: {sqlite_error}")
-            # SQLite 파일 생성 시도
+            # 메모리 기반 SQLite 데이터베이스 사용
             try:
-                import sqlite3
-                conn = sqlite3.connect('/app/orders.db')
+                conn = sqlite3.connect(':memory:')
                 conn.row_factory = sqlite3.Row
-                print("SQLite 파일 생성 및 연결 성공")
+                print("메모리 기반 SQLite 연결 성공")
                 return conn
             except Exception as create_error:
-                print(f"SQLite 파일 생성도 실패: {create_error}")
+                print(f"메모리 기반 SQLite 연결도 실패: {create_error}")
                 return None
 
 # SQLite 연결 함수 (로컬 개발용)
