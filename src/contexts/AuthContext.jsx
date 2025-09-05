@@ -33,7 +33,7 @@ export function AuthProvider({ children }) {
         }).then(() => {
           // 비즈니스 정보가 있으면 추가 정보와 함께 저장
           const userData = {
-            userId: userCredential.user.uid,
+            uid: userCredential.user.uid,
             email: userCredential.user.email,
             displayName: username
           };

@@ -216,7 +216,7 @@ def health_check():
 def register():
     try:
         data = request.get_json()
-        user_id = data.get('uid')
+        user_id = data.get('uid') or data.get('userId')
         email = data.get('email')
         referral_code = data.get('referralCode')
         
@@ -602,7 +602,7 @@ def get_user_orders():
 def get_user_points():
     """사용자 포인트 조회"""
     try:
-        user_id = request.args.get('user_id', 'anonymous')
+        user_id = request.args.get('user_id')
         
         if not user_id:
             return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
@@ -675,7 +675,7 @@ def create_point_purchase():
 def get_purchase_history():
     """포인트 구매 내역 조회"""
     try:
-        user_id = request.args.get('user_id', 'anonymous')
+        user_id = request.args.get('user_id')
         
         if not user_id:
             return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
@@ -765,6 +765,43 @@ def get_user_info():
             print(f"사용자 정보 조회 실패: {e}")
             return jsonify({'error': '사용자 정보 조회에 실패했습니다.'}), 500
         
+    except Exception as e:
+        print(f"사용자 정보 조회 실패: {e}")
+        return jsonify({'error': '사용자 정보 조회에 실패했습니다.'}), 500
+
+# 사용자 정보 조회
+@app.route('/api/users/<user_id>', methods=['GET'])
+def get_user(user_id):
+    """특정 사용자 정보 조회"""
+    try:
+        conn = get_db_connection()
+        if conn is None:
+            return jsonify({'error': '데이터베이스 연결 실패'}), 500
+            
+        with conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    user_id,
+                    points,
+                    created_at,
+                    updated_at
+                FROM points 
+                WHERE user_id = %s
+            """, (user_id,))
+            
+            result = cursor.fetchone()
+            if result:
+                user_info = {
+                    'user_id': result['user_id'],
+                    'points': result['points'],
+                    'created_at': result['created_at'].isoformat() if result['created_at'] else None,
+                    'updated_at': result['updated_at'].isoformat() if result['updated_at'] else None
+                }
+                return jsonify({'user': user_info}), 200
+            else:
+                return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+                
     except Exception as e:
         print(f"사용자 정보 조회 실패: {e}")
         return jsonify({'error': '사용자 정보 조회에 실패했습니다.'}), 500
