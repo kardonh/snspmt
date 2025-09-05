@@ -15,6 +15,7 @@ export default function SignupPage() {
   const [representative, setRepresentative] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
@@ -47,7 +48,8 @@ export default function SignupPage() {
         businessName: businessName.trim(),
         representative: representative.trim(),
         contactPhone: contactPhone.trim(),
-        contactEmail: contactEmail.trim()
+        contactEmail: contactEmail.trim(),
+        referralCode: referralCode.trim()
       });
       navigate('/');
     } catch (error) {
@@ -261,6 +263,27 @@ export default function SignupPage() {
               </div>
             </div>
           )}
+
+          {/* 추천인 코드 입력 */}
+          <div className="form-group">
+            <label htmlFor="referralCode" className="form-label">
+              추천인 코드 (선택사항)
+            </label>
+            <div className="input-wrapper">
+              <User size={20} className="input-icon" />
+              <input
+                type="text"
+                id="referralCode"
+                className="form-input"
+                placeholder="추천인 코드를 입력하세요"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+              />
+            </div>
+            <p className="form-help">
+              추천인 코드가 있으시면 입력해주세요. 추천인에게 15% 커미션이 지급됩니다.
+            </p>
+          </div>
           
           <button 
             disabled={loading} 

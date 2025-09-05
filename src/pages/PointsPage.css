@@ -574,3 +574,164 @@
     text-align: center;
   }
 }
+
+/* 추천인 현황 스타일 */
+.referral-section {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  margin-top: 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.referral-section h2 {
+  color: #2d3748;
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 24px 0;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.referral-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.referral-codes,
+.referral-commissions {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+}
+
+.referral-codes h3,
+.referral-commissions h3 {
+  color: #4a5568;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.codes-list,
+.commissions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.code-item,
+.commission-item {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.code-item:hover,
+.commission-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.code-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.code-text {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #2d3748;
+  background: #f0f4f8;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.active {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.status-badge.inactive {
+  background: #fed7d7;
+  color: #742a2a;
+}
+
+.code-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #718096;
+}
+
+.commission-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.referred-user {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.commission-date {
+  font-size: 12px;
+  color: #718096;
+}
+
+.commission-amount {
+  color: #38a169;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.no-referral {
+  text-align: center;
+  padding: 48px 24px;
+  color: #718096;
+}
+
+.no-referral p {
+  margin: 8px 0;
+  font-size: 16px;
+}
+
+.no-referral p:first-child {
+  font-weight: 600;
+  color: #4a5568;
+}
+
+/* 추천인 현황 반응형 */
+@media (max-width: 768px) {
+  .referral-content {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .referral-section {
+    padding: 24px;
+  }
+  
+  .referral-codes,
+  .referral-commissions {
+    padding: 20px;
+  }
+}

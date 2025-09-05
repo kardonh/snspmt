@@ -46,9 +46,15 @@ const AdminPage = () => {
   const [pendingPurchases, setPendingPurchases] = useState([])
   const [purchaseSearchTerm, setPurchaseSearchTerm] = useState('')
 
+  // 추천인 데이터
+  const [referralCodes, setReferralCodes] = useState([])
+  const [referralCommissions, setReferralCommissions] = useState([])
+  const [newReferralUser, setNewReferralUser] = useState('')
+
   // 컴포넌트 마운트 시 데이터 로드
   useEffect(() => {
     loadAdminData()
+    loadReferralData()
   }, [])
 
   // 관리자 데이터 로드
@@ -189,6 +195,60 @@ const AdminPage = () => {
   }
 
   // 데이터 내보내기 함수
+  // 추천인 데이터 로드
+  const loadReferralData = async () => {
+    try {
+      // 추천인 코드 목록 로드
+      const codesResponse = await fetch('/api/referral/my-codes?user_id=admin')
+      if (codesResponse.ok) {
+        const codesData = await codesResponse.json()
+        setReferralCodes(codesData.codes || [])
+      }
+
+      // 추천인 커미션 내역 로드
+      const commissionsResponse = await fetch('/api/referral/commissions?user_id=admin')
+      if (commissionsResponse.ok) {
+        const commissionsData = await commissionsResponse.json()
+        setReferralCommissions(commissionsData.commissions || [])
+      }
+    } catch (error) {
+      console.error('추천인 데이터 로드 실패:', error)
+    }
+  }
+
+  // 추천인 코드 생성
+  const handleGenerateReferralCode = async () => {
+    if (!newReferralUser.trim()) {
+      alert('사용자 ID를 입력해주세요.')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/referral/generate-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: newReferralUser.trim()
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        alert(`추천인 코드가 생성되었습니다: ${result.code}`)
+        setNewReferralUser('')
+        loadReferralData() // 데이터 새로고침
+      } else {
+        const error = await response.json()
+        alert(`오류: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('추천인 코드 생성 실패:', error)
+      alert('추천인 코드 생성에 실패했습니다.')
+    }
+  }
+
   const handleExportData = async (type) => {
     let dataToExport = [];
     let filename = '';
@@ -533,6 +593,119 @@ const AdminPage = () => {
     </div>
   )
 
+  // 추천인 관리 탭 렌더링
+  const renderReferrals = () => (
+    <div className="referral-content">
+      <div className="section-header">
+        <h2>추천인 코드 관리</h2>
+        <div className="referral-actions">
+          <div className="generate-code-section">
+            <input
+              type="text"
+              placeholder="사용자 ID 입력"
+              value={newReferralUser}
+              onChange={(e) => setNewReferralUser(e.target.value)}
+              className="referral-input"
+            />
+            <button 
+              onClick={handleGenerateReferralCode}
+              className="generate-button"
+            >
+              추천인 코드 생성
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="referral-grid">
+        <div className="referral-codes-section">
+          <h3>발급된 추천인 코드</h3>
+          <div className="referral-codes-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>코드</th>
+                  <th>상태</th>
+                  <th>사용 횟수</th>
+                  <th>총 커미션</th>
+                  <th>생성일</th>
+                </tr>
+              </thead>
+              <tbody>
+                {referralCodes.map((code, index) => (
+                  <tr key={index}>
+                    <td className="code-cell">
+                      <span className="referral-code">{code.code}</span>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${code.is_active ? 'active' : 'inactive'}`}>
+                        {code.is_active ? '활성' : '비활성'}
+                      </span>
+                    </td>
+                    <td>{code.usage_count}</td>
+                    <td className="commission-amount">
+                      {code.total_commission.toLocaleString()}원
+                    </td>
+                    <td>{new Date(code.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="referral-commissions-section">
+          <h3>커미션 내역</h3>
+          <div className="commissions-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>피추천인</th>
+                  <th>구매 금액</th>
+                  <th>커미션 금액</th>
+                  <th>커미션율</th>
+                  <th>지급일</th>
+                </tr>
+              </thead>
+              <tbody>
+                {referralCommissions.map((commission, index) => (
+                  <tr key={index}>
+                    <td>{commission.referred_user_id}</td>
+                    <td>{commission.purchase_amount?.toLocaleString()}원</td>
+                    <td className="commission-amount">
+                      {commission.commission_amount.toLocaleString()}원
+                    </td>
+                    <td>{(commission.commission_rate * 100).toFixed(1)}%</td>
+                    <td>{new Date(commission.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div className="referral-stats">
+        <div className="stat-card">
+          <h4>총 발급 코드</h4>
+          <span className="stat-number">{referralCodes.length}</span>
+        </div>
+        <div className="stat-card">
+          <h4>총 커미션 지급</h4>
+          <span className="stat-number">
+            {referralCommissions.reduce((sum, c) => sum + c.commission_amount, 0).toLocaleString()}원
+          </span>
+        </div>
+        <div className="stat-card">
+          <h4>활성 코드</h4>
+          <span className="stat-number">
+            {referralCodes.filter(c => c.is_active).length}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="admin-page">
       <div className="admin-header">
@@ -589,6 +762,13 @@ const AdminPage = () => {
           <Activity size={20} />
           포인트 구매 신청
         </button>
+        <button
+          className={`tab-button ${activeTab === 'referrals' ? 'active' : ''}`}
+          onClick={() => setActiveTab('referrals')}
+        >
+          <TrendingUp size={20} />
+          추천인 관리
+        </button>
       </div>
 
       <div className="admin-content">
@@ -603,6 +783,7 @@ const AdminPage = () => {
             {activeTab === 'users' && renderUsers()}
             {activeTab === 'orders' && renderOrders()}
             {activeTab === 'purchases' && renderPurchases()}
+            {activeTab === 'referrals' && renderReferrals()}
           </>
         )}
       </div>

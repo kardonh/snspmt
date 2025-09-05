@@ -48,6 +48,11 @@ export function AuthProvider({ children }) {
               contactEmail: businessInfo.contactEmail
             });
           }
+
+          // 추천인 코드가 있으면 추가
+          if (businessInfo && businessInfo.referralCode) {
+            userData.referralCode = businessInfo.referralCode;
+          }
           
           return smmpanelApi.registerUser(userData);
         });

@@ -22,6 +22,9 @@ if 'rds.amazonaws.com' in DATABASE_URL and 'snspmt_db' in DATABASE_URL:
 SMMPANEL_API_URL = 'https://smmpanel.kr/api/v2'
 API_KEY = os.getenv('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
 
+# 추천인 커미션 설정
+REFERRAL_COMMISSION_RATE = 0.15  # 15% 커미션
+
 # PostgreSQL 연결 함수
 def get_db_connection():
     """PostgreSQL 데이터베이스 연결"""
@@ -129,6 +132,45 @@ def init_database():
                 )
             """)
             
+            # referral_codes 테이블 생성 (추천인 코드 관리)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS referral_codes (
+                    code_id SERIAL PRIMARY KEY,
+                    code VARCHAR(20) UNIQUE NOT NULL,
+                    referrer_user_id VARCHAR(255) NOT NULL,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP,
+                    usage_count INTEGER DEFAULT 0,
+                    total_commission DECIMAL(10,2) DEFAULT 0.00
+                )
+            """)
+            
+            # referrals 테이블 생성 (추천 관계 관리)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS referrals (
+                    referral_id SERIAL PRIMARY KEY,
+                    referrer_user_id VARCHAR(255) NOT NULL,
+                    referred_user_id VARCHAR(255) NOT NULL,
+                    referral_code VARCHAR(20) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(referred_user_id)
+                )
+            """)
+            
+            # referral_commissions 테이블 생성 (커미션 내역)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS referral_commissions (
+                    commission_id SERIAL PRIMARY KEY,
+                    referrer_user_id VARCHAR(255) NOT NULL,
+                    referred_user_id VARCHAR(255) NOT NULL,
+                    purchase_id INTEGER NOT NULL,
+                    commission_amount DECIMAL(10,2) NOT NULL,
+                    commission_rate DECIMAL(5,4) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
             conn.commit()
             print("데이터베이스 초기화 완료")
             return True
@@ -176,6 +218,7 @@ def register():
         data = request.get_json()
         user_id = data.get('uid')
         email = data.get('email')
+        referral_code = data.get('referralCode')
         
         if not user_id or not email:
             return jsonify({'error': '필수 정보가 누락되었습니다.'}), 400
@@ -188,6 +231,40 @@ def register():
                 VALUES (%s, 0) 
                 ON CONFLICT (user_id) DO NOTHING
             """, (user_id,))
+            
+            # 추천인 코드가 있으면 처리
+            if referral_code and referral_code.strip():
+                try:
+                    # 추천인 코드 사용
+                    cursor.execute("""
+                        SELECT code_id, referrer_user_id, is_active, expires_at
+                        FROM referral_codes 
+                        WHERE code = %s
+                    """, (referral_code.strip().upper(),))
+                    
+                    code_info = cursor.fetchone()
+                    if code_info and code_info['is_active']:
+                        # 추천 관계 저장
+                        cursor.execute("""
+                            INSERT INTO referrals (referrer_user_id, referred_user_id, referral_code)
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT (referred_user_id) DO NOTHING
+                        """, (code_info['referrer_user_id'], user_id, referral_code.strip().upper()))
+                        
+                        # 사용 횟수 증가
+                        cursor.execute("""
+                            UPDATE referral_codes 
+                            SET usage_count = usage_count + 1
+                            WHERE code = %s
+                        """, (referral_code.strip().upper(),))
+                        
+                        print(f"추천인 코드 적용: {referral_code} -> {user_id}")
+                    else:
+                        print(f"유효하지 않은 추천인 코드: {referral_code}")
+                except Exception as e:
+                    print(f"추천인 코드 처리 실패: {e}")
+                    # 추천인 코드 처리 실패해도 회원가입은 계속 진행
+            
             conn.commit()
         
         return jsonify({'message': '사용자 등록 완료'}), 200
@@ -691,6 +768,220 @@ def get_user_info():
     except Exception as e:
         print(f"사용자 정보 조회 실패: {e}")
         return jsonify({'error': '사용자 정보 조회에 실패했습니다.'}), 500
+
+# ==================== 추천인 시스템 API ====================
+
+@app.route('/api/referral/generate-code', methods=['POST'])
+def generate_referral_code():
+    """추천인 코드 생성 (관리자 전용)"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': '사용자 ID가 필요합니다.'}), 400
+        
+        # 추천인 코드 생성 (8자리 랜덤 문자열)
+        import random
+        import string
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        
+        conn = get_db_connection()
+        if conn is None:
+            return jsonify({'error': '데이터베이스 연결 실패'}), 500
+            
+        with conn:
+            cursor = conn.cursor()
+            
+            # 중복 코드 확인
+            cursor.execute("SELECT code FROM referral_codes WHERE code = %s", (code,))
+            if cursor.fetchone():
+                # 중복이면 다시 생성
+                code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+            
+            # 추천인 코드 저장
+            cursor.execute("""
+                INSERT INTO referral_codes (code, referrer_user_id, is_active)
+                VALUES (%s, %s, TRUE)
+            """, (code, user_id))
+            
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'code': code,
+                'message': '추천인 코드가 생성되었습니다.'
+            }), 200
+            
+    except Exception as e:
+        print(f"추천인 코드 생성 실패: {e}")
+        return jsonify({'error': '추천인 코드 생성에 실패했습니다.'}), 500
+
+@app.route('/api/referral/use-code', methods=['POST'])
+def use_referral_code():
+    """추천인 코드 사용"""
+    try:
+        data = request.get_json()
+        referral_code = data.get('referral_code')
+        user_id = data.get('user_id')
+        
+        if not referral_code or not user_id:
+            return jsonify({'error': '추천인 코드와 사용자 ID가 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        if conn is None:
+            return jsonify({'error': '데이터베이스 연결 실패'}), 500
+            
+        with conn:
+            cursor = conn.cursor()
+            
+            # 추천인 코드 유효성 확인
+            cursor.execute("""
+                SELECT code_id, referrer_user_id, is_active, expires_at
+                FROM referral_codes 
+                WHERE code = %s
+            """, (referral_code,))
+            
+            code_info = cursor.fetchone()
+            if not code_info:
+                return jsonify({'error': '유효하지 않은 추천인 코드입니다.'}), 400
+            
+            if not code_info['is_active']:
+                return jsonify({'error': '비활성화된 추천인 코드입니다.'}), 400
+            
+            # 이미 추천받은 사용자인지 확인
+            cursor.execute("""
+                SELECT referral_id FROM referrals WHERE referred_user_id = %s
+            """, (user_id,))
+            
+            if cursor.fetchone():
+                return jsonify({'error': '이미 추천인 코드를 사용한 사용자입니다.'}), 400
+            
+            # 추천 관계 저장
+            cursor.execute("""
+                INSERT INTO referrals (referrer_user_id, referred_user_id, referral_code)
+                VALUES (%s, %s, %s)
+            """, (code_info['referrer_user_id'], user_id, referral_code))
+            
+            # 사용 횟수 증가
+            cursor.execute("""
+                UPDATE referral_codes 
+                SET usage_count = usage_count + 1
+                WHERE code = %s
+            """, (referral_code,))
+            
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': '추천인 코드가 성공적으로 적용되었습니다.',
+                'referrer_user_id': code_info['referrer_user_id']
+            }), 200
+            
+    except Exception as e:
+        print(f"추천인 코드 사용 실패: {e}")
+        return jsonify({'error': '추천인 코드 사용에 실패했습니다.'}), 500
+
+@app.route('/api/referral/my-codes', methods=['GET'])
+def get_my_referral_codes():
+    """내 추천인 코드 목록 조회"""
+    try:
+        user_id = request.args.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': '사용자 ID가 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        if conn is None:
+            return jsonify({'error': '데이터베이스 연결 실패'}), 500
+            
+        with conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT 
+                    code,
+                    is_active,
+                    created_at,
+                    expires_at,
+                    usage_count,
+                    total_commission
+                FROM referral_codes 
+                WHERE referrer_user_id = %s
+                ORDER BY created_at DESC
+            """, (user_id,))
+            
+            codes = []
+            for row in cursor.fetchall():
+                codes.append({
+                    'code': row['code'],
+                    'is_active': row['is_active'],
+                    'created_at': row['created_at'].isoformat() if row['created_at'] else None,
+                    'expires_at': row['expires_at'].isoformat() if row['expires_at'] else None,
+                    'usage_count': row['usage_count'],
+                    'total_commission': float(row['total_commission'])
+                })
+            
+            return jsonify({
+                'success': True,
+                'codes': codes
+            }), 200
+            
+    except Exception as e:
+        print(f"추천인 코드 목록 조회 실패: {e}")
+        return jsonify({'error': '추천인 코드 목록 조회에 실패했습니다.'}), 500
+
+@app.route('/api/referral/commissions', methods=['GET'])
+def get_referral_commissions():
+    """추천인 커미션 내역 조회"""
+    try:
+        user_id = request.args.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': '사용자 ID가 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        if conn is None:
+            return jsonify({'error': '데이터베이스 연결 실패'}), 500
+            
+        with conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT 
+                    rc.commission_id,
+                    rc.referred_user_id,
+                    rc.purchase_id,
+                    rc.commission_amount,
+                    rc.commission_rate,
+                    rc.created_at,
+                    pp.amount as purchase_amount
+                FROM referral_commissions rc
+                LEFT JOIN point_purchases pp ON rc.purchase_id = pp.purchase_id
+                WHERE rc.referrer_user_id = %s
+                ORDER BY rc.created_at DESC
+            """, (user_id,))
+            
+            commissions = []
+            for row in cursor.fetchall():
+                commissions.append({
+                    'commission_id': row['commission_id'],
+                    'referred_user_id': row['referred_user_id'],
+                    'purchase_id': row['purchase_id'],
+                    'commission_amount': float(row['commission_amount']),
+                    'commission_rate': float(row['commission_rate']),
+                    'purchase_amount': row['purchase_amount'],
+                    'created_at': row['created_at'].isoformat() if row['created_at'] else None
+                })
+            
+            return jsonify({
+                'success': True,
+                'commissions': commissions
+            }), 200
+            
+    except Exception as e:
+        print(f"추천인 커미션 내역 조회 실패: {e}")
+        return jsonify({'error': '추천인 커미션 내역 조회에 실패했습니다.'}), 500
 
 # 관리자 API 블루프린트 등록
 try:

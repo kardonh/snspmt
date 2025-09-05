@@ -277,17 +277,64 @@ def update_purchase_status(purchase_id):
                 WHERE purchase_id = %s
             """, (status, purchase_id))
             
-            # 사용자 포인트 증가
+            # 구매 정보 조회 (추천인 커미션 계산용)
             cursor.execute("""
-                UPDATE points 
-                SET points = points + (
-                    SELECT amount FROM point_purchases WHERE purchase_id = %s
-                ),
-                updated_at = CURRENT_TIMESTAMP
-                WHERE user_id = (
-                    SELECT user_id FROM point_purchases WHERE purchase_id = %s
-                )
-            """, (purchase_id, purchase_id))
+                SELECT user_id, amount, price 
+                FROM point_purchases 
+                WHERE purchase_id = %s
+            """, (purchase_id,))
+            
+            purchase_info = cursor.fetchone()
+            if purchase_info:
+                user_id = purchase_info['user_id']
+                purchase_amount = purchase_info['amount']
+                purchase_price = purchase_info['price']
+                
+                # 사용자 포인트 증가
+                cursor.execute("""
+                    UPDATE points 
+                    SET points = points + %s,
+                    updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = %s
+                """, (purchase_amount, user_id))
+                
+                # 추천인 커미션 처리
+                cursor.execute("""
+                    SELECT referrer_user_id 
+                    FROM referrals 
+                    WHERE referred_user_id = %s
+                """, (user_id,))
+                
+                referral_info = cursor.fetchone()
+                if referral_info:
+                    referrer_user_id = referral_info['referrer_user_id']
+                    
+                    # 15% 커미션 계산
+                    commission_amount = purchase_price * 0.15
+                    
+                    # 추천인에게 포인트 지급
+                    cursor.execute("""
+                        UPDATE points 
+                        SET points = points + %s,
+                        updated_at = CURRENT_TIMESTAMP
+                        WHERE user_id = %s
+                    """, (commission_amount, referrer_user_id))
+                    
+                    # 커미션 내역 저장
+                    cursor.execute("""
+                        INSERT INTO referral_commissions 
+                        (referrer_user_id, referred_user_id, purchase_id, commission_amount, commission_rate)
+                        VALUES (%s, %s, %s, %s, 0.15)
+                    """, (referrer_user_id, user_id, purchase_id, commission_amount))
+                    
+                    # 추천인 코드의 총 커미션 업데이트
+                    cursor.execute("""
+                        UPDATE referral_codes 
+                        SET total_commission = total_commission + %s
+                        WHERE referrer_user_id = %s
+                    """, (commission_amount, referrer_user_id))
+                    
+                    print(f"추천인 커미션 지급: {referrer_user_id}에게 {commission_amount}원 지급")
             
         else:
             # 거절 시 상태만 업데이트

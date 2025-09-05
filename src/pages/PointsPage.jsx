@@ -20,6 +20,8 @@ const PointsPage = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [purchaseHistory, setPurchaseHistory] = useState([])
   const [userInfo, setUserInfo] = useState(null)
+  const [referralCodes, setReferralCodes] = useState([])
+  const [referralCommissions, setReferralCommissions] = useState([])
 
   const pointPackages = [
     { amount: 10000, price: 10000, bonus: 0 },
@@ -35,6 +37,7 @@ const PointsPage = () => {
       loadUserPoints()
       loadPurchaseHistory()
       loadUserInfo()
+      loadReferralData()
     }
   }, [currentUser])
 
@@ -74,6 +77,26 @@ const PointsPage = () => {
       setUserInfo(response.user || null)
     } catch (error) {
       console.error('사용자 정보 조회 실패:', error)
+    }
+  }
+
+  const loadReferralData = async () => {
+    try {
+      // 추천인 코드 목록 로드
+      const codesResponse = await fetch(`/api/referral/my-codes?user_id=${currentUser.uid}`)
+      if (codesResponse.ok) {
+        const codesData = await codesResponse.json()
+        setReferralCodes(codesData.codes || [])
+      }
+
+      // 추천인 커미션 내역 로드
+      const commissionsResponse = await fetch(`/api/referral/commissions?user_id=${currentUser.uid}`)
+      if (commissionsResponse.ok) {
+        const commissionsData = await commissionsResponse.json()
+        setReferralCommissions(commissionsData.commissions || [])
+      }
+    } catch (error) {
+      console.error('추천인 데이터 로드 실패:', error)
     }
   }
 
@@ -441,6 +464,61 @@ const PointsPage = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* 추천인 현황 */}
+        <div className="referral-section">
+          <h2>추천인 현황</h2>
+          
+          {referralCodes.length > 0 ? (
+            <div className="referral-content">
+              <div className="referral-codes">
+                <h3>내 추천인 코드</h3>
+                <div className="codes-list">
+                  {referralCodes.map((code, index) => (
+                    <div key={index} className="code-item">
+                      <div className="code-info">
+                        <span className="code-text">{code.code}</span>
+                        <span className={`status-badge ${code.is_active ? 'active' : 'inactive'}`}>
+                          {code.is_active ? '활성' : '비활성'}
+                        </span>
+                      </div>
+                      <div className="code-stats">
+                        <span>사용: {code.usage_count}회</span>
+                        <span>커미션: {code.total_commission.toLocaleString()}원</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {referralCommissions.length > 0 && (
+                <div className="referral-commissions">
+                  <h3>커미션 내역</h3>
+                  <div className="commissions-list">
+                    {referralCommissions.map((commission, index) => (
+                      <div key={index} className="commission-item">
+                        <div className="commission-info">
+                          <span className="referred-user">{commission.referred_user_id}</span>
+                          <span className="commission-date">
+                            {new Date(commission.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="commission-amount">
+                          +{commission.commission_amount.toLocaleString()}원
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="no-referral">
+              <p>아직 발급받은 추천인 코드가 없습니다.</p>
+              <p>관리자에게 문의하여 추천인 코드를 발급받으세요.</p>
             </div>
           )}
         </div>
