@@ -287,6 +287,8 @@ def register():
             # 메모리 기반 SQLite인 경우 테이블 생성
             if 'memory' in str(conn):
                 print("메모리 기반 SQLite - 테이블 생성 중...")
+                
+                # points 테이블 생성
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS points (
                         user_id TEXT PRIMARY KEY,
@@ -295,6 +297,9 @@ def register():
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
+                print("메모리 기반 SQLite points 테이블 생성 완료")
+                
+                # referral_codes 테이블 생성
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS referral_codes (
                         code_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -307,6 +312,9 @@ def register():
                         total_commission REAL DEFAULT 0.0
                     )
                 """)
+                print("메모리 기반 SQLite referral_codes 테이블 생성 완료")
+                
+                # referrals 테이블 생성
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS referrals (
                         referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -317,13 +325,12 @@ def register():
                         UNIQUE(referred_user_id)
                     )
                 """)
-                print("메모리 기반 SQLite 테이블 생성 완료")
+                print("메모리 기반 SQLite referrals 테이블 생성 완료")
             
-            # 사용자 포인트 테이블에 등록
+            # 사용자 포인트 테이블에 등록 (SQLite 문법 사용)
             cursor.execute("""
-                INSERT INTO points (user_id, points) 
-                VALUES (?, 0) 
-                ON CONFLICT (user_id) DO NOTHING
+                INSERT OR IGNORE INTO points (user_id, points) 
+                VALUES (?, 0)
             """, (user_id,))
             print(f"사용자 포인트 등록 완료: {user_id}")
             
@@ -340,11 +347,10 @@ def register():
                     
                     code_info = cursor.fetchone()
                     if code_info and code_info['is_active']:
-                        # 추천 관계 저장
+                        # 추천 관계 저장 (SQLite 문법 사용)
                         cursor.execute("""
-                            INSERT INTO referrals (referrer_user_id, referred_user_id, referral_code)
+                            INSERT OR IGNORE INTO referrals (referrer_user_id, referred_user_id, referral_code)
                             VALUES (?, ?, ?)
-                            ON CONFLICT (referred_user_id) DO NOTHING
                         """, (code_info['referrer_user_id'], user_id, referral_code.strip().upper()))
                         
                         # 사용 횟수 증가
@@ -365,9 +371,16 @@ def register():
             conn.commit()
             print("데이터베이스 커밋 완료")
             
+        except Exception as db_error:
+            print(f"데이터베이스 작업 실패: {db_error}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'데이터베이스 작업에 실패했습니다: {str(db_error)}'}), 500
         finally:
-            cursor.close()
-            conn.close()
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
         
         print("사용자 등록 성공")
         return jsonify({'message': '사용자 등록 완료'}), 200
