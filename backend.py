@@ -284,48 +284,47 @@ def register():
         try:
             cursor = conn.cursor()
             
-            # 메모리 기반 SQLite인 경우 테이블 생성
-            if 'memory' in str(conn):
-                print("메모리 기반 SQLite - 테이블 생성 중...")
-                
-                # points 테이블 생성
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS points (
-                        user_id TEXT PRIMARY KEY,
-                        points INTEGER DEFAULT 0,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-                print("메모리 기반 SQLite points 테이블 생성 완료")
-                
-                # referral_codes 테이블 생성
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS referral_codes (
-                        code_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        code TEXT UNIQUE NOT NULL,
-                        referrer_user_id TEXT NOT NULL,
-                        is_active BOOLEAN DEFAULT 1,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        expires_at TIMESTAMP,
-                        usage_count INTEGER DEFAULT 0,
-                        total_commission REAL DEFAULT 0.0
-                    )
-                """)
-                print("메모리 기반 SQLite referral_codes 테이블 생성 완료")
-                
-                # referrals 테이블 생성
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS referrals (
-                        referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        referrer_user_id TEXT NOT NULL,
-                        referred_user_id TEXT NOT NULL,
-                        referral_code TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE(referred_user_id)
-                    )
-                """)
-                print("메모리 기반 SQLite referrals 테이블 생성 완료")
+            # 모든 경우에 대해 테이블 생성 (안전한 방법)
+            print("테이블 생성 확인 중...")
+            
+            # points 테이블 생성 (SQLite 문법)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS points (
+                    user_id TEXT PRIMARY KEY,
+                    points INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            print("points 테이블 생성/확인 완료")
+            
+            # referral_codes 테이블 생성 (SQLite 문법)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS referral_codes (
+                    code_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code TEXT UNIQUE NOT NULL,
+                    referrer_user_id TEXT NOT NULL,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP,
+                    usage_count INTEGER DEFAULT 0,
+                    total_commission REAL DEFAULT 0.0
+                )
+            """)
+            print("referral_codes 테이블 생성/확인 완료")
+            
+            # referrals 테이블 생성 (SQLite 문법)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS referrals (
+                    referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    referrer_user_id TEXT NOT NULL,
+                    referred_user_id TEXT NOT NULL,
+                    referral_code TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(referred_user_id)
+                )
+            """)
+            print("referrals 테이블 생성/확인 완료")
             
             # 사용자 포인트 테이블에 등록 (SQLite 문법 사용)
             cursor.execute("""
@@ -495,35 +494,34 @@ def create_order():
             
             cursor = conn.cursor()
             
-            # 메모리 기반 SQLite인 경우 orders 테이블 생성
-            if 'memory' in str(conn):
-                print("메모리 기반 SQLite - orders 테이블 생성 중...")
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS orders (
-                        order_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id TEXT NOT NULL,
-                        service_id INTEGER NOT NULL,
-                        link TEXT NOT NULL,
-                        quantity INTEGER NOT NULL,
-                        price REAL NOT NULL,
-                        status TEXT DEFAULT 'pending_payment',
-                        comments TEXT,
-                        explanation TEXT,
-                        runs INTEGER DEFAULT 1,
-                        interval INTEGER DEFAULT 0,
-                        username TEXT,
-                        min_quantity INTEGER,
-                        max_quantity INTEGER,
-                        posts INTEGER,
-                        delay INTEGER,
-                        expiry TEXT,
-                        old_posts INTEGER,
-                        external_order_id TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-                print("메모리 기반 SQLite orders 테이블 생성 완료")
+            # orders 테이블 생성 (모든 경우에 대해)
+            print("orders 테이블 생성 확인 중...")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    service_id INTEGER NOT NULL,
+                    link TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    price REAL NOT NULL,
+                    status TEXT DEFAULT 'pending_payment',
+                    comments TEXT,
+                    explanation TEXT,
+                    runs INTEGER DEFAULT 1,
+                    interval INTEGER DEFAULT 0,
+                    username TEXT,
+                    min_quantity INTEGER,
+                    max_quantity INTEGER,
+                    posts INTEGER,
+                    delay INTEGER,
+                    expiry TEXT,
+                    old_posts INTEGER,
+                    external_order_id TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            print("orders 테이블 생성/확인 완료")
             
             cursor.execute("""
                 INSERT INTO orders (
