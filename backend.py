@@ -284,10 +284,45 @@ def register():
         try:
             cursor = conn.cursor()
             
+            # 메모리 기반 SQLite인 경우 테이블 생성
+            if 'memory' in str(conn):
+                print("메모리 기반 SQLite - 테이블 생성 중...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS points (
+                        user_id TEXT PRIMARY KEY,
+                        points INTEGER DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS referral_codes (
+                        code_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        code TEXT UNIQUE NOT NULL,
+                        referrer_user_id TEXT NOT NULL,
+                        is_active BOOLEAN DEFAULT 1,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        expires_at TIMESTAMP,
+                        usage_count INTEGER DEFAULT 0,
+                        total_commission REAL DEFAULT 0.0
+                    )
+                """)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS referrals (
+                        referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        referrer_user_id TEXT NOT NULL,
+                        referred_user_id TEXT NOT NULL,
+                        referral_code TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(referred_user_id)
+                    )
+                """)
+                print("메모리 기반 SQLite 테이블 생성 완료")
+            
             # 사용자 포인트 테이블에 등록
             cursor.execute("""
                 INSERT INTO points (user_id, points) 
-                VALUES (%s, 0) 
+                VALUES (?, 0) 
                 ON CONFLICT (user_id) DO NOTHING
             """, (user_id,))
             print(f"사용자 포인트 등록 완료: {user_id}")
@@ -300,7 +335,7 @@ def register():
                     cursor.execute("""
                         SELECT code_id, referrer_user_id, is_active, expires_at
                         FROM referral_codes 
-                        WHERE code = %s
+                        WHERE code = ?
                     """, (referral_code.strip().upper(),))
                     
                     code_info = cursor.fetchone()
@@ -308,7 +343,7 @@ def register():
                         # 추천 관계 저장
                         cursor.execute("""
                             INSERT INTO referrals (referrer_user_id, referred_user_id, referral_code)
-                            VALUES (%s, %s, %s)
+                            VALUES (?, ?, ?)
                             ON CONFLICT (referred_user_id) DO NOTHING
                         """, (code_info['referrer_user_id'], user_id, referral_code.strip().upper()))
                         
@@ -316,7 +351,7 @@ def register():
                         cursor.execute("""
                             UPDATE referral_codes 
                             SET usage_count = usage_count + 1
-                            WHERE code = %s
+                            WHERE code = ?
                         """, (referral_code.strip().upper(),))
                         
                         print(f"추천인 코드 적용 완료: {referral_code} -> {user_id}")
@@ -439,28 +474,63 @@ def create_order():
         # 가격 계산 (임시로 1000당 100원으로 설정)
         price = (quantity / 1000) * 100
         
-        # PostgreSQL에 주문 저장
+        # 데이터베이스에 주문 저장
         try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
+            conn = get_db_connection()
+            if not conn:
+                return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
+            
+            cursor = conn.cursor()
+            
+            # 메모리 기반 SQLite인 경우 orders 테이블 생성
+            if 'memory' in str(conn):
+                print("메모리 기반 SQLite - orders 테이블 생성 중...")
                 cursor.execute("""
-                    INSERT INTO orders (
-                        user_id, service_id, link, quantity, price, status,
-                        comments, explanation, runs, interval, username,
-                        min_quantity, max_quantity, posts, delay, expiry, old_posts
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING order_id
-                """, (
-                    user_id, service_id, link, quantity, price, 'pending_payment',
-                    data.get('comments'), data.get('explanation'), data.get('runs', 1),
-                    data.get('interval', 0), data.get('username'), data.get('min'),
-                    data.get('max'), data.get('posts', 0), data.get('delay', 0),
-                    data.get('expiry'), data.get('old_posts', 0)
-                ))
-                
-                order_id = cursor.fetchone()[0]
-                conn.commit()
-                print(f"주문 저장 완료: {order_id}")
+                    CREATE TABLE IF NOT EXISTS orders (
+                        order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id TEXT NOT NULL,
+                        service_id INTEGER NOT NULL,
+                        link TEXT NOT NULL,
+                        quantity INTEGER NOT NULL,
+                        price REAL NOT NULL,
+                        status TEXT DEFAULT 'pending_payment',
+                        comments TEXT,
+                        explanation TEXT,
+                        runs INTEGER DEFAULT 1,
+                        interval INTEGER DEFAULT 0,
+                        username TEXT,
+                        min_quantity INTEGER,
+                        max_quantity INTEGER,
+                        posts INTEGER,
+                        delay INTEGER,
+                        expiry TEXT,
+                        old_posts INTEGER,
+                        external_order_id TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                print("메모리 기반 SQLite orders 테이블 생성 완료")
+            
+            cursor.execute("""
+                INSERT INTO orders (
+                    user_id, service_id, link, quantity, price, status,
+                    comments, explanation, runs, interval, username,
+                    min_quantity, max_quantity, posts, delay, expiry, old_posts
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                user_id, service_id, link, quantity, price, 'pending_payment',
+                data.get('comments'), data.get('explanation'), data.get('runs', 1),
+                data.get('interval', 0), data.get('username'), data.get('min'),
+                data.get('max'), data.get('posts', 0), data.get('delay', 0),
+                data.get('expiry'), data.get('old_posts', 0)
+            ))
+            
+            order_id = cursor.lastrowid
+            conn.commit()
+            cursor.close()
+            conn.close()
+            print(f"주문 저장 완료: {order_id}")
                 
         except Exception as e:
             print(f"데이터베이스 저장 실패: {e}")
