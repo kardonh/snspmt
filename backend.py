@@ -395,28 +395,56 @@ def register():
 def login():
     try:
         data = request.get_json()
-        user_id = data.get('uid')
+        print(f"로그인 요청 데이터: {data}")
+        
+        # userId 또는 uid 필드 모두 지원
+        user_id = data.get('userId') or data.get('uid')
         
         if not user_id:
             return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
         
-        # PostgreSQL에서 사용자 정보 조회
-        with get_db_connection() as conn:
+        # 데이터베이스에서 사용자 정보 조회
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
+        
+        try:
             cursor = conn.cursor()
+            
+            # 테이블 생성 확인 (모든 경우에 대해)
             cursor.execute("""
-                SELECT user_id, points FROM points WHERE user_id = %s
+                CREATE TABLE IF NOT EXISTS points (
+                    user_id TEXT PRIMARY KEY,
+                    points INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # 사용자 정보 조회
+            cursor.execute("""
+                SELECT user_id, points FROM points WHERE user_id = ?
             """, (user_id,))
             
             user = cursor.fetchone()
             if not user:
                 # 사용자가 없으면 새로 생성
                 cursor.execute("""
-                    INSERT INTO points (user_id, points) VALUES (%s, 0)
+                    INSERT OR IGNORE INTO points (user_id, points) VALUES (?, 0)
                 """, (user_id,))
                 conn.commit()
                 points = 0
             else:
                 points = user['points']
+                
+        except Exception as db_error:
+            print(f"데이터베이스 작업 실패: {db_error}")
+            return jsonify({'error': f'데이터베이스 작업에 실패했습니다: {str(db_error)}'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
         
         return jsonify({
             'user_id': user_id,
@@ -432,18 +460,46 @@ def login():
 def update_activity():
     try:
         data = request.get_json()
-        user_id = data.get('uid')
+        print(f"활동 업데이트 요청 데이터: {data}")
+        
+        # userId 또는 uid 필드 모두 지원
+        user_id = data.get('userId') or data.get('uid')
         
         if not user_id:
             return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
         
-        # PostgreSQL에서 사용자 정보 업데이트
-        with get_db_connection() as conn:
+        # 데이터베이스에서 사용자 정보 업데이트
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
+        
+        try:
             cursor = conn.cursor()
+            
+            # 테이블 생성 확인
             cursor.execute("""
-                UPDATE points SET updated_at = %s WHERE user_id = %s
+                CREATE TABLE IF NOT EXISTS points (
+                    user_id TEXT PRIMARY KEY,
+                    points INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # 사용자 활동 업데이트
+            cursor.execute("""
+                UPDATE points SET updated_at = ? WHERE user_id = ?
             """, (datetime.now(), user_id))
             conn.commit()
+            
+        except Exception as db_error:
+            print(f"데이터베이스 작업 실패: {db_error}")
+            return jsonify({'error': f'데이터베이스 작업에 실패했습니다: {str(db_error)}'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
         
         return jsonify({'message': '활동 업데이트 완료'}), 200
         
