@@ -519,20 +519,34 @@ def create_order():
         print(f"사용자 ID: {user_id}")
         print(f"요청 데이터: {data}")
         
-        # 필수 필드 검증
-        required_fields = ['service_id', 'link', 'quantity']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({
-                    'type': 'validation_error',
-                    'message': f'{field}가 누락되었습니다.'
-                }), 400
+        # 필수 필드 검증 (serviceId 또는 service_id 모두 지원)
+        service_id = data.get('service') or data.get('serviceId') or data.get('service_id')
+        link = data.get('link')
+        quantity = data.get('quantity')
+        
+        if not service_id:
+            return jsonify({
+                'type': 'validation_error',
+                'message': 'service_id가 누락되었습니다.'
+            }), 400
+        
+        if not link:
+            return jsonify({
+                'type': 'validation_error',
+                'message': 'link가 누락되었습니다.'
+            }), 400
+        
+        if not quantity:
+            return jsonify({
+                'type': 'validation_error',
+                'message': 'quantity가 누락되었습니다.'
+            }), 400
         
         # 데이터 타입 검증
         try:
-            service_id = int(data['service_id'])
-            quantity = int(data['quantity'])
-            link = str(data['link'])
+            service_id = int(service_id)
+            quantity = int(quantity)
+            link = str(link)
         except (ValueError, TypeError):
             return jsonify({
                 'type': 'validation_error',
@@ -587,10 +601,10 @@ def create_order():
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 user_id, service_id, link, quantity, price, 'pending_payment',
-                data.get('comments'), data.get('explanation'), data.get('runs', 1),
-                data.get('interval', 0), data.get('username'), data.get('min'),
-                data.get('max'), data.get('posts', 0), data.get('delay', 0),
-                data.get('expiry'), data.get('old_posts', 0)
+                data.get('comments', ''), data.get('explanation', ''), data.get('runs', 1),
+                data.get('interval', 0), data.get('username', ''), data.get('min', 0),
+                data.get('max', 0), data.get('posts', 0), data.get('delay', 0),
+                data.get('expiry', ''), data.get('old_posts', 0)
             ))
             
             order_id = cursor.lastrowid
