@@ -3,8 +3,8 @@ from flask_cors import CORS
 import os
 import json
 import sqlite3
-import psycopg2
-from psycopg2.extras import RealDictCursor
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
 from datetime import datetime
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -27,11 +27,11 @@ def initialize_app():
         init_database()
         print("✅ 데이터베이스 초기화 완료")
         print("✅ 앱 시작 완료")
-    except Exception as e:
+        except Exception as e:
         print(f"⚠️ 앱 초기화 중 오류: {e}")
         # 초기화 실패해도 앱은 계속 실행
-
-# 환경 변수 설정
+    
+    # 환경 변수 설정
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/snspmt')
 # AWS RDS용 데이터베이스 URL 수정
 if 'rds.amazonaws.com' in DATABASE_URL and 'snspmt_db' in DATABASE_URL:
@@ -100,7 +100,7 @@ def init_database():
             return False
             
         with conn:
-            cursor = conn.cursor()
+                cursor = conn.cursor()
             
             # orders 테이블 생성
             cursor.execute("""
@@ -210,7 +210,7 @@ def init_database():
             
     except Exception as e:
         print(f"데이터베이스 초기화 실패: {e}")
-        return False
+    return False
 
 # 정적 파일 서빙
 @app.route('/<path:filename>')
@@ -249,7 +249,7 @@ def detailed_health_check():
             'database': 'connected',
             'service': 'snspmt'
         })
-    except Exception as e:
+        except Exception as e:
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
@@ -282,8 +282,8 @@ def register():
             return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
         
         try:
-            cursor = conn.cursor()
-            
+        cursor = conn.cursor()
+        
             # 모든 경우에 대해 테이블 생성 (안전한 방법)
             print("테이블 생성 확인 중...")
             
@@ -291,8 +291,8 @@ def register():
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS points (
                     user_id TEXT PRIMARY KEY,
-                    points INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                points INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -305,7 +305,7 @@ def register():
                     code TEXT UNIQUE NOT NULL,
                     referrer_user_id TEXT NOT NULL,
                     is_active BOOLEAN DEFAULT 1,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     expires_at TIMESTAMP,
                     usage_count INTEGER DEFAULT 0,
                     total_commission REAL DEFAULT 0.0
@@ -320,7 +320,7 @@ def register():
                     referrer_user_id TEXT NOT NULL,
                     referred_user_id TEXT NOT NULL,
                     referral_code TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(referred_user_id)
                 )
             """)
@@ -383,7 +383,7 @@ def register():
         
         print("사용자 등록 성공")
         return jsonify({'message': '사용자 등록 완료'}), 200
-        
+            
     except Exception as e:
         print(f"사용자 등록 실패: {e}")
         import traceback
@@ -524,33 +524,51 @@ def create_order():
         link = data.get('link')
         quantity = data.get('quantity')
         
+        print(f"검증할 필드들: service_id={service_id}, link={link}, quantity={quantity}")
+        
         if not service_id:
             return jsonify({
                 'type': 'validation_error',
-                'message': 'service_id가 누락되었습니다.'
+                'message': 'service_id가 누락되었습니다.',
+                'received_data': data
             }), 400
         
         if not link:
             return jsonify({
                 'type': 'validation_error',
-                'message': 'link가 누락되었습니다.'
+                'message': 'link가 누락되었습니다.',
+                'received_data': data
             }), 400
         
         if not quantity:
             return jsonify({
                 'type': 'validation_error',
-                'message': 'quantity가 누락되었습니다.'
+                'message': 'quantity가 누락되었습니다.',
+                'received_data': data
             }), 400
         
-        # 데이터 타입 검증
+        # 데이터 타입 검증 (더 유연하게)
         try:
-            service_id = int(service_id)
-            quantity = int(quantity)
-            link = str(link)
-        except (ValueError, TypeError):
+            # service_id가 문자열인 경우 숫자로 변환 시도
+            if isinstance(service_id, str):
+                # 문자열이 숫자인지 확인
+                if service_id.isdigit():
+                    service_id = int(service_id)
+                else:
+                    # 문자열인 경우 그대로 사용 (SMM Panel API ID)
+                    pass
+            
+            quantity = int(quantity) if quantity else 0
+            link = str(link) if link else ''
+            
+            print(f"변환된 필드들: service_id={service_id} (type: {type(service_id)}), quantity={quantity}, link={link}")
+            
+        except (ValueError, TypeError) as e:
+            print(f"데이터 타입 변환 오류: {e}")
             return jsonify({
                 'type': 'validation_error',
-                'message': '잘못된 데이터 타입입니다.'
+                'message': f'잘못된 데이터 타입입니다: {str(e)}',
+                'received_data': data
             }), 400
         
         # 가격 계산 (임시로 1000당 100원으로 설정)
@@ -570,7 +588,7 @@ def create_order():
                 CREATE TABLE IF NOT EXISTS orders (
                     order_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
-                    service_id INTEGER NOT NULL,
+                    service_id TEXT NOT NULL,
                     link TEXT NOT NULL,
                     quantity INTEGER NOT NULL,
                     price REAL NOT NULL,
@@ -593,6 +611,9 @@ def create_order():
             """)
             print("orders 테이블 생성/확인 완료")
             
+            # service_id를 문자열로 저장 (SMM Panel API ID가 문자열일 수 있음)
+            service_id_str = str(service_id)
+            
             cursor.execute("""
                 INSERT INTO orders (
                     user_id, service_id, link, quantity, price, status,
@@ -600,7 +621,7 @@ def create_order():
                     min_quantity, max_quantity, posts, delay, expiry, old_posts
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                user_id, service_id, link, quantity, price, 'pending_payment',
+                user_id, service_id_str, link, quantity, price, 'pending_payment',
                 data.get('comments', ''), data.get('explanation', ''), data.get('runs', 1),
                 data.get('interval', 0), data.get('username', ''), data.get('min', 0),
                 data.get('max', 0), data.get('posts', 0), data.get('delay', 0),
@@ -611,7 +632,7 @@ def create_order():
             conn.commit()
             cursor.close()
             conn.close()
-            print(f"주문 저장 완료: {order_id}")
+        print(f"주문 저장 완료: {order_id}")
                 
         except Exception as e:
             print(f"데이터베이스 저장 실패: {e}")
@@ -733,23 +754,23 @@ def complete_order_payment(order_id):
                         conn.commit()
                         
                         print(f"smmpanel.kr 주문 전송 성공: {external_order_id}")
-                        
-                        return jsonify({
-                            'success': True,
+        
+        return jsonify({
+            'success': True,
                             'orderId': order_id,
                             'externalOrderId': external_order_id,
                             'status': 'processing',
                             'message': '결제가 완료되었고 주문이 처리 중입니다.',
                             'points_used': order['price'],
                             'remaining_points': current_points - order['price']
-                        }), 200
+        }), 200
                     else:
                         print(f"smmpanel.kr API 오류: {response.status_code} - {response.text}")
                         return jsonify({
                             'error': '외부 API 전송에 실패했습니다.'
                         }), 500
-                        
-                except Exception as e:
+        
+    except Exception as e:
                     print(f"smmpanel.kr API 전송 실패: {e}")
                     return jsonify({
                         'error': f'외부 API 전송 실패: {str(e)}'
@@ -776,50 +797,397 @@ def get_user_orders():
         
         print(f"주문 조회 요청: {user_id}")
         
-        # PostgreSQL에서 주문 조회
+        # 데이터베이스에서 주문 조회
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
+        
         try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT 
-                        order_id,
-                        service_id,
-                        link,
-                        quantity,
-                        price,
-                        status,
-                        external_order_id,
-                        created_at,
-                        updated_at
-                    FROM orders 
-                    WHERE user_id = %s
-                    ORDER BY created_at DESC
-                """, (user_id,))
-                
-                orders = []
-                for row in cursor.fetchall():
-                    order = {
-                        'id': row['order_id'],
-                        'service': row['service_id'],
-                        'link': row['link'],
-                        'quantity': row['quantity'],
-                        'price': float(row['price'] or 0),
-                        'status': row['status'],
-                        'external_order_id': row['external_order_id'],
-                        'created_at': row['created_at'].isoformat() if row['created_at'] else None,
-                        'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
-                    }
-                    orders.append(order)
-                
-                return jsonify({'orders': orders}), 200
+            cursor = conn.cursor()
             
-        except Exception as e:
-            print(f"데이터베이스 조회 실패: {e}")
-            return jsonify({'error': '주문 조회에 실패했습니다.'}), 500
+            # 테이블 생성 확인
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    service_id TEXT NOT NULL,
+                    link TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    price REAL NOT NULL,
+                    status TEXT DEFAULT 'pending_payment',
+                    comments TEXT,
+                    explanation TEXT,
+                    runs INTEGER DEFAULT 1,
+                    interval INTEGER DEFAULT 0,
+                    username TEXT,
+                    min_quantity INTEGER,
+                    max_quantity INTEGER,
+                    posts INTEGER,
+                    delay INTEGER,
+                    expiry TEXT,
+                    old_posts INTEGER,
+                    external_order_id TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            cursor.execute("""
+                SELECT 
+                    order_id,
+                    service_id,
+                    link,
+                    quantity,
+                    price,
+                    status,
+                    external_order_id,
+                    created_at,
+                    updated_at
+                FROM orders 
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+            """, (user_id,))
+            
+            orders = []
+            for row in cursor.fetchall():
+                order = {
+                    'id': row[0],
+                    'service': row[1],
+                    'link': row[2],
+                    'quantity': row[3],
+                    'price': float(row[4] or 0),
+                    'status': row[5],
+                    'external_order_id': row[6],
+                    'created_at': row[7].isoformat() if row[7] else None,
+                    'updated_at': row[8].isoformat() if row[8] else None
+                }
+                orders.append(order)
+            
+            return jsonify({'orders': orders}), 200
+            
+        except Exception as db_error:
+            print(f"데이터베이스 조회 실패: {db_error}")
+            return jsonify({'error': f'주문 조회에 실패했습니다: {str(db_error)}'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
         
     except Exception as e:
         print(f"주문 조회 실패: {e}")
         return jsonify({'error': '주문 조회에 실패했습니다.'}), 500
+
+# 사용자 포인트 조회
+@app.route('/api/points', methods=['GET'])
+def get_user_points():
+    """사용자 포인트 조회"""
+    try:
+        user_id = request.args.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
+        
+        print(f"포인트 조회 요청: {user_id}")
+        
+        # 데이터베이스에서 포인트 조회
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
+        
+        try:
+            cursor = conn.cursor()
+            
+            # 테이블 생성 확인
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS points (
+                    user_id TEXT PRIMARY KEY,
+                    points INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            cursor.execute("""
+                SELECT points FROM points WHERE user_id = ?
+            """, (user_id,))
+            
+            result = cursor.fetchone()
+            points = result[0] if result else 0
+            
+            return jsonify({'points': points}), 200
+            
+        except Exception as db_error:
+            print(f"데이터베이스 조회 실패: {db_error}")
+            return jsonify({'error': f'포인트 조회에 실패했습니다: {str(db_error)}'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+        
+    except Exception as e:
+        print(f"포인트 조회 실패: {e}")
+        return jsonify({'error': '포인트 조회에 실패했습니다.'}), 500
+
+# 사용자 정보 조회
+@app.route('/api/users/<user_id>', methods=['GET'])
+def get_user_info(user_id):
+    """사용자 정보 조회"""
+    try:
+        print(f"사용자 정보 조회 요청: {user_id}")
+        
+        # 데이터베이스에서 사용자 정보 조회
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
+        
+        try:
+            cursor = conn.cursor()
+            
+            # 테이블 생성 확인
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS points (
+                    user_id TEXT PRIMARY KEY,
+                    points INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            cursor.execute("""
+                SELECT points, created_at, updated_at FROM points WHERE user_id = ?
+            """, (user_id,))
+            
+            result = cursor.fetchone()
+            if result:
+                user_info = {
+                    'user_id': user_id,
+                    'points': result[0],
+                    'created_at': result[1].isoformat() if result[1] else None,
+                    'updated_at': result[2].isoformat() if result[2] else None
+                }
+            else:
+                user_info = {
+                    'user_id': user_id,
+                    'points': 0,
+                    'created_at': None,
+                    'updated_at': None
+                }
+            
+            return jsonify(user_info), 200
+            
+        except Exception as db_error:
+            print(f"데이터베이스 조회 실패: {db_error}")
+            return jsonify({'error': f'사용자 정보 조회에 실패했습니다: {str(db_error)}'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+        
+    except Exception as e:
+        print(f"사용자 정보 조회 실패: {e}")
+        return jsonify({'error': '사용자 정보 조회에 실패했습니다.'}), 500
+
+# 포인트 구매 내역 조회
+@app.route('/api/points/purchase-history', methods=['GET'])
+def get_purchase_history():
+    """포인트 구매 내역 조회"""
+    try:
+        user_id = request.args.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
+        
+        print(f"구매 내역 조회 요청: {user_id}")
+        
+        # 데이터베이스에서 구매 내역 조회
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
+        
+        try:
+            cursor = conn.cursor()
+            
+            # 테이블 생성 확인
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS point_purchases (
+                    purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    points INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            cursor.execute("""
+                SELECT purchase_id, points, amount, status, created_at, updated_at
+                FROM point_purchases 
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+            """, (user_id,))
+            
+            purchases = []
+            for row in cursor.fetchall():
+                purchase = {
+                    'id': row[0],
+                    'points': row[1],
+                    'amount': float(row[2]),
+                    'status': row[3],
+                    'created_at': row[4].isoformat() if row[4] else None,
+                    'updated_at': row[5].isoformat() if row[5] else None
+                }
+                purchases.append(purchase)
+            
+            return jsonify({'purchases': purchases}), 200
+            
+        except Exception as db_error:
+            print(f"데이터베이스 조회 실패: {db_error}")
+            return jsonify({'error': f'구매 내역 조회에 실패했습니다: {str(db_error)}'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+        
+    except Exception as e:
+        print(f"구매 내역 조회 실패: {e}")
+        return jsonify({'error': '구매 내역 조회에 실패했습니다.'}), 500
+
+# 추천인 코드 조회
+@app.route('/api/referral/my-codes', methods=['GET'])
+def get_my_referral_codes():
+    """내 추천인 코드 조회"""
+    try:
+        user_id = request.args.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
+        
+        print(f"추천인 코드 조회 요청: {user_id}")
+        
+        # 데이터베이스에서 추천인 코드 조회
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
+        
+        try:
+            cursor = conn.cursor()
+            
+            # 테이블 생성 확인
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS referral_codes (
+                    code_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code TEXT UNIQUE NOT NULL,
+                    referrer_user_id TEXT NOT NULL,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP,
+                    usage_count INTEGER DEFAULT 0,
+                    total_commission REAL DEFAULT 0.0
+                )
+            """)
+            
+                cursor.execute("""
+                SELECT code, is_active, created_at, expires_at, usage_count, total_commission
+                FROM referral_codes 
+                WHERE referrer_user_id = ?
+                ORDER BY created_at DESC
+            """, (user_id,))
+            
+            codes = []
+            for row in cursor.fetchall():
+                code = {
+                    'code': row[0],
+                    'is_active': bool(row[1]),
+                    'created_at': row[2].isoformat() if row[2] else None,
+                    'expires_at': row[3].isoformat() if row[3] else None,
+                    'usage_count': row[4],
+                    'total_commission': float(row[5])
+                }
+                codes.append(code)
+            
+            return jsonify({'codes': codes}), 200
+            
+        except Exception as db_error:
+            print(f"데이터베이스 조회 실패: {db_error}")
+            return jsonify({'error': f'추천인 코드 조회에 실패했습니다: {str(db_error)}'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+        
+            except Exception as e:
+        print(f"추천인 코드 조회 실패: {e}")
+        return jsonify({'error': '추천인 코드 조회에 실패했습니다.'}), 500
+
+# 추천인 커미션 조회
+@app.route('/api/referral/commissions', methods=['GET'])
+def get_referral_commissions():
+    """추천인 커미션 조회"""
+    try:
+        user_id = request.args.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
+        
+        print(f"추천인 커미션 조회 요청: {user_id}")
+        
+        # 데이터베이스에서 추천인 커미션 조회
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
+        
+        try:
+            cursor = conn.cursor()
+            
+            # 테이블 생성 확인
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS referrals (
+                    referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    referrer_user_id TEXT NOT NULL,
+                    referred_user_id TEXT NOT NULL,
+                    referral_code TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(referred_user_id)
+                )
+            """)
+            
+                cursor.execute("""
+                SELECT referred_user_id, referral_code, created_at
+                FROM referrals 
+                WHERE referrer_user_id = ?
+                    ORDER BY created_at DESC
+            """, (user_id,))
+            
+            commissions = []
+            for row in cursor.fetchall():
+                commission = {
+                    'referred_user_id': row[0],
+                    'referral_code': row[1],
+                    'created_at': row[2].isoformat() if row[2] else None,
+                    'commission_amount': 0.0  # 기본값
+                }
+                commissions.append(commission)
+            
+            return jsonify({'commissions': commissions}), 200
+            
+        except Exception as db_error:
+            print(f"데이터베이스 조회 실패: {db_error}")
+            return jsonify({'error': f'추천인 커미션 조회에 실패했습니다: {str(db_error)}'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+            
+    except Exception as e:
+        print(f"추천인 커미션 조회 실패: {e}")
+        return jsonify({'error': '추천인 커미션 조회에 실패했습니다.'}), 500
 
 # 주문 상세 조회
 @app.route('/api/orders/<order_id>', methods=['GET'])
@@ -831,8 +1199,41 @@ def get_order_detail(order_id):
         if not user_id:
             return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
         
-        with get_db_connection() as conn:
+        # 데이터베이스에서 주문 상세 조회
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
+        
+        try:
             cursor = conn.cursor()
+            
+            # 테이블 생성 확인
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    service_id TEXT NOT NULL,
+                    link TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    price REAL NOT NULL,
+                    status TEXT DEFAULT 'pending_payment',
+                    comments TEXT,
+                    explanation TEXT,
+                    runs INTEGER DEFAULT 1,
+                    interval INTEGER DEFAULT 0,
+                    username TEXT,
+                    min_quantity INTEGER,
+                    max_quantity INTEGER,
+                    posts INTEGER,
+                    delay INTEGER,
+                    expiry TEXT,
+                    old_posts INTEGER,
+                    external_order_id TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
             cursor.execute("""
                 SELECT 
                     order_id,
@@ -845,26 +1246,35 @@ def get_order_detail(order_id):
                     created_at,
                     updated_at
                 FROM orders 
-                WHERE order_id = %s AND user_id = %s
+                WHERE order_id = ? AND user_id = ?
             """, (order_id, user_id))
             
             result = cursor.fetchone()
             if result:
                 order_detail = {
-                    'order_id': result['order_id'],
-                    'user_id': result['user_id'],
-                    'service_id': result['service_id'],
-                    'link': result['link'],
-                    'quantity': result['quantity'],
-                    'price': float(result['price']),
-                    'status': result['status'],
-                    'created_at': result['created_at'].isoformat() if result['created_at'] else None,
-                    'updated_at': result['updated_at'].isoformat() if result['updated_at'] else None
+                    'order_id': result[0],
+                    'user_id': result[1],
+                    'service_id': result[2],
+                    'link': result[3],
+                    'quantity': result[4],
+                    'price': float(result[5]),
+                    'status': result[6],
+                    'created_at': result[7].isoformat() if result[7] else None,
+                    'updated_at': result[8].isoformat() if result[8] else None
                 }
                 return jsonify(order_detail), 200
             else:
                 return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
                 
+        except Exception as db_error:
+            print(f"데이터베이스 조회 실패: {db_error}")
+            return jsonify({'error': f'주문 상세 조회에 실패했습니다: {str(db_error)}'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+            
     except Exception as e:
         print(f"주문 상세 조회 실패: {e}")
         return jsonify({'error': '주문 상세 조회에 실패했습니다.'}), 500
@@ -894,8 +1304,8 @@ def deduct_user_points():
             current_points = result['points']
             if current_points < points:
                 return jsonify({'error': '포인트가 부족합니다.'}), 400
-            
-            # 포인트 차감
+        
+        # 포인트 차감
             cursor.execute("""
                 UPDATE points 
                 SET points = points - %s, updated_at = CURRENT_TIMESTAMP
@@ -903,12 +1313,12 @@ def deduct_user_points():
             """, (points, user_id))
             
             conn.commit()
-            
-            return jsonify({
+        
+        return jsonify({
                 'message': '포인트가 차감되었습니다.',
                 'remaining_points': current_points - points
-            }), 200
-            
+        }), 200
+        
     except Exception as e:
         print(f"포인트 차감 실패: {e}")
         return jsonify({'error': '포인트 차감에 실패했습니다.'}), 500
@@ -937,9 +1347,9 @@ def get_user_points():
                 else:
                     points = 0
                 
-                return jsonify({'points': points}), 200
+        return jsonify({'points': points}), 200
         
-        except Exception as e:
+    except Exception as e:
             print(f"포인트 조회 실패: {e}")
             return jsonify({'error': '포인트 조회에 실패했습니다.'}), 500
         
@@ -973,12 +1383,12 @@ def create_point_purchase():
                 purchase_id = cursor.fetchone()[0]
                 conn.commit()
         
-                return jsonify({
+        return jsonify({
                     'purchase_id': purchase_id,
                     'message': '포인트 구매 요청이 생성되었습니다.'
                 }), 200
         
-        except Exception as e:
+    except Exception as e:
             print(f"구매 요청 저장 실패: {e}")
             return jsonify({'error': '구매 요청 저장에 실패했습니다.'}), 500
         
@@ -1165,7 +1575,7 @@ def generate_referral_code():
                 'code': code,
                 'message': '추천인 코드가 생성되었습니다.'
             }), 200
-            
+        
     except Exception as e:
         print(f"추천인 코드 생성 실패: {e}")
         return jsonify({'error': '추천인 코드 생성에 실패했습니다.'}), 500
@@ -1224,13 +1634,13 @@ def use_referral_code():
             """, (referral_code,))
             
             conn.commit()
-            
-            return jsonify({
-                'success': True,
+        
+        return jsonify({
+            'success': True,
                 'message': '추천인 코드가 성공적으로 적용되었습니다.',
                 'referrer_user_id': code_info['referrer_user_id']
-            }), 200
-            
+        }), 200
+        
     except Exception as e:
         print(f"추천인 코드 사용 실패: {e}")
         return jsonify({'error': '추천인 코드 사용에 실패했습니다.'}), 500
@@ -1274,12 +1684,12 @@ def get_my_referral_codes():
                     'usage_count': row['usage_count'],
                     'total_commission': float(row['total_commission'])
                 })
-            
-            return jsonify({
-                'success': True,
+        
+        return jsonify({
+            'success': True,
                 'codes': codes
-            }), 200
-            
+        }), 200
+        
     except Exception as e:
         print(f"추천인 코드 목록 조회 실패: {e}")
         return jsonify({'error': '추천인 코드 목록 조회에 실패했습니다.'}), 500
