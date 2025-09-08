@@ -249,7 +249,7 @@ def detailed_health_check():
             'database': 'connected',
             'service': 'snspmt'
         })
-    except Exception as e:
+        except Exception as e:
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
