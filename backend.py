@@ -754,23 +754,23 @@ def complete_order_payment(order_id):
                         conn.commit()
                         
                         print(f"smmpanel.kr 주문 전송 성공: {external_order_id}")
-        
-        return jsonify({
-            'success': True,
+                        
+                        return jsonify({
+                            'success': True,
                             'orderId': order_id,
                             'externalOrderId': external_order_id,
                             'status': 'processing',
                             'message': '결제가 완료되었고 주문이 처리 중입니다.',
                             'points_used': order['price'],
                             'remaining_points': current_points - order['price']
-        }), 200
+                        }), 200
                     else:
                         print(f"smmpanel.kr API 오류: {response.status_code} - {response.text}")
                         return jsonify({
                             'error': '외부 API 전송에 실패했습니다.'
                         }), 500
-        
-    except Exception as e:
+                        
+                except Exception as e:
                     print(f"smmpanel.kr API 전송 실패: {e}")
                     return jsonify({
                         'error': f'외부 API 전송 실패: {str(e)}'
@@ -1078,7 +1078,7 @@ def get_my_referral_codes():
             cursor = conn.cursor()
             
             # 테이블 생성 확인
-                cursor.execute("""
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referral_codes (
                     code_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     code TEXT UNIQUE NOT NULL,
@@ -1091,7 +1091,7 @@ def get_my_referral_codes():
                 )
             """)
             
-                cursor.execute("""
+            cursor.execute("""
                 SELECT code, is_active, created_at, expires_at, usage_count, total_commission
                 FROM referral_codes 
                 WHERE referrer_user_id = ?
@@ -1120,8 +1120,7 @@ def get_my_referral_codes():
                 cursor.close()
             if conn:
                 conn.close()
-        
-            except Exception as e:
+    except Exception as e:
         print(f"추천인 코드 조회 실패: {e}")
         return jsonify({'error': '추천인 코드 조회에 실패했습니다.'}), 500
 
@@ -1146,7 +1145,7 @@ def get_referral_commissions():
             cursor = conn.cursor()
             
             # 테이블 생성 확인
-                cursor.execute("""
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referrals (
                     referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     referrer_user_id TEXT NOT NULL,
@@ -1157,7 +1156,7 @@ def get_referral_commissions():
                 )
             """)
             
-                cursor.execute("""
+            cursor.execute("""
                 SELECT referred_user_id, referral_code, created_at
                 FROM referrals 
                 WHERE referrer_user_id = ?
@@ -1347,12 +1346,11 @@ def get_user_points():
                 else:
                     points = 0
                 
-        return jsonify({'points': points}), 200
+                return jsonify({'points': points}), 200
         
-    except Exception as e:
+        except Exception as e:
             print(f"포인트 조회 실패: {e}")
             return jsonify({'error': '포인트 조회에 실패했습니다.'}), 500
-        
     except Exception as e:
         print(f"포인트 조회 실패: {e}")
         return jsonify({'error': '포인트 조회에 실패했습니다.'}), 500
@@ -1383,12 +1381,12 @@ def create_point_purchase():
                 purchase_id = cursor.fetchone()[0]
                 conn.commit()
         
-        return jsonify({
+                return jsonify({
                     'purchase_id': purchase_id,
                     'message': '포인트 구매 요청이 생성되었습니다.'
                 }), 200
         
-    except Exception as e:
+        except Exception as e:
             print(f"구매 요청 저장 실패: {e}")
             return jsonify({'error': '구매 요청 저장에 실패했습니다.'}), 500
         
