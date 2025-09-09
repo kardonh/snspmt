@@ -1361,55 +1361,6 @@ def create_point_purchase():
         print(f"포인트 구매 요청 실패: {e}")
         return jsonify({'error': '포인트 구매 요청에 실패했습니다.'}), 500
 
-# 포인트 구매 내역 조회
-@app.route('/api/points/purchase-history', methods=['GET'])
-def get_purchase_history():
-    """포인트 구매 내역 조회"""
-    try:
-        user_id = request.args.get('user_id')
-        
-        if not user_id:
-            return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
-        
-        # PostgreSQL에서 구매 내역 조회
-        try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT 
-                        purchase_id,
-                        amount,
-                        price,
-                        status,
-                        created_at,
-                        updated_at
-                    FROM point_purchases 
-                    WHERE user_id = ?
-                    ORDER BY created_at DESC
-                """, (user_id,))
-                
-                purchases = []
-                for row in cursor.fetchall():
-                    purchase = {
-                        'id': row['purchase_id'],
-                        'amount': row['amount'],
-                        'price': float(row['price'] or 0),
-                        'status': row['status'],
-                        'created_at': row['created_at'].isoformat() if row['created_at'] else None,
-                        'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
-                    }
-                    purchases.append(purchase)
-                
-                return jsonify({'purchases': purchases}), 200
-        
-        except Exception as e:
-            print(f"구매 내역 조회 실패: {e}")
-            return jsonify({'error': '구매 내역 조회에 실패했습니다.'}), 500
-        
-    except Exception as e:
-        print(f"구매 내역 조회 실패: {e}")
-        return jsonify({'error': '구매 내역 조회에 실패했습니다.'}), 500
-
 # 사용자 정보 조회
 @app.route('/api/user/info', methods=['GET'])
 def get_user_info():
