@@ -1322,39 +1322,6 @@ def deduct_user_points():
         print(f"포인트 차감 실패: {e}")
         return jsonify({'error': '포인트 차감에 실패했습니다.'}), 500
 
-# 사용자 포인트 조회
-@app.route('/api/points', methods=['GET'])
-def get_user_points():
-    """사용자 포인트 조회"""
-    try:
-        user_id = request.args.get('user_id')
-        
-        if not user_id:
-            return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
-        
-        # PostgreSQL에서 포인트 조회
-        try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT points FROM points WHERE user_id = %s
-                """, (user_id,))
-                
-                result = cursor.fetchone()
-                if result:
-                    points = result['points']
-                else:
-                    points = 0
-                
-                return jsonify({'points': points}), 200
-        
-        except Exception as e:
-            print(f"포인트 조회 실패: {e}")
-            return jsonify({'error': '포인트 조회에 실패했습니다.'}), 500
-    except Exception as e:
-        print(f"포인트 조회 실패: {e}")
-        return jsonify({'error': '포인트 조회에 실패했습니다.'}), 500
-
 # 포인트 구매 요청
 @app.route('/api/points/purchase', methods=['POST'])
 def create_point_purchase():
