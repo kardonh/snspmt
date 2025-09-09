@@ -96,8 +96,11 @@ def init_database():
     try:
         conn = get_db_connection()
         if conn is None:
-            print("데이터베이스 연결을 할 수 없습니다.")
-            return False
+            print("데이터베이스 연결을 할 수 없습니다. 메모리 기반 SQLite를 사용합니다.")
+            # 메모리 기반 SQLite로 폴백
+            conn = sqlite3.connect(':memory:')
+            conn.row_factory = sqlite3.Row
+            print("메모리 기반 SQLite 연결 성공")
             
         with conn:
             cursor = conn.cursor()
@@ -1361,8 +1364,7 @@ def create_point_purchase():
         
         except Exception as e:
             print(f"구매 요청 저장 실패: {e}")
-            return jsonify({'error': '구매 요청 저장에 실패했습니다.'}), 500
-        
+            return jsonify({'error': '구매 요청 저장에 실패했습니다.'}), 500        
     except Exception as e:
         print(f"포인트 구매 요청 실패: {e}")
         return jsonify({'error': '포인트 구매 요청에 실패했습니다.'}), 500
