@@ -226,11 +226,17 @@ def index():
 @app.route('/health')
 def health_check():
     """초고속 헬스 체크 - ELB용"""
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'service': 'snspmt'
-    }), 200
+    try:
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'service': 'snspmt'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e)
+        }), 500
 
 # 상세 헬스 체크 - 관리자용
 @app.route('/api/health')
