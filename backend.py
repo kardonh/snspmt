@@ -677,7 +677,7 @@ def complete_order_payment(order_id):
                 cursor.execute("""
                     SELECT order_id, user_id, service_id, link, quantity, price, status
                     FROM orders 
-                    WHERE order_id = %s AND user_id = %s
+                    WHERE order_id = ? AND user_id = ?
                 """, (order_id, user_id))
                 
                 order = cursor.fetchone()
@@ -749,7 +749,7 @@ def complete_order_payment(order_id):
                         cursor.execute("""
                             UPDATE orders 
                             SET external_order_id = %s, status = 'processing', updated_at = %s
-                            WHERE order_id = %s
+                            WHERE order_id = ?
                         """, (external_order_id, datetime.now(), order_id))
                         conn.commit()
                         
@@ -1294,7 +1294,7 @@ def deduct_user_points():
             cursor = conn.cursor()
             
             # 현재 포인트 확인
-            cursor.execute("SELECT points FROM points WHERE user_id = %s", (user_id,))
+            cursor.execute("SELECT points FROM points WHERE user_id = ?", (user_id,))
             result = cursor.fetchone()
             
             if not result:
@@ -1308,7 +1308,7 @@ def deduct_user_points():
             cursor.execute("""
                 UPDATE points 
                 SET points = points - %s, updated_at = CURRENT_TIMESTAMP
-                WHERE user_id = %s
+                WHERE user_id = ?
             """, (points, user_id))
             
             conn.commit()
@@ -1384,7 +1384,7 @@ def get_purchase_history():
                         created_at,
                         updated_at
                     FROM point_purchases 
-                    WHERE user_id = %s
+                    WHERE user_id = ?
                     ORDER BY created_at DESC
                 """, (user_id,))
                 
@@ -1431,7 +1431,7 @@ def get_user_info():
                         created_at,
                         updated_at
                     FROM points 
-                    WHERE user_id = %s
+                    WHERE user_id = ?
                 """, (user_id,))
                 
                 result = cursor.fetchone()
@@ -1478,7 +1478,7 @@ def get_user(user_id):
                     created_at,
                     updated_at
                 FROM points 
-                WHERE user_id = %s
+                WHERE user_id = ?
             """, (user_id,))
             
             result = cursor.fetchone()
@@ -1522,7 +1522,7 @@ def generate_referral_code():
             cursor = conn.cursor()
             
             # 중복 코드 확인
-            cursor.execute("SELECT code FROM referral_codes WHERE code = %s", (code,))
+            cursor.execute("SELECT code FROM referral_codes WHERE code = ?", (code,))
             if cursor.fetchone():
                 # 중복이면 다시 생성
                 code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
@@ -1567,7 +1567,7 @@ def use_referral_code():
             cursor.execute("""
                 SELECT code_id, referrer_user_id, is_active, expires_at
                 FROM referral_codes 
-                WHERE code = %s
+                WHERE code = ?
             """, (referral_code,))
             
             code_info = cursor.fetchone()
@@ -1579,7 +1579,7 @@ def use_referral_code():
             
             # 이미 추천받은 사용자인지 확인
             cursor.execute("""
-                SELECT referral_id FROM referrals WHERE referred_user_id = %s
+                SELECT referral_id FROM referrals WHERE referred_user_id = ?
             """, (user_id,))
             
             if cursor.fetchone():
@@ -1595,7 +1595,7 @@ def use_referral_code():
             cursor.execute("""
                 UPDATE referral_codes 
                 SET usage_count = usage_count + 1
-                WHERE code = %s
+                WHERE code = ?
             """, (referral_code,))
             
             conn.commit()
@@ -1635,7 +1635,7 @@ def get_my_referral_codes():
                     usage_count,
                     total_commission
                 FROM referral_codes 
-                WHERE referrer_user_id = %s
+                WHERE referrer_user_id = ?
                 ORDER BY created_at DESC
             """, (user_id,))
             
@@ -1686,7 +1686,7 @@ def get_referral_commissions():
                     pp.amount as purchase_amount
                 FROM referral_commissions rc
                 LEFT JOIN point_purchases pp ON rc.purchase_id = pp.purchase_id
-                WHERE rc.referrer_user_id = %s
+                WHERE rc.referrer_user_id = ?
                 ORDER BY rc.created_at DESC
             """, (user_id,))
             
