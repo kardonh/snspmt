@@ -282,8 +282,8 @@ def register():
             return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
         
         try:
-        cursor = conn.cursor()
-        
+            cursor = conn.cursor()
+            
             # 모든 경우에 대해 테이블 생성 (안전한 방법)
             print("테이블 생성 확인 중...")
             
@@ -632,7 +632,7 @@ def create_order():
             conn.commit()
             cursor.close()
             conn.close()
-        print(f"주문 저장 완료: {order_id}")
+            print(f"주문 저장 완료: {order_id}")
                 
         except Exception as e:
             print(f"데이터베이스 저장 실패: {e}")
