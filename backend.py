@@ -27,7 +27,7 @@ def initialize_app():
         init_database()
         print("✅ 데이터베이스 초기화 완료")
         print("✅ 앱 시작 완료")
-        except Exception as e:
+    except Exception as e:
         print(f"⚠️ 앱 초기화 중 오류: {e}")
         # 초기화 실패해도 앱은 계속 실행
     
@@ -100,7 +100,7 @@ def init_database():
             return False
             
         with conn:
-                cursor = conn.cursor()
+            cursor = conn.cursor()
             
             # orders 테이블 생성
             cursor.execute("""
@@ -249,7 +249,7 @@ def detailed_health_check():
             'database': 'connected',
             'service': 'snspmt'
         })
-        except Exception as e:
+    except Exception as e:
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
