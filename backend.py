@@ -1456,6 +1456,308 @@ def create_point_purchase():
         print(f"상세 오류: {traceback.format_exc()}")
         return jsonify({'error': f'포인트 구매 요청에 실패했습니다: {str(e)}'}), 500
 
+# 관리자 통계 데이터 제공
+@app.route('/api/admin/stats', methods=['GET'])
+def get_admin_stats():
+    """관리자 통계 데이터 제공"""
+    try:
+        print(f"=== 관리자 통계 API 엔드포인트 호출됨 ===")
+        conn = get_db_connection()
+        if conn is None:
+            print(f"PostgreSQL 연결 실패, SQLite로 폴백...")
+            # 메모리 기반 SQLite로 폴백
+            conn = sqlite3.connect(':memory:')
+            conn.row_factory = sqlite3.Row
+            
+            # 테이블 생성 확인
+            cursor = conn.cursor()
+            print(f"관리자 통계용 테이블 생성 시도...")
+            
+            # points 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS points (
+                    user_id TEXT PRIMARY KEY,
+                    points INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # orders 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    service_id TEXT NOT NULL,
+                    link TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    price REAL NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # point_purchases 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS point_purchases (
+                    purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    amount INTEGER NOT NULL,
+                    price REAL NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            conn.commit()
+            print(f"관리자 통계용 테이블 생성 완료")
+        else:
+            print(f"PostgreSQL 연결 성공, 기존 연결 사용")
+        
+        # 현재 날짜와 하루 전 날짜 계산
+        now = datetime.now()
+        one_day_ago = now - timedelta(days=1)
+        
+        # 총 사용자 수 (points 테이블에서 조회)
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) as total_users FROM points")
+            total_users = cursor.fetchone()[0]
+            print(f"총 사용자 수: {total_users}")
+        except Exception as e:
+            print(f"points 테이블 조회 실패: {e}")
+            total_users = 0
+        
+        # 총 주문 수 (orders 테이블에서 조회)
+        try:
+            cursor.execute("SELECT COUNT(*) as total_orders FROM orders")
+            total_orders = cursor.fetchone()[0]
+            print(f"총 주문 수: {total_orders}")
+        except Exception as e:
+            print(f"orders 테이블 조회 실패: {e}")
+            total_orders = 0
+        
+        # 총 매출액 (point_purchases 테이블에서 조회)
+        try:
+            cursor.execute("SELECT SUM(price) as total_revenue FROM point_purchases WHERE status = 'approved'")
+            total_revenue = cursor.fetchone()[0] or 0
+            print(f"총 매출액: {total_revenue}")
+        except Exception as e:
+            print(f"total_revenue 조회 실패: {e}")
+            total_revenue = 0
+        
+        # 대기 중인 포인트 구매 신청 수
+        try:
+            cursor.execute("SELECT COUNT(*) as pending_purchases FROM point_purchases WHERE status = 'pending'")
+            pending_purchases = cursor.fetchone()[0]
+            print(f"대기 중인 구매 신청: {pending_purchases}")
+        except Exception as e:
+            print(f"pending_purchases 조회 실패: {e}")
+            pending_purchases = 0
+        
+        # 오늘 주문 수
+        try:
+            cursor.execute("""
+                SELECT COUNT(*) as today_orders 
+                FROM orders 
+                WHERE DATE(created_at) = DATE('now')
+            """)
+            today_orders = cursor.fetchone()[0]
+            print(f"오늘 주문 수: {today_orders}")
+        except Exception as e:
+            print(f"today_orders 조회 실패: {e}")
+            today_orders = 0
+        
+        # 오늘 매출액
+        try:
+            cursor.execute("""
+                SELECT SUM(price) as today_revenue 
+                FROM point_purchases 
+                WHERE status = 'approved' AND DATE(created_at) = DATE('now')
+            """)
+            today_revenue = cursor.fetchone()[0] or 0
+            print(f"오늘 매출액: {today_revenue}")
+        except Exception as e:
+            print(f"today_revenue 조회 실패: {e}")
+            today_revenue = 0
+        
+        stats = {
+            'totalUsers': total_users,
+            'totalOrders': total_orders,
+            'totalRevenue': float(total_revenue),
+            'pendingPurchases': pending_purchases,
+            'todayOrders': today_orders,
+            'todayRevenue': float(today_revenue)
+        }
+        
+        print(f"관리자 통계 조회 성공: {stats}")
+        return jsonify(stats), 200
+        
+    except Exception as e:
+        print(f"관리자 통계 조회 실패: {e}")
+        import traceback
+        print(f"상세 오류: {traceback.format_exc()}")
+        # 에러 발생 시 기본값 반환
+        return jsonify({
+            'totalUsers': 0,
+            'totalOrders': 0,
+            'totalRevenue': 0,
+            'pendingPurchases': 0,
+            'todayOrders': 0,
+            'todayRevenue': 0
+        }), 200
+
+# 관리자 사용자 목록 조회
+@app.route('/api/admin/users', methods=['GET'])
+def get_admin_users():
+    """관리자용 사용자 목록 조회"""
+    try:
+        print(f"=== 관리자 사용자 목록 API 엔드포인트 호출됨 ===")
+        conn = get_db_connection()
+        if conn is None:
+            print(f"PostgreSQL 연결 실패, SQLite로 폴백...")
+            # 메모리 기반 SQLite로 폴백
+            conn = sqlite3.connect(':memory:')
+            conn.row_factory = sqlite3.Row
+            
+            # 테이블 생성 확인
+            cursor = conn.cursor()
+            print(f"관리자 사용자 목록용 테이블 생성 시도...")
+            
+            # points 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS points (
+                    user_id TEXT PRIMARY KEY,
+                    points INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            conn.commit()
+            print(f"관리자 사용자 목록용 테이블 생성 완료")
+        else:
+            print(f"PostgreSQL 연결 성공, 기존 연결 사용")
+        
+        print(f"사용자 목록 조회 시도...")
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                user_id,
+                points,
+                created_at,
+                updated_at
+            FROM points 
+            ORDER BY created_at DESC
+        """)
+        
+        print(f"사용자 데이터 변환 시도...")
+        users = []
+        for row in cursor.fetchall():
+            try:
+                user = {
+                    'userId': row[0],
+                    'email': row[0],  # user_id를 이메일로 사용
+                    'points': row[1],
+                    'createdAt': row[2].isoformat() if row[2] else None,
+                    'lastActivity': row[3].isoformat() if row[3] else None
+                }
+                users.append(user)
+            except Exception as e:
+                print(f"사용자 데이터 변환 실패: {e}")
+                continue
+        
+        print(f"사용자 목록 조회 성공: {len(users)}명")
+        return jsonify(users), 200
+        
+    except Exception as e:
+        print(f"사용자 목록 조회 실패: {e}")
+        import traceback
+        print(f"상세 오류: {traceback.format_exc()}")
+        return jsonify([]), 200
+
+# 관리자 주문/거래 목록 조회
+@app.route('/api/admin/transactions', methods=['GET'])
+def get_admin_transactions():
+    """관리자용 주문/거래 목록 조회"""
+    try:
+        print(f"=== 관리자 주문 목록 API 엔드포인트 호출됨 ===")
+        conn = get_db_connection()
+        if conn is None:
+            print(f"PostgreSQL 연결 실패, SQLite로 폴백...")
+            # 메모리 기반 SQLite로 폴백
+            conn = sqlite3.connect(':memory:')
+            conn.row_factory = sqlite3.Row
+            
+            # 테이블 생성 확인
+            cursor = conn.cursor()
+            print(f"관리자 주문 목록용 테이블 생성 시도...")
+            
+            # orders 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    service_id TEXT NOT NULL,
+                    link TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    price REAL NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            conn.commit()
+            print(f"관리자 주문 목록용 테이블 생성 완료")
+        else:
+            print(f"PostgreSQL 연결 성공, 기존 연결 사용")
+        
+        print(f"주문 목록 조회 시도...")
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                order_id,
+                user_id,
+                service_id,
+                link,
+                quantity,
+                price,
+                status,
+                created_at
+            FROM orders 
+            ORDER BY created_at DESC
+        """)
+        
+        print(f"주문 데이터 변환 시도...")
+        orders = []
+        for row in cursor.fetchall():
+            try:
+                order = {
+                    'orderId': f"ORD_{row[0]}",
+                    'platform': 'SNS',  # 기본값
+                    'service': f"서비스 {row[2]}",
+                    'quantity': row[4],
+                    'amount': float(row[5]),
+                    'status': row[6],
+                    'createdAt': row[7].isoformat() if row[7] else None
+                }
+                orders.append(order)
+            except Exception as e:
+                print(f"주문 데이터 변환 실패: {e}")
+                continue
+        
+        print(f"주문 목록 조회 성공: {len(orders)}건")
+        return jsonify(orders), 200
+        
+    except Exception as e:
+        print(f"주문 목록 조회 실패: {e}")
+        import traceback
+        print(f"상세 오류: {traceback.format_exc()}")
+        return jsonify([]), 200
+
 # 관리자 포인트 구매 신청 목록 조회
 @app.route('/api/admin/purchases', methods=['GET'])
 def get_admin_purchases():
@@ -1852,13 +2154,8 @@ def use_referral_code():
         return jsonify({'error': '추천인 코드 사용에 실패했습니다.'}), 500
 
 
-# 관리자 API 블루프린트 등록
-try:
-    from api.admin import admin_bp
-    app.register_blueprint(admin_bp, url_prefix='/api/admin')
-    print("관리자 API 블루프린트 등록 완료")
-except ImportError as e:
-    print(f"관리자 API 블루프린트 등록 실패: {e}")
+# 관리자 API는 backend.py에 직접 구현됨
+print("관리자 API 엔드포인트 등록 완료")
 
 # 알림 API 블루프린트 등록
 try:
