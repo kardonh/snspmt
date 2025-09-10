@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ChevronLeft, CreditCard, Wallet, Shield, CheckCircle, Smartphone, Zap, Heart } from 'lucide-react'
+import { ChevronLeft, CheckCircle, Coins, Star } from 'lucide-react'
 import './PaymentPage.css'
 
 const PaymentPage = () => {
@@ -23,46 +23,12 @@ const PaymentPage = () => {
 
   const paymentMethods = [
     {
-      id: 'toss',
-      name: '토스페이',
-      icon: Zap,
-      description: '간편하고 빠른 토스페이 결제',
-      color: '#0064FF'
-    },
-    {
-      id: 'kakao',
-      name: '카카오페이',
-      icon: Heart,
-      description: '카카오페이로 간편 결제',
-      color: '#FEE500'
-    },
-    {
-      id: 'naver',
-      name: '네이버페이',
-      icon: Smartphone,
-      description: '네이버페이로 안전한 결제',
-      color: '#03C75A'
-    },
-    {
-      id: 'card',
-      name: '신용카드',
-      icon: CreditCard,
-      description: 'VISA, MasterCard, 국내 모든 카드사',
-      color: '#6c757d'
-    },
-    {
-      id: 'bank',
-      name: '계좌이체',
-      icon: Wallet,
-      description: '실시간 계좌이체',
-      color: '#6c757d'
-    },
-    {
-      id: 'virtual',
-      name: '가상계좌',
-      icon: Shield,
-      description: '안전한 가상계좌 결제',
-      color: '#6c757d'
+      id: 'points',
+      name: '포인트 결제',
+      icon: Coins,
+      description: '보유 포인트로 간편 결제',
+      color: '#FF6B35',
+      features: ['즉시 결제', '수수료 없음', '안전 보장']
     }
   ]
 
@@ -83,30 +49,8 @@ const PaymentPage = () => {
 
     setIsProcessing(true)
 
-    // 1단계: 결제 처리 (시뮬레이션)
-    let paymentMessage = ''
-    switch (selectedPaymentMethod) {
-      case 'toss':
-        paymentMessage = '토스페이 결제를 진행합니다...'
-        break
-      case 'kakao':
-        paymentMessage = '카카오페이 결제를 진행합니다...'
-        break
-      case 'naver':
-        paymentMessage = '네이버페이 결제를 진행합니다...'
-        break
-      case 'card':
-        paymentMessage = '신용카드 결제를 진행합니다...'
-        break
-      case 'bank':
-        paymentMessage = '계좌이체를 진행합니다...'
-        break
-      case 'virtual':
-        paymentMessage = '가상계좌 결제를 진행합니다...'
-        break
-      default:
-        paymentMessage = '결제를 진행합니다...'
-    }
+    // 포인트 결제 처리
+    let paymentMessage = '포인트 결제를 진행합니다...'
 
     // 2초 후 실제 처리 시작
     setTimeout(async () => {
@@ -187,7 +131,7 @@ const PaymentPage = () => {
           <ChevronLeft />
           뒤로가기
         </button>
-        <h1>결제하기</h1>
+        <h1>포인트 결제</h1>
       </div>
 
       <div className="payment-container">
@@ -255,19 +199,19 @@ const PaymentPage = () => {
           </div>
         </div>
 
-        {/* 결제 방법 선택 */}
+        {/* 포인트 결제 방법 */}
         <div className="payment-methods">
-          <h2>결제 방법 선택</h2>
+          <h2>포인트 결제</h2>
           
-          {/* 한국 간편결제 */}
-          <div className="korean-payment-section">
-            <h3>🇰🇷 간편결제 <span className="recommended-badge">추천</span></h3>
-            <p className="korean-payment-info">한국에서 가장 인기 있는 간편결제 서비스입니다. 빠르고 안전한 결제를 경험해보세요.</p>
-            <div className="methods-grid korean-methods">
-              {paymentMethods.slice(0, 3).map((method) => (
+          {/* 포인트 결제 섹션 */}
+          <div className="points-payment-section">
+            <h3>💰 포인트 결제 <span className="recommended-badge">추천</span></h3>
+            <p className="points-payment-info">보유 포인트로 간편하고 안전하게 결제하세요. 수수료 없이 즉시 처리됩니다.</p>
+            <div className="methods-grid points-methods">
+              {paymentMethods.map((method) => (
                 <div
                   key={method.id}
-                  className={`payment-method korean-method ${selectedPaymentMethod === method.id ? 'selected' : ''}`}
+                  className={`payment-method points-method ${selectedPaymentMethod === method.id ? 'selected' : ''}`}
                   onClick={() => handlePaymentMethodSelect(method.id)}
                   style={{ '--method-color': method.color }}
                 >
@@ -278,9 +222,9 @@ const PaymentPage = () => {
                     <h3>{method.name}</h3>
                     <p>{method.description}</p>
                     <div className="method-features">
-                      <span className="feature">빠른 결제</span>
-                      <span className="feature">안전 보장</span>
-                      <span className="feature">즉시 처리</span>
+                      {method.features.map((feature, index) => (
+                        <span key={index} className="feature">{feature}</span>
+                      ))}
                     </div>
                   </div>
                   <div className="method-check">
@@ -291,30 +235,6 @@ const PaymentPage = () => {
             </div>
           </div>
 
-          {/* 일반 결제 */}
-          <div className="general-payment-section">
-            <h3>💳 일반 결제</h3>
-            <div className="methods-grid">
-              {paymentMethods.slice(3).map((method) => (
-                <div
-                  key={method.id}
-                  className={`payment-method ${selectedPaymentMethod === method.id ? 'selected' : ''}`}
-                  onClick={() => handlePaymentMethodSelect(method.id)}
-                >
-                  <div className="method-icon">
-                    <method.icon />
-                  </div>
-                  <div className="method-info">
-                    <h3>{method.name}</h3>
-                    <p>{method.description}</p>
-                  </div>
-                  <div className="method-check">
-                    {selectedPaymentMethod === method.id && <CheckCircle />}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* 결제 버튼 */}
@@ -324,24 +244,23 @@ const PaymentPage = () => {
             onClick={handlePayment}
             disabled={!selectedPaymentMethod || isProcessing}
           >
-            {isProcessing ? '결제 처리 중...' : 
+            {isProcessing ? '포인트 결제 처리 중...' : 
              selectedPaymentMethod ? 
-             `${orderData.totalPrice.toLocaleString()}원 ${getPaymentMethodName(selectedPaymentMethod)}로 결제하기` :
-             `${orderData.totalPrice.toLocaleString()}원 결제하기`}
+             `${orderData.totalPrice.toLocaleString()}포인트로 결제하기` :
+             `${orderData.totalPrice.toLocaleString()}포인트 결제하기`}
           </button>
         </div>
 
         {/* 안내사항 */}
         <div className="payment-notice">
-          <h3>결제 안내사항</h3>
+          <h3>포인트 결제 안내사항</h3>
           <ul>
+            <li>포인트 결제는 즉시 처리되며 수수료가 없습니다.</li>
             <li>결제 완료 후 즉시 서비스가 시작됩니다.</li>
             <li>주문 취소는 결제 후 1시간 이내에만 가능합니다.</li>
+            <li>포인트가 부족한 경우 포인트 충전 후 다시 시도해주세요.</li>
             <li>서비스 이용 중 문제가 발생하면 고객센터로 문의해주세요.</li>
             <li>개인정보는 안전하게 보호되며, 결제 정보는 암호화되어 전송됩니다.</li>
-            <li><strong>간편결제:</strong> 토스페이, 카카오페이, 네이버페이는 즉시 처리되며 수수료가 없습니다.</li>
-            <li><strong>신용카드:</strong> 결제 후 1-2일 내에 카드사에서 승인됩니다.</li>
-            <li><strong>계좌이체:</strong> 실시간으로 처리되며 은행 수수료가 발생할 수 있습니다.</li>
           </ul>
         </div>
       </div>
