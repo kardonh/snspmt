@@ -1388,6 +1388,45 @@ def create_point_purchase():
                 print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
             else:
                 print(f"PostgreSQL 연결 성공, 기존 연결 사용")
+                # PostgreSQL이지만 실제로는 메모리 SQLite일 수 있음
+                # point_purchases 테이블이 있는지 확인하고 없으면 생성
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='point_purchases'")
+                    table_exists = cursor.fetchone()
+                    print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
+                    
+                    if not table_exists:
+                        print(f"point_purchases 테이블이 없음, 생성 시도...")
+                        cursor.execute("""
+                            CREATE TABLE IF NOT EXISTS point_purchases (
+                                purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                user_id TEXT NOT NULL,
+                                amount INTEGER NOT NULL,
+                                price REAL NOT NULL,
+                                status TEXT DEFAULT 'pending',
+                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            )
+                        """)
+                        conn.commit()
+                        print(f"point_purchases 테이블 생성 완료")
+                except Exception as e:
+                    print(f"테이블 확인/생성 중 오류: {e}")
+                    # SQLite 문법으로 다시 시도
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS point_purchases (
+                            purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            user_id TEXT NOT NULL,
+                            amount INTEGER NOT NULL,
+                            price REAL NOT NULL,
+                            status TEXT DEFAULT 'pending',
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
+                    conn.commit()
+                    print(f"point_purchases 테이블 생성 완료 (SQLite 문법)")
             
             print(f"데이터 삽입 시도...")
             cursor = conn.cursor()
@@ -1457,6 +1496,45 @@ def get_admin_purchases():
             print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
         else:
             print(f"PostgreSQL 연결 성공, 기존 연결 사용")
+            # PostgreSQL이지만 실제로는 메모리 SQLite일 수 있음
+            # point_purchases 테이블이 있는지 확인하고 없으면 생성
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='point_purchases'")
+                table_exists = cursor.fetchone()
+                print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
+                
+                if not table_exists:
+                    print(f"point_purchases 테이블이 없음, 생성 시도...")
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS point_purchases (
+                            purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            user_id TEXT NOT NULL,
+                            amount INTEGER NOT NULL,
+                            price REAL NOT NULL,
+                            status TEXT DEFAULT 'pending',
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
+                    conn.commit()
+                    print(f"point_purchases 테이블 생성 완료")
+            except Exception as e:
+                print(f"테이블 확인/생성 중 오류: {e}")
+                # SQLite 문법으로 다시 시도
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS point_purchases (
+                        purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id TEXT NOT NULL,
+                        amount INTEGER NOT NULL,
+                        price REAL NOT NULL,
+                        status TEXT DEFAULT 'pending',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                conn.commit()
+                print(f"point_purchases 테이블 생성 완료 (SQLite 문법)")
         
         print(f"데이터 조회 시도...")
         cursor = conn.cursor()
