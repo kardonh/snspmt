@@ -1367,20 +1367,19 @@ def create_point_purchase():
                 """)
                 conn.commit()
             
-            with conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO point_purchases (user_id, amount, price, status)
-                    VALUES (?, ?, ?, 'pending')
-                """, (user_id, amount, price))
-                
-                purchase_id = cursor.lastrowid
-                conn.commit()
-        
-                return jsonify({
-                    'purchase_id': purchase_id,
-                    'message': '포인트 구매 요청이 생성되었습니다.'
-                }), 200
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO point_purchases (user_id, amount, price, status)
+                VALUES (?, ?, ?, 'pending')
+            """, (user_id, amount, price))
+            
+            purchase_id = cursor.lastrowid
+            conn.commit()
+    
+            return jsonify({
+                'purchase_id': purchase_id,
+                'message': '포인트 구매 요청이 생성되었습니다.'
+            }), 200
         
         
         except Exception as e:
@@ -1416,28 +1415,27 @@ def get_admin_purchases():
             """)
             conn.commit()
         
-        with conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT purchase_id, user_id, amount, price, status, created_at, updated_at
-                FROM point_purchases 
-                ORDER BY created_at DESC
-            """)
-            
-            purchases = []
-            for row in cursor.fetchall():
-                purchase = {
-                    'id': row[0],
-                    'userId': row[1],
-                    'amount': row[2],
-                    'price': float(row[3]),
-                    'status': row[4],
-                    'createdAt': row[5].isoformat() if row[5] else None,
-                    'updatedAt': row[6].isoformat() if row[6] else None
-                }
-                purchases.append(purchase)
-            
-            return jsonify(purchases), 200
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT purchase_id, user_id, amount, price, status, created_at, updated_at
+            FROM point_purchases 
+            ORDER BY created_at DESC
+        """)
+        
+        purchases = []
+        for row in cursor.fetchall():
+            purchase = {
+                'id': row[0],
+                'userId': row[1],
+                'amount': row[2],
+                'price': float(row[3]),
+                'status': row[4],
+                'createdAt': row[5].isoformat() if row[5] else None,
+                'updatedAt': row[6].isoformat() if row[6] else None
+            }
+            purchases.append(purchase)
+        
+        return jsonify(purchases), 200
             
     except Exception as e:
         print(f"관리자 구매 신청 목록 조회 실패: {e}")
@@ -1475,51 +1473,50 @@ def update_purchase_status(purchase_id):
             """)
             conn.commit()
         
-        with conn:
-            cursor = conn.cursor()
+        cursor = conn.cursor()
+        
+        if status == 'approved':
+            # 구매 신청 승인 시 사용자 포인트 증가
+            cursor.execute("""
+                UPDATE point_purchases 
+                SET status = ?, updated_at = CURRENT_TIMESTAMP 
+                WHERE purchase_id = ?
+            """, (status, purchase_id))
             
-            if status == 'approved':
-                # 구매 신청 승인 시 사용자 포인트 증가
-                cursor.execute("""
-                    UPDATE point_purchases 
-                    SET status = ?, updated_at = CURRENT_TIMESTAMP 
-                    WHERE purchase_id = ?
-                """, (status, purchase_id))
-                
-                # 구매 정보 조회
-                cursor.execute("""
-                    SELECT user_id, amount, price 
-                    FROM point_purchases 
-                    WHERE purchase_id = ?
-                """, (purchase_id,))
-                
-                purchase_info = cursor.fetchone()
-                if purchase_info:
-                    user_id = purchase_info['user_id']
-                    amount = purchase_info['amount']
-                    
-                    # 사용자 포인트 증가
-                    cursor.execute("""
-                        INSERT OR REPLACE INTO points (user_id, points, updated_at)
-                        VALUES (?, COALESCE((SELECT points FROM points WHERE user_id = ?), 0) + ?, CURRENT_TIMESTAMP)
-                    """, (user_id, user_id, amount))
-                    
-                    print(f"포인트 승인: 사용자 {user_id}에게 {amount}P 추가")
-                
-            else:
-                # 거절 시 상태만 업데이트
-                cursor.execute("""
-                    UPDATE point_purchases 
-                    SET status = ?, updated_at = CURRENT_TIMESTAMP 
-                    WHERE purchase_id = ?
-                """, (status, purchase_id))
+            # 구매 정보 조회
+            cursor.execute("""
+                SELECT user_id, amount, price 
+                FROM point_purchases 
+                WHERE purchase_id = ?
+            """, (purchase_id,))
             
-            conn.commit()
+            purchase_info = cursor.fetchone()
+            if purchase_info:
+                user_id = purchase_info['user_id']
+                amount = purchase_info['amount']
+                
+                # 사용자 포인트 증가
+                cursor.execute("""
+                    INSERT OR REPLACE INTO points (user_id, points, updated_at)
+                    VALUES (?, COALESCE((SELECT points FROM points WHERE user_id = ?), 0) + ?, CURRENT_TIMESTAMP)
+                """, (user_id, user_id, amount))
+                
+                print(f"포인트 승인: 사용자 {user_id}에게 {amount}P 추가")
             
-            return jsonify({
-                'success': True,
-                'message': f'구매 신청이 {status}되었습니다.'
-            }), 200
+        else:
+            # 거절 시 상태만 업데이트
+            cursor.execute("""
+                UPDATE point_purchases 
+                SET status = ?, updated_at = CURRENT_TIMESTAMP 
+                WHERE purchase_id = ?
+            """, (status, purchase_id))
+        
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'구매 신청이 {status}되었습니다.'
+        }), 200
             
     except Exception as e:
         print(f"구매 신청 상태 업데이트 실패: {e}")
