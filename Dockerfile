@@ -27,15 +27,15 @@ COPY . .
 # Build frontend
 RUN npm install && npm run build
 
-# Create temp directories with proper permissions
-RUN mkdir -p /tmp && chmod 777 /tmp
-RUN mkdir -p /app/tmp && chmod 777 /app/tmp
-RUN mkdir -p /usr/tmp && chmod 777 /usr/tmp
-RUN mkdir -p /var/tmp && chmod 777 /var/tmp
-
 # Create writable directories for Gunicorn
 RUN mkdir -p /app/var && chmod 777 /app/var
 RUN mkdir -p /app/logs && chmod 777 /app/logs
+RUN mkdir -p /app/tmp && chmod 777 /app/tmp
+
+# Create additional temp directories
+RUN mkdir -p /tmp && chmod 777 /tmp
+RUN mkdir -p /var/tmp && chmod 777 /var/tmp
+RUN mkdir -p /usr/tmp && chmod 777 /usr/tmp
 
 # Expose port
 EXPOSE 8000
