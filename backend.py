@@ -1336,6 +1336,9 @@ def deduct_user_points():
 def create_point_purchase():
     """포인트 구매 요청"""
     print(f"=== 포인트 구매 API 엔드포인트 호출됨 ===")
+    print(f"요청 메서드: {request.method}")
+    print(f"요청 URL: {request.url}")
+    print(f"요청 헤더: {dict(request.headers)}")
     try:
         print(f"=== 포인트 구매 요청 시작 ===")
         data = request.get_json()
@@ -1419,6 +1422,9 @@ def create_point_purchase():
 def get_admin_purchases():
     """관리자용 포인트 구매 신청 목록 조회"""
     print(f"=== 관리자 구매 신청 목록 API 엔드포인트 호출됨 ===")
+    print(f"요청 메서드: {request.method}")
+    print(f"요청 URL: {request.url}")
+    print(f"요청 헤더: {dict(request.headers)}")
     try:
         print(f"=== 관리자 구매 신청 목록 조회 시작 ===")
         conn = get_db_connection()
