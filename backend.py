@@ -1352,14 +1352,17 @@ def create_point_purchase():
         
         # 데이터베이스에 구매 요청 저장
         try:
+            print(f"데이터베이스 연결 시도...")
             conn = get_db_connection()
             if conn is None:
+                print(f"PostgreSQL 연결 실패, SQLite로 폴백...")
                 # 메모리 기반 SQLite로 폴백
                 conn = sqlite3.connect(':memory:')
                 conn.row_factory = sqlite3.Row
                 
                 # 테이블 생성 확인
                 cursor = conn.cursor()
+                print(f"point_purchases 테이블 생성 시도...")
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS point_purchases (
                         purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1372,7 +1375,9 @@ def create_point_purchase():
                     )
                 """)
                 conn.commit()
+                print(f"테이블 생성 완료")
             
+            print(f"데이터 삽입 시도...")
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO point_purchases (user_id, amount, price, status)
@@ -1381,6 +1386,7 @@ def create_point_purchase():
             
             purchase_id = cursor.lastrowid
             conn.commit()
+            print(f"데이터 삽입 완료, ID: {purchase_id}")
     
             return jsonify({
                 'purchase_id': purchase_id,
@@ -1403,12 +1409,14 @@ def get_admin_purchases():
         print(f"=== 관리자 구매 신청 목록 조회 시작 ===")
         conn = get_db_connection()
         if conn is None:
+            print(f"PostgreSQL 연결 실패, SQLite로 폴백...")
             # 메모리 기반 SQLite로 폴백
             conn = sqlite3.connect(':memory:')
             conn.row_factory = sqlite3.Row
             
             # 테이블 생성 확인
             cursor = conn.cursor()
+            print(f"point_purchases 테이블 생성 시도...")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
                     purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1421,7 +1429,9 @@ def get_admin_purchases():
                 )
             """)
             conn.commit()
+            print(f"테이블 생성 완료")
         
+        print(f"데이터 조회 시도...")
         cursor = conn.cursor()
         cursor.execute("""
             SELECT purchase_id, user_id, amount, price, status, created_at, updated_at
@@ -1429,19 +1439,24 @@ def get_admin_purchases():
             ORDER BY created_at DESC
         """)
         
+        print(f"데이터 변환 시도...")
         purchases = []
         for row in cursor.fetchall():
-            purchase = {
-                'id': row[0],
-                'userId': row[1],
-                'amount': row[2],
-                'price': float(row[3]),
-                'status': row[4],
-                'createdAt': row[5].isoformat() if row[5] else None,
-                'updatedAt': row[6].isoformat() if row[6] else None
-            }
-            purchases.append(purchase)
+            try:
+                purchase = {
+                    'id': row[0],
+                    'userId': row[1],
+                    'amount': row[2],
+                    'price': float(row[3]),
+                    'status': row[4],
+                    'createdAt': row[5].isoformat() if row[5] else None,
+                    'updatedAt': row[6].isoformat() if row[6] else None
+                }
+                purchases.append(purchase)
+            except Exception as e:
+                print(f"데이터 변환 실패: {e}, row: {row}")
         
+        print(f"조회 완료, 총 {len(purchases)}개 항목")
         return jsonify(purchases), 200
             
     except Exception as e:
