@@ -1396,10 +1396,14 @@ def create_point_purchase():
         
         except Exception as e:
             print(f"구매 요청 저장 실패: {e}")
-            return jsonify({'error': '구매 요청 저장에 실패했습니다.'}), 500        
+            import traceback
+            print(f"상세 오류: {traceback.format_exc()}")
+            return jsonify({'error': f'구매 요청 저장에 실패했습니다: {str(e)}'}), 500        
     except Exception as e:
         print(f"포인트 구매 요청 실패: {e}")
-        return jsonify({'error': '포인트 구매 요청에 실패했습니다.'}), 500
+        import traceback
+        print(f"상세 오류: {traceback.format_exc()}")
+        return jsonify({'error': f'포인트 구매 요청에 실패했습니다: {str(e)}'}), 500
 
 # 관리자 포인트 구매 신청 목록 조회
 @app.route('/api/admin/purchases', methods=['GET'])
@@ -1461,7 +1465,9 @@ def get_admin_purchases():
             
     except Exception as e:
         print(f"관리자 구매 신청 목록 조회 실패: {e}")
-        return jsonify({'error': '구매 신청 목록 조회에 실패했습니다.'}), 500
+        import traceback
+        print(f"상세 오류: {traceback.format_exc()}")
+        return jsonify({'error': f'구매 신청 목록 조회에 실패했습니다: {str(e)}'}), 500
 
 # 관리자 포인트 구매 신청 승인/거절
 @app.route('/api/admin/purchases/<int:purchase_id>', methods=['PUT'])
