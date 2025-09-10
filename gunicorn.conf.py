@@ -1,31 +1,31 @@
 import os
 import tempfile
+import tempfile as tf
 
-# 임시 디렉토리 설정
+# 메모리 기반 임시 디렉토리 설정
 def setup_temp_directories():
-    """임시 디렉토리 설정"""
-    # 쓰기 가능한 디렉토리만 시도
-    temp_dirs = ['/app/var']
-    for temp_dir in temp_dirs:
-        try:
-            if not os.path.exists(temp_dir):
-                os.makedirs(temp_dir, exist_ok=True)
-            # 권한 설정
-            os.chmod(temp_dir, 0o777)
-            print(f"임시 디렉토리 생성 성공: {temp_dir}")
-        except Exception as e:
-            print(f"임시 디렉토리 생성 실패 {temp_dir}: {e}")
-    
-    # 환경 변수 설정 (쓰기 가능한 디렉토리 우선)
-    os.environ['TMPDIR'] = '/app/var'
-    os.environ['TEMP'] = '/app/var'
-    os.environ['TMP'] = '/app/var'
-    
-    # tempfile 모듈 재설정
-    tempfile.tempdir = '/app/var'
+    """메모리 기반 임시 디렉토리 설정"""
+    try:
+        # 메모리 기반 임시 디렉토리 생성
+        temp_dir = tempfile.mkdtemp(prefix='gunicorn_')
+        print(f"메모리 기반 임시 디렉토리 생성 성공: {temp_dir}")
+        
+        # 환경 변수 설정
+        os.environ['TMPDIR'] = temp_dir
+        os.environ['TEMP'] = temp_dir
+        os.environ['TMP'] = temp_dir
+        
+        # tempfile 모듈 재설정
+        tempfile.tempdir = temp_dir
+        
+        return temp_dir
+    except Exception as e:
+        print(f"메모리 기반 임시 디렉토리 생성 실패: {e}")
+        # 폴백: 시스템 기본 임시 디렉토리 사용
+        return None
 
 # 임시 디렉토리 설정 실행
-setup_temp_directories()
+temp_dir = setup_temp_directories()
 
 # Gunicorn 설정 (메모리 최적화)
 bind = "0.0.0.0:8000"
@@ -37,7 +37,7 @@ max_requests = 1000  # 워커 재시작으로 메모리 누수 방지
 max_requests_jitter = 100
 worker_connections = 1000
 keepalive = 2
-worker_tmp_dir = "/app/var"  # 임시 디렉토리 명시적 설정
+# worker_tmp_dir 제거 - 메모리 기반 임시 디렉토리 사용
 
 def on_starting(server):
     """서버 시작 시 실행"""
