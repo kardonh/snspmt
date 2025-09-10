@@ -27,15 +27,8 @@ COPY . .
 # Build frontend
 RUN npm install && npm run build
 
-# Create writable directories for Gunicorn
-RUN mkdir -p /app/var && chmod 777 /app/var
+# Create minimal directories for Flask
 RUN mkdir -p /app/logs && chmod 777 /app/logs
-RUN mkdir -p /app/tmp && chmod 777 /app/tmp
-
-# Create additional temp directories
-RUN mkdir -p /tmp && chmod 777 /tmp
-RUN mkdir -p /var/tmp && chmod 777 /var/tmp
-RUN mkdir -p /usr/tmp && chmod 777 /usr/tmp
 
 # Expose port
 EXPOSE 8000
@@ -43,10 +36,6 @@ EXPOSE 8000
 # Set environment variables
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
-ENV TMPDIR=/app/var
-ENV TEMP=/app/var
-ENV TMP=/app/var
-ENV TEMP_DIR=/app/var
 
-# Run the application with Gunicorn production server
-CMD ["gunicorn", "--config", "gunicorn.conf.py", "backend:app"]
+# Run the application with Flask development server (final solution for read-only filesystem)
+CMD ["python", "-c", "from backend import app; app.run(host='0.0.0.0', port=8000, debug=False, threaded=True)"]

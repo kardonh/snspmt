@@ -1603,7 +1603,7 @@ except ImportError as e:
 # 애플리케이션 시작 시 데이터베이스 초기화
 if __name__ == '__main__':
     initialize_app()
-    app.run(debug=False, host='0.0.0.0', port=8000)
+    app.run(debug=False, host='0.0.0.0', port=8000, threaded=True)
 else:
     # Gunicorn으로 실행될 때 초기화
     initialize_app()
