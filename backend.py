@@ -100,6 +100,8 @@ def get_db_connection():
                 conn = sqlite3.connect(':memory:')
                 conn.row_factory = sqlite3.Row
                 print("메모리 기반 SQLite 연결 성공 (데이터 유지 안됨)")
+                print("⚠️  주의: Fargate의 읽기 전용 파일 시스템으로 인해 데이터가 지속되지 않습니다.")
+                print("💡 해결책: PostgreSQL 데이터베이스 생성 또는 EFS 마운트 필요")
                 return conn
                 
             except Exception as create_error:
