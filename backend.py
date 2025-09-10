@@ -108,24 +108,24 @@ def init_database():
             # orders 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
-                    order_id SERIAL PRIMARY KEY,
-                    user_id VARCHAR(255) NOT NULL,
+                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
                     service_id INTEGER NOT NULL,
                     link TEXT NOT NULL,
                     quantity INTEGER NOT NULL,
-                    price DECIMAL(10,2) NOT NULL,
-                    status VARCHAR(50) DEFAULT 'pending',
-                    external_order_id VARCHAR(255),
+                    price REAL NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    external_order_id TEXT,
                     comments TEXT,
                     explanation TEXT,
                     runs INTEGER DEFAULT 1,
                     interval INTEGER DEFAULT 0,
-                    username VARCHAR(255),
+                    username TEXT,
                     min_quantity INTEGER,
                     max_quantity INTEGER,
                     posts INTEGER DEFAULT 0,
                     delay INTEGER DEFAULT 0,
-                    expiry DATE,
+                    expiry TEXT,
                     old_posts INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -135,7 +135,7 @@ def init_database():
             # points 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS points (
-                    user_id VARCHAR(255) PRIMARY KEY,
+                    user_id TEXT PRIMARY KEY,
                     points INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -145,11 +145,11 @@ def init_database():
             # point_purchases 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
-                    purchase_id SERIAL PRIMARY KEY,
-                    user_id VARCHAR(255) NOT NULL,
+                    purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
                     amount INTEGER NOT NULL,
-                    price DECIMAL(10,2) NOT NULL,
-                    status VARCHAR(50) DEFAULT 'pending',
+                    price REAL NOT NULL,
+                    status TEXT DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -158,12 +158,12 @@ def init_database():
             # notifications 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS notifications (
-                    notification_id SERIAL PRIMARY KEY,
-                    user_id VARCHAR(255) NOT NULL,
-                    type VARCHAR(50) NOT NULL,
-                    title VARCHAR(255) NOT NULL,
+                    notification_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    title TEXT NOT NULL,
                     message TEXT NOT NULL,
-                    is_read BOOLEAN DEFAULT FALSE,
+                    is_read INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -171,24 +171,24 @@ def init_database():
             # referral_codes 테이블 생성 (추천인 코드 관리)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referral_codes (
-                    code_id SERIAL PRIMARY KEY,
-                    code VARCHAR(20) UNIQUE NOT NULL,
-                    referrer_user_id VARCHAR(255) NOT NULL,
-                    is_active BOOLEAN DEFAULT TRUE,
+                    code_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code TEXT UNIQUE NOT NULL,
+                    referrer_user_id TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     expires_at TIMESTAMP,
                     usage_count INTEGER DEFAULT 0,
-                    total_commission DECIMAL(10,2) DEFAULT 0.00
+                    total_commission REAL DEFAULT 0.00
                 )
             """)
             
             # referrals 테이블 생성 (추천 관계 관리)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referrals (
-                    referral_id SERIAL PRIMARY KEY,
-                    referrer_user_id VARCHAR(255) NOT NULL,
-                    referred_user_id VARCHAR(255) NOT NULL,
-                    referral_code VARCHAR(20) NOT NULL,
+                    referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    referrer_user_id TEXT NOT NULL,
+                    referred_user_id TEXT NOT NULL,
+                    referral_code TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(referred_user_id)
                 )
@@ -197,12 +197,12 @@ def init_database():
             # referral_commissions 테이블 생성 (커미션 내역)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referral_commissions (
-                    commission_id SERIAL PRIMARY KEY,
-                    referrer_user_id VARCHAR(255) NOT NULL,
-                    referred_user_id VARCHAR(255) NOT NULL,
+                    commission_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    referrer_user_id TEXT NOT NULL,
+                    referred_user_id TEXT NOT NULL,
                     purchase_id INTEGER NOT NULL,
-                    commission_amount DECIMAL(10,2) NOT NULL,
-                    commission_rate DECIMAL(5,4) NOT NULL,
+                    commission_amount REAL NOT NULL,
+                    commission_rate REAL NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
