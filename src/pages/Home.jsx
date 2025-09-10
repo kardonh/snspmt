@@ -435,6 +435,10 @@ const Home = () => {
   ]
 
     // 플랫폼별 서비스 목록
+
+
+
+    
   const getServicesForPlatform = (platform) => {
     switch (platform) {
       case 'instagram':
