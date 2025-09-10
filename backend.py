@@ -1344,17 +1344,22 @@ def create_point_purchase():
         if not amount or not price:
             return jsonify({'error': '필수 정보가 누락되었습니다.'}), 400
         
-        # PostgreSQL에 구매 요청 저장
+        # 데이터베이스에 구매 요청 저장
         try:
-            with get_db_connection() as conn:
+            conn = get_db_connection()
+            if conn is None:
+                # 메모리 기반 SQLite로 폴백
+                conn = sqlite3.connect(':memory:')
+                conn.row_factory = sqlite3.Row
+            
+            with conn:
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO point_purchases (user_id, amount, price, status)
-                    VALUES (%s, %s, %s, 'pending')
-                    RETURNING purchase_id
+                    VALUES (?, ?, ?, 'pending')
                 """, (user_id, amount, price))
                 
-                purchase_id = cursor.fetchone()[0]
+                purchase_id = cursor.lastrowid
                 conn.commit()
         
                 return jsonify({
