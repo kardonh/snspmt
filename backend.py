@@ -1390,6 +1390,141 @@ def create_point_purchase():
         print(f"포인트 구매 요청 실패: {e}")
         return jsonify({'error': '포인트 구매 요청에 실패했습니다.'}), 500
 
+# 관리자 포인트 구매 신청 목록 조회
+@app.route('/api/admin/purchases', methods=['GET'])
+def get_admin_purchases():
+    """관리자용 포인트 구매 신청 목록 조회"""
+    try:
+        conn = get_db_connection()
+        if conn is None:
+            # 메모리 기반 SQLite로 폴백
+            conn = sqlite3.connect(':memory:')
+            conn.row_factory = sqlite3.Row
+            
+            # 테이블 생성 확인
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS point_purchases (
+                    purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    amount INTEGER NOT NULL,
+                    price REAL NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+        
+        with conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT purchase_id, user_id, amount, price, status, created_at, updated_at
+                FROM point_purchases 
+                ORDER BY created_at DESC
+            """)
+            
+            purchases = []
+            for row in cursor.fetchall():
+                purchase = {
+                    'id': row[0],
+                    'userId': row[1],
+                    'amount': row[2],
+                    'price': float(row[3]),
+                    'status': row[4],
+                    'createdAt': row[5].isoformat() if row[5] else None,
+                    'updatedAt': row[6].isoformat() if row[6] else None
+                }
+                purchases.append(purchase)
+            
+            return jsonify(purchases), 200
+            
+    except Exception as e:
+        print(f"관리자 구매 신청 목록 조회 실패: {e}")
+        return jsonify({'error': '구매 신청 목록 조회에 실패했습니다.'}), 500
+
+# 관리자 포인트 구매 신청 승인/거절
+@app.route('/api/admin/purchases/<int:purchase_id>', methods=['PUT'])
+def update_purchase_status(purchase_id):
+    """포인트 구매 신청 상태 업데이트 (승인/거절)"""
+    try:
+        data = request.get_json()
+        status = data.get('status')
+        
+        if status not in ['approved', 'rejected']:
+            return jsonify({'error': '잘못된 상태값입니다.'}), 400
+        
+        conn = get_db_connection()
+        if conn is None:
+            # 메모리 기반 SQLite로 폴백
+            conn = sqlite3.connect(':memory:')
+            conn.row_factory = sqlite3.Row
+            
+            # 테이블 생성 확인
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS point_purchases (
+                    purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    amount INTEGER NOT NULL,
+                    price REAL NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+        
+        with conn:
+            cursor = conn.cursor()
+            
+            if status == 'approved':
+                # 구매 신청 승인 시 사용자 포인트 증가
+                cursor.execute("""
+                    UPDATE point_purchases 
+                    SET status = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE purchase_id = ?
+                """, (status, purchase_id))
+                
+                # 구매 정보 조회
+                cursor.execute("""
+                    SELECT user_id, amount, price 
+                    FROM point_purchases 
+                    WHERE purchase_id = ?
+                """, (purchase_id,))
+                
+                purchase_info = cursor.fetchone()
+                if purchase_info:
+                    user_id = purchase_info['user_id']
+                    amount = purchase_info['amount']
+                    
+                    # 사용자 포인트 증가
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO points (user_id, points, updated_at)
+                        VALUES (?, COALESCE((SELECT points FROM points WHERE user_id = ?), 0) + ?, CURRENT_TIMESTAMP)
+                    """, (user_id, user_id, amount))
+                    
+                    print(f"포인트 승인: 사용자 {user_id}에게 {amount}P 추가")
+                
+            else:
+                # 거절 시 상태만 업데이트
+                cursor.execute("""
+                    UPDATE point_purchases 
+                    SET status = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE purchase_id = ?
+                """, (status, purchase_id))
+            
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'구매 신청이 {status}되었습니다.'
+            }), 200
+            
+    except Exception as e:
+        print(f"구매 신청 상태 업데이트 실패: {e}")
+        return jsonify({'error': '구매 신청 상태 업데이트에 실패했습니다.'}), 500
+
 # 사용자 정보 조회
 @app.route('/api/user/info', methods=['GET'])
 def get_user_info_by_query():
