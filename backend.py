@@ -1335,9 +1335,11 @@ def deduct_user_points():
 @app.route('/api/points/purchase', methods=['POST'])
 def create_point_purchase():
     """포인트 구매 요청"""
+    print(f"=== 포인트 구매 API 엔드포인트 호출됨 ===")
     try:
         print(f"=== 포인트 구매 요청 시작 ===")
         data = request.get_json()
+        print(f"요청 데이터: {data}")
         user_id = request.headers.get('X-User-ID', 'anonymous')
         amount = data.get('amount')
         price = data.get('price')
@@ -1409,6 +1411,7 @@ def create_point_purchase():
 @app.route('/api/admin/purchases', methods=['GET'])
 def get_admin_purchases():
     """관리자용 포인트 구매 신청 목록 조회"""
+    print(f"=== 관리자 구매 신청 목록 API 엔드포인트 호출됨 ===")
     try:
         print(f"=== 관리자 구매 신청 목록 조회 시작 ===")
         conn = get_db_connection()
@@ -1778,7 +1781,15 @@ except ImportError as e:
 # 애플리케이션 시작 시 데이터베이스 초기화
 if __name__ == '__main__':
     initialize_app()
+    print(f"=== Flask 앱 시작 ===")
+    print(f"등록된 라우트들:")
+    for rule in app.url_map.iter_rules():
+        print(f"  {rule.methods} {rule.rule}")
     app.run(debug=False, host='0.0.0.0', port=8000, threaded=True)
 else:
     # Gunicorn으로 실행될 때 초기화
     initialize_app()
+    print(f"=== Flask 앱 시작 (Gunicorn) ===")
+    print(f"등록된 라우트들:")
+    for rule in app.url_map.iter_rules():
+        print(f"  {rule.methods} {rule.rule}")
