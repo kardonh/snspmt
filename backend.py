@@ -1377,7 +1377,14 @@ def create_point_purchase():
                     )
                 """)
                 conn.commit()
-                print(f"테이블 생성 완료")
+                print(f"point_purchases 테이블 생성 완료")
+                
+                # 테이블 존재 확인
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='point_purchases'")
+                table_exists = cursor.fetchone()
+                print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
+            else:
+                print(f"PostgreSQL 연결 성공, 기존 연결 사용")
             
             print(f"데이터 삽입 시도...")
             cursor = conn.cursor()
@@ -1436,7 +1443,14 @@ def get_admin_purchases():
                 )
             """)
             conn.commit()
-            print(f"테이블 생성 완료")
+            print(f"point_purchases 테이블 생성 완료")
+            
+            # 테이블 존재 확인
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='point_purchases'")
+            table_exists = cursor.fetchone()
+            print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
+        else:
+            print(f"PostgreSQL 연결 성공, 기존 연결 사용")
         
         print(f"데이터 조회 시도...")
         cursor = conn.cursor()
