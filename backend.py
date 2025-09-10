@@ -71,25 +71,40 @@ def get_db_connection():
             print(f"SQLite 연결도 실패: {sqlite_error}")
             # 파일 기반 SQLite 데이터베이스 사용 (데이터 유지)
             try:
-                # SQLite 파일 경로 설정
-                db_path = '/app/data/orders.db'
-                os.makedirs(os.path.dirname(db_path), exist_ok=True)
+                # 여러 경로 시도
+                possible_paths = [
+                    '/app/data/orders.db',
+                    '/tmp/orders.db',
+                    './orders.db',
+                    'orders.db'
+                ]
                 
-                conn = sqlite3.connect(db_path)
+                for db_path in possible_paths:
+                    try:
+                        # 디렉토리 생성 시도
+                        dir_path = os.path.dirname(db_path)
+                        if dir_path and not os.path.exists(dir_path):
+                            os.makedirs(dir_path, exist_ok=True)
+                            print(f"디렉토리 생성 시도: {dir_path}")
+                        
+                        conn = sqlite3.connect(db_path)
+                        conn.row_factory = sqlite3.Row
+                        print(f"파일 기반 SQLite 연결 성공: {db_path}")
+                        return conn
+                    except Exception as path_error:
+                        print(f"경로 {db_path} 시도 실패: {path_error}")
+                        continue
+                
+                # 모든 경로 실패 시 메모리 기반 SQLite
+                print("모든 파일 경로 실패, 메모리 기반 SQLite로 폴백")
+                conn = sqlite3.connect(':memory:')
                 conn.row_factory = sqlite3.Row
-                print(f"파일 기반 SQLite 연결 성공: {db_path}")
+                print("메모리 기반 SQLite 연결 성공 (데이터 유지 안됨)")
                 return conn
+                
             except Exception as create_error:
-                print(f"파일 기반 SQLite 연결도 실패: {create_error}")
-                # 최종 폴백: 메모리 기반 SQLite
-                try:
-                    conn = sqlite3.connect(':memory:')
-                    conn.row_factory = sqlite3.Row
-                    print("메모리 기반 SQLite 연결 성공 (데이터 유지 안됨)")
-                    return conn
-                except Exception as memory_error:
-                    print(f"메모리 기반 SQLite 연결도 실패: {memory_error}")
-                    return None
+                print(f"SQLite 연결 완전 실패: {create_error}")
+                return None
 
 # SQLite 연결 함수 (로컬 개발용)
 def get_sqlite_connection():
@@ -1032,11 +1047,33 @@ def get_purchase_history():
         if conn is None:
             print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
             # 파일 기반 SQLite로 폴백 (데이터 유지)
-            db_path = '/app/data/orders.db'
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            print(f"파일 기반 SQLite 연결 성공: {db_path}")
+            possible_paths = [
+                '/app/data/orders.db',
+                '/tmp/orders.db',
+                './orders.db',
+                'orders.db'
+            ]
+            
+            for db_path in possible_paths:
+                try:
+                    dir_path = os.path.dirname(db_path)
+                    if dir_path and not os.path.exists(dir_path):
+                        os.makedirs(dir_path, exist_ok=True)
+                        print(f"디렉토리 생성 시도: {dir_path}")
+                    
+                    conn = sqlite3.connect(db_path)
+                    conn.row_factory = sqlite3.Row
+                    print(f"파일 기반 SQLite 연결 성공: {db_path}")
+                    break
+                except Exception as path_error:
+                    print(f"경로 {db_path} 시도 실패: {path_error}")
+                    continue
+            
+            if conn is None:
+                print("모든 파일 경로 실패, 메모리 기반 SQLite로 폴백")
+                conn = sqlite3.connect(':memory:')
+                conn.row_factory = sqlite3.Row
+                print("메모리 기반 SQLite 연결 성공 (데이터 유지 안됨)")
         else:
             print(f"PostgreSQL 연결 성공, 기존 연결 사용")
         
@@ -1419,11 +1456,33 @@ def create_point_purchase():
             if conn is None:
                 print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
                 # 파일 기반 SQLite로 폴백 (데이터 유지)
-                db_path = '/app/data/orders.db'
-                os.makedirs(os.path.dirname(db_path), exist_ok=True)
-                conn = sqlite3.connect(db_path)
-                conn.row_factory = sqlite3.Row
-                print(f"파일 기반 SQLite 연결 성공: {db_path}")
+                possible_paths = [
+                    '/app/data/orders.db',
+                    '/tmp/orders.db',
+                    './orders.db',
+                    'orders.db'
+                ]
+                
+                for db_path in possible_paths:
+                    try:
+                        dir_path = os.path.dirname(db_path)
+                        if dir_path and not os.path.exists(dir_path):
+                            os.makedirs(dir_path, exist_ok=True)
+                            print(f"디렉토리 생성 시도: {dir_path}")
+                        
+                        conn = sqlite3.connect(db_path)
+                        conn.row_factory = sqlite3.Row
+                        print(f"파일 기반 SQLite 연결 성공: {db_path}")
+                        break
+                    except Exception as path_error:
+                        print(f"경로 {db_path} 시도 실패: {path_error}")
+                        continue
+                
+                if conn is None:
+                    print("모든 파일 경로 실패, 메모리 기반 SQLite로 폴백")
+                    conn = sqlite3.connect(':memory:')
+                    conn.row_factory = sqlite3.Row
+                    print("메모리 기반 SQLite 연결 성공 (데이터 유지 안됨)")
                 
                 # 테이블 생성 확인
                 cursor = conn.cursor()
@@ -1526,11 +1585,33 @@ def get_admin_stats():
         if conn is None:
             print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
             # 파일 기반 SQLite로 폴백 (데이터 유지)
-            db_path = '/app/data/orders.db'
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            print(f"파일 기반 SQLite 연결 성공: {db_path}")
+            possible_paths = [
+                '/app/data/orders.db',
+                '/tmp/orders.db',
+                './orders.db',
+                'orders.db'
+            ]
+            
+            for db_path in possible_paths:
+                try:
+                    dir_path = os.path.dirname(db_path)
+                    if dir_path and not os.path.exists(dir_path):
+                        os.makedirs(dir_path, exist_ok=True)
+                        print(f"디렉토리 생성 시도: {dir_path}")
+                    
+                    conn = sqlite3.connect(db_path)
+                    conn.row_factory = sqlite3.Row
+                    print(f"파일 기반 SQLite 연결 성공: {db_path}")
+                    break
+                except Exception as path_error:
+                    print(f"경로 {db_path} 시도 실패: {path_error}")
+                    continue
+            
+            if conn is None:
+                print("모든 파일 경로 실패, 메모리 기반 SQLite로 폴백")
+                conn = sqlite3.connect(':memory:')
+                conn.row_factory = sqlite3.Row
+                print("메모리 기반 SQLite 연결 성공 (데이터 유지 안됨)")
             
             # 테이블 생성 확인
             cursor = conn.cursor()
@@ -1682,11 +1763,33 @@ def get_admin_users():
         if conn is None:
             print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
             # 파일 기반 SQLite로 폴백 (데이터 유지)
-            db_path = '/app/data/orders.db'
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            print(f"파일 기반 SQLite 연결 성공: {db_path}")
+            possible_paths = [
+                '/app/data/orders.db',
+                '/tmp/orders.db',
+                './orders.db',
+                'orders.db'
+            ]
+            
+            for db_path in possible_paths:
+                try:
+                    dir_path = os.path.dirname(db_path)
+                    if dir_path and not os.path.exists(dir_path):
+                        os.makedirs(dir_path, exist_ok=True)
+                        print(f"디렉토리 생성 시도: {dir_path}")
+                    
+                    conn = sqlite3.connect(db_path)
+                    conn.row_factory = sqlite3.Row
+                    print(f"파일 기반 SQLite 연결 성공: {db_path}")
+                    break
+                except Exception as path_error:
+                    print(f"경로 {db_path} 시도 실패: {path_error}")
+                    continue
+            
+            if conn is None:
+                print("모든 파일 경로 실패, 메모리 기반 SQLite로 폴백")
+                conn = sqlite3.connect(':memory:')
+                conn.row_factory = sqlite3.Row
+                print("메모리 기반 SQLite 연결 성공 (데이터 유지 안됨)")
             
             # 테이블 생성 확인
             cursor = conn.cursor()
@@ -1754,11 +1857,33 @@ def get_admin_transactions():
         if conn is None:
             print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
             # 파일 기반 SQLite로 폴백 (데이터 유지)
-            db_path = '/app/data/orders.db'
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            print(f"파일 기반 SQLite 연결 성공: {db_path}")
+            possible_paths = [
+                '/app/data/orders.db',
+                '/tmp/orders.db',
+                './orders.db',
+                'orders.db'
+            ]
+            
+            for db_path in possible_paths:
+                try:
+                    dir_path = os.path.dirname(db_path)
+                    if dir_path and not os.path.exists(dir_path):
+                        os.makedirs(dir_path, exist_ok=True)
+                        print(f"디렉토리 생성 시도: {dir_path}")
+                    
+                    conn = sqlite3.connect(db_path)
+                    conn.row_factory = sqlite3.Row
+                    print(f"파일 기반 SQLite 연결 성공: {db_path}")
+                    break
+                except Exception as path_error:
+                    print(f"경로 {db_path} 시도 실패: {path_error}")
+                    continue
+            
+            if conn is None:
+                print("모든 파일 경로 실패, 메모리 기반 SQLite로 폴백")
+                conn = sqlite3.connect(':memory:')
+                conn.row_factory = sqlite3.Row
+                print("메모리 기반 SQLite 연결 성공 (데이터 유지 안됨)")
             
             # 테이블 생성 확인
             cursor = conn.cursor()
@@ -1841,11 +1966,33 @@ def get_admin_purchases():
         if conn is None:
             print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
             # 파일 기반 SQLite로 폴백 (데이터 유지)
-            db_path = '/app/data/orders.db'
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            print(f"파일 기반 SQLite 연결 성공: {db_path}")
+            possible_paths = [
+                '/app/data/orders.db',
+                '/tmp/orders.db',
+                './orders.db',
+                'orders.db'
+            ]
+            
+            for db_path in possible_paths:
+                try:
+                    dir_path = os.path.dirname(db_path)
+                    if dir_path and not os.path.exists(dir_path):
+                        os.makedirs(dir_path, exist_ok=True)
+                        print(f"디렉토리 생성 시도: {dir_path}")
+                    
+                    conn = sqlite3.connect(db_path)
+                    conn.row_factory = sqlite3.Row
+                    print(f"파일 기반 SQLite 연결 성공: {db_path}")
+                    break
+                except Exception as path_error:
+                    print(f"경로 {db_path} 시도 실패: {path_error}")
+                    continue
+            
+            if conn is None:
+                print("모든 파일 경로 실패, 메모리 기반 SQLite로 폴백")
+                conn = sqlite3.connect(':memory:')
+                conn.row_factory = sqlite3.Row
+                print("메모리 기반 SQLite 연결 성공 (데이터 유지 안됨)")
             
             # 테이블 생성 확인
             cursor = conn.cursor()
