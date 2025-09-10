@@ -1336,12 +1336,18 @@ def deduct_user_points():
 def create_point_purchase():
     """포인트 구매 요청"""
     try:
+        print(f"=== 포인트 구매 요청 시작 ===")
         data = request.get_json()
         user_id = request.headers.get('X-User-ID', 'anonymous')
         amount = data.get('amount')
         price = data.get('price')
         
+        print(f"사용자 ID: {user_id}")
+        print(f"구매 포인트: {amount}")
+        print(f"결제 금액: {price}")
+        
         if not amount or not price:
+            print("필수 정보 누락")
             return jsonify({'error': '필수 정보가 누락되었습니다.'}), 400
         
         # 데이터베이스에 구매 요청 저장
@@ -1394,6 +1400,7 @@ def create_point_purchase():
 def get_admin_purchases():
     """관리자용 포인트 구매 신청 목록 조회"""
     try:
+        print(f"=== 관리자 구매 신청 목록 조회 시작 ===")
         conn = get_db_connection()
         if conn is None:
             # 메모리 기반 SQLite로 폴백
