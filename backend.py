@@ -757,7 +757,7 @@ def complete_order_payment(order_id):
                         # PostgreSQL에 외부 주문 ID 업데이트
                         cursor.execute("""
                             UPDATE orders 
-                            SET external_order_id = %s, status = 'processing', updated_at = %s
+                            SET external_order_id = ?, status = 'processing', updated_at = ?
                             WHERE order_id = ?
                         """, (external_order_id, datetime.now(), order_id))
                         conn.commit()
@@ -1316,7 +1316,7 @@ def deduct_user_points():
         # 포인트 차감
             cursor.execute("""
                 UPDATE points 
-                SET points = points - %s, updated_at = CURRENT_TIMESTAMP
+                SET points = points - ?, updated_at = CURRENT_TIMESTAMP
                 WHERE user_id = ?
             """, (points, user_id))
             
@@ -1495,7 +1495,7 @@ def generate_referral_code():
             # 추천인 코드 저장
             cursor.execute("""
                 INSERT INTO referral_codes (code, referrer_user_id, is_active)
-                VALUES (%s, %s, TRUE)
+                VALUES (?, ?, 1)
             """, (code, user_id))
             
             conn.commit()
@@ -1553,7 +1553,7 @@ def use_referral_code():
             # 추천 관계 저장
             cursor.execute("""
                 INSERT INTO referrals (referrer_user_id, referred_user_id, referral_code)
-                VALUES (%s, %s, %s)
+                VALUES (?, ?, ?)
             """, (code_info['referrer_user_id'], user_id, referral_code))
             
             # 사용 횟수 증가
