@@ -1362,6 +1362,7 @@ def create_point_purchase():
                     'message': '포인트 구매 요청이 생성되었습니다.'
                 }), 200
         
+        
         except Exception as e:
             print(f"구매 요청 저장 실패: {e}")
             return jsonify({'error': '구매 요청 저장에 실패했습니다.'}), 500        
@@ -1371,7 +1372,7 @@ def create_point_purchase():
 
 # 사용자 정보 조회
 @app.route('/api/user/info', methods=['GET'])
-def get_user_info():
+def get_user_info_by_query():
     """사용자 정보 조회"""
     try:
         user_id = request.args.get('user_id', 'anonymous')
@@ -1569,106 +1570,6 @@ def use_referral_code():
         print(f"추천인 코드 사용 실패: {e}")
         return jsonify({'error': '추천인 코드 사용에 실패했습니다.'}), 500
 
-@app.route('/api/referral/my-codes', methods=['GET'])
-def get_my_referral_codes():
-    """내 추천인 코드 목록 조회"""
-    try:
-        user_id = request.args.get('user_id')
-        
-        if not user_id:
-            return jsonify({'error': '사용자 ID가 필요합니다.'}), 400
-        
-        conn = get_db_connection()
-        if conn is None:
-            return jsonify({'error': '데이터베이스 연결 실패'}), 500
-            
-        with conn:
-            cursor = conn.cursor()
-            
-            cursor.execute("""
-                SELECT 
-                    code,
-                    is_active,
-                    created_at,
-                    expires_at,
-                    usage_count,
-                    total_commission
-                FROM referral_codes 
-                WHERE referrer_user_id = ?
-                ORDER BY created_at DESC
-            """, (user_id,))
-            
-            codes = []
-            for row in cursor.fetchall():
-                codes.append({
-                    'code': row['code'],
-                    'is_active': row['is_active'],
-                    'created_at': row['created_at'].isoformat() if row['created_at'] else None,
-                    'expires_at': row['expires_at'].isoformat() if row['expires_at'] else None,
-                    'usage_count': row['usage_count'],
-                    'total_commission': float(row['total_commission'])
-                })
-        
-        return jsonify({
-            'success': True,
-                'codes': codes
-        }), 200
-        
-    except Exception as e:
-        print(f"추천인 코드 목록 조회 실패: {e}")
-        return jsonify({'error': '추천인 코드 목록 조회에 실패했습니다.'}), 500
-
-@app.route('/api/referral/commissions', methods=['GET'])
-def get_referral_commissions():
-    """추천인 커미션 내역 조회"""
-    try:
-        user_id = request.args.get('user_id')
-        
-        if not user_id:
-            return jsonify({'error': '사용자 ID가 필요합니다.'}), 400
-        
-        conn = get_db_connection()
-        if conn is None:
-            return jsonify({'error': '데이터베이스 연결 실패'}), 500
-            
-        with conn:
-            cursor = conn.cursor()
-            
-            cursor.execute("""
-                SELECT 
-                    rc.commission_id,
-                    rc.referred_user_id,
-                    rc.purchase_id,
-                    rc.commission_amount,
-                    rc.commission_rate,
-                    rc.created_at,
-                    pp.amount as purchase_amount
-                FROM referral_commissions rc
-                LEFT JOIN point_purchases pp ON rc.purchase_id = pp.purchase_id
-                WHERE rc.referrer_user_id = ?
-                ORDER BY rc.created_at DESC
-            """, (user_id,))
-            
-            commissions = []
-            for row in cursor.fetchall():
-                commissions.append({
-                    'commission_id': row['commission_id'],
-                    'referred_user_id': row['referred_user_id'],
-                    'purchase_id': row['purchase_id'],
-                    'commission_amount': float(row['commission_amount']),
-                    'commission_rate': float(row['commission_rate']),
-                    'purchase_amount': row['purchase_amount'],
-                    'created_at': row['created_at'].isoformat() if row['created_at'] else None
-                })
-            
-            return jsonify({
-                'success': True,
-                'commissions': commissions
-            }), 200
-            
-    except Exception as e:
-        print(f"추천인 커미션 내역 조회 실패: {e}")
-        return jsonify({'error': '추천인 커미션 내역 조회에 실패했습니다.'}), 500
 
 # 관리자 API 블루프린트 등록
 try:
