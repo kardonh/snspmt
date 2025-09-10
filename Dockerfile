@@ -48,5 +48,5 @@ ENV TEMP=/app/var
 ENV TMP=/app/var
 ENV TEMP_DIR=/app/var
 
-# Run the application with Flask development server (no temp files needed)
-CMD ["python", "-c", "from backend import app; app.run(host='0.0.0.0', port=8000, debug=False)"]
+# Run the application with Gunicorn production server
+CMD ["gunicorn", "--config", "gunicorn.conf.py", "backend:app"]
