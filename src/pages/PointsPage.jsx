@@ -54,8 +54,11 @@ const PointsPage = () => {
 
   const loadUserPoints = async () => {
     try {
-              const response = await smmpanelApi.getUserPoints(currentUser.uid)
-      setUserPoints(response.points || 0)
+      const response = await fetch(`/api/points?user_id=${currentUser.uid}`)
+      if (response.ok) {
+        const data = await response.json()
+        setUserPoints(data.points || 0)
+      }
     } catch (error) {
       console.error('포인트 조회 실패:', error)
     }
@@ -63,8 +66,11 @@ const PointsPage = () => {
 
   const loadPurchaseHistory = async () => {
     try {
-              const response = await smmpanelApi.getPurchaseHistory(currentUser.uid)
-      setPurchaseHistory(response.history || [])
+      const response = await fetch(`/api/points/purchase-history?user_id=${currentUser.uid}`)
+      if (response.ok) {
+        const data = await response.json()
+        setPurchaseHistory(data.purchases || [])
+      }
     } catch (error) {
       console.error('구매 내역 조회 실패:', error)
     }
@@ -162,9 +168,22 @@ const PointsPage = () => {
         status: 'pending'
       }
 
-              const response = await smmpanelApi.createPurchase(purchaseData, currentUser.uid)
+      // 내부 API로 포인트 구매 신청
+      const response = await fetch('/api/points/purchase', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': currentUser.uid
+        },
+        body: JSON.stringify({
+          amount: selectedAmount,
+          price: pointPackages.find(pkg => pkg.amount === selectedAmount).price
+        })
+      })
       
-      if (response.success) {
+      const result = await response.json()
+      
+      if (response.ok && result.purchase_id) {
         alert('포인트 구매 신청이 완료되었습니다. 관리자 승인 후 포인트가 추가됩니다.')
         setDepositorName('')
         setBankName('')
@@ -177,7 +196,7 @@ const PointsPage = () => {
         setCashReceiptPhone('')
         loadPurchaseHistory()
       } else {
-        alert('구매 신청 중 오류가 발생했습니다.')
+        alert(`구매 신청 중 오류가 발생했습니다: ${result.error || '알 수 없는 오류'}`)
       }
     } catch (error) {
       console.error('구매 신청 실패:', error)
