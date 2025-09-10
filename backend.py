@@ -1024,8 +1024,8 @@ def get_purchase_history():
                 CREATE TABLE IF NOT EXISTS point_purchases (
                     purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
-                    points INTEGER NOT NULL,
-                    amount REAL NOT NULL,
+                    amount INTEGER NOT NULL,
+                    price REAL NOT NULL,
                     status TEXT DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -1033,7 +1033,7 @@ def get_purchase_history():
             """)
             
             cursor.execute("""
-                SELECT purchase_id, points, amount, status, created_at, updated_at
+                SELECT purchase_id, amount, price, status, created_at, updated_at
                 FROM point_purchases 
                 WHERE user_id = ?
                 ORDER BY created_at DESC
@@ -1043,8 +1043,8 @@ def get_purchase_history():
             for row in cursor.fetchall():
                 purchase = {
                     'id': row[0],
-                    'points': row[1],
-                    'amount': float(row[2]),
+                    'amount': row[1],
+                    'price': float(row[2]),
                     'status': row[3],
                     'created_at': row[4].isoformat() if row[4] else None,
                     'updated_at': row[5].isoformat() if row[5] else None
@@ -1351,6 +1351,21 @@ def create_point_purchase():
                 # 메모리 기반 SQLite로 폴백
                 conn = sqlite3.connect(':memory:')
                 conn.row_factory = sqlite3.Row
+                
+                # 테이블 생성 확인
+                cursor = conn.cursor()
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS point_purchases (
+                        purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id TEXT NOT NULL,
+                        amount INTEGER NOT NULL,
+                        price REAL NOT NULL,
+                        status TEXT DEFAULT 'pending',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                conn.commit()
             
             with conn:
                 cursor = conn.cursor()
