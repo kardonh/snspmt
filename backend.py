@@ -69,15 +69,27 @@ def get_db_connection():
             return conn
         except Exception as sqlite_error:
             print(f"SQLite 연결도 실패: {sqlite_error}")
-            # 메모리 기반 SQLite 데이터베이스 사용
+            # 파일 기반 SQLite 데이터베이스 사용 (데이터 유지)
             try:
-                conn = sqlite3.connect(':memory:')
+                # SQLite 파일 경로 설정
+                db_path = '/app/data/orders.db'
+                os.makedirs(os.path.dirname(db_path), exist_ok=True)
+                
+                conn = sqlite3.connect(db_path)
                 conn.row_factory = sqlite3.Row
-                print("메모리 기반 SQLite 연결 성공")
+                print(f"파일 기반 SQLite 연결 성공: {db_path}")
                 return conn
             except Exception as create_error:
-                print(f"메모리 기반 SQLite 연결도 실패: {create_error}")
-                return None
+                print(f"파일 기반 SQLite 연결도 실패: {create_error}")
+                # 최종 폴백: 메모리 기반 SQLite
+                try:
+                    conn = sqlite3.connect(':memory:')
+                    conn.row_factory = sqlite3.Row
+                    print("메모리 기반 SQLite 연결 성공 (데이터 유지 안됨)")
+                    return conn
+                except Exception as memory_error:
+                    print(f"메모리 기반 SQLite 연결도 실패: {memory_error}")
+                    return None
 
 # SQLite 연결 함수 (로컬 개발용)
 def get_sqlite_connection():
@@ -1004,22 +1016,39 @@ def get_user_info(user_id):
 def get_purchase_history():
     """포인트 구매 내역 조회"""
     try:
+        print(f"=== 포인트 구매 내역 API 엔드포인트 호출됨 ===")
         user_id = request.args.get('user_id')
+        print(f"요청된 사용자 ID: {user_id}")
         
         if not user_id:
+            print("사용자 ID 누락")
             return jsonify({'error': '사용자 ID가 누락되었습니다.'}), 400
         
         print(f"구매 내역 조회 요청: {user_id}")
         
         # 데이터베이스에서 구매 내역 조회
+        print(f"데이터베이스 연결 시도...")
         conn = get_db_connection()
+        if conn is None:
+            print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
+            # 파일 기반 SQLite로 폴백 (데이터 유지)
+            db_path = '/app/data/orders.db'
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            print(f"파일 기반 SQLite 연결 성공: {db_path}")
+        else:
+            print(f"PostgreSQL 연결 성공, 기존 연결 사용")
+        
         if not conn:
+            print("데이터베이스 연결 실패")
             return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
         
         try:
             cursor = conn.cursor()
             
             # 테이블 생성 확인
+            print(f"point_purchases 테이블 생성 시도...")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
                     purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1031,7 +1060,24 @@ def get_purchase_history():
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            conn.commit()
+            print(f"point_purchases 테이블 생성 완료")
             
+            # 테이블 존재 확인
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='point_purchases'")
+            table_exists = cursor.fetchone()
+            print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
+            
+            # 기존 데이터 확인
+            cursor.execute("SELECT COUNT(*) FROM point_purchases")
+            total_purchases = cursor.fetchone()[0]
+            print(f"전체 구매 신청 수: {total_purchases}")
+            
+            cursor.execute("SELECT COUNT(*) FROM point_purchases WHERE user_id = ?", (user_id,))
+            user_purchases = cursor.fetchone()[0]
+            print(f"사용자 {user_id}의 구매 신청 수: {user_purchases}")
+            
+            print(f"구매 내역 조회 시도...")
             cursor.execute("""
                 SELECT purchase_id, amount, price, status, created_at, updated_at
                 FROM point_purchases 
@@ -1039,22 +1085,31 @@ def get_purchase_history():
                 ORDER BY created_at DESC
             """, (user_id,))
             
+            print(f"구매 내역 데이터 변환 시도...")
             purchases = []
             for row in cursor.fetchall():
-                purchase = {
-                    'id': row[0],
-                    'amount': row[1],
-                    'price': float(row[2]),
-                    'status': row[3],
-                    'created_at': row[4].isoformat() if row[4] else None,
-                    'updated_at': row[5].isoformat() if row[5] else None
-                }
-                purchases.append(purchase)
+                try:
+                    purchase = {
+                        'id': row[0],
+                        'amount': row[1],
+                        'price': float(row[2]),
+                        'status': row[3],
+                        'created_at': row[4].isoformat() if row[4] else None,
+                        'updated_at': row[5].isoformat() if row[5] else None
+                    }
+                    purchases.append(purchase)
+                    print(f"구매 내역 추가: ID={row[0]}, 금액={row[2]}, 상태={row[3]}")
+                except Exception as e:
+                    print(f"구매 내역 데이터 변환 실패: {e}")
+                    continue
             
+            print(f"구매 내역 조회 성공: {len(purchases)}건")
             return jsonify({'purchases': purchases}), 200
             
         except Exception as db_error:
             print(f"데이터베이스 조회 실패: {db_error}")
+            import traceback
+            print(f"상세 오류: {traceback.format_exc()}")
             return jsonify({'error': f'구매 내역 조회에 실패했습니다: {str(db_error)}'}), 500
         finally:
             if cursor:
@@ -1064,6 +1119,8 @@ def get_purchase_history():
         
     except Exception as e:
         print(f"구매 내역 조회 실패: {e}")
+        import traceback
+        print(f"상세 오류: {traceback.format_exc()}")
         return jsonify({'error': '구매 내역 조회에 실패했습니다.'}), 500
 
 # 추천인 코드 조회
@@ -1360,10 +1417,13 @@ def create_point_purchase():
             print(f"데이터베이스 연결 시도...")
             conn = get_db_connection()
             if conn is None:
-                print(f"PostgreSQL 연결 실패, SQLite로 폴백...")
-                # 메모리 기반 SQLite로 폴백
-                conn = sqlite3.connect(':memory:')
+                print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
+                # 파일 기반 SQLite로 폴백 (데이터 유지)
+                db_path = '/app/data/orders.db'
+                os.makedirs(os.path.dirname(db_path), exist_ok=True)
+                conn = sqlite3.connect(db_path)
                 conn.row_factory = sqlite3.Row
+                print(f"파일 기반 SQLite 연결 성공: {db_path}")
                 
                 # 테이블 생성 확인
                 cursor = conn.cursor()
@@ -1464,10 +1524,13 @@ def get_admin_stats():
         print(f"=== 관리자 통계 API 엔드포인트 호출됨 ===")
         conn = get_db_connection()
         if conn is None:
-            print(f"PostgreSQL 연결 실패, SQLite로 폴백...")
-            # 메모리 기반 SQLite로 폴백
-            conn = sqlite3.connect(':memory:')
+            print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
+            # 파일 기반 SQLite로 폴백 (데이터 유지)
+            db_path = '/app/data/orders.db'
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
+            print(f"파일 기반 SQLite 연결 성공: {db_path}")
             
             # 테이블 생성 확인
             cursor = conn.cursor()
@@ -1617,10 +1680,13 @@ def get_admin_users():
         print(f"=== 관리자 사용자 목록 API 엔드포인트 호출됨 ===")
         conn = get_db_connection()
         if conn is None:
-            print(f"PostgreSQL 연결 실패, SQLite로 폴백...")
-            # 메모리 기반 SQLite로 폴백
-            conn = sqlite3.connect(':memory:')
+            print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
+            # 파일 기반 SQLite로 폴백 (데이터 유지)
+            db_path = '/app/data/orders.db'
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
+            print(f"파일 기반 SQLite 연결 성공: {db_path}")
             
             # 테이블 생성 확인
             cursor = conn.cursor()
@@ -1686,10 +1752,13 @@ def get_admin_transactions():
         print(f"=== 관리자 주문 목록 API 엔드포인트 호출됨 ===")
         conn = get_db_connection()
         if conn is None:
-            print(f"PostgreSQL 연결 실패, SQLite로 폴백...")
-            # 메모리 기반 SQLite로 폴백
-            conn = sqlite3.connect(':memory:')
+            print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
+            # 파일 기반 SQLite로 폴백 (데이터 유지)
+            db_path = '/app/data/orders.db'
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
+            print(f"파일 기반 SQLite 연결 성공: {db_path}")
             
             # 테이블 생성 확인
             cursor = conn.cursor()
@@ -1770,10 +1839,13 @@ def get_admin_purchases():
         print(f"=== 관리자 구매 신청 목록 조회 시작 ===")
         conn = get_db_connection()
         if conn is None:
-            print(f"PostgreSQL 연결 실패, SQLite로 폴백...")
-            # 메모리 기반 SQLite로 폴백
-            conn = sqlite3.connect(':memory:')
+            print(f"PostgreSQL 연결 실패, 파일 기반 SQLite로 폴백...")
+            # 파일 기반 SQLite로 폴백 (데이터 유지)
+            db_path = '/app/data/orders.db'
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
+            print(f"파일 기반 SQLite 연결 성공: {db_path}")
             
             # 테이블 생성 확인
             cursor = conn.cursor()

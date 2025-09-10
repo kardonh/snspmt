@@ -27,8 +27,9 @@ COPY . .
 # Build frontend
 RUN npm install && npm run build
 
-# Create minimal directories for Flask
+# Create directories for Flask and SQLite
 RUN mkdir -p /app/logs && chmod 777 /app/logs
+RUN mkdir -p /app/data && chmod 777 /app/data
 
 # Expose port
 EXPOSE 8000
