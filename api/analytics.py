@@ -18,7 +18,7 @@ def get_db_connection():
     """PostgreSQL 연결"""
     if POSTGRES_AVAILABLE:
         try:
-            database_url = "postgresql://snspmt_admin:Snspmt2024!@snspmt-db.cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/postgres"
+            database_url = "postgresql://snspmt_admin:Snspmt2024!@snspmt-cluster.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt"
             conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
             return conn
         except Exception as e:
