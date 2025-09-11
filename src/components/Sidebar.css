@@ -63,8 +63,8 @@
 
 .user-info, .guest-info {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
 }
 
@@ -72,6 +72,29 @@
   font-weight: 600;
   color: #1e293b;
   font-size: 14px;
+  text-align: center;
+  word-break: break-all;
+}
+
+.user-points {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.points-icon {
+  color: #fbbf24;
+}
+
+.points-text {
+  font-weight: 700;
 }
 
 .guest-info span {

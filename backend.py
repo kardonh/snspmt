@@ -32,7 +32,7 @@ def initialize_app():
         # 초기화 실패해도 앱은 계속 실행
     
     # 환경 변수 설정
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://snspmt_admin:Snspmt2024!@snspmt-cluster.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-db.cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
 SMMPANEL_API_URL = 'https://smmpanel.kr/api/v2'
 API_KEY = os.getenv('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
 
@@ -98,7 +98,7 @@ def init_database():
             # orders 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
-                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     service_id INTEGER NOT NULL,
                     link TEXT NOT NULL,
@@ -135,7 +135,7 @@ def init_database():
             # point_purchases 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
-                    purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    purchase_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     amount INTEGER NOT NULL,
                     price REAL NOT NULL,
@@ -148,7 +148,7 @@ def init_database():
             # notifications 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS notifications (
-                    notification_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    notification_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     type TEXT NOT NULL,
                     title TEXT NOT NULL,
@@ -161,7 +161,7 @@ def init_database():
             # referral_codes 테이블 생성 (추천인 코드 관리)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referral_codes (
-                    code_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code_id SERIAL PRIMARY KEY,
                     code TEXT UNIQUE NOT NULL,
                     referrer_user_id TEXT NOT NULL,
                     is_active INTEGER DEFAULT 1,
@@ -175,7 +175,7 @@ def init_database():
             # referrals 테이블 생성 (추천 관계 관리)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referrals (
-                    referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    referral_id SERIAL PRIMARY KEY,
                     referrer_user_id TEXT NOT NULL,
                     referred_user_id TEXT NOT NULL,
                     referral_code TEXT NOT NULL,
@@ -187,7 +187,7 @@ def init_database():
             # referral_commissions 테이블 생성 (커미션 내역)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referral_commissions (
-                    commission_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    commission_id SERIAL PRIMARY KEY,
                     referrer_user_id TEXT NOT NULL,
                     referred_user_id TEXT NOT NULL,
                     purchase_id INTEGER NOT NULL,
@@ -300,7 +300,7 @@ def register():
             # referral_codes 테이블 생성 (SQLite 문법)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referral_codes (
-                    code_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code_id SERIAL PRIMARY KEY,
                     code TEXT UNIQUE NOT NULL,
                     referrer_user_id TEXT NOT NULL,
                     is_active BOOLEAN DEFAULT 1,
@@ -315,7 +315,7 @@ def register():
             # referrals 테이블 생성 (SQLite 문법)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referrals (
-                    referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    referral_id SERIAL PRIMARY KEY,
                     referrer_user_id TEXT NOT NULL,
                     referred_user_id TEXT NOT NULL,
                     referral_code TEXT NOT NULL,
@@ -585,7 +585,7 @@ def create_order():
             print("orders 테이블 생성 확인 중...")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
-                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     service_id TEXT NOT NULL,
                     link TEXT NOT NULL,
@@ -807,7 +807,7 @@ def get_user_orders():
             # 테이블 생성 확인
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
-                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     service_id TEXT NOT NULL,
                     link TEXT NOT NULL,
@@ -1051,7 +1051,7 @@ def get_purchase_history():
             print(f"point_purchases 테이블 생성 시도...")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
-                    purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    purchase_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     amount INTEGER NOT NULL,
                     price REAL NOT NULL,
@@ -1146,7 +1146,7 @@ def get_my_referral_codes():
             # 테이블 생성 확인
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referral_codes (
-                    code_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code_id SERIAL PRIMARY KEY,
                     code TEXT UNIQUE NOT NULL,
                     referrer_user_id TEXT NOT NULL,
                     is_active BOOLEAN DEFAULT 1,
@@ -1213,7 +1213,7 @@ def get_referral_commissions():
             # 테이블 생성 확인
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referrals (
-                    referral_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    referral_id SERIAL PRIMARY KEY,
                     referrer_user_id TEXT NOT NULL,
                     referred_user_id TEXT NOT NULL,
                     referral_code TEXT NOT NULL,
@@ -1275,7 +1275,7 @@ def get_order_detail(order_id):
             # 테이블 생성 확인
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
-                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     service_id TEXT NOT NULL,
                     link TEXT NOT NULL,
@@ -1452,7 +1452,7 @@ def create_point_purchase():
                 print(f"point_purchases 테이블 생성 시도...")
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS point_purchases (
-                        purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        purchase_id SERIAL PRIMARY KEY,
                         user_id TEXT NOT NULL,
                         amount INTEGER NOT NULL,
                         price REAL NOT NULL,
@@ -1482,7 +1482,7 @@ def create_point_purchase():
                         print(f"point_purchases 테이블이 없음, 생성 시도...")
                         cursor.execute("""
                             CREATE TABLE IF NOT EXISTS point_purchases (
-                                purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                purchase_id SERIAL PRIMARY KEY,
                                 user_id TEXT NOT NULL,
                                 amount INTEGER NOT NULL,
                                 price REAL NOT NULL,
@@ -1498,7 +1498,7 @@ def create_point_purchase():
                     # SQLite 문법으로 다시 시도
                     cursor.execute("""
                         CREATE TABLE IF NOT EXISTS point_purchases (
-                            purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            purchase_id SERIAL PRIMARY KEY,
                             user_id TEXT NOT NULL,
                             amount INTEGER NOT NULL,
                             price REAL NOT NULL,
@@ -1665,7 +1665,7 @@ def get_admin_stats():
             # orders 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
-                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     service_id TEXT NOT NULL,
                     link TEXT NOT NULL,
@@ -1680,7 +1680,7 @@ def get_admin_stats():
             # point_purchases 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
-                    purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    purchase_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     amount INTEGER NOT NULL,
                     price REAL NOT NULL,
@@ -1929,7 +1929,7 @@ def get_admin_transactions():
             # orders 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
-                    order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     service_id TEXT NOT NULL,
                     link TEXT NOT NULL,
@@ -2036,7 +2036,7 @@ def get_admin_purchases():
             print(f"point_purchases 테이블 생성 시도...")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
-                    purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    purchase_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     amount INTEGER NOT NULL,
                     price REAL NOT NULL,
@@ -2066,7 +2066,7 @@ def get_admin_purchases():
                     print(f"point_purchases 테이블이 없음, 생성 시도...")
                     cursor.execute("""
                         CREATE TABLE IF NOT EXISTS point_purchases (
-                            purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            purchase_id SERIAL PRIMARY KEY,
                             user_id TEXT NOT NULL,
                             amount INTEGER NOT NULL,
                             price REAL NOT NULL,
@@ -2082,7 +2082,7 @@ def get_admin_purchases():
                 # SQLite 문법으로 다시 시도
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS point_purchases (
-                        purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        purchase_id SERIAL PRIMARY KEY,
                         user_id TEXT NOT NULL,
                         amount INTEGER NOT NULL,
                         price REAL NOT NULL,
@@ -2151,7 +2151,7 @@ def update_purchase_status(purchase_id):
             cursor = conn.cursor()
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
-                    purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    purchase_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
                     amount INTEGER NOT NULL,
                     price REAL NOT NULL,

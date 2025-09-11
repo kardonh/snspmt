@@ -220,7 +220,7 @@ def get_db_connection():
         # PostgreSQL 연결 풀이 없으면 직접 연결
         if POSTGRES_AVAILABLE:
             # 올바른 연결 문자열 하드코딩
-            database_url = "postgresql://snspmt_admin:Snspmt2024!@snspmt-cluster.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt"
+            database_url = "postgresql://postgres:Snspmt2024!@snspmt-db.cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt"
             
             conn = psycopg2.connect(database_url)
             try:
@@ -961,7 +961,7 @@ def get_admin_db_connection():
             return conn
         else:
             # 직접 연결
-            database_url = "postgresql://snspmt_admin:Snspmt2024!@snspmt-cluster.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt"
+            database_url = "postgresql://postgres:Snspmt2024!@snspmt-db.cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt"
             conn = psycopg2.connect(database_url)
             return conn
     except Exception as e:

@@ -1,8 +1,3 @@
-[33mde7ada4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix order creation navigation and error handling
-[33mb2da1c2[m Fix price calculation and runtime error handling
-[33mea57ccc[m Add product catalog button to sidebar and bottom tab bar
-[33mfd7817c[m Fix service ID mapping to resolve 'Incorrect service ID' error
-[33mca9cfd1[m Fix browser zoom layout issues with responsive design improvements
 
                    SSUUMMMMAARRYY OOFF LLEESSSS CCOOMMMMAANNDDSS
 
@@ -317,34 +312,3 @@
  TAB ...................................... Complete filename & cycle.
  SHIFT-TAB ...................... ESC-TAB   Complete filename & reverse cycle.
  ctrl-L ................................... Complete filename, list all.
-[33m1469813[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix missing service field in order creation API
-[33mc1eca77[m Fix admin.py database connection function missing
-[33m5d35679[m Add admin purchase approval system with search functionality and fix API compatibility issues
-[33m0f295d0[m Fix admin API endpoints and improve order validation
-[33m7c20c05[m  PaymentPage.jsx 문법 오류 수정 - try-catch 블록 구조 개선
-[33m412eaf1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix database URL in backend_backup_final.py to use new snspmt-cluster
-backend_backup_final.py
-[33m1b055c5[m Fix database URLs in backend_backup.py to use new snspmt-cluster
-backend_backup.py
-[33ma63d7a0[m Fix database URLs in API modules to use new snspmt-cluster
-api/admin.py
-api/analytics.py
-api/notifications.py
-[33m27dc56a[m Update database URL to connect to new snspmt-cluster
-backend.py
-[33m58057b0[m Switch to Aurora cluster and optimize for cost-effective production
-backend.py
-create_new_aurora_cluster.md
-[33mc185d6e[m Add test data API and improve admin dashboard data display
-backend.py
-[33mc6b5276[m Enable PostgreSQL connection for production use with snspmt database
-activate_postgresql.py
-create_database.py
-enable_postgresql.py
-rds_setup_guide.md
-[33mfcc281f[m Enable PostgreSQL connection for production use
-backend.py
-[33md7f5df9[m Switch to SQLite memory-based database to fix 500 errors
-backend.py
-[33m2664ad4[m Fix database name from snspmt to postgres for RDS connection
-backend.py

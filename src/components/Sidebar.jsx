@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { 
   Star, 
@@ -12,7 +12,8 @@ import {
   X,
   Shield,
   CreditCard,
-  Package
+  Package,
+  Coins
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import './Sidebar.css'
@@ -22,6 +23,42 @@ const Sidebar = ({ onClose }) => {
   const navigate = useNavigate()
   const { currentUser, logout } = useAuth()
   const [businessInfoOpen, setBusinessInfoOpen] = useState(false)
+  const [userPoints, setUserPoints] = useState(0)
+  const [pointsLoading, setPointsLoading] = useState(false)
+
+  // 사용자 포인트 조회 함수
+  const fetchUserPoints = async () => {
+    if (!currentUser) return
+    
+    setPointsLoading(true)
+    try {
+      const response = await fetch('/api/points', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await currentUser.getIdToken()}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setUserPoints(data.points || 0)
+      }
+    } catch (error) {
+      console.error('포인트 조회 실패:', error)
+    } finally {
+      setPointsLoading(false)
+    }
+  }
+
+  // 사용자가 로그인했을 때 포인트 조회
+  useEffect(() => {
+    if (currentUser) {
+      fetchUserPoints()
+    } else {
+      setUserPoints(0)
+    }
+  }, [currentUser])
 
   const menuItems = [
     { id: 'order', name: '주문하기', icon: Star, path: '/', color: '#3b82f6' },
@@ -79,6 +116,12 @@ const Sidebar = ({ onClose }) => {
         {currentUser ? (
           <div className="user-info">
             <span className="user-name">{currentUser.displayName || currentUser.email}</span>
+            <div className="user-points">
+              <Coins size={16} className="points-icon" />
+              <span className="points-text">
+                {pointsLoading ? '로딩중...' : `${userPoints.toLocaleString()}P`}
+              </span>
+            </div>
             <button onClick={handleSignOut} className="logout-btn">로그아웃</button>
           </div>
         ) : (
