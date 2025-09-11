@@ -32,10 +32,7 @@ def initialize_app():
         # 초기화 실패해도 앱은 계속 실행
     
     # 환경 변수 설정
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/snspmt')
-# AWS RDS용 데이터베이스 URL 수정
-if 'rds.amazonaws.com' in DATABASE_URL and 'snspmt_db' in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace('snspmt_db', 'snspmt')
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://snspmt_admin:Snspmt2024!@snspmt-cluster.cluster-xxxxx.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
 SMMPANEL_API_URL = 'https://smmpanel.kr/api/v2'
 API_KEY = os.getenv('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
 
@@ -2112,13 +2109,15 @@ def get_admin_purchases():
                 purchase = {
                     'id': row[0],
                     'userId': row[1],
-                    'amount': row[2],
-                    'price': float(row[3]),
+                    'email': row[1],  # user_id를 이메일로 사용
+                    'points': row[2],  # amount를 points로 매핑
+                    'amount': float(row[3]),  # price를 amount로 매핑
                     'status': row[4],
                     'createdAt': row[5].isoformat() if row[5] else None,
                     'updatedAt': row[6].isoformat() if row[6] else None
                 }
                 purchases.append(purchase)
+                print(f"포인트 구매 신청: ID={row[0]}, 사용자={row[1]}, 포인트={row[2]}, 금액={row[3]}, 상태={row[4]}")
             except Exception as e:
                 print(f"데이터 변환 실패: {e}, row: {row}")
         
