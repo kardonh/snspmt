@@ -35,7 +35,7 @@ def initialize_app():
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/snspmt')
 # AWS RDS용 데이터베이스 URL 수정
 if 'rds.amazonaws.com' in DATABASE_URL and 'snspmt_db' in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace('snspmt_db', 'postgres')
+    DATABASE_URL = DATABASE_URL.replace('snspmt_db', 'snspmt')
 SMMPANEL_API_URL = 'https://smmpanel.kr/api/v2'
 API_KEY = os.getenv('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
 
@@ -44,22 +44,33 @@ REFERRAL_COMMISSION_RATE = 0.15  # 15% 커미션
 
 # PostgreSQL 연결 함수 (안전한 연결)
 def get_db_connection():
-    """SQLite 데이터베이스 연결 (메모리 기반)"""
+    """PostgreSQL 데이터베이스 연결 (실사용)"""
     try:
-        print("SQLite 메모리 기반 데이터베이스 연결 시도...")
-        conn = sqlite3.connect(':memory:')
-        conn.row_factory = sqlite3.Row
-        print("SQLite 메모리 기반 연결 성공")
-        print("⚠️ 주의: 메모리 기반이므로 서버 재시작 시 데이터가 사라집니다.")
-        print("💡 해결책: PostgreSQL 데이터베이스 설정 필요")
+        print(f"데이터베이스 연결 시도: {DATABASE_URL}")
+        # 안전한 연결 설정
+        conn = psycopg2.connect(
+            DATABASE_URL,
+            cursor_factory=RealDictCursor,
+            connect_timeout=30,
+            application_name='snspmt-app'
+        )
+        # 자동 커밋 비활성화
+        conn.autocommit = False
+        print("PostgreSQL 연결 성공")
         return conn
     except Exception as e:
-        print(f"SQLite 연결 실패: {e}")
-        # 최후의 수단으로 기본 SQLite
-        conn = sqlite3.connect(':memory:')
-        conn.row_factory = sqlite3.Row
-        print("기본 SQLite 연결 성공")
-        return conn
+        print(f"PostgreSQL 연결 실패: {e}")
+        # 연결 실패 시 SQLite로 폴백
+        print("SQLite로 폴백 시도...")
+        try:
+            conn = sqlite3.connect(':memory:')
+            conn.row_factory = sqlite3.Row
+            print("SQLite 메모리 기반 연결 성공 (데이터 유지 안됨)")
+            print("⚠️ 주의: 실사용을 위해서는 PostgreSQL 연결이 필요합니다.")
+            return conn
+        except Exception as sqlite_error:
+            print(f"SQLite 연결도 실패: {sqlite_error}")
+            return None
 
 # SQLite 연결 함수 (로컬 개발용)
 def get_sqlite_connection():
