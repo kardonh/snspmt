@@ -44,69 +44,22 @@ REFERRAL_COMMISSION_RATE = 0.15  # 15% 커미션
 
 # PostgreSQL 연결 함수 (안전한 연결)
 def get_db_connection():
-    """PostgreSQL 데이터베이스 연결 (안전한 연결)"""
+    """SQLite 데이터베이스 연결 (메모리 기반)"""
     try:
-        print(f"데이터베이스 연결 시도: {DATABASE_URL}")
-        # 안전한 연결 설정
-        conn = psycopg2.connect(
-            DATABASE_URL,
-            cursor_factory=RealDictCursor,
-            connect_timeout=30,
-            application_name='snspmt-app'
-        )
-        # 자동 커밋 비활성화
-        conn.autocommit = False
-        print("PostgreSQL 연결 성공")
+        print("SQLite 메모리 기반 데이터베이스 연결 시도...")
+        conn = sqlite3.connect(':memory:')
+        conn.row_factory = sqlite3.Row
+        print("SQLite 메모리 기반 연결 성공")
+        print("⚠️ 주의: 메모리 기반이므로 서버 재시작 시 데이터가 사라집니다.")
+        print("💡 해결책: PostgreSQL 데이터베이스 설정 필요")
         return conn
     except Exception as e:
-        print(f"PostgreSQL 연결 실패: {e}")
-        # 연결 실패 시 SQLite로 폴백
-        print("SQLite로 폴백 시도...")
-        try:
-            conn = sqlite3.connect('orders.db')
-            conn.row_factory = sqlite3.Row
-            print("SQLite 연결 성공")
-            return conn
-        except Exception as sqlite_error:
-            print(f"SQLite 연결도 실패: {sqlite_error}")
-            # 파일 기반 SQLite 데이터베이스 사용 (데이터 유지)
-            try:
-                # 여러 경로 시도
-                possible_paths = [
-                    '/app/data/orders.db',
-                    '/tmp/orders.db',
-                    './orders.db',
-                    'orders.db'
-                ]
-                
-                for db_path in possible_paths:
-                    try:
-                        # 디렉토리 생성 시도
-                        dir_path = os.path.dirname(db_path)
-                        if dir_path and not os.path.exists(dir_path):
-                            os.makedirs(dir_path, exist_ok=True)
-                            print(f"디렉토리 생성 시도: {dir_path}")
-                        
-                        conn = sqlite3.connect(db_path)
-                        conn.row_factory = sqlite3.Row
-                        print(f"파일 기반 SQLite 연결 성공: {db_path}")
-                        return conn
-                    except Exception as path_error:
-                        print(f"경로 {db_path} 시도 실패: {path_error}")
-                        continue
-                
-                # 모든 경로 실패 시 메모리 기반 SQLite
-                print("모든 파일 경로 실패, 메모리 기반 SQLite로 폴백")
-                conn = sqlite3.connect(':memory:')
-                conn.row_factory = sqlite3.Row
-                print("메모리 기반 SQLite 연결 성공 (데이터 유지 안됨)")
-                print("⚠️  주의: Fargate의 읽기 전용 파일 시스템으로 인해 데이터가 지속되지 않습니다.")
-                print("💡 해결책: PostgreSQL 데이터베이스 생성 또는 EFS 마운트 필요")
-                return conn
-                
-            except Exception as create_error:
-                print(f"SQLite 연결 완전 실패: {create_error}")
-                return None
+        print(f"SQLite 연결 실패: {e}")
+        # 최후의 수단으로 기본 SQLite
+        conn = sqlite3.connect(':memory:')
+        conn.row_factory = sqlite3.Row
+        print("기본 SQLite 연결 성공")
+        return conn
 
 # SQLite 연결 함수 (로컬 개발용)
 def get_sqlite_connection():
