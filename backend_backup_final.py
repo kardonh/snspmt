@@ -15,10 +15,7 @@ app = Flask(__name__)
 CORS(app)
     
     # 환경 변수 설정
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/snspmt')
-# AWS RDS용 데이터베이스 URL 수정
-if 'rds.amazonaws.com' in DATABASE_URL and 'snspmt_db' in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace('snspmt_db', 'snspmt')
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://snspmt_admin:Snspmt2024!@snspmt-cluster.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
 SMMPANEL_API_URL = 'https://smmpanel.kr/api/v2'
 API_KEY = os.getenv('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
 
