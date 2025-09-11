@@ -1541,6 +1541,78 @@ def create_point_purchase():
         print(f"상세 오류: {traceback.format_exc()}")
         return jsonify({'error': f'포인트 구매 요청에 실패했습니다: {str(e)}'}), 500
 
+# 테스트 데이터 추가 API
+@app.route('/api/admin/add-test-data', methods=['POST'])
+def add_test_data():
+    """테스트 데이터 추가 (개발용)"""
+    try:
+        print(f"=== 테스트 데이터 추가 시작 ===")
+        conn = get_db_connection()
+        if conn is None:
+            print(f"데이터베이스 연결 실패")
+            return
+        
+        cursor = conn.cursor()
+        
+        # 테스트 사용자 추가
+        test_users = [
+            ('user1', 1000),
+            ('user2', 500),
+            ('user3', 2000)
+        ]
+        
+        for user_id, points in test_users:
+            try:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO points (user_id, points, created_at, updated_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, (user_id, points))
+                print(f"테스트 사용자 추가: {user_id} - {points} 포인트")
+            except Exception as e:
+                print(f"사용자 추가 실패: {e}")
+        
+        # 테스트 주문 추가
+        test_orders = [
+            ('user1', 'service1', 'https://example.com', 100, 10000, 'completed'),
+            ('user2', 'service2', 'https://example.com', 50, 5000, 'pending'),
+            ('user3', 'service3', 'https://example.com', 200, 20000, 'completed')
+        ]
+        
+        for user_id, service_id, link, quantity, price, status in test_orders:
+            try:
+                cursor.execute("""
+                    INSERT INTO orders (user_id, service_id, link, quantity, price, status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, (user_id, service_id, link, quantity, price, status))
+                print(f"테스트 주문 추가: {user_id} - {service_id}")
+            except Exception as e:
+                print(f"주문 추가 실패: {e}")
+        
+        # 테스트 포인트 구매 추가
+        test_purchases = [
+            ('user1', 1000, 10000, 'pending'),
+            ('user2', 500, 5000, 'approved'),
+            ('user3', 2000, 20000, 'pending')
+        ]
+        
+        for user_id, amount, price, status in test_purchases:
+            try:
+                cursor.execute("""
+                    INSERT INTO point_purchases (user_id, amount, price, status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, (user_id, amount, price, status))
+                print(f"테스트 포인트 구매 추가: {user_id} - {amount} 포인트")
+            except Exception as e:
+                print(f"포인트 구매 추가 실패: {e}")
+        
+        conn.commit()
+        print(f"=== 테스트 데이터 추가 완료 ===")
+        return jsonify({'message': '테스트 데이터가 성공적으로 추가되었습니다.'})
+        
+    except Exception as e:
+        print(f"테스트 데이터 추가 실패: {e}")
+        return jsonify({'error': f'테스트 데이터 추가에 실패했습니다: {str(e)}'}), 500
+
 # 관리자 통계 데이터 제공
 @app.route('/api/admin/stats', methods=['GET'])
 def get_admin_stats():
@@ -1633,8 +1705,10 @@ def get_admin_stats():
         # 총 사용자 수 (points 테이블에서 조회)
         try:
             cursor = conn.cursor()
+            print(f"points 테이블 조회 시도...")
             cursor.execute("SELECT COUNT(*) as total_users FROM points")
-            total_users = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            total_users = result[0] if result else 0
             print(f"총 사용자 수: {total_users}")
         except Exception as e:
             print(f"points 테이블 조회 실패: {e}")
