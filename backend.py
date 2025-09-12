@@ -149,7 +149,6 @@ def init_database():
             conn.close()
 
 # 앱 시작 시 초기화
-@app.before_first_request
 def initialize_app():
     """앱 시작 시 초기화"""
     try:
