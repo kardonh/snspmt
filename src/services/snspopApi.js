@@ -110,17 +110,17 @@ export const smmpanelApi = {
   }),
   
   // 사용자별 주문 목록 조회
-  getUserOrders: (userId) => apiClient.get(`/orders?user_id=${userId}`),
+  getUserOrders: (userId) => apiClient.get(`/api/orders?user_id=${userId}`),
   
   // 특정 주문 상세 정보 조회
-  getOrderDetail: (orderId, userId) => apiClient.get(`/orders/${orderId}?user_id=${userId}`),
+  getOrderDetail: (orderId, userId) => apiClient.get(`/api/orders/${orderId}?user_id=${userId}`),
   
   // 포인트 관련 API
   // 사용자 포인트 조회
-  getUserPoints: (userId) => apiClient.get(`/points?user_id=${userId}`),
+  getUserPoints: (userId) => apiClient.get(`/api/points?user_id=${userId}`),
   
   // 사용자 포인트 차감
-  deductUserPoints: (userId, points) => apiClient.put('/points', { userId, points }),
+  deductUserPoints: (userId, points) => apiClient.put('/api/points', { userId, points }),
   
   // 포인트 구매 신청
   createPurchase: (purchaseData, userId) => {
@@ -129,36 +129,36 @@ export const smmpanelApi = {
         'X-User-ID': userId
       }
     }
-    return apiClient.post('/points/purchase', purchaseData, config)
+    return apiClient.post('/api/points/purchase', purchaseData, config)
   },
   
   // 구매 내역 조회
-  getPurchaseHistory: (userId) => apiClient.get(`/points/purchase-history?user_id=${userId}`),
+  getPurchaseHistory: (userId) => apiClient.get(`/api/points/purchase-history?user_id=${userId}`),
   
   // 관리자용 구매 신청 목록 조회
-  getPendingPurchases: () => apiClient.get('/admin/purchases/pending'),
+  getPendingPurchases: () => apiClient.get('/api/admin/purchases'),
   
   // 구매 신청 승인/거절
-  updatePurchaseStatus: (purchaseId, status) => apiClient.put(`/admin/purchases/${purchaseId}`, { status }),
+  updatePurchaseStatus: (purchaseId, status) => apiClient.put(`/api/admin/purchases/${purchaseId}`, { status }),
   
   // 사용자 관련 API
   // 사용자 등록
-  registerUser: (userData) => apiClient.post('/register', userData),
+  registerUser: (userData) => apiClient.post('/api/register', userData),
   
   // 사용자 로그인
-  userLogin: (userId) => apiClient.post('/login', { userId }),
+  userLogin: (userId) => apiClient.post('/api/login', { userId }),
   
   // 사용자 활동 업데이트
-  updateUserActivity: (userId) => apiClient.post('/activity', { userId }),
+  updateUserActivity: (userId) => apiClient.post('/api/activity', { userId }),
   
   // 관리자용 사용자 정보 조회
-  getUsersInfo: () => apiClient.get('/admin/users'),
+  getUsersInfo: () => apiClient.get('/api/admin/users'),
   
   // 개별 사용자 정보 조회
-  getUserInfo: (userId) => apiClient.get(`/users/${userId}`),
+  getUserInfo: (userId) => apiClient.get(`/api/users/${userId}`),
   
   // 포인트 구매 내역 엑셀 다운로드
-  exportPurchases: () => apiClient.get('/admin/export/purchases')
+  exportPurchases: () => apiClient.get('/api/admin/export/purchases')
 }
 
 // 에러 처리 헬퍼 함수
