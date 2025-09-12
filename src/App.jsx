@@ -31,7 +31,7 @@ function App() {
                 <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
                 <Route path="/points" element={<ProtectedRoute><PointsPage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
                 <Route path="/info" element={<InfoPage />} />
                 <Route path="/faq" element={<FAQPage />} />
                 <Route path="/service" element={<ServicePage />} />
