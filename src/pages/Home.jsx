@@ -21,7 +21,6 @@ import {
   Sparkles
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { transformOrderData } from '../services/snspopApi'
 import './Home.css'
 
 const Home = () => {
@@ -796,19 +795,18 @@ const Home = () => {
       console.log('Order Data:', orderData)
       console.log('Selected Detailed Service:', selectedDetailedService)
 
-      const transformedData = transformOrderData(orderData)
-      console.log('Transformed Data:', transformedData)
+      console.log('Order Data for Backend API:', orderData)
       
       const userId = currentUser?.uid || currentUser?.email || 'anonymous'
       
-      // 올바른 API 호출
+      // 백엔드 API 호출 (SMM Panel 변환 없이 직접 전송)
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-User-ID': userId
         },
-        body: JSON.stringify(transformedData)
+        body: JSON.stringify(orderData)
       })
 
       const result = await response.json()

@@ -195,7 +195,7 @@ export const transformOrderData = (orderData) => {
   const safeOrderData = orderData || {}
   
   // serviceId가 없거나 undefined인 경우 기본값 사용
-  let serviceId = safeOrderData.serviceId
+  let serviceId = safeOrderData.service_id || safeOrderData.serviceId
   if (!serviceId || serviceId === 'undefined' || serviceId === undefined) {
     console.warn('⚠️ 서비스 ID가 누락되었습니다, 기본값 사용:', orderData)
     // 기본 서비스 ID 설정 (Instagram 한국인 팔로워)
