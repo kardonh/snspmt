@@ -3,8 +3,8 @@ from flask_cors import CORS
 import os
 import json
 import sqlite3
-import psycopg2
-from psycopg2.extras import RealDictCursor
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
 from datetime import datetime
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -27,7 +27,7 @@ def initialize_app():
         init_database()
         print("✅ 데이터베이스 초기화 완료")
         print("✅ 앱 시작 완료")
-    except Exception as e:
+        except Exception as e:
         print(f"⚠️ 앱 초기화 중 오류: {e}")
         # 초기화 실패해도 앱은 계속 실행
     
@@ -93,7 +93,7 @@ def init_database():
             print("메모리 기반 SQLite 연결 성공")
             
         with conn:
-            cursor = conn.cursor()
+                cursor = conn.cursor()
             
             # orders 테이블 생성
             cursor.execute("""
@@ -225,7 +225,7 @@ def health_check():
             'timestamp': datetime.now().isoformat(),
             'service': 'snspmt'
         }), 200
-    except Exception as e:
+        except Exception as e:
         return jsonify({
             'status': 'unhealthy',
             'error': str(e)
@@ -281,8 +281,8 @@ def register():
             return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
         
         try:
-            cursor = conn.cursor()
-            
+        cursor = conn.cursor()
+        
             # 모든 경우에 대해 테이블 생성 (안전한 방법)
             print("테이블 생성 확인 중...")
             
@@ -634,7 +634,7 @@ def create_order():
             conn.commit()
             cursor.close()
             conn.close()
-            print(f"주문 저장 완료: {order_id}")
+        print(f"주문 저장 완료: {order_id}")
                 
         except Exception as e:
             print(f"데이터베이스 저장 실패: {e}")
@@ -756,23 +756,23 @@ def complete_order_payment(order_id):
                         conn.commit()
                         
                         print(f"smmpanel.kr 주문 전송 성공: {external_order_id}")
-                        
-                        return jsonify({
-                            'success': True,
+        
+        return jsonify({
+            'success': True,
                             'orderId': order_id,
                             'externalOrderId': external_order_id,
                             'status': 'processing',
                             'message': '결제가 완료되었고 주문이 처리 중입니다.',
                             'points_used': order['price'],
                             'remaining_points': current_points - order['price']
-                        }), 200
+        }), 200
                     else:
                         print(f"smmpanel.kr API 오류: {response.status_code} - {response.text}")
                         return jsonify({
                             'error': '외부 API 전송에 실패했습니다.'
                         }), 500
-                        
-                except Exception as e:
+        
+    except Exception as e:
                     print(f"smmpanel.kr API 전송 실패: {e}")
                     return jsonify({
                         'error': f'외부 API 전송 실패: {str(e)}'
@@ -919,7 +919,7 @@ def get_user_points():
                 # RealDictCursor 사용 시 딕셔너리 접근
                 if isinstance(result, dict):
                     points = result['points']
-                else:
+        else:
                     points = result[0]
             else:
                 points = 0
@@ -934,7 +934,7 @@ def get_user_points():
                 cursor.close()
             if conn:
                 conn.close()
-        
+            
     except Exception as e:
         print(f"포인트 조회 실패: {e}")
         return jsonify({'error': '포인트 조회에 실패했습니다.'}), 500
@@ -1079,7 +1079,7 @@ def get_purchase_history():
                             'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
                         }
                         print(f"구매 내역 추가: ID={row['purchase_id']}, 금액={row['price']}, 상태={row['status']}")
-                    else:
+        else:
                         purchase = {
                             'id': row[0],
                             'amount': row[1],
@@ -1090,7 +1090,7 @@ def get_purchase_history():
                         }
                         print(f"구매 내역 추가: ID={row[0]}, 금액={row[2]}, 상태={row[3]}")
                     purchases.append(purchase)
-                except Exception as e:
+    except Exception as e:
                     print(f"구매 내역 데이터 변환 실패: {e}")
                     continue
             
@@ -1135,7 +1135,7 @@ def get_my_referral_codes():
             cursor = conn.cursor()
             
             # 테이블 생성 확인
-            cursor.execute("""
+                cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referral_codes (
                     code_id SERIAL PRIMARY KEY,
                     code TEXT UNIQUE NOT NULL,
@@ -1148,7 +1148,7 @@ def get_my_referral_codes():
                 )
             """)
             
-            cursor.execute("""
+                cursor.execute("""
                 SELECT code, is_active, created_at, expires_at, usage_count, total_commission
                 FROM referral_codes 
                 WHERE referrer_user_id = %s
@@ -1177,7 +1177,7 @@ def get_my_referral_codes():
                 cursor.close()
             if conn:
                 conn.close()
-    except Exception as e:
+            except Exception as e:
         print(f"추천인 코드 조회 실패: {e}")
         return jsonify({'error': '추천인 코드 조회에 실패했습니다.'}), 500
 
@@ -1202,7 +1202,7 @@ def get_referral_commissions():
             cursor = conn.cursor()
             
             # 테이블 생성 확인
-            cursor.execute("""
+                cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referrals (
                     referral_id SERIAL PRIMARY KEY,
                     referrer_user_id TEXT NOT NULL,
@@ -1264,7 +1264,7 @@ def get_order_detail(order_id):
             cursor = conn.cursor()
             
             # 테이블 생성 확인
-            cursor.execute("""
+                cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     order_id SERIAL PRIMARY KEY,
                     user_id TEXT NOT NULL,
@@ -1290,16 +1290,16 @@ def get_order_detail(order_id):
                 )
             """)
             
-            cursor.execute("""
-                SELECT 
+                cursor.execute("""
+                    SELECT 
                     order_id,
-                    user_id,
+                        user_id,
                     service_id,
                     link,
                     quantity,
-                    price,
+                        price,
                     status,
-                    created_at,
+                        created_at,
                     updated_at
                 FROM orders 
                 WHERE order_id = %s AND user_id = %s
@@ -1369,12 +1369,12 @@ def deduct_user_points():
             """, (points, user_id))
             
             conn.commit()
-        
-        return jsonify({
+            
+            return jsonify({
                 'message': '포인트가 차감되었습니다.',
                 'remaining_points': current_points - points
         }), 200
-        
+            
     except Exception as e:
         print(f"포인트 차감 실패: {e}")
         return jsonify({'error': '포인트 차감에 실패했습니다.'}), 500
@@ -1511,14 +1511,14 @@ def create_point_purchase():
             purchase_id = cursor.lastrowid
             conn.commit()
             print(f"데이터 삽입 완료, ID: {purchase_id}")
-    
-            return jsonify({
+        
+        return jsonify({
                 'purchase_id': purchase_id,
                 'message': '포인트 구매 요청이 생성되었습니다.'
-            }), 200
+        }), 200
         
         
-        except Exception as e:
+    except Exception as e:
             print(f"구매 요청 저장 실패: {e}")
             import traceback
             print(f"상세 오류: {traceback.format_exc()}")
@@ -1557,7 +1557,7 @@ def set_admin_points():
             conn.commit()
             print(f"관리자 포인트 설정 완료: {admin_user_id} - {admin_points} 포인트")
             return jsonify({'message': '관리자 포인트 설정 완료', 'points': admin_points}), 200
-        except Exception as e:
+    except Exception as e:
             print(f"관리자 포인트 설정 실패: {e}")
             return jsonify({'error': f'관리자 포인트 설정 실패: {str(e)}'}), 500
         
@@ -1734,7 +1734,7 @@ def get_admin_stats():
             print(f"points 테이블 조회 시도...")
             cursor.execute("SELECT COUNT(*) as total_users FROM points")
             result = cursor.fetchone()
-            total_users = result[0] if result else 0
+            total_users = result['total_users'] if isinstance(result, dict) else (result[0] if result else 0)
             print(f"총 사용자 수: {total_users}")
         except Exception as e:
             print(f"points 테이블 조회 실패: {e}")
@@ -1743,16 +1743,18 @@ def get_admin_stats():
         # 총 주문 수 (orders 테이블에서 조회)
         try:
             cursor.execute("SELECT COUNT(*) as total_orders FROM orders")
-            total_orders = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            total_orders = result['total_orders'] if isinstance(result, dict) else (result[0] if result else 0)
             print(f"총 주문 수: {total_orders}")
-        except Exception as e:
+    except Exception as e:
             print(f"orders 테이블 조회 실패: {e}")
             total_orders = 0
         
         # 총 매출액 (point_purchases 테이블에서 조회)
         try:
             cursor.execute("SELECT SUM(price) as total_revenue FROM point_purchases WHERE status = 'approved'")
-            total_revenue = cursor.fetchone()[0] or 0
+            result = cursor.fetchone()
+            total_revenue = (result['total_revenue'] if isinstance(result, dict) else (result[0] if result else 0)) or 0
             print(f"총 매출액: {total_revenue}")
         except Exception as e:
             print(f"total_revenue 조회 실패: {e}")
@@ -1761,7 +1763,8 @@ def get_admin_stats():
         # 대기 중인 포인트 구매 신청 수
         try:
             cursor.execute("SELECT COUNT(*) as pending_purchases FROM point_purchases WHERE status = 'pending'")
-            pending_purchases = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            pending_purchases = result['pending_purchases'] if isinstance(result, dict) else (result[0] if result else 0)
             print(f"대기 중인 구매 신청: {pending_purchases}")
         except Exception as e:
             print(f"pending_purchases 조회 실패: {e}")
@@ -1774,7 +1777,8 @@ def get_admin_stats():
                 FROM orders 
                 WHERE DATE(created_at) = DATE('now')
             """)
-            today_orders = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            today_orders = result['today_orders'] if isinstance(result, dict) else (result[0] if result else 0)
             print(f"오늘 주문 수: {today_orders}")
         except Exception as e:
             print(f"today_orders 조회 실패: {e}")
@@ -1818,7 +1822,7 @@ def get_admin_stats():
             'todayOrders': 0,
             'todayRevenue': 0
         }), 200
-
+        
 # 관리자 사용자 목록 조회
 @app.route('/api/admin/users', methods=['GET'])
 def get_admin_users():
@@ -1900,7 +1904,7 @@ def get_admin_users():
                     'lastActivity': row[3].isoformat() if row[3] else None
                 }
                 users.append(user)
-            except Exception as e:
+    except Exception as e:
                 print(f"사용자 데이터 변환 실패: {e}")
                 continue
         
@@ -1977,7 +1981,7 @@ def get_admin_transactions():
         
         print(f"주문 목록 조회 시도...")
         cursor = conn.cursor()
-        cursor.execute("""
+            cursor.execute("""
             SELECT 
                 order_id,
                 user_id,
@@ -1988,12 +1992,12 @@ def get_admin_transactions():
                 status,
                 created_at
             FROM orders 
-            ORDER BY created_at DESC
-        """)
+                ORDER BY created_at DESC 
+            """)
         
         print(f"주문 데이터 변환 시도...")
         orders = []
-        for row in cursor.fetchall():
+            for row in cursor.fetchall():
             try:
                 order = {
                     'orderId': f"ORD_{row[0]}",
@@ -2106,7 +2110,7 @@ def get_admin_purchases():
                     """)
                     conn.commit()
                     print(f"point_purchases 테이블 생성 완료")
-            except Exception as e:
+    except Exception as e:
                 print(f"테이블 확인/생성 중 오류: {e}")
                 # SQLite 문법으로 다시 시도
                 cursor.execute("""
@@ -2238,7 +2242,7 @@ def update_purchase_status(purchase_id):
             'success': True,
             'message': f'구매 신청이 {status}되었습니다.'
         }), 200
-            
+        
     except Exception as e:
         print(f"구매 신청 상태 업데이트 실패: {e}")
         return jsonify({'error': '구매 신청 상태 업데이트에 실패했습니다.'}), 500
@@ -2367,12 +2371,12 @@ def generate_referral_code():
             """, (code, user_id))
             
             conn.commit()
-            
-            return jsonify({
-                'success': True,
+        
+        return jsonify({
+            'success': True,
                 'code': code,
                 'message': '추천인 코드가 생성되었습니다.'
-            }), 200
+        }), 200
         
     except Exception as e:
         print(f"추천인 코드 생성 실패: {e}")
