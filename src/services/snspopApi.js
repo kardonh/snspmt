@@ -17,8 +17,8 @@ const apiClient = axios.create({
 // API 요청 인터셉터
 apiClient.interceptors.request.use(
   (config) => {
-    // SMM Panel API 키를 자동으로 사용
-    if (config.data && typeof config.data === 'object') {
+    // SMM Panel API 요청에만 키를 추가 (POST 요청이고 action이 있는 경우)
+    if (config.method === 'post' && config.data && typeof config.data === 'object' && config.data.action) {
       config.data.key = DEFAULT_API_KEY
     }
     return config
