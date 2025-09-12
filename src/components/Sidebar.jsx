@@ -32,7 +32,7 @@ const Sidebar = ({ onClose }) => {
     
     setPointsLoading(true)
     try {
-      const response = await fetch('/api/points', {
+      const response = await fetch(`/api/points?user_id=${currentUser.uid}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

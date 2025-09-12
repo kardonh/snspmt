@@ -30,7 +30,7 @@ const ServicePage = () => {
     <div className="service-page">
       <div className="service-header">
         <h1>서비스 소개서</h1>
-        <p>SNS샵에서 제공하는 다양한 소셜미디어 마케팅 서비스를 소개합니다</p>
+        <p>Sociality에서 제공하는 다양한 소셜미디어 마케팅 서비스를 소개합니다</p>
       </div>
 
       <div className="service-features">
@@ -72,7 +72,7 @@ const ServicePage = () => {
 
       <div className="service-cta">
         <h2>지금 시작하세요</h2>
-        <p>SNS샵과 함께 소셜미디어 마케팅을 성공으로 이끌어보세요</p>
+        <p>Sociality와 함께 소셜미디어 마케팅을 성공으로 이끌어보세요</p>
         <button className="cta-button">
           <Star size={20} />
           주문하기

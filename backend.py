@@ -32,7 +32,7 @@ def initialize_app():
         # 초기화 실패해도 앱은 계속 실행
     
     # 환경 변수 설정
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-db.cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-cluste.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
 SMMPANEL_API_URL = 'https://smmpanel.kr/api/v2'
 API_KEY = os.getenv('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
 
@@ -327,8 +327,9 @@ def register():
             
             # 사용자 포인트 테이블에 등록 (SQLite 문법 사용)
             cursor.execute("""
-                INSERT OR IGNORE INTO points (user_id, points) 
+                INSERT INTO points (user_id, points) 
                 VALUES (?, 0)
+                ON CONFLICT (user_id) DO NOTHING
             """, (user_id,))
             print(f"사용자 포인트 등록 완료: {user_id}")
             
@@ -347,7 +348,8 @@ def register():
                     if code_info and code_info['is_active']:
                         # 추천 관계 저장 (SQLite 문법 사용)
                         cursor.execute("""
-                            INSERT OR IGNORE INTO referrals (referrer_user_id, referred_user_id, referral_code)
+                            INSERT INTO referrals (referrer_user_id, referred_user_id, referral_code)
+                            ON CONFLICT (referred_user_id) DO NOTHING
                             VALUES (?, ?, ?)
                         """, (code_info['referrer_user_id'], user_id, referral_code.strip().upper()))
                         
@@ -429,7 +431,8 @@ def login():
             if not user:
                 # 사용자가 없으면 새로 생성
                 cursor.execute("""
-                    INSERT OR IGNORE INTO points (user_id, points) VALUES (?, 0)
+                    INSERT INTO points (user_id, points) VALUES (?, 0)
+                    ON CONFLICT (user_id) DO NOTHING
                 """, (user_id,))
                 conn.commit()
                 points = 0
@@ -1539,6 +1542,38 @@ def create_point_purchase():
         return jsonify({'error': f'포인트 구매 요청에 실패했습니다: {str(e)}'}), 500
 
 # 테스트 데이터 추가 API
+@app.route('/api/admin/set-admin-points', methods=['POST'])
+def set_admin_points():
+    """관리자 계정 포인트 설정"""
+    try:
+        print(f"=== 관리자 포인트 설정 시작 ===")
+        conn = get_db_connection()
+        if conn is None:
+            print(f"데이터베이스 연결 실패")
+            return jsonify({'error': '데이터베이스 연결 실패'}), 500
+        
+        cursor = conn.cursor()
+        
+        # 관리자 계정 포인트 99999로 설정
+        admin_user_id = 'admin'
+        admin_points = 99999
+        
+        try:
+            cursor.execute("""
+                INSERT OR REPLACE INTO points (user_id, points, created_at, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, (admin_user_id, admin_points))
+            conn.commit()
+            print(f"관리자 포인트 설정 완료: {admin_user_id} - {admin_points} 포인트")
+            return jsonify({'message': '관리자 포인트 설정 완료', 'points': admin_points}), 200
+        except Exception as e:
+            print(f"관리자 포인트 설정 실패: {e}")
+            return jsonify({'error': f'관리자 포인트 설정 실패: {str(e)}'}), 500
+        
+    except Exception as e:
+        print(f"관리자 포인트 설정 오류: {e}")
+        return jsonify({'error': f'관리자 포인트 설정 오류: {str(e)}'}), 500
+
 @app.route('/api/admin/add-test-data', methods=['POST'])
 def add_test_data():
     """테스트 데이터 추가 (개발용)"""

@@ -16,7 +16,7 @@ const FAQPage = () => {
   const categories = [
     { id: 'all', name: '전체' },
     { id: 'cancel-refund', name: '취소, 환불, AS' },
-    { id: 'service', name: 'SNS샵 서비스' },
+    { id: 'service', name: 'Sociality 서비스' },
     { id: 'instagram', name: '인스타그램' }
   ]
 

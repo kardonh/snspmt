@@ -66,7 +66,7 @@ const InfoPage = () => {
   ]
 
   const orderGuides = [
-    'SNS샵 주문하기 이용 가이드',
+    'Sociality 주문하기 이용 가이드',
     '인스타 인기게시물 상위노출 주문방법',
     '인스타 팔로워 주문방법',
     '인스타 좋아요 주문방법',
@@ -83,7 +83,7 @@ const InfoPage = () => {
     <div className="info-page">
       <div className="info-header">
         <h1>상품/가격 안내 및 상품활용 TIP</h1>
-        <p>SNS샵의 다양한 서비스와 활용 방법을 알아보세요</p>
+        <p>Sociality의 다양한 서비스와 활용 방법을 알아보세요</p>
       </div>
 
       <div className="info-content">
@@ -137,7 +137,7 @@ const InfoPage = () => {
           <div className="order-info">
             <h2>주문전 필독사항</h2>
             <ul>
-              <li>SNS샵의 모든 상품은 24시간 자동으로 접수/주문되기 때문에 주문방법을 숙지하지 않은 상태에서 주문을 하시게 되면 오주문이 발생될 수 있습니다.</li>
+              <li>Sociality의 모든 상품은 24시간 자동으로 접수/주문되기 때문에 주문방법을 숙지하지 않은 상태에서 주문을 하시게 되면 오주문이 발생될 수 있습니다.</li>
               <li>이용에 어려움이 있으신 분들은 문의주시면 도와드리겠습니다.</li>
             </ul>
           </div>
