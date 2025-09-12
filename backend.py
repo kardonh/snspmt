@@ -10,7 +10,7 @@ import tempfile
 import sqlite3
 
 # Flask 앱 초기화
-app = Flask(__name__)
+app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
 
 # 데이터베이스 연결 설정
