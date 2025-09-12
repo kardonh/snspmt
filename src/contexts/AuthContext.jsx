@@ -33,9 +33,9 @@ export function AuthProvider({ children }) {
         }).then(() => {
           // 비즈니스 정보가 있으면 추가 정보와 함께 저장
           const userData = {
-            uid: userCredential.user.uid,
+            user_id: userCredential.user.uid,
             email: userCredential.user.email,
-            displayName: username
+            name: username
           };
           
           if (businessInfo && businessInfo.accountType === 'business') {
@@ -103,9 +103,9 @@ export function AuthProvider({ children }) {
         try {
           // 사용자 정보 저장 (기본 정보만)
           await smmpanelApi.registerUser({
-            userId: user.uid,
+            user_id: user.uid,
             email: user.email,
-            displayName: user.displayName || ''
+            name: user.displayName || ''
           });
           
           // 로그인 기록
