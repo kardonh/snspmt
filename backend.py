@@ -506,6 +506,202 @@ def get_admin_purchases():
     except Exception as e:
         return jsonify({'error': f'포인트 구매 목록 조회 실패: {str(e)}'}), 500
 
+# 사용자 정보 조회
+@app.route('/api/users/<user_id>', methods=['GET'])
+def get_user(user_id):
+    """사용자 정보 조회"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT user_id, email, name, created_at
+                FROM users WHERE user_id = %s
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT user_id, email, name, created_at
+                FROM users WHERE user_id = ?
+            """, (user_id,))
+        
+        user = cursor.fetchone()
+        conn.close()
+        
+        if user:
+            return jsonify({
+                'user_id': user[0],
+                'email': user[1],
+                'name': user[2],
+                'created_at': user[3].isoformat() if hasattr(user[3], 'isoformat') else str(user[3])
+            }), 200
+        else:
+            return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+        
+    except Exception as e:
+        return jsonify({'error': f'사용자 정보 조회 실패: {str(e)}'}), 500
+
+# 추천인 코드 조회
+@app.route('/api/referral/my-codes', methods=['GET'])
+def get_my_codes():
+    """내 추천인 코드 조회"""
+    try:
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'user_id가 필요합니다.'}), 400
+        
+        # 임시로 빈 배열 반환 (추천인 기능은 나중에 구현)
+        return jsonify({
+            'codes': []
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'추천인 코드 조회 실패: {str(e)}'}), 500
+
+# 추천인 수수료 조회
+@app.route('/api/referral/commissions', methods=['GET'])
+def get_commissions():
+    """추천인 수수료 조회"""
+    try:
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'user_id가 필요합니다.'}), 400
+        
+        # 임시로 빈 배열 반환 (추천인 기능은 나중에 구현)
+        return jsonify({
+            'commissions': []
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'수수료 조회 실패: {str(e)}'}), 500
+
+# 포인트 구매 내역 조회
+@app.route('/api/points/purchase-history', methods=['GET'])
+def get_purchase_history():
+    """포인트 구매 내역 조회"""
+    try:
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'user_id가 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id, amount, price, status, created_at
+                FROM point_purchases WHERE user_id = %s
+                ORDER BY created_at DESC
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT id, amount, price, status, created_at
+                FROM point_purchases WHERE user_id = ?
+                ORDER BY created_at DESC
+            """, (user_id,))
+        
+        purchases = cursor.fetchall()
+        conn.close()
+        
+        purchase_list = []
+        for purchase in purchases:
+            purchase_list.append({
+                'id': purchase[0],
+                'amount': purchase[1],
+                'price': float(purchase[2]),
+                'status': purchase[3],
+                'created_at': purchase[4].isoformat() if hasattr(purchase[4], 'isoformat') else str(purchase[4])
+            })
+        
+        return jsonify({
+            'purchases': purchase_list
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'구매 내역 조회 실패: {str(e)}'}), 500
+
+# 관리자 사용자 목록
+@app.route('/api/admin/users', methods=['GET'])
+def get_admin_users():
+    """관리자 사용자 목록"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT user_id, email, name, created_at
+                FROM users
+                ORDER BY created_at DESC
+            """)
+        else:
+            cursor.execute("""
+                SELECT user_id, email, name, created_at
+                FROM users
+                ORDER BY created_at DESC
+            """)
+        
+        users = cursor.fetchall()
+        conn.close()
+        
+        user_list = []
+        for user in users:
+            user_list.append({
+                'user_id': user[0],
+                'email': user[1],
+                'name': user[2],
+                'created_at': user[3].isoformat() if hasattr(user[3], 'isoformat') else str(user[3])
+            })
+        
+        return jsonify({
+            'users': user_list
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'사용자 목록 조회 실패: {str(e)}'}), 500
+
+# 관리자 거래 내역
+@app.route('/api/admin/transactions', methods=['GET'])
+def get_admin_transactions():
+    """관리자 거래 내역"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT order_id, user_id, service_id, price, status, created_at
+                FROM orders
+                ORDER BY created_at DESC
+            """)
+        else:
+            cursor.execute("""
+                SELECT order_id, user_id, service_id, price, status, created_at
+                FROM orders
+                ORDER BY created_at DESC
+            """)
+        
+        transactions = cursor.fetchall()
+        conn.close()
+        
+        transaction_list = []
+        for transaction in transactions:
+            transaction_list.append({
+                'order_id': transaction[0],
+                'user_id': transaction[1],
+                'service_id': transaction[2],
+                'price': float(transaction[3]),
+                'status': transaction[4],
+                'created_at': transaction[5].isoformat() if hasattr(transaction[5], 'isoformat') else str(transaction[5])
+            })
+        
+        return jsonify({
+            'transactions': transaction_list
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'거래 내역 조회 실패: {str(e)}'}), 500
+
 # 정적 파일 서빙
 @app.route('/<path:filename>')
 def serve_static(filename):
