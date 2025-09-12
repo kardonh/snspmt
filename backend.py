@@ -117,8 +117,8 @@ def init_database():
                     delay INTEGER DEFAULT 0,
                     expiry TEXT,
                     old_posts INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -127,8 +127,8 @@ def init_database():
                 CREATE TABLE IF NOT EXISTS points (
                     user_id TEXT PRIMARY KEY,
                     points INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -140,8 +140,8 @@ def init_database():
                     amount INTEGER NOT NULL,
                     price REAL NOT NULL,
                     status TEXT DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -154,7 +154,7 @@ def init_database():
                     title TEXT NOT NULL,
                     message TEXT NOT NULL,
                     is_read INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -165,7 +165,7 @@ def init_database():
                     code TEXT UNIQUE NOT NULL,
                     referrer_user_id TEXT NOT NULL,
                     is_active INTEGER DEFAULT 1,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW(),
                     expires_at TIMESTAMP,
                     usage_count INTEGER DEFAULT 0,
                     total_commission REAL DEFAULT 0.00
@@ -179,7 +179,7 @@ def init_database():
                     referrer_user_id TEXT NOT NULL,
                     referred_user_id TEXT NOT NULL,
                     referral_code TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(referred_user_id)
                 )
             """)
@@ -193,7 +193,7 @@ def init_database():
                     purchase_id INTEGER NOT NULL,
                     commission_amount REAL NOT NULL,
                     commission_rate REAL NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -291,8 +291,8 @@ def register():
                 CREATE TABLE IF NOT EXISTS points (
                     user_id TEXT PRIMARY KEY,
                 points INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             print("points 테이블 생성/확인 완료")
@@ -304,7 +304,7 @@ def register():
                     code TEXT UNIQUE NOT NULL,
                     referrer_user_id TEXT NOT NULL,
                     is_active BOOLEAN DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT NOW(),
                     expires_at TIMESTAMP,
                     usage_count INTEGER DEFAULT 0,
                     total_commission REAL DEFAULT 0.0
@@ -319,7 +319,7 @@ def register():
                     referrer_user_id TEXT NOT NULL,
                     referred_user_id TEXT NOT NULL,
                     referral_code TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(referred_user_id)
                 )
             """)
@@ -417,8 +417,8 @@ def login():
                 CREATE TABLE IF NOT EXISTS points (
                     user_id TEXT PRIMARY KEY,
                     points INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -483,8 +483,8 @@ def update_activity():
                 CREATE TABLE IF NOT EXISTS points (
                     user_id TEXT PRIMARY KEY,
                     points INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -607,8 +607,8 @@ def create_order():
                     expiry TEXT,
                     old_posts INTEGER,
                     external_order_id TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             print("orders 테이블 생성/확인 완료")
@@ -829,8 +829,8 @@ def get_user_orders():
                     expiry TEXT,
                     old_posts INTEGER,
                     external_order_id TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -905,8 +905,8 @@ def get_user_points():
                 CREATE TABLE IF NOT EXISTS points (
                     user_id TEXT PRIMARY KEY,
                     points INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -952,8 +952,8 @@ def get_user_info(user_id):
                 CREATE TABLE IF NOT EXISTS points (
                     user_id TEXT PRIMARY KEY,
                     points INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -1059,8 +1059,8 @@ def get_purchase_history():
                     amount INTEGER NOT NULL,
                     price REAL NOT NULL,
                     status TEXT DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             conn.commit()
@@ -1153,7 +1153,7 @@ def get_my_referral_codes():
                     code TEXT UNIQUE NOT NULL,
                     referrer_user_id TEXT NOT NULL,
                     is_active BOOLEAN DEFAULT 1,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW(),
                     expires_at TIMESTAMP,
                     usage_count INTEGER DEFAULT 0,
                     total_commission REAL DEFAULT 0.0
@@ -1220,7 +1220,7 @@ def get_referral_commissions():
                     referrer_user_id TEXT NOT NULL,
                     referred_user_id TEXT NOT NULL,
                     referral_code TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(referred_user_id)
                 )
             """)
@@ -1297,8 +1297,8 @@ def get_order_detail(order_id):
                     expiry TEXT,
                     old_posts INTEGER,
                     external_order_id TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -1376,7 +1376,7 @@ def deduct_user_points():
         # 포인트 차감
             cursor.execute("""
                 UPDATE points 
-                SET points = points - ?, updated_at = CURRENT_TIMESTAMP
+                SET points = points - ?, updated_at = NOW()
                 WHERE user_id = ?
             """, (points, user_id))
             
@@ -1460,8 +1460,8 @@ def create_point_purchase():
                         amount INTEGER NOT NULL,
                         price REAL NOT NULL,
                         status TEXT DEFAULT 'pending',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        updated_at TIMESTAMP DEFAULT NOW()
                     )
                 """)
                 conn.commit()
@@ -1490,8 +1490,8 @@ def create_point_purchase():
                                 amount INTEGER NOT NULL,
                                 price REAL NOT NULL,
                                 status TEXT DEFAULT 'pending',
-                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                                created_at TIMESTAMP DEFAULT NOW(),
+                                updated_at TIMESTAMP DEFAULT NOW()
                             )
                         """)
                         conn.commit()
@@ -1506,8 +1506,8 @@ def create_point_purchase():
                             amount INTEGER NOT NULL,
                             price REAL NOT NULL,
                             status TEXT DEFAULT 'pending',
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            created_at TIMESTAMP DEFAULT NOW(),
+                            updated_at TIMESTAMP DEFAULT NOW()
                         )
                     """)
                     conn.commit()
@@ -1560,8 +1560,11 @@ def set_admin_points():
         
         try:
             cursor.execute("""
-                INSERT OR REPLACE INTO points (user_id, points, created_at, updated_at)
-                VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                INSERT INTO points (user_id, points, created_at, updated_at)
+                VALUES (?, ?, NOW(), NOW())
+                ON CONFLICT (user_id) DO UPDATE SET
+                    points = EXCLUDED.points,
+                    updated_at = EXCLUDED.updated_at
             """, (admin_user_id, admin_points))
             conn.commit()
             print(f"관리자 포인트 설정 완료: {admin_user_id} - {admin_points} 포인트")
@@ -1596,8 +1599,11 @@ def add_test_data():
         for user_id, points in test_users:
             try:
                 cursor.execute("""
-                    INSERT OR REPLACE INTO points (user_id, points, created_at, updated_at)
-                    VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    INSERT INTO points (user_id, points, created_at, updated_at)
+                    VALUES (?, ?, NOW(), NOW())
+                    ON CONFLICT (user_id) DO UPDATE SET
+                        points = EXCLUDED.points,
+                        updated_at = EXCLUDED.updated_at
                 """, (user_id, points))
                 print(f"테스트 사용자 추가: {user_id} - {points} 포인트")
             except Exception as e:
@@ -1614,7 +1620,7 @@ def add_test_data():
             try:
                 cursor.execute("""
                     INSERT INTO orders (user_id, service_id, link, quantity, price, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
                 """, (user_id, service_id, link, quantity, price, status))
                 print(f"테스트 주문 추가: {user_id} - {service_id}")
             except Exception as e:
@@ -1631,7 +1637,7 @@ def add_test_data():
             try:
                 cursor.execute("""
                     INSERT INTO point_purchases (user_id, amount, price, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, NOW(), NOW())
                 """, (user_id, amount, price, status))
                 print(f"테스트 포인트 구매 추가: {user_id} - {amount} 포인트")
             except Exception as e:
@@ -1692,8 +1698,8 @@ def get_admin_stats():
                 CREATE TABLE IF NOT EXISTS points (
                     user_id TEXT PRIMARY KEY,
                     points INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -1707,8 +1713,8 @@ def get_admin_stats():
                     quantity INTEGER NOT NULL,
                     price REAL NOT NULL,
                     status TEXT DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -1720,8 +1726,8 @@ def get_admin_stats():
                     amount INTEGER NOT NULL,
                     price REAL NOT NULL,
                     status TEXT DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -1872,8 +1878,8 @@ def get_admin_users():
                 CREATE TABLE IF NOT EXISTS points (
                     user_id TEXT PRIMARY KEY,
                     points INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -1971,8 +1977,8 @@ def get_admin_transactions():
                     quantity INTEGER NOT NULL,
                     price REAL NOT NULL,
                     status TEXT DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -2076,8 +2082,8 @@ def get_admin_purchases():
                     amount INTEGER NOT NULL,
                     price REAL NOT NULL,
                     status TEXT DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             conn.commit()
@@ -2106,8 +2112,8 @@ def get_admin_purchases():
                             amount INTEGER NOT NULL,
                             price REAL NOT NULL,
                             status TEXT DEFAULT 'pending',
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            created_at TIMESTAMP DEFAULT NOW(),
+                            updated_at TIMESTAMP DEFAULT NOW()
                         )
                     """)
                     conn.commit()
@@ -2122,8 +2128,8 @@ def get_admin_purchases():
                         amount INTEGER NOT NULL,
                         price REAL NOT NULL,
                         status TEXT DEFAULT 'pending',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        updated_at TIMESTAMP DEFAULT NOW()
                     )
                 """)
                 conn.commit()
@@ -2191,8 +2197,8 @@ def update_purchase_status(purchase_id):
                     amount INTEGER NOT NULL,
                     price REAL NOT NULL,
                     status TEXT DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             conn.commit()
@@ -2203,7 +2209,7 @@ def update_purchase_status(purchase_id):
             # 구매 신청 승인 시 사용자 포인트 증가
             cursor.execute("""
                 UPDATE point_purchases 
-                SET status = ?, updated_at = CURRENT_TIMESTAMP 
+                SET status = ?, updated_at = NOW() 
                 WHERE purchase_id = ?
             """, (status, purchase_id))
             
@@ -2221,8 +2227,11 @@ def update_purchase_status(purchase_id):
                 
                 # 사용자 포인트 증가
                 cursor.execute("""
-                    INSERT OR REPLACE INTO points (user_id, points, updated_at)
-                    VALUES (?, COALESCE((SELECT points FROM points WHERE user_id = ?), 0) + ?, CURRENT_TIMESTAMP)
+                    INSERT INTO points (user_id, points, updated_at)
+                    VALUES (?, COALESCE((SELECT points FROM points WHERE user_id = ?), 0) + ?, NOW())
+                    ON CONFLICT (user_id) DO UPDATE SET
+                        points = EXCLUDED.points,
+                        updated_at = EXCLUDED.updated_at
                 """, (user_id, user_id, amount))
                 
                 print(f"포인트 승인: 사용자 {user_id}에게 {amount}P 추가")
@@ -2231,7 +2240,7 @@ def update_purchase_status(purchase_id):
             # 거절 시 상태만 업데이트
             cursor.execute("""
                 UPDATE point_purchases 
-                SET status = ?, updated_at = CURRENT_TIMESTAMP 
+                SET status = ?, updated_at = NOW() 
                 WHERE purchase_id = ?
             """, (status, purchase_id))
         
