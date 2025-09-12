@@ -325,12 +325,12 @@ def register():
             """)
             print("referrals 테이블 생성/확인 완료")
             
-            # 사용자 포인트 테이블에 등록 (SQLite 문법 사용)
-cursor.execute("""
-            INSERT INTO points (user_id, points)
-            VALUES (%s, 0)
-            ON CONFLICT (user_id) DO NOTHING
-        """, (user_id,))
+            # 사용자 포인트 테이블에 등록 (PostgreSQL 문법 사용)
+            cursor.execute("""
+                INSERT INTO points (user_id, points)
+                VALUES (%s, 0)
+                ON CONFLICT (user_id) DO NOTHING
+            """, (user_id,))
             print(f"사용자 포인트 등록 완료: {user_id}")
             
             # 추천인 코드가 있으면 처리
