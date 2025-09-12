@@ -194,11 +194,16 @@ def register():
     """사용자 등록"""
     try:
         data = request.get_json()
+        print(f"🔍 등록 요청 데이터: {data}")
+        
         user_id = data.get('user_id')
         email = data.get('email')
         name = data.get('name')
         
+        print(f"🔍 파싱된 데이터 - user_id: {user_id}, email: {email}, name: {name}")
+        
         if not all([user_id, email, name]):
+            print(f"❌ 필수 필드 누락 - user_id: {user_id}, email: {email}, name: {name}")
             return jsonify({'error': '필수 필드가 누락되었습니다.'}), 400
         
         conn = get_db_connection()
