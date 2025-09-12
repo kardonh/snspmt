@@ -80,7 +80,10 @@ def init_database():
             """)
             
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS point_purchases (
+                DROP TABLE IF EXISTS point_purchases
+            """)
+            cursor.execute("""
+                CREATE TABLE point_purchases (
                     id SERIAL PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
                     amount INTEGER NOT NULL,
@@ -128,7 +131,10 @@ def init_database():
             """)
             
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS point_purchases (
+                DROP TABLE IF EXISTS point_purchases
+            """)
+            cursor.execute("""
+                CREATE TABLE point_purchases (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
                     amount INTEGER NOT NULL,
