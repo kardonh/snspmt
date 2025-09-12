@@ -775,9 +775,11 @@ const Home = () => {
 
     try {
       const orderData = {
-        serviceId: selectedDetailedService.id, // smmkings_id 대신 id 사용
+        user_id: userId,
+        service_id: selectedDetailedService.id, // smmkings_id 대신 id 사용
         link: (link || '').trim(),
         quantity,
+        price: totalPrice,  // 총 가격 추가
         runs: 1,
         interval: 0,
         comments: (comments || '').trim(),
@@ -787,8 +789,7 @@ const Home = () => {
         posts: 0,
         delay: 0,
         expiry: '',
-        oldPosts: 0,
-        price: totalPrice  // 총 가격 추가
+        oldPosts: 0
       }
 
       console.log('=== 주문 데이터 생성 ===')

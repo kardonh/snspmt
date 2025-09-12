@@ -153,7 +153,7 @@ const PointsPage = () => {
     setIsLoading(true)
     try {
       const purchaseData = {
-        userId: currentUser.uid,
+        user_id: currentUser.uid,
         depositorName: depositorName.trim(),
         bankName: bankName.trim(),
         receiptType: receiptType,
@@ -176,6 +176,7 @@ const PointsPage = () => {
           'X-User-ID': currentUser.uid
         },
         body: JSON.stringify({
+          user_id: currentUser.uid,
           amount: selectedAmount,
           price: pointPackages.find(pkg => pkg.amount === selectedAmount).price
         })
