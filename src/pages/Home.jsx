@@ -773,6 +773,8 @@ const Home = () => {
     setIsLoading(true)
 
     try {
+      const userId = currentUser?.uid || currentUser?.email || 'anonymous'
+      
       const orderData = {
         user_id: userId,
         service_id: selectedDetailedService.id, // smmkings_id 대신 id 사용
@@ -796,8 +798,6 @@ const Home = () => {
       console.log('Selected Detailed Service:', selectedDetailedService)
 
       console.log('Order Data for Backend API:', orderData)
-      
-      const userId = currentUser?.uid || currentUser?.email || 'anonymous'
       
       // 백엔드 API 호출 (SMM Panel 변환 없이 직접 전송)
       const response = await fetch('/api/orders', {
