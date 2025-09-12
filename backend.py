@@ -27,7 +27,7 @@ def initialize_app():
         init_database()
         print("✅ 데이터베이스 초기화 완료")
         print("✅ 앱 시작 완료")
-        except Exception as e:
+    except Exception as e:
         print(f"⚠️ 앱 초기화 중 오류: {e}")
         # 초기화 실패해도 앱은 계속 실행
     
@@ -93,7 +93,7 @@ def init_database():
             print("메모리 기반 SQLite 연결 성공")
             
         with conn:
-                cursor = conn.cursor()
+            cursor = conn.cursor()
             
             # orders 테이블 생성
             cursor.execute("""
@@ -225,7 +225,7 @@ def health_check():
             'timestamp': datetime.now().isoformat(),
             'service': 'snspmt'
         }), 200
-        except Exception as e:
+    except Exception as e:
         return jsonify({
             'status': 'unhealthy',
             'error': str(e)
@@ -281,8 +281,8 @@ def register():
             return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
         
         try:
-        cursor = conn.cursor()
-        
+            cursor = conn.cursor()
+            
             # 모든 경우에 대해 테이블 생성 (안전한 방법)
             print("테이블 생성 확인 중...")
             
@@ -634,7 +634,7 @@ def create_order():
             conn.commit()
             cursor.close()
             conn.close()
-        print(f"주문 저장 완료: {order_id}")
+            print(f"주문 저장 완료: {order_id}")
                 
         except Exception as e:
             print(f"데이터베이스 저장 실패: {e}")
