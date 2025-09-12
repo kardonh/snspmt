@@ -1067,7 +1067,7 @@ def get_purchase_history():
             print(f"point_purchases 테이블 생성 완료")
             
             # 테이블 존재 확인
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='point_purchases'")
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name='point_purchases'")
             table_exists = cursor.fetchone()
             print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
             
@@ -1468,7 +1468,7 @@ def create_point_purchase():
                 print(f"point_purchases 테이블 생성 완료")
                 
                 # 테이블 존재 확인
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='point_purchases'")
+                cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name='point_purchases'")
                 table_exists = cursor.fetchone()
                 print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
             else:
@@ -1477,7 +1477,7 @@ def create_point_purchase():
                 # point_purchases 테이블이 있는지 확인하고 없으면 생성
                 cursor = conn.cursor()
                 try:
-                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='point_purchases'")
+                    cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name='point_purchases'")
                     table_exists = cursor.fetchone()
                     print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
                     
@@ -2090,7 +2090,7 @@ def get_admin_purchases():
             print(f"point_purchases 테이블 생성 완료")
             
             # 테이블 존재 확인
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='point_purchases'")
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name='point_purchases'")
             table_exists = cursor.fetchone()
             print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
         else:
@@ -2099,7 +2099,7 @@ def get_admin_purchases():
             # point_purchases 테이블이 있는지 확인하고 없으면 생성
             cursor = conn.cursor()
             try:
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='point_purchases'")
+                cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name='point_purchases'")
                 table_exists = cursor.fetchone()
                 print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
                 
