@@ -326,11 +326,11 @@ def register():
             print("referrals 테이블 생성/확인 완료")
             
             # 사용자 포인트 테이블에 등록 (SQLite 문법 사용)
-            cursor.execute("""
-                INSERT INTO points (user_id, points) 
-                VALUES (?, 0)
-                ON CONFLICT (user_id) DO NOTHING
-            """, (user_id,))
+cursor.execute("""
+            INSERT INTO points (user_id, points)
+            VALUES (%s, 0)
+            ON CONFLICT (user_id) DO NOTHING
+        """, (user_id,))
             print(f"사용자 포인트 등록 완료: {user_id}")
             
             # 추천인 코드가 있으면 처리
@@ -341,7 +341,7 @@ def register():
                     cursor.execute("""
                         SELECT code_id, referrer_user_id, is_active, expires_at
                         FROM referral_codes 
-                        WHERE code = ?
+                        WHERE code = %s
                     """, (referral_code.strip().upper(),))
                     
                     code_info = cursor.fetchone()
@@ -350,14 +350,14 @@ def register():
                         cursor.execute("""
                             INSERT INTO referrals (referrer_user_id, referred_user_id, referral_code)
                             ON CONFLICT (referred_user_id) DO NOTHING
-                            VALUES (?, ?, ?)
+                            VALUES (%s, %s, %s)
                         """, (code_info['referrer_user_id'], user_id, referral_code.strip().upper()))
                         
                         # 사용 횟수 증가
                         cursor.execute("""
                             UPDATE referral_codes 
                             SET usage_count = usage_count + 1
-                            WHERE code = ?
+                            WHERE code = %s
                         """, (referral_code.strip().upper(),))
                         
                         print(f"추천인 코드 적용 완료: {referral_code} -> {user_id}")
@@ -424,14 +424,14 @@ def login():
             
             # 사용자 정보 조회
             cursor.execute("""
-                SELECT user_id, points FROM points WHERE user_id = ?
+                SELECT user_id, points FROM points WHERE user_id = %s
             """, (user_id,))
             
             user = cursor.fetchone()
             if not user:
                 # 사용자가 없으면 새로 생성
                 cursor.execute("""
-                    INSERT INTO points (user_id, points) VALUES (?, 0)
+                    INSERT INTO points (user_id, points) VALUES (%s, 0)
                     ON CONFLICT (user_id) DO NOTHING
                 """, (user_id,))
                 conn.commit()
@@ -490,7 +490,7 @@ def update_activity():
             
             # 사용자 활동 업데이트
             cursor.execute("""
-                UPDATE points SET updated_at = ? WHERE user_id = ?
+                UPDATE points SET updated_at = %s WHERE user_id = %s
             """, (datetime.now(), user_id))
             conn.commit()
             
@@ -621,7 +621,7 @@ def create_order():
                     user_id, service_id, link, quantity, price, status,
                     comments, explanation, runs, interval, username,
                     min_quantity, max_quantity, posts, delay, expiry, old_posts
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 user_id, service_id_str, link, quantity, price, 'pending_payment',
                 data.get('comments', ''), data.get('explanation', ''), data.get('runs', 1),
@@ -679,7 +679,7 @@ def complete_order_payment(order_id):
                 cursor.execute("""
                     SELECT order_id, user_id, service_id, link, quantity, price, status
                     FROM orders 
-                    WHERE order_id = ? AND user_id = ?
+                    WHERE order_id = %s AND user_id = %s
                 """, (order_id, user_id))
                 
                 order = cursor.fetchone()
@@ -750,8 +750,8 @@ def complete_order_payment(order_id):
                         # PostgreSQL에 외부 주문 ID 업데이트
                         cursor.execute("""
                             UPDATE orders 
-                            SET external_order_id = ?, status = 'processing', updated_at = ?
-                            WHERE order_id = ?
+                            SET external_order_id = %s, status = 'processing', updated_at = %s
+                            WHERE order_id = %s
                         """, (external_order_id, datetime.now(), order_id))
                         conn.commit()
                         
@@ -846,7 +846,7 @@ def get_user_orders():
                     created_at,
                     updated_at
                 FROM orders 
-                WHERE user_id = ?
+                WHERE user_id = %s
                 ORDER BY created_at DESC
             """, (user_id,))
             
@@ -911,7 +911,7 @@ def get_user_points():
             """)
             
             cursor.execute("""
-                SELECT points FROM points WHERE user_id = ?
+                SELECT points FROM points WHERE user_id = %s
             """, (user_id,))
             
             result = cursor.fetchone()
@@ -958,7 +958,7 @@ def get_user_info(user_id):
             """)
             
             cursor.execute("""
-                SELECT points, created_at, updated_at FROM points WHERE user_id = ?
+                SELECT points, created_at, updated_at FROM points WHERE user_id = %s
             """, (user_id,))
             
             result = cursor.fetchone()
@@ -1076,7 +1076,7 @@ def get_purchase_history():
             total_purchases = cursor.fetchone()[0]
             print(f"전체 구매 신청 수: {total_purchases}")
             
-            cursor.execute("SELECT COUNT(*) FROM point_purchases WHERE user_id = ?", (user_id,))
+            cursor.execute("SELECT COUNT(*) FROM point_purchases WHERE user_id = %s", (user_id,))
             user_purchases = cursor.fetchone()[0]
             print(f"사용자 {user_id}의 구매 신청 수: {user_purchases}")
             
@@ -1084,7 +1084,7 @@ def get_purchase_history():
             cursor.execute("""
                 SELECT purchase_id, amount, price, status, created_at, updated_at
                 FROM point_purchases 
-                WHERE user_id = ?
+                WHERE user_id = %s
                 ORDER BY created_at DESC
             """, (user_id,))
             
@@ -1163,7 +1163,7 @@ def get_my_referral_codes():
             cursor.execute("""
                 SELECT code, is_active, created_at, expires_at, usage_count, total_commission
                 FROM referral_codes 
-                WHERE referrer_user_id = ?
+                WHERE referrer_user_id = %s
                 ORDER BY created_at DESC
             """, (user_id,))
             
@@ -1228,7 +1228,7 @@ def get_referral_commissions():
             cursor.execute("""
                 SELECT referred_user_id, referral_code, created_at
                 FROM referrals 
-                WHERE referrer_user_id = ?
+                WHERE referrer_user_id = %s
                     ORDER BY created_at DESC
             """, (user_id,))
             
@@ -1314,7 +1314,7 @@ def get_order_detail(order_id):
                     created_at,
                     updated_at
                 FROM orders 
-                WHERE order_id = ? AND user_id = ?
+                WHERE order_id = %s AND user_id = %s
             """, (order_id, user_id))
             
             result = cursor.fetchone()
@@ -1363,7 +1363,7 @@ def deduct_user_points():
             cursor = conn.cursor()
             
             # 현재 포인트 확인
-            cursor.execute("SELECT points FROM points WHERE user_id = ?", (user_id,))
+            cursor.execute("SELECT points FROM points WHERE user_id = %s", (user_id,))
             result = cursor.fetchone()
             
             if not result:
@@ -1376,8 +1376,8 @@ def deduct_user_points():
         # 포인트 차감
             cursor.execute("""
                 UPDATE points 
-                SET points = points - ?, updated_at = NOW()
-                WHERE user_id = ?
+                SET points = points - %s, updated_at = NOW()
+                WHERE user_id = %s
             """, (points, user_id))
             
             conn.commit()
@@ -1517,7 +1517,7 @@ def create_point_purchase():
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO point_purchases (user_id, amount, price, status)
-                VALUES (?, ?, ?, 'pending')
+                VALUES (%s, %s, %s, 'pending')
             """, (user_id, amount, price))
             
             purchase_id = cursor.lastrowid
@@ -1561,7 +1561,7 @@ def set_admin_points():
         try:
             cursor.execute("""
                 INSERT INTO points (user_id, points, created_at, updated_at)
-                VALUES (?, ?, NOW(), NOW())
+                VALUES (%s, %s, NOW(), NOW())
                 ON CONFLICT (user_id) DO UPDATE SET
                     points = EXCLUDED.points,
                     updated_at = EXCLUDED.updated_at
@@ -1600,7 +1600,7 @@ def add_test_data():
             try:
                 cursor.execute("""
                     INSERT INTO points (user_id, points, created_at, updated_at)
-                    VALUES (?, ?, NOW(), NOW())
+                    VALUES (%s, %s, NOW(), NOW())
                     ON CONFLICT (user_id) DO UPDATE SET
                         points = EXCLUDED.points,
                         updated_at = EXCLUDED.updated_at
@@ -1620,7 +1620,7 @@ def add_test_data():
             try:
                 cursor.execute("""
                     INSERT INTO orders (user_id, service_id, link, quantity, price, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
                 """, (user_id, service_id, link, quantity, price, status))
                 print(f"테스트 주문 추가: {user_id} - {service_id}")
             except Exception as e:
@@ -1637,7 +1637,7 @@ def add_test_data():
             try:
                 cursor.execute("""
                     INSERT INTO point_purchases (user_id, amount, price, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, NOW(), NOW())
+                    VALUES (%s, %s, %s, %s, NOW(), NOW())
                 """, (user_id, amount, price, status))
                 print(f"테스트 포인트 구매 추가: {user_id} - {amount} 포인트")
             except Exception as e:
@@ -2209,15 +2209,15 @@ def update_purchase_status(purchase_id):
             # 구매 신청 승인 시 사용자 포인트 증가
             cursor.execute("""
                 UPDATE point_purchases 
-                SET status = ?, updated_at = NOW() 
-                WHERE purchase_id = ?
+                SET status = %s, updated_at = NOW() 
+                WHERE purchase_id = %s
             """, (status, purchase_id))
             
             # 구매 정보 조회
             cursor.execute("""
                 SELECT user_id, amount, price 
                 FROM point_purchases 
-                WHERE purchase_id = ?
+                WHERE purchase_id = %s
             """, (purchase_id,))
             
             purchase_info = cursor.fetchone()
@@ -2228,7 +2228,7 @@ def update_purchase_status(purchase_id):
                 # 사용자 포인트 증가
                 cursor.execute("""
                     INSERT INTO points (user_id, points, updated_at)
-                    VALUES (?, COALESCE((SELECT points FROM points WHERE user_id = ?), 0) + ?, NOW())
+                    VALUES (%s, COALESCE((SELECT points FROM points WHERE user_id = %s), 0) + %s, NOW())
                     ON CONFLICT (user_id) DO UPDATE SET
                         points = EXCLUDED.points,
                         updated_at = EXCLUDED.updated_at
@@ -2240,8 +2240,8 @@ def update_purchase_status(purchase_id):
             # 거절 시 상태만 업데이트
             cursor.execute("""
                 UPDATE point_purchases 
-                SET status = ?, updated_at = NOW() 
-                WHERE purchase_id = ?
+                SET status = %s, updated_at = NOW() 
+                WHERE purchase_id = %s
             """, (status, purchase_id))
         
         conn.commit()
@@ -2276,7 +2276,7 @@ def get_user_info_by_query():
                         created_at,
                         updated_at
                     FROM points 
-                    WHERE user_id = ?
+                    WHERE user_id = %s
                 """, (user_id,))
                 
                 result = cursor.fetchone()
@@ -2323,7 +2323,7 @@ def get_user(user_id):
                     created_at,
                     updated_at
                 FROM points 
-                WHERE user_id = ?
+                WHERE user_id = %s
             """, (user_id,))
             
             result = cursor.fetchone()
@@ -2367,7 +2367,7 @@ def generate_referral_code():
             cursor = conn.cursor()
             
             # 중복 코드 확인
-            cursor.execute("SELECT code FROM referral_codes WHERE code = ?", (code,))
+            cursor.execute("SELECT code FROM referral_codes WHERE code = %s", (code,))
             if cursor.fetchone():
                 # 중복이면 다시 생성
                 code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
@@ -2375,7 +2375,7 @@ def generate_referral_code():
             # 추천인 코드 저장
             cursor.execute("""
                 INSERT INTO referral_codes (code, referrer_user_id, is_active)
-                VALUES (?, ?, 1)
+                VALUES (%s, %s, 1)
             """, (code, user_id))
             
             conn.commit()
@@ -2412,7 +2412,7 @@ def use_referral_code():
             cursor.execute("""
                 SELECT code_id, referrer_user_id, is_active, expires_at
                 FROM referral_codes 
-                WHERE code = ?
+                WHERE code = %s
             """, (referral_code,))
             
             code_info = cursor.fetchone()
@@ -2424,7 +2424,7 @@ def use_referral_code():
             
             # 이미 추천받은 사용자인지 확인
             cursor.execute("""
-                SELECT referral_id FROM referrals WHERE referred_user_id = ?
+                SELECT referral_id FROM referrals WHERE referred_user_id = %s
             """, (user_id,))
             
             if cursor.fetchone():
@@ -2433,14 +2433,14 @@ def use_referral_code():
             # 추천 관계 저장
             cursor.execute("""
                 INSERT INTO referrals (referrer_user_id, referred_user_id, referral_code)
-                VALUES (?, ?, ?)
+                VALUES (%s, %s, %s)
             """, (code_info['referrer_user_id'], user_id, referral_code))
             
             # 사용 횟수 증가
             cursor.execute("""
                 UPDATE referral_codes 
                 SET usage_count = usage_count + 1
-                WHERE code = ?
+                WHERE code = %s
             """, (referral_code,))
             
             conn.commit()
