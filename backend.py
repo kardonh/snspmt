@@ -510,12 +510,42 @@ def get_admin_purchases():
 @app.route('/<path:filename>')
 def serve_static(filename):
     """정적 파일 서빙"""
-    return app.send_static_file(filename)
+    try:
+        return app.send_static_file(filename)
+    except:
+        return "File not found", 404
 
 @app.route('/')
 def serve_index():
     """메인 페이지 서빙"""
-    return app.send_static_file('index.html')
+    try:
+        return app.send_static_file('index.html')
+    except:
+        # index.html이 없으면 기본 HTML 반환
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>SNS PMT</title>
+            <meta charset="utf-8">
+        </head>
+        <body>
+            <h1>SNS PMT 서비스</h1>
+            <p>서비스가 정상적으로 실행되고 있습니다.</p>
+            <p>API 엔드포인트:</p>
+            <ul>
+                <li>GET /api/health - 헬스 체크</li>
+                <li>POST /api/register - 사용자 등록</li>
+                <li>GET /api/points - 포인트 조회</li>
+                <li>POST /api/orders - 주문 생성</li>
+                <li>GET /api/orders - 주문 목록</li>
+                <li>POST /api/points/purchase - 포인트 구매 신청</li>
+                <li>GET /api/admin/stats - 관리자 통계</li>
+                <li>GET /api/admin/purchases - 관리자 포인트 구매 목록</li>
+            </ul>
+        </body>
+        </html>
+        """, 200
 
 if __name__ == '__main__':
     # 앱 초기화
