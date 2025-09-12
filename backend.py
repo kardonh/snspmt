@@ -915,7 +915,14 @@ def get_user_points():
             """, (user_id,))
             
             result = cursor.fetchone()
-            points = result[0] if result else 0
+            if result:
+                # RealDictCursor 사용 시 딕셔너리 접근
+                if isinstance(result, dict):
+                    points = result['points']
+                else:
+                    points = result[0]
+            else:
+                points = 0
             
             return jsonify({'points': points}), 200
             
@@ -1040,11 +1047,13 @@ def get_purchase_history():
             
             # 기존 데이터 확인
             cursor.execute("SELECT COUNT(*) FROM point_purchases")
-            total_purchases = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            total_purchases = result['count'] if isinstance(result, dict) else result[0]
             print(f"전체 구매 신청 수: {total_purchases}")
             
             cursor.execute("SELECT COUNT(*) FROM point_purchases WHERE user_id = %s", (user_id,))
-            user_purchases = cursor.fetchone()[0]
+            result = cursor.fetchone()
+            user_purchases = result['count'] if isinstance(result, dict) else result[0]
             print(f"사용자 {user_id}의 구매 신청 수: {user_purchases}")
             
             print(f"구매 내역 조회 시도...")
@@ -1059,16 +1068,28 @@ def get_purchase_history():
             purchases = []
             for row in cursor.fetchall():
                 try:
-                    purchase = {
-                        'id': row[0],
-                        'amount': row[1],
-                        'price': float(row[2]),
-                        'status': row[3],
-                        'created_at': row[4].isoformat() if row[4] else None,
-                        'updated_at': row[5].isoformat() if row[5] else None
-                    }
+                    # RealDictCursor 사용 시 딕셔너리 접근
+                    if isinstance(row, dict):
+                        purchase = {
+                            'id': row['purchase_id'],
+                            'amount': row['amount'],
+                            'price': float(row['price']),
+                            'status': row['status'],
+                            'created_at': row['created_at'].isoformat() if row['created_at'] else None,
+                            'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
+                        }
+                        print(f"구매 내역 추가: ID={row['purchase_id']}, 금액={row['price']}, 상태={row['status']}")
+                    else:
+                        purchase = {
+                            'id': row[0],
+                            'amount': row[1],
+                            'price': float(row[2]),
+                            'status': row[3],
+                            'created_at': row[4].isoformat() if row[4] else None,
+                            'updated_at': row[5].isoformat() if row[5] else None
+                        }
+                        print(f"구매 내역 추가: ID={row[0]}, 금액={row[2]}, 상태={row[3]}")
                     purchases.append(purchase)
-                    print(f"구매 내역 추가: ID={row[0]}, 금액={row[2]}, 상태={row[3]}")
                 except Exception as e:
                     print(f"구매 내역 데이터 변환 실패: {e}")
                     continue
