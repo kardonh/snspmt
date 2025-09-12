@@ -933,64 +933,6 @@ def get_user_points():
         return jsonify({'error': '포인트 조회에 실패했습니다.'}), 500
 
 # 사용자 정보 조회
-@app.route('/api/users/<user_id>', methods=['GET'])
-def get_user_info(user_id):
-    """사용자 정보 조회"""
-    try:
-        print(f"사용자 정보 조회 요청: {user_id}")
-        
-        # 데이터베이스에서 사용자 정보 조회
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'error': '데이터베이스 연결에 실패했습니다.'}), 500
-        
-        try:
-            cursor = conn.cursor()
-            
-            # 테이블 생성 확인
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS points (
-                    user_id TEXT PRIMARY KEY,
-                    points INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW()
-                )
-            """)
-            
-            cursor.execute("""
-                SELECT points, created_at, updated_at FROM points WHERE user_id = %s
-            """, (user_id,))
-            
-            result = cursor.fetchone()
-            if result:
-                user_info = {
-                    'user_id': user_id,
-                    'points': result[0],
-                    'created_at': result[1].isoformat() if result[1] else None,
-                    'updated_at': result[2].isoformat() if result[2] else None
-                }
-            else:
-                user_info = {
-                    'user_id': user_id,
-                    'points': 0,
-                    'created_at': None,
-                    'updated_at': None
-                }
-            
-            return jsonify(user_info), 200
-            
-        except Exception as db_error:
-            print(f"데이터베이스 조회 실패: {db_error}")
-            return jsonify({'error': f'사용자 정보 조회에 실패했습니다: {str(db_error)}'}), 500
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
-        
-    except Exception as e:
-        print(f"사용자 정보 조회 실패: {e}")
-        return jsonify({'error': '사용자 정보 조회에 실패했습니다.'}), 500
 
 # 포인트 구매 내역 조회
 @app.route('/api/points/purchase-history', methods=['GET'])
