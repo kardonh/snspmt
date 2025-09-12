@@ -743,9 +743,9 @@ def serve_index():
         </html>
         """, 200
 
+# 앱 시작 시 자동 초기화
+initialize_app()
+
 if __name__ == '__main__':
-    # 앱 초기화
-    initialize_app()
-    
     # 개발 서버 실행
     app.run(host='0.0.0.0', port=8000, debug=False)
