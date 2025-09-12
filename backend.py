@@ -994,24 +994,49 @@ def get_purchase_history():
             
             # 테이블 생성 확인
             print(f"point_purchases 테이블 생성 시도...")
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS point_purchases (
-                    purchase_id SERIAL PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    amount INTEGER NOT NULL,
-                    price REAL NOT NULL,
-                    status TEXT DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW()
-                )
-            """)
+            # PostgreSQL과 SQLite 호환성을 위한 조건부 테이블 생성
+            try:
+                # PostgreSQL용 구문 시도
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS point_purchases (
+                        purchase_id SERIAL PRIMARY KEY,
+                        user_id TEXT NOT NULL,
+                        amount INTEGER NOT NULL,
+                        price DECIMAL(10,2) NOT NULL,
+                        status TEXT DEFAULT 'pending',
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        updated_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+            except Exception as pg_error:
+                print(f"PostgreSQL 구문 실패, SQLite 구문으로 재시도: {pg_error}")
+                # SQLite용 구문으로 재시도
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS point_purchases (
+                        purchase_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id TEXT NOT NULL,
+                        amount INTEGER NOT NULL,
+                        price REAL NOT NULL,
+                        status TEXT DEFAULT 'pending',
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        updated_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
             conn.commit()
             print(f"point_purchases 테이블 생성 완료")
             
-            # 테이블 존재 확인
-            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name='point_purchases'")
-            table_exists = cursor.fetchone()
-            print(f"point_purchases 테이블 존재 확인: {table_exists is not None}")
+            # 테이블 존재 확인 (PostgreSQL과 SQLite 호환)
+            try:
+                # PostgreSQL용 구문 시도
+                cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name='point_purchases'")
+                table_exists = cursor.fetchone()
+                print(f"point_purchases 테이블 존재 확인 (PostgreSQL): {table_exists is not None}")
+            except Exception as pg_error:
+                print(f"PostgreSQL 테이블 확인 실패, SQLite 구문으로 재시도: {pg_error}")
+                # SQLite용 구문으로 재시도
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='point_purchases'")
+                table_exists = cursor.fetchone()
+                print(f"point_purchases 테이블 존재 확인 (SQLite): {table_exists is not None}")
             
             # 기존 데이터 확인
             cursor.execute("SELECT COUNT(*) FROM point_purchases")
