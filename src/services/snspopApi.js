@@ -145,8 +145,6 @@ export const smmpanelApi = {
   // 사용자 등록
   registerUser: (userData) => apiClient.post('/register', userData),
   
-  // 사용자 로그인
-  userLogin: (userId) => apiClient.post('/login', { userId }),
   
   // 사용자 활동 업데이트
   updateUserActivity: (userId) => apiClient.post('/activity', { userId }),

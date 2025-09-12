@@ -108,9 +108,6 @@ export function AuthProvider({ children }) {
             name: user.displayName || ''
           });
           
-          // 로그인 기록
-          await smmpanelApi.userLogin(user.uid);
-          
           // 주기적으로 활동 업데이트 (30분마다로 최적화)
           const activityInterval = setInterval(async () => {
             try {
