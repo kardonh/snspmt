@@ -977,6 +977,46 @@ def serve_index():
         </html>
         """, 200
 
+# SMM Panel API 프록시 엔드포인트
+@app.route('/api/smm-panel', methods=['POST'])
+def smm_panel_proxy():
+    """SMM Panel API 프록시 - CORS 문제 해결"""
+    try:
+        import requests
+        
+        data = request.get_json()
+        print(f"🔍 SMM Panel 프록시 요청: {data}")
+        
+        # SMM Panel API 호출
+        smm_panel_url = 'https://smmfollows.com/api/v2'
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = requests.post(smm_panel_url, json=data, headers=headers, timeout=30)
+        
+        print(f"✅ SMM Panel API 응답: {response.status_code}")
+        
+        return jsonify({
+            'success': True,
+            'data': response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text,
+            'status_code': response.status_code
+        })
+        
+    except requests.exceptions.RequestException as e:
+        print(f"❌ SMM Panel API 요청 실패: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'API 요청 실패: {str(e)}'
+        }), 500
+    except Exception as e:
+        print(f"❌ SMM Panel 프록시 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'프록시 오류: {str(e)}'
+        }), 500
+
 # 앱 시작 시 자동 초기화
 initialize_app()
 

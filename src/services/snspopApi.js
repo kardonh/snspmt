@@ -17,9 +17,9 @@ const apiClient = axios.create({
   }
 })
 
-// SMM Panel API 전용 클라이언트
+// SMM Panel API 전용 클라이언트 (백엔드 프록시 사용)
 const smmPanelClient = axios.create({
-  baseURL: SMM_PANEL_API_URL,
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -52,10 +52,10 @@ apiClient.interceptors.response.use(
 // SMM Panel API 함수들
 export const smmpanelApi = {
   // 서비스 목록 조회
-  getServices: () => smmPanelClient.post('', { action: 'services' }),
+  getServices: () => smmPanelClient.post('/smm-panel', { action: 'services' }),
   
   // 잔액 조회
-  getBalance: () => smmPanelClient.post('', { action: 'balance' }),
+  getBalance: () => smmPanelClient.post('/smm-panel', { action: 'balance' }),
   
   // 주문 생성
   createOrder: (orderData, userId) => {
@@ -67,7 +67,7 @@ export const smmpanelApi = {
       }
     }
 
-    return smmPanelClient.post('', { 
+    return smmPanelClient.post('/smm-panel', { 
       action: 'add',
       ...orderData 
     }, config).then(response => {
@@ -80,43 +80,43 @@ export const smmpanelApi = {
   },
   
   // 주문 상태 조회
-  getOrderStatus: (orderId) => smmPanelClient.post('', { 
+  getOrderStatus: (orderId) => smmPanelClient.post('/smm-panel', { 
     action: 'status',
     order: orderId 
   }),
   
   // 여러 주문 상태 조회
-  getMultiOrderStatus: (orderIds) => smmPanelClient.post('', { 
+  getMultiOrderStatus: (orderIds) => smmPanelClient.post('/smm-panel', { 
     action: 'status',
     orders: orderIds.join(',') 
   }),
   
   // 주문 리필
-  refillOrder: (orderId) => smmPanelClient.post('', { 
+  refillOrder: (orderId) => smmPanelClient.post('/smm-panel', { 
     action: 'refill',
     order: orderId 
   }),
   
   // 여러 주문 리필
-  refillMultipleOrders: (orderIds) => smmPanelClient.post('', { 
+  refillMultipleOrders: (orderIds) => smmPanelClient.post('/smm-panel', { 
     action: 'refill',
     orders: orderIds.join(',') 
   }),
   
   // 리필 상태 조회
-  getRefillStatus: (refillId) => smmPanelClient.post('', { 
+  getRefillStatus: (refillId) => smmPanelClient.post('/smm-panel', { 
     action: 'refill_status',
     refill: refillId 
   }),
   
   // 여러 리필 상태 조회
-  getMultiRefillStatus: (refillIds) => smmPanelClient.post('', { 
+  getMultiRefillStatus: (refillIds) => smmPanelClient.post('/smm-panel', { 
     action: 'refill_status',
     refills: refillIds.join(',') 
   }),
   
   // 주문 취소
-  cancelOrders: (orderIds) => smmPanelClient.post('', { 
+  cancelOrders: (orderIds) => smmPanelClient.post('/smm-panel', { 
     action: 'cancel',
     orders: orderIds.join(',') 
   }),
