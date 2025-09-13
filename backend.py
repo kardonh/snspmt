@@ -27,7 +27,7 @@ def get_db_connection():
             db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
             conn = sqlite3.connect(db_path)
             return conn
-        except Exception as e:
+    except Exception as e:
         print(f"데이터베이스 연결 실패: {e}")
         # SQLite fallback
         db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
