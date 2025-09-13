@@ -95,12 +95,12 @@ const AdminPage = () => {
         const data = await response.json()
         console.log('📊 대시보드 데이터:', data)
         setDashboardData({
-          totalUsers: data.totalUsers || 0,
-          totalOrders: data.totalOrders || 0,
-          totalRevenue: data.totalRevenue || 0,
-          pendingPurchases: data.pendingPurchases || 0,
-          todayOrders: data.todayOrders || 0,
-          todayRevenue: data.todayRevenue || 0
+          totalUsers: data.total_users || 0,
+          totalOrders: data.total_orders || 0,
+          totalRevenue: data.total_revenue || 0,
+          pendingPurchases: data.pending_purchases || 0,
+          todayOrders: data.today_orders || 0,
+          todayRevenue: data.today_revenue || 0
         })
       } else {
         console.error('❌ 대시보드 API 오류:', response.status, response.statusText)
@@ -120,7 +120,7 @@ const AdminPage = () => {
       if (response.ok) {
         const data = await response.json()
         console.log('👥 사용자 데이터:', data)
-        setUsers(Array.isArray(data) ? data : [])
+        setUsers(Array.isArray(data.users) ? data.users : [])
       } else {
         console.error('❌ 사용자 API 오류:', response.status, response.statusText)
       }
@@ -136,7 +136,7 @@ const AdminPage = () => {
       const response = await fetch('/api/admin/transactions')
       if (response.ok) {
         const data = await response.json()
-        setOrders(Array.isArray(data) ? data : [])
+        setOrders(Array.isArray(data.transactions) ? data.transactions : [])
       }
     } catch (error) {
       console.error('주문 데이터 로드 실패:', error)
@@ -154,7 +154,7 @@ const AdminPage = () => {
       if (response.ok) {
         const data = await response.json()
         console.log('💰 포인트 구매 데이터:', data)
-        setPendingPurchases(Array.isArray(data) ? data : [])
+        setPendingPurchases(Array.isArray(data.purchases) ? data.purchases : [])
       } else {
         console.error('❌ 포인트 구매 API 오류:', response.status, response.statusText)
       }
