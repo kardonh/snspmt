@@ -27,7 +27,7 @@ def get_db_connection():
             db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
             conn = sqlite3.connect(db_path)
             return conn
-    except Exception as e:
+        except Exception as e:
         print(f"데이터베이스 연결 실패: {e}")
         # SQLite fallback
         db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
@@ -38,7 +38,7 @@ def init_database():
     """데이터베이스 테이블을 초기화합니다."""
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
+                cursor = conn.cursor()
         
         # PostgreSQL인지 SQLite인지 확인
         is_postgresql = DATABASE_URL.startswith('postgresql://')
