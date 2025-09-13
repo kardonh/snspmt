@@ -4,7 +4,7 @@ import axios from 'axios'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : 'http://snspmt-alb-new-404094515.ap-northeast-2.elb.amazonaws.com/api')
 
 // SMM Panel API 키
-const DEFAULT_API_KEY = import.meta.env.VITE_SMMPANEL_API_KEY || '5efae48d287931cf9bd80a1bc6fdfa6d'
+const DEFAULT_API_KEY = import.meta.env.VITE_SMMPANEL_API_KEY || 'b27d9ef559a6f6402db471708f54186c'
 
 // SMM Panel API 엔드포인트
 const SMM_PANEL_API_URL = 'https://smmfollows.com/api/v2'
@@ -256,7 +256,7 @@ export const transformOrderData = (orderData) => {
     device: safeString(safeOrderData.device),
     type_of_traffic: safeString(safeOrderData.type_of_traffic),
     google_keyword: safeString(safeOrderData.google_keyword),
-    key: '5efae48d287931cf9bd80a1bc6fdfa6d' // SMM Panel API 키
+    key: 'b27d9ef559a6f6402db471708f54186c' // SMM Panel API 키
   }
   
   console.log('transformOrderData output:', transformed)

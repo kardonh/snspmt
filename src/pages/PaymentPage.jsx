@@ -91,7 +91,7 @@ const PaymentPage = () => {
           delay: 0,
           expiry: '',
           old_posts: 0,
-          key: '5efae48d287931cf9bd80a1bc6fdfa6d'
+          key: 'b27d9ef559a6f6402db471708f54186c'
         }
         
         console.log('🔄 SMM Panel API 전송 데이터:', smmOrderData)

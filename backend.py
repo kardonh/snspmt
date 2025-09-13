@@ -987,7 +987,7 @@ def smm_panel_test():
         # 간단한 테스트 요청
         test_data = {
             'action': 'balance',
-            'key': '5efae48d287931cf9bd80a1bc6fdfa6d'
+            'key': 'b27d9ef559a6f6402db471708f54186c'
         }
         
         smm_panel_url = 'https://smmfollows.com/api/v2'
