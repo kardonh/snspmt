@@ -725,7 +725,7 @@ def get_user(user_id):
                 'name': user[2],
                 'created_at': user[3].isoformat() if hasattr(user[3], 'isoformat') else str(user[3])
             }), 200
-    else:
+        else:
             return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
         
     except Exception as e:
