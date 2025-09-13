@@ -977,6 +977,40 @@ def serve_index():
         </html>
         """, 200
 
+# SMM Panel API 테스트 엔드포인트
+@app.route('/api/smm-panel/test', methods=['GET'])
+def smm_panel_test():
+    """SMM Panel API 연결 테스트"""
+    try:
+        import requests
+        
+        # 간단한 테스트 요청
+        test_data = {
+            'action': 'balance',
+            'key': '5efae48d287931cf9bd80a1bc6fdfa6d'
+        }
+        
+        smm_panel_url = 'https://smmfollows.com/api/v2'
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = requests.post(smm_panel_url, json=test_data, headers=headers, timeout=10)
+        
+        return jsonify({
+            'success': True,
+            'status_code': response.status_code,
+            'response': response.text[:500],
+            'url': smm_panel_url
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # SMM Panel API 프록시 엔드포인트
 @app.route('/api/smm-panel', methods=['POST'])
 def smm_panel_proxy():
@@ -997,11 +1031,19 @@ def smm_panel_proxy():
         response = requests.post(smm_panel_url, json=data, headers=headers, timeout=30)
         
         print(f"✅ SMM Panel API 응답: {response.status_code}")
+        print(f"📄 SMM Panel API 응답 내용: {response.text[:500]}...")
         
+        # 응답 데이터 파싱
+        try:
+            response_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text
+        except:
+            response_data = response.text
+            
         return jsonify({
             'success': True,
-            'data': response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text,
-            'status_code': response.status_code
+            'data': response_data,
+            'status_code': response.status_code,
+            'raw_response': response.text
         })
         
     except requests.exceptions.RequestException as e:

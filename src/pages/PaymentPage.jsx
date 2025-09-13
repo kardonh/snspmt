@@ -75,25 +75,51 @@ const PaymentPage = () => {
 
       // 2. SMM Panel API 호출 (백엔드 프록시 사용)
       try {
+        // SMM Panel API용 데이터 변환
+        const smmOrderData = {
+          action: 'add',
+          service: orderData.service_id || orderData.detailedService?.id,
+          link: orderData.link,
+          quantity: orderData.quantity,
+          runs: 1,
+          interval: 0,
+          comments: orderData.comments || '',
+          username: '',
+          min: 0,
+          max: 0,
+          posts: 0,
+          delay: 0,
+          expiry: '',
+          old_posts: 0,
+          key: '5efae48d287931cf9bd80a1bc6fdfa6d'
+        }
+        
+        console.log('🔄 SMM Panel API 전송 데이터:', smmOrderData)
+        
         const smmResponse = await fetch('/api/smm-panel', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            action: 'add',
-            service: orderData.service_id || orderData.detailedService?.id,
-            link: orderData.link,
-            quantity: orderData.quantity,
-            key: '5efae48d287931cf9bd80a1bc6fdfa6d'
-          })
+          body: JSON.stringify(smmOrderData)
         })
 
         if (smmResponse.ok) {
           const smmResult = await smmResponse.json()
-          console.log('SMM Panel API 성공:', smmResult)
+          console.log('✅ SMM Panel API 성공:', smmResult)
+          
+          if (smmResult.success && smmResult.data) {
+            console.log('🎉 외부 SMM Panel 주문 생성 성공:', smmResult.data)
+            // SMM Panel에서 주문 ID를 받았다면 저장
+            if (smmResult.data.order) {
+              console.log('📝 SMM Panel 주문 ID:', smmResult.data.order)
+            }
+          } else {
+            console.warn('⚠️ SMM Panel API 응답이 성공이지만 데이터가 없음:', smmResult)
+          }
         } else {
-          console.warn('SMM Panel API 실패, 하지만 주문은 완료됨')
+          const errorData = await smmResponse.json().catch(() => ({ error: 'Unknown error' }))
+          console.warn('❌ SMM Panel API 실패:', errorData)
         }
       } catch (smmError) {
         console.warn('SMM Panel API 오류:', smmError)
