@@ -731,6 +731,29 @@ def get_user(user_id):
     except Exception as e:
         return jsonify({'error': f'사용자 정보 조회 실패: {str(e)}'}), 500
 
+# 추천인 코드 생성
+@app.route('/api/referral/generate-code', methods=['POST'])
+def generate_referral_code():
+    """추천인 코드 생성"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': 'user_id가 필요합니다.'}), 400
+        
+        # 간단한 추천인 코드 생성 (사용자 ID + 타임스탬프)
+        import time
+        code = f"REF_{user_id}_{int(time.time())}"
+        
+        return jsonify({
+            'code': code,
+            'message': '추천인 코드가 생성되었습니다.'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'추천인 코드 생성 실패: {str(e)}'}), 500
+
 # 추천인 코드 조회
 @app.route('/api/referral/my-codes', methods=['GET'])
 def get_my_codes():
@@ -747,6 +770,27 @@ def get_my_codes():
         
     except Exception as e:
         return jsonify({'error': f'추천인 코드 조회 실패: {str(e)}'}), 500
+
+# 추천인 코드 사용
+@app.route('/api/referral/use-code', methods=['POST'])
+def use_referral_code():
+    """추천인 코드 사용"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        code = data.get('code')
+        
+        if not user_id or not code:
+            return jsonify({'error': 'user_id와 code가 필요합니다.'}), 400
+        
+        # 임시로 성공 응답 반환 (추천인 기능은 나중에 구현)
+        return jsonify({
+            'message': '추천인 코드가 적용되었습니다.',
+            'code': code
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'추천인 코드 사용 실패: {str(e)}'}), 500
 
 # 추천인 수수료 조회
 @app.route('/api/referral/commissions', methods=['GET'])
