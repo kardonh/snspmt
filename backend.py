@@ -668,18 +668,19 @@ def deduct_points():
                 WHERE user_id = ?
             """, (new_points, user_id))
         
-        # 포인트 사용 내역 기록 (선택사항)
-        if order_id:
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    INSERT INTO point_transactions (user_id, order_id, amount, type, created_at)
-                    VALUES (%s, %s, %s, 'deduct', CURRENT_TIMESTAMP)
-                """, (user_id, order_id, amount))
-            else:
-                cursor.execute("""
-                    INSERT INTO point_transactions (user_id, order_id, amount, type, created_at)
-                    VALUES (?, ?, ?, 'deduct', CURRENT_TIMESTAMP)
-                """, (user_id, order_id, amount))
+        # 포인트 사용 내역 기록은 현재 비활성화 (테이블이 없음)
+        # TODO: point_transactions 테이블 생성 후 활성화
+        # if order_id:
+        #     if DATABASE_URL.startswith('postgresql://'):
+        #         cursor.execute("""
+        #             INSERT INTO point_transactions (user_id, order_id, amount, type, created_at)
+        #             VALUES (%s, %s, %s, 'deduct', CURRENT_TIMESTAMP)
+        #         """, (user_id, order_id, amount))
+        #     else:
+        #         cursor.execute("""
+        #             INSERT INTO point_transactions (user_id, order_id, amount, type, created_at)
+        #             VALUES (?, ?, ?, 'deduct', CURRENT_TIMESTAMP)
+        #         """, (user_id, order_id, amount))
         
         conn.commit()
         
