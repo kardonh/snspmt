@@ -860,7 +860,7 @@ def get_admin_users():
     """관리자 사용자 목록"""
     try:
         conn = get_db_connection()
-            cursor = conn.cursor()
+        cursor = conn.cursor()
             
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
