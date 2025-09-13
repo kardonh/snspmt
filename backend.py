@@ -38,7 +38,7 @@ def init_database():
     """데이터베이스 테이블을 초기화합니다."""
     try:
         conn = get_db_connection()
-                cursor = conn.cursor()
+        cursor = conn.cursor()
         
         # PostgreSQL인지 SQLite인지 확인
         is_postgresql = DATABASE_URL.startswith('postgresql://')
