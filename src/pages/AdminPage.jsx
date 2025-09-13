@@ -364,20 +364,32 @@ const AdminPage = () => {
   }
 
   // 검색 필터링 함수들
-  const filteredUsers = users.filter(user => 
-    user.userId?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(userSearchTerm.toLowerCase())
-  )
+  const filteredUsers = users.filter(user => {
+    const userId = user.userId || ''
+    const email = user.email || ''
+    const searchTerm = userSearchTerm.toLowerCase()
+    
+    return userId.toLowerCase().includes(searchTerm) ||
+           email.toLowerCase().includes(searchTerm)
+  })
 
-  const filteredOrders = orders.filter(order => 
-    order.orderId?.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
-    order.platform?.toLowerCase().includes(orderSearchTerm.toLowerCase())
-  )
+  const filteredOrders = orders.filter(order => {
+    const orderId = order.orderId || ''
+    const platform = order.platform || ''
+    const searchTerm = orderSearchTerm.toLowerCase()
+    
+    return orderId.toLowerCase().includes(searchTerm) ||
+           platform.toLowerCase().includes(searchTerm)
+  })
 
-  const filteredPurchases = pendingPurchases.filter(purchase => 
-    purchase.userId?.toLowerCase().includes(purchaseSearchTerm.toLowerCase()) ||
-    purchase.email?.toLowerCase().includes(purchaseSearchTerm.toLowerCase())
-  )
+  const filteredPurchases = pendingPurchases.filter(purchase => {
+    const userId = purchase.userId || ''
+    const email = purchase.email || ''
+    const searchTerm = purchaseSearchTerm.toLowerCase()
+    
+    return userId.toLowerCase().includes(searchTerm) ||
+           email.toLowerCase().includes(searchTerm)
+  })
 
   // 탭 렌더링
   const renderDashboard = () => (
