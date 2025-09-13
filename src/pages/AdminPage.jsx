@@ -120,7 +120,19 @@ const AdminPage = () => {
       if (response.ok) {
         const data = await response.json()
         console.log('👥 사용자 데이터:', data)
-        setUsers(Array.isArray(data.users) ? data.users : [])
+        // API 응답을 프론트엔드 형식으로 변환
+        const transformedUsers = Array.isArray(data.users) ? 
+          data.users.map(user => ({
+            userId: user.user_id,
+            email: user.email,
+            name: user.name,
+            points: user.points || 0,
+            createdAt: user.created_at,
+            lastActivity: user.last_activity || 'N/A'
+          })) : []
+        
+        console.log('👥 변환된 사용자 데이터:', transformedUsers)
+        setUsers(transformedUsers)
       } else {
         console.error('❌ 사용자 API 오류:', response.status, response.statusText)
       }
@@ -136,7 +148,21 @@ const AdminPage = () => {
       const response = await fetch('/api/admin/transactions')
       if (response.ok) {
         const data = await response.json()
-        setOrders(Array.isArray(data.transactions) ? data.transactions : [])
+        // API 응답을 프론트엔드 형식으로 변환
+        const transformedOrders = Array.isArray(data.transactions) ? 
+          data.transactions.map(order => ({
+            orderId: order.order_id,
+            userId: order.user_id,
+            platform: order.platform || 'N/A',
+            service: order.service || 'N/A',
+            quantity: order.quantity || 0,
+            price: order.price || 0,
+            status: order.status,
+            createdAt: order.created_at
+          })) : []
+        
+        console.log('📦 변환된 주문 데이터:', transformedOrders)
+        setOrders(transformedOrders)
       }
     } catch (error) {
       console.error('주문 데이터 로드 실패:', error)
@@ -154,7 +180,20 @@ const AdminPage = () => {
       if (response.ok) {
         const data = await response.json()
         console.log('💰 포인트 구매 데이터:', data)
-        setPendingPurchases(Array.isArray(data.purchases) ? data.purchases : [])
+        // API 응답을 프론트엔드 형식으로 변환
+        const transformedPurchases = Array.isArray(data.purchases) ? 
+          data.purchases.map(purchase => ({
+            id: purchase.id,
+            userId: purchase.user_id,
+            email: purchase.email || 'N/A',
+            points: purchase.amount,
+            amount: purchase.price,
+            createdAt: purchase.created_at,
+            status: purchase.status
+          })) : []
+        
+        console.log('💰 변환된 포인트 구매 데이터:', transformedPurchases)
+        setPendingPurchases(transformedPurchases)
       } else {
         console.error('❌ 포인트 구매 API 오류:', response.status, response.statusText)
       }
