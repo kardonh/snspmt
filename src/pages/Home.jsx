@@ -21,6 +21,7 @@ import {
   Sparkles
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { smmpanelApi, transformOrderData } from '../services/snspopApi'
 import './Home.css'
 
 const Home = () => {
@@ -862,9 +863,48 @@ const Home = () => {
             throw new Error(paymentResult.error || '포인트 결제에 실패했습니다.')
           }
 
-          // 결제 성공 시 주문 완료 페이지로 이동
-          console.log('✅ 포인트 결제 성공, 주문 완료 페이지로 이동')
-          navigate(`/order-complete/${result.order_id || result.order}`)
+          // 결제 성공 시 외부 SMM Panel API로 주문 전송
+          console.log('✅ 포인트 결제 성공, 외부 SMM Panel API로 주문 전송 시작')
+          
+          try {
+            // SMM Panel API용 데이터 변환
+            const smmOrderData = transformOrderData({
+              service_id: safeServiceId,
+              link: safeLink,
+              quantity: safeQuantity,
+              comments: safeComments,
+              runs: 1,
+              interval: 0,
+              username: '',
+              min: 0,
+              max: 0,
+              posts: 0,
+              delay: 0,
+              expiry: '',
+              old_posts: 0
+            })
+            
+            console.log('🔄 SMM Panel API 전송 데이터:', smmOrderData)
+            
+            // 외부 SMM Panel API로 주문 전송
+            const smmResponse = await smmpanelApi.createOrder(smmOrderData, userId)
+            console.log('🌐 SMM Panel API 응답:', smmResponse)
+            
+            if (smmResponse && smmResponse.order) {
+              console.log('✅ 외부 SMM Panel API 전송 성공, 주문 완료 페이지로 이동')
+              navigate(`/order-complete/${result.order_id || result.order}`)
+            } else {
+              console.warn('⚠️ SMM Panel API 응답에 order ID가 없습니다:', smmResponse)
+              // SMM Panel API 실패해도 내부 주문은 성공했으므로 주문 완료 페이지로 이동
+              navigate(`/order-complete/${result.order_id || result.order}`)
+            }
+            
+          } catch (smmError) {
+            console.error('❌ SMM Panel API 전송 실패:', smmError)
+            // SMM Panel API 실패해도 내부 주문은 성공했으므로 주문 완료 페이지로 이동
+            console.log('⚠️ 외부 API 전송 실패했지만 내부 주문은 성공, 주문 완료 페이지로 이동')
+            navigate(`/order-complete/${result.order_id || result.order}`)
+          }
           
         } catch (paymentError) {
           console.error('❌ 포인트 결제 실패:', paymentError)
