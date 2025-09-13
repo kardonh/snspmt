@@ -861,7 +861,7 @@ def get_admin_users():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-            
+        
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT user_id, email, name, created_at
