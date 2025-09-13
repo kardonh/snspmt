@@ -363,32 +363,47 @@ const AdminPage = () => {
     URL.revokeObjectURL(url);
   }
 
-  // 검색 필터링 함수들
-  const filteredUsers = users.filter(user => {
-    const userId = user.userId || ''
-    const email = user.email || ''
-    const searchTerm = userSearchTerm.toLowerCase()
-    
-    return userId.toLowerCase().includes(searchTerm) ||
-           email.toLowerCase().includes(searchTerm)
+  // 검색 필터링 함수들 (안전한 처리)
+  const filteredUsers = (users || []).filter(user => {
+    try {
+      const userId = String(user?.userId || '')
+      const email = String(user?.email || '')
+      const searchTerm = String(userSearchTerm || '').toLowerCase()
+      
+      return userId.toLowerCase().includes(searchTerm) ||
+             email.toLowerCase().includes(searchTerm)
+    } catch (error) {
+      console.error('사용자 필터링 오류:', error, user)
+      return false
+    }
   })
 
-  const filteredOrders = orders.filter(order => {
-    const orderId = order.orderId || ''
-    const platform = order.platform || ''
-    const searchTerm = orderSearchTerm.toLowerCase()
-    
-    return orderId.toLowerCase().includes(searchTerm) ||
-           platform.toLowerCase().includes(searchTerm)
+  const filteredOrders = (orders || []).filter(order => {
+    try {
+      const orderId = String(order?.orderId || '')
+      const platform = String(order?.platform || '')
+      const searchTerm = String(orderSearchTerm || '').toLowerCase()
+      
+      return orderId.toLowerCase().includes(searchTerm) ||
+             platform.toLowerCase().includes(searchTerm)
+    } catch (error) {
+      console.error('주문 필터링 오류:', error, order)
+      return false
+    }
   })
 
-  const filteredPurchases = pendingPurchases.filter(purchase => {
-    const userId = purchase.userId || ''
-    const email = purchase.email || ''
-    const searchTerm = purchaseSearchTerm.toLowerCase()
-    
-    return userId.toLowerCase().includes(searchTerm) ||
-           email.toLowerCase().includes(searchTerm)
+  const filteredPurchases = (pendingPurchases || []).filter(purchase => {
+    try {
+      const userId = String(purchase?.userId || '')
+      const email = String(purchase?.email || '')
+      const searchTerm = String(purchaseSearchTerm || '').toLowerCase()
+      
+      return userId.toLowerCase().includes(searchTerm) ||
+             email.toLowerCase().includes(searchTerm)
+    } catch (error) {
+      console.error('구매 필터링 오류:', error, purchase)
+      return false
+    }
   })
 
   // 탭 렌더링
