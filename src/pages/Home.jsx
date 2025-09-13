@@ -374,6 +374,9 @@ const Home = () => {
   
   // 세부 서비스 목록 가져오기
   const getDetailedServices = (platform, serviceType) => {
+    if (platform === 'top-exposure' && serviceType === 'popular_posts') {
+      return instagramDetailedServices.popular_posts
+    }
     if (platform === 'instagram' && instagramDetailedServices[serviceType]) {
       return instagramDetailedServices[serviceType]
     }
@@ -1222,6 +1225,31 @@ const Home = () => {
               className="form-control"
             />
           </div>
+
+          {/* Package Service Steps Display */}
+          {selectedDetailedService && selectedDetailedService.package && selectedDetailedService.steps && (
+            <div className="package-steps">
+              <h3>📦 패키지 구성</h3>
+              <div className="steps-container">
+                {selectedDetailedService.steps.map((step, index) => (
+                  <div key={step.id} className="package-step">
+                    <div className="step-header">
+                      <span className="step-number">{index + 1}</span>
+                      <span className="step-name">{step.name}</span>
+                      <span className="step-price">{step.price.toLocaleString()}원</span>
+                    </div>
+                    <div className="step-details">
+                      <p className="step-description">{step.description}</p>
+                      <p className="step-quantity">수량: {step.quantity.toLocaleString()}개</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="package-total">
+                <strong>총 패키지 가격: {selectedDetailedService.price.toLocaleString()}원</strong>
+              </div>
+            </div>
+          )}
 
           {/* Comments Input */}
           {((selectedPlatform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
