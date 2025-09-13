@@ -1512,3 +1512,96 @@
     font-size: 10px;
   }
 }
+
+/* 패키지 서비스 스타일 */
+.package-steps {
+  margin-top: 15px;
+  padding: 15px;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+}
+
+.package-steps h5 {
+  margin: 0 0 15px 0;
+  color: #1e293b;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.package-step {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.step-number {
+  background: #3b82f6;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.step-name {
+  flex: 1;
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 14px;
+}
+
+.step-price {
+  background: #10b981;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.step-details {
+  margin-left: 34px;
+}
+
+.step-description {
+  margin: 0 0 4px 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.step-quantity {
+  margin: 0;
+  color: #3b82f6;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.package-total {
+  margin-top: 15px;
+  padding: 12px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.package-total strong {
+  font-size: 18px;
+}

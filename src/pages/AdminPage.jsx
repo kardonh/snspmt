@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { 
   Users, 
   ShoppingCart, 
-  BarChart3, 
+  BarChart3,
   Settings, 
   Search, 
-  CheckCircle, 
-  XCircle, 
+  CheckCircle,
+  XCircle,
   Eye,
   Download,
   RefreshCw,
@@ -118,7 +118,7 @@ const AdminPage = () => {
       console.log('👥 사용자 API 응답:', response.status, response.statusText)
       
       if (response.ok) {
-        const data = await response.json()
+      const data = await response.json()
         console.log('👥 사용자 데이터:', data)
         // API 응답을 프론트엔드 형식으로 변환
         const transformedUsers = Array.isArray(data.users) ? 
@@ -292,7 +292,7 @@ const AdminPage = () => {
       })
 
       if (response.ok) {
-        const result = await response.json()
+      const result = await response.json()
         alert(`추천인 코드가 생성되었습니다: ${result.code}`)
         setNewReferralUser('')
         loadReferralData() // 데이터 새로고침
@@ -413,25 +413,25 @@ const AdminPage = () => {
         <div className="stat-card">
           <div className="stat-icon users">
             <Users size={24} />
-          </div>
+            </div>
           <div className="stat-content">
             <h3>총 사용자</h3>
             <p className="stat-number">{dashboardData.totalUsers.toLocaleString()}</p>
             <p className="stat-label">전체 등록된 사용자</p>
-          </div>
-        </div>
+            </div>
+            </div>
 
         <div className="stat-card">
           <div className="stat-icon orders">
             <ShoppingCart size={24} />
-          </div>
+            </div>
           <div className="stat-content">
             <h3>총 주문</h3>
             <p className="stat-number">{dashboardData.totalOrders.toLocaleString()}</p>
             <p className="stat-label">전체 주문 건수</p>
           </div>
         </div>
-
+        
         <div className="stat-card">
           <div className="stat-icon revenue">
             <DollarSign size={24} />
@@ -440,13 +440,13 @@ const AdminPage = () => {
             <h3>총 매출</h3>
             <p className="stat-number">₩{dashboardData.totalRevenue.toLocaleString()}</p>
             <p className="stat-label">전체 누적 매출</p>
-          </div>
-        </div>
+                  </div>
+                </div>
 
         <div className="stat-card">
           <div className="stat-icon pending">
             <Activity size={24} />
-          </div>
+                </div>
           <div className="stat-content">
             <h3>대기 중인 구매</h3>
             <p className="stat-number">{dashboardData.pendingPurchases}</p>
@@ -457,18 +457,18 @@ const AdminPage = () => {
         <div className="stat-card">
           <div className="stat-icon today">
             <TrendingUp size={24} />
-          </div>
+      </div>
           <div className="stat-content">
             <h3>오늘 주문</h3>
             <p className="stat-number">{dashboardData.todayOrders}</p>
             <p className="stat-label">오늘 신규 주문</p>
-          </div>
-        </div>
+            </div>
+            </div>
 
         <div className="stat-card">
           <div className="stat-icon today-revenue">
             <BarChart3 size={24} />
-          </div>
+            </div>
           <div className="stat-content">
             <h3>오늘 매출</h3>
             <p className="stat-number">₩{dashboardData.todayRevenue.toLocaleString()}</p>
@@ -492,17 +492,17 @@ const AdminPage = () => {
             onClick={() => handleExportData('orders')}
             title="주문 데이터 내보내기"
           >
-            <Download size={16} />
+              <Download size={16} />
             주문 내보내기
-          </button>
+            </button>
           <button 
             className="btn-export"
             onClick={() => handleExportData('purchases')}
             title="구매 신청 데이터 내보내기"
           >
-            <Download size={16} />
+              <Download size={16} />
             구매 신청 내보내기
-          </button>
+            </button>
         </div>
       </div>
 
@@ -518,8 +518,8 @@ const AdminPage = () => {
             <p><strong>API 연결:</strong> <span className="status-ok">연결됨</span></p>
           </div>
         </div>
-      </div>
-    </div>
+            </div>
+                    </div>
   )
 
   const renderUsers = () => (
@@ -532,7 +532,7 @@ const AdminPage = () => {
           value={userSearchTerm}
           onChange={(e) => setUserSearchTerm(e.target.value)}
         />
-      </div>
+                    </div>
 
       <div className="data-table">
         <table>
@@ -557,8 +557,8 @@ const AdminPage = () => {
             ))}
           </tbody>
         </table>
-      </div>
-    </div>
+                    </div>
+                  </div>
   )
 
   const renderOrders = () => (
@@ -571,7 +571,7 @@ const AdminPage = () => {
           value={orderSearchTerm}
           onChange={(e) => setOrderSearchTerm(e.target.value)}
         />
-      </div>
+          </div>
 
       <div className="data-table">
         <table>
@@ -604,8 +604,8 @@ const AdminPage = () => {
             ))}
           </tbody>
         </table>
-      </div>
-    </div>
+            </div>
+                    </div>
   )
 
   const renderPurchases = () => (
@@ -618,7 +618,7 @@ const AdminPage = () => {
           value={purchaseSearchTerm}
           onChange={(e) => setPurchaseSearchTerm(e.target.value)}
         />
-      </div>
+                    </div>
 
       <div className="data-table">
         <table>
@@ -684,8 +684,8 @@ const AdminPage = () => {
         <h2>추천인 코드 관리</h2>
         <div className="referral-actions">
           <div className="generate-code-section">
-            <input
-              type="text"
+              <input
+                type="text"
               placeholder="사용자 ID 입력"
               value={newReferralUser}
               onChange={(e) => setNewReferralUser(e.target.value)}
@@ -699,7 +699,7 @@ const AdminPage = () => {
             </button>
           </div>
         </div>
-      </div>
+            </div>
 
       <div className="referral-grid">
         <div className="referral-codes-section">
@@ -735,8 +735,8 @@ const AdminPage = () => {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
+                  </div>
+                    </div>
 
         <div className="referral-commissions-section">
           <h3>커미션 내역</h3>
@@ -765,29 +765,29 @@ const AdminPage = () => {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      </div>
+                    </div>
+                  </div>
+            </div>
 
       <div className="referral-stats">
         <div className="stat-card">
           <h4>총 발급 코드</h4>
           <span className="stat-number">{referralCodes.length}</span>
-        </div>
+                  </div>
         <div className="stat-card">
           <h4>총 커미션 지급</h4>
           <span className="stat-number">
             {referralCommissions.reduce((sum, c) => sum + c.commission_amount, 0).toLocaleString()}원
           </span>
-        </div>
+                      </div>
         <div className="stat-card">
           <h4>활성 코드</h4>
           <span className="stat-number">
             {referralCodes.filter(c => c.is_active).length}
           </span>
-        </div>
-      </div>
-    </div>
+                    </div>
+                </div>
+              </div>
   )
 
   return (
@@ -807,8 +807,8 @@ const AdminPage = () => {
             <span className="last-update">
               마지막 업데이트: {lastUpdate}
             </span>
-          )}
-        </div>
+            )}
+          </div>
       </div>
 
       {error && (
@@ -839,21 +839,21 @@ const AdminPage = () => {
           <ShoppingCart size={20} />
           주문 관리
         </button>
-        <button
+                  <button
           className={`tab-button ${activeTab === 'purchases' ? 'active' : ''}`}
           onClick={() => setActiveTab('purchases')}
-        >
+                  >
           <Activity size={20} />
           포인트 구매 신청
-        </button>
-        <button
+                  </button>
+                  <button
           className={`tab-button ${activeTab === 'referrals' ? 'active' : ''}`}
           onClick={() => setActiveTab('referrals')}
-        >
+                  >
           <TrendingUp size={20} />
           추천인 관리
-        </button>
-      </div>
+                  </button>
+                </div>
 
       <div className="admin-content">
         {isLoading ? (
