@@ -859,79 +859,37 @@ const Home = () => {
       if (result.error) {
         alert(`주문 생성 실패: ${result.error}`)
       } else {
-        // 주문 생성 성공 후 포인트 결제
-        console.log('✅ 주문 생성 성공, 포인트 결제 시작:', result)
+        // 주문 생성 성공 후 포인트 결제 페이지로 이동
+        console.log('✅ 주문 생성 성공, 포인트 결제 페이지로 이동:', result)
         
+        // 사용자 포인트 조회
+        let userPoints = null
         try {
-          const paymentResponse = await fetch('/api/points/deduct', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-User-ID': userId
-            },
-            body: JSON.stringify({
-              user_id: userId,
-              amount: safeTotalPrice,
-              order_id: result.order_id || result.order
-            })
-          })
-
-          const paymentResult = await paymentResponse.json()
-          console.log('💳 포인트 결제 결과:', paymentResult)
-
-          if (!paymentResponse.ok) {
-            throw new Error(paymentResult.error || '포인트 결제에 실패했습니다.')
+          const pointsResponse = await fetch(`/api/points?user_id=${userId}`)
+          if (pointsResponse.ok) {
+            userPoints = await pointsResponse.json()
+            console.log('사용자 포인트:', userPoints)
           }
-
-          // 결제 성공 시 외부 SMM Panel API로 주문 전송
-          console.log('✅ 포인트 결제 성공, 외부 SMM Panel API로 주문 전송 시작')
-          
-          try {
-            // SMM Panel API용 데이터 변환
-            const smmOrderData = transformOrderData({
-              service_id: safeServiceId,
-              link: safeLink,
-              quantity: safeQuantity,
-              comments: safeComments,
-              runs: 1,
-              interval: 0,
-              username: '',
-              min: 0,
-              max: 0,
-              posts: 0,
-              delay: 0,
-              expiry: '',
-              old_posts: 0
-            })
-            
-            console.log('🔄 SMM Panel API 전송 데이터:', smmOrderData)
-            
-            // 외부 SMM Panel API로 주문 전송
-            const smmResponse = await smmpanelApi.createOrder(smmOrderData, userId)
-            console.log('🌐 SMM Panel API 응답:', smmResponse)
-            
-            if (smmResponse && smmResponse.order) {
-              console.log('✅ 외부 SMM Panel API 전송 성공, 주문 완료 페이지로 이동')
-              navigate(`/order-complete/${result.order_id || result.order}`)
-            } else {
-              console.warn('⚠️ SMM Panel API 응답에 order ID가 없습니다:', smmResponse)
-              // SMM Panel API 실패해도 내부 주문은 성공했으므로 주문 완료 페이지로 이동
-              navigate(`/order-complete/${result.order_id || result.order}`)
-            }
-            
-          } catch (smmError) {
-            console.error('❌ SMM Panel API 전송 실패:', smmError)
-            // SMM Panel API 실패해도 내부 주문은 성공했으므로 주문 완료 페이지로 이동
-            console.log('⚠️ 외부 API 전송 실패했지만 내부 주문은 성공, 주문 완료 페이지로 이동')
-            navigate(`/order-complete/${result.order_id || result.order}`)
-          }
-          
-        } catch (paymentError) {
-          console.error('❌ 포인트 결제 실패:', paymentError)
-          alert(`포인트 결제 실패: ${paymentError.message}\n주문은 생성되었지만 결제가 필요합니다.`)
-          // 주문은 생성되었지만 결제 실패 - 사용자에게 알림
-          return
+        } catch (error) {
+          console.error('포인트 조회 오류:', error)
         }
+
+        // 주문 데이터에 서비스 이름 추가
+        const orderDataWithService = {
+          ...orderData,
+          service_name: selectedDetailedService?.name || '선택된 서비스',
+          unit_price: selectedDetailedService?.price || 0,
+          total_price: safeTotalPrice
+        }
+
+        // 포인트 결제 페이지로 이동
+        navigate('/point-payment', { 
+          state: { 
+            orderData: orderDataWithService,
+            userPoints: userPoints
+          }
+        })
+        return
       }
     } catch (error) {
       console.error('Order creation error:', error)
