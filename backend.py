@@ -159,7 +159,7 @@ def initialize_app():
     """앱 시작 시 초기화"""
     try:
         print("🚀 SNS PMT 앱 시작 중...")
-init_database()
+        init_database()
         print("✅ 앱 시작 완료")
     except Exception as e:
         print(f"⚠️ 앱 초기화 중 오류: {e}")
