@@ -517,6 +517,184 @@ def get_admin_purchases():
     except Exception as e:
         return jsonify({'error': f'포인트 구매 목록 조회 실패: {str(e)}'}), 500
 
+# 포인트 구매 승인/거절
+@app.route('/api/admin/purchases/<int:purchase_id>', methods=['PUT'])
+def update_purchase_status(purchase_id):
+    """포인트 구매 승인/거절"""
+    try:
+        data = request.get_json()
+        status = data.get('status')  # 'approved' 또는 'rejected'
+        
+        if status not in ['approved', 'rejected']:
+            return jsonify({'error': '유효하지 않은 상태입니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 구매 신청 정보 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT user_id, amount, status
+                FROM point_purchases
+                WHERE id = %s
+            """, (purchase_id,))
+        else:
+            cursor.execute("""
+                SELECT user_id, amount, status
+                FROM point_purchases
+                WHERE id = ?
+            """, (purchase_id,))
+        
+        purchase = cursor.fetchone()
+        
+        if not purchase:
+            return jsonify({'error': '구매 신청을 찾을 수 없습니다.'}), 404
+        
+        if purchase[2] != 'pending':
+            return jsonify({'error': '이미 처리된 구매 신청입니다.'}), 400
+        
+        # 상태 업데이트
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                UPDATE point_purchases
+                SET status = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (status, purchase_id))
+        else:
+            cursor.execute("""
+                UPDATE point_purchases
+                SET status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (status, purchase_id))
+        
+        # 승인된 경우 사용자 포인트 증가
+        if status == 'approved':
+            user_id = purchase[0]
+            amount = purchase[1]
+            
+            # 사용자 포인트 조회
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    SELECT points FROM points WHERE user_id = %s
+                """, (user_id,))
+            else:
+                cursor.execute("""
+                    SELECT points FROM points WHERE user_id = ?
+                """, (user_id,))
+            
+            user_points = cursor.fetchone()
+            current_points = user_points[0] if user_points else 0
+            new_points = current_points + amount
+            
+            # 포인트 업데이트
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE points
+                    SET points = %s, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = %s
+                """, (new_points, user_id))
+            else:
+                cursor.execute("""
+                    UPDATE points
+                    SET points = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ?
+                """, (new_points, user_id))
+        
+        conn.commit()
+        
+        return jsonify({
+            'message': f'구매 신청이 {status}되었습니다.',
+            'status': status
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'구매 신청 처리 실패: {str(e)}'}), 500
+    finally:
+        if conn:
+            conn.close()
+
+# 포인트 차감 (주문 결제용)
+@app.route('/api/points/deduct', methods=['POST'])
+def deduct_points():
+    """포인트 차감 (주문 결제)"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        amount = data.get('amount')  # 차감할 포인트
+        order_id = data.get('order_id')  # 주문 ID (선택사항)
+        
+        if not all([user_id, amount]):
+            return jsonify({'error': '필수 필드가 누락되었습니다.'}), 400
+        
+        if amount <= 0:
+            return jsonify({'error': '차감할 포인트는 0보다 커야 합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 사용자 포인트 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT points FROM points WHERE user_id = %s
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT points FROM points WHERE user_id = ?
+            """, (user_id,))
+        
+        user_points = cursor.fetchone()
+        
+        if not user_points:
+            return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+        
+        current_points = user_points[0]
+        
+        if current_points < amount:
+            return jsonify({'error': '포인트가 부족합니다.'}), 400
+        
+        # 포인트 차감
+        new_points = current_points - amount
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                UPDATE points
+                SET points = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = %s
+            """, (new_points, user_id))
+        else:
+            cursor.execute("""
+                UPDATE points
+                SET points = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ?
+            """, (new_points, user_id))
+        
+        # 포인트 사용 내역 기록 (선택사항)
+        if order_id:
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO point_transactions (user_id, order_id, amount, type, created_at)
+                    VALUES (%s, %s, %s, 'deduct', CURRENT_TIMESTAMP)
+                """, (user_id, order_id, amount))
+            else:
+                cursor.execute("""
+                    INSERT INTO point_transactions (user_id, order_id, amount, type, created_at)
+                    VALUES (?, ?, ?, 'deduct', CURRENT_TIMESTAMP)
+                """, (user_id, order_id, amount))
+        
+        conn.commit()
+        
+        return jsonify({
+            'message': '포인트가 성공적으로 차감되었습니다.',
+            'remaining_points': new_points,
+            'deducted_amount': amount
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'포인트 차감 실패: {str(e)}'}), 500
+    finally:
+        if conn:
+            conn.close()
+
 # 사용자 정보 조회
 @app.route('/api/users/<user_id>', methods=['GET'])
 def get_user(user_id):

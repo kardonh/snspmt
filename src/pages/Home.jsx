@@ -838,26 +838,39 @@ const Home = () => {
       if (result.error) {
         alert(`주문 생성 실패: ${result.error}`)
       } else {
-        const paymentData = {
-          orderId: result.order,
-          platform: selectedPlatform,
-          serviceName: selectedDetailedService.name,
-          quantity: quantity,
-          unitPrice: selectedDetailedService.price,
-          totalPrice: totalPrice,
-          link: (link || '').trim(),
-          comments: (comments || '').trim(),
-          discount: getDiscount(quantity)
-        }
-        
-        console.log('Payment data:', paymentData)
-        console.log('Navigating to payment page...')
+        // 주문 생성 성공 후 포인트 결제
+        console.log('✅ 주문 생성 성공, 포인트 결제 시작:', result)
         
         try {
-          navigate(`/payment/${selectedPlatform}`, { state: { orderData: paymentData } })
-        } catch (navigationError) {
-          console.error('Navigation error:', navigationError)
-          alert('결제 페이지로 이동 중 오류가 발생했습니다. 다시 시도해주세요.')
+          const paymentResponse = await fetch('/api/points/deduct', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-User-ID': userId
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              amount: safeTotalPrice,
+              order_id: result.order_id || result.order
+            })
+          })
+
+          const paymentResult = await paymentResponse.json()
+          console.log('💳 포인트 결제 결과:', paymentResult)
+
+          if (!paymentResponse.ok) {
+            throw new Error(paymentResult.error || '포인트 결제에 실패했습니다.')
+          }
+
+          // 결제 성공 시 주문 완료 페이지로 이동
+          console.log('✅ 포인트 결제 성공, 주문 완료 페이지로 이동')
+          navigate(`/order-complete/${result.order_id || result.order}`)
+          
+        } catch (paymentError) {
+          console.error('❌ 포인트 결제 실패:', paymentError)
+          alert(`포인트 결제 실패: ${paymentError.message}\n주문은 생성되었지만 결제가 필요합니다.`)
+          // 주문은 생성되었지만 결제 실패 - 사용자에게 알림
+          return
         }
       }
     } catch (error) {
