@@ -6,8 +6,20 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.hostn
 // SMM Panel API 키
 const DEFAULT_API_KEY = import.meta.env.VITE_SMMPANEL_API_KEY || '5efae48d287931cf9bd80a1bc6fdfa6d'
 
+// SMM Panel API 엔드포인트
+const SMM_PANEL_API_URL = 'https://smmfollows.com/api/v2'
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+})
+
+// SMM Panel API 전용 클라이언트
+const smmPanelClient = axios.create({
+  baseURL: SMM_PANEL_API_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -40,10 +52,10 @@ apiClient.interceptors.response.use(
 // SMM Panel API 함수들
 export const smmpanelApi = {
   // 서비스 목록 조회
-  getServices: () => apiClient.post('', { action: 'services' }),
+  getServices: () => smmPanelClient.post('', { action: 'services' }),
   
   // 잔액 조회
-  getBalance: () => apiClient.post('', { action: 'balance' }),
+  getBalance: () => smmPanelClient.post('', { action: 'balance' }),
   
   // 주문 생성
   createOrder: (orderData, userId) => {
@@ -55,7 +67,7 @@ export const smmpanelApi = {
       }
     }
 
-    return apiClient.post('', { 
+    return smmPanelClient.post('', { 
       action: 'add',
       ...orderData 
     }, config).then(response => {
@@ -68,43 +80,43 @@ export const smmpanelApi = {
   },
   
   // 주문 상태 조회
-  getOrderStatus: (orderId) => apiClient.post('', { 
+  getOrderStatus: (orderId) => smmPanelClient.post('', { 
     action: 'status',
     order: orderId 
   }),
   
   // 여러 주문 상태 조회
-  getMultiOrderStatus: (orderIds) => apiClient.post('', { 
+  getMultiOrderStatus: (orderIds) => smmPanelClient.post('', { 
     action: 'status',
     orders: orderIds.join(',') 
   }),
   
   // 주문 리필
-  refillOrder: (orderId) => apiClient.post('', { 
+  refillOrder: (orderId) => smmPanelClient.post('', { 
     action: 'refill',
     order: orderId 
   }),
   
   // 여러 주문 리필
-  refillMultipleOrders: (orderIds) => apiClient.post('', { 
+  refillMultipleOrders: (orderIds) => smmPanelClient.post('', { 
     action: 'refill',
     orders: orderIds.join(',') 
   }),
   
   // 리필 상태 조회
-  getRefillStatus: (refillId) => apiClient.post('', { 
+  getRefillStatus: (refillId) => smmPanelClient.post('', { 
     action: 'refill_status',
     refill: refillId 
   }),
   
   // 여러 리필 상태 조회
-  getMultiRefillStatus: (refillIds) => apiClient.post('', { 
+  getMultiRefillStatus: (refillIds) => smmPanelClient.post('', { 
     action: 'refill_status',
     refills: refillIds.join(',') 
   }),
   
   // 주문 취소
-  cancelOrders: (orderIds) => apiClient.post('', { 
+  cancelOrders: (orderIds) => smmPanelClient.post('', { 
     action: 'cancel',
     orders: orderIds.join(',') 
   }),

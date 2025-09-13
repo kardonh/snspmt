@@ -454,6 +454,10 @@ const Home = () => {
     
   const getServicesForPlatform = (platform) => {
     switch (platform) {
+      case 'top-exposure':
+        return [
+          { id: 'popular_posts', name: '🎯 추천탭 상위노출 서비스', description: '인스타그램 추천탭 상위노출 패키지 서비스' }
+        ]
       case 'instagram':
         return [
           { id: 'popular_posts', name: '💗인스타그램 인기게시물 등록[업데이트]', description: '인기게시물 등록 및 상위 노출 서비스' },
@@ -703,7 +707,10 @@ const Home = () => {
     setSelectedDetailedService(null)
     
     // 플랫폼에 따라 기본 서비스 설정
-    if (['recommended', 'event', 'top-exposure', 'account-management', 'package', 'other', 'threads', 'news-media', 'experience-group', 'kakao', 'store-marketing', 'app-marketing', 'seo-traffic'].includes(platformId)) {
+    if (platformId === 'top-exposure') {
+      setSelectedService('popular_posts')
+      setQuantity(1)
+    } else if (['recommended', 'event', 'account-management', 'package', 'other', 'threads', 'news-media', 'experience-group', 'kakao', 'store-marketing', 'app-marketing', 'seo-traffic'].includes(platformId)) {
       setSelectedService('instagram_followers')
       setQuantity(1)
     } else {
