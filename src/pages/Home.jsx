@@ -742,31 +742,43 @@ const Home = () => {
 
 
   const handlePurchase = async () => {
-    if (!currentUser) {
-      alert('로그인이 필요합니다.')
-      return
-    }
+    try {
+      console.log('🚀 주문 생성 시작')
+      console.log('Current User:', currentUser)
+      console.log('Selected Detailed Service:', selectedDetailedService)
+      console.log('Quantity:', quantity)
+      console.log('Total Price:', totalPrice)
+      
+      if (!currentUser) {
+        alert('로그인이 필요합니다.')
+        return
+      }
 
-    if (!selectedDetailedService) {
-      alert('세부 서비스를 선택해주세요.')
-      return
-    }
+      if (!selectedDetailedService) {
+        alert('세부 서비스를 선택해주세요.')
+        return
+      }
 
-    if (!link || !link.trim()) {
-      alert('링크를 입력해주세요!')
-      return
-    }
+      if (!link || !link.trim()) {
+        alert('링크를 입력해주세요!')
+        return
+      }
 
-    if (((selectedPlatform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
-         (selectedPlatform === 'youtube' && selectedService === 'comments_korean')) && (!comments || !comments.trim())) {
-      alert('댓글 내용을 입력해주세요!')
-      return
-    }
+      if (((selectedPlatform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
+           (selectedPlatform === 'youtube' && selectedService === 'comments_korean')) && (!comments || !comments.trim())) {
+        alert('댓글 내용을 입력해주세요!')
+        return
+      }
 
-    // selectedDetailedService가 undefined인 경우 강제로 기본값 설정
-    if (!selectedDetailedService || !selectedDetailedService.id) {
-      console.error('⚠️ selectedDetailedService가 undefined입니다:', selectedDetailedService)
-      alert('서비스 선택에 문제가 있습니다. 페이지를 새로고침하고 다시 시도해주세요.')
+      // selectedDetailedService가 undefined인 경우 강제로 기본값 설정
+      if (!selectedDetailedService || (!selectedDetailedService.id && !selectedDetailedService.smmkings_id)) {
+        console.error('⚠️ selectedDetailedService가 undefined입니다:', selectedDetailedService)
+        alert('서비스 선택에 문제가 있습니다. 페이지를 새로고침하고 다시 시도해주세요.')
+        return
+      }
+    } catch (error) {
+      console.error('❌ 주문 생성 초기 검증 오류:', error)
+      alert('주문 생성 중 오류가 발생했습니다. 다시 시도해주세요.')
       return
     }
 
@@ -775,15 +787,22 @@ const Home = () => {
     try {
       const userId = currentUser?.uid || currentUser?.email || 'anonymous'
       
+      // 안전한 변수 초기화
+      const safeServiceId = selectedDetailedService?.id || selectedDetailedService?.smmkings_id || 'unknown'
+      const safeQuantity = quantity || 0
+      const safeTotalPrice = totalPrice || 0
+      const safeLink = (link || '').trim()
+      const safeComments = (comments || '').trim()
+      
       const orderData = {
         user_id: userId,
-        service_id: selectedDetailedService.id, // smmkings_id 대신 id 사용
-        link: (link || '').trim(),
-        quantity,
-        price: totalPrice,  // 총 가격 추가
+        service_id: safeServiceId,
+        link: safeLink,
+        quantity: safeQuantity,
+        price: safeTotalPrice,
         runs: 1,
         interval: 0,
-        comments: (comments || '').trim(),
+        comments: safeComments,
         username: '',
         min: 0,
         max: 0,
