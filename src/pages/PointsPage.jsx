@@ -475,7 +475,12 @@ const PointsPage = () => {
                 <div key={purchase.id} className="history-item">
                   <div className="history-info">
                     <div className="history-amount">{purchase.amount.toLocaleString()}P</div>
-                    <div className="history-date">{new Date(purchase.createdAt).toLocaleDateString()}</div>
+                    <div className="history-date">
+                      {purchase.createdAt || purchase.created_at || purchase.date ? 
+                        new Date(purchase.createdAt || purchase.created_at || purchase.date).toLocaleDateString() : 
+                        '날짜 없음'
+                      }
+                    </div>
                   </div>
                   <div className={`history-status ${purchase.status}`}>
                     {purchase.status === 'pending' && '승인 대기중'}
