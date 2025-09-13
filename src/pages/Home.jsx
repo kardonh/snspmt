@@ -882,10 +882,23 @@ const Home = () => {
           total_price: safeTotalPrice
         }
 
-        // 포인트 결제 페이지로 이동
-        navigate('/point-payment', { 
+        // 기존 결제 페이지로 이동
+        navigate(`/payment/${selectedPlatform}`, { 
           state: { 
-            orderData: orderDataWithService,
+            orderData: {
+              ...orderDataWithService,
+              orderId: result.order_id || result.order,
+              userId: userId,
+              platform: selectedPlatform,
+              service: selectedService,
+              detailedService: selectedDetailedService,
+              quantity: safeQuantity,
+              unitPrice: selectedDetailedService?.price || 0,
+              totalPrice: safeTotalPrice,
+              link: safeLink,
+              comments: safeComments,
+              explanation: explanation || ''
+            },
             userPoints: userPoints
           }
         })

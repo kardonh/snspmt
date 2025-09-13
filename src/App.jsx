@@ -5,7 +5,6 @@ import { LanguageProvider } from './contexts/LanguageContext'
 import Layout from './components/Layout'
 import Home from './pages/Home'
 import PaymentPage from './pages/PaymentPage'
-import PointPaymentPage from './pages/PointPaymentPage'
 import OrderCompletePage from './pages/OrderCompletePage'
 import OrdersPage from './pages/OrdersPage'
 import PointsPage from './pages/PointsPage'
@@ -28,7 +27,6 @@ function App() {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/payment/:platform" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
-                <Route path="/point-payment" element={<ProtectedRoute><PointPaymentPage /></ProtectedRoute>} />
                 <Route path="/order-complete/:orderId" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
                 <Route path="/order-complete" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />

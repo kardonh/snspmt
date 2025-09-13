@@ -52,56 +52,74 @@ const PaymentPage = () => {
     // 포인트 결제 처리
     let paymentMessage = '포인트 결제를 진행합니다...'
 
-    // 2초 후 실제 처리 시작
-    setTimeout(async () => {
+    try {
+      // 1. 포인트 차감
+      const deductResponse = await fetch('/api/points/deduct', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: orderData.userId || orderData.user_id,
+          amount: orderData.totalPrice
+        })
+      })
+
+      if (!deductResponse.ok) {
+        const errorData = await deductResponse.json()
+        throw new Error(errorData.error || '포인트 차감 실패')
+      }
+
+      const deductResult = await deductResponse.json()
+      console.log('포인트 차감 성공:', deductResult)
+
+      // 2. SMM Panel API 호출 (백엔드 프록시 사용)
       try {
-        // 2단계: 주문 결제 완료 및 외부 API 전송
-        console.log('결제 완료, 주문 결제 완료 API 호출 시작...')
-        
-        // 주문 결제 완료 API 호출 (포인트 차감 + 외부 API 전송)
-        const completePaymentResponse = await fetch(`/api/orders/${orderData.orderId}/complete-payment`, {
+        const smmResponse = await fetch('/api/smm-panel', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-User-ID': orderData.userId || 'anonymous'
           },
           body: JSON.stringify({
-            // 추가 주문 옵션들 (필요한 경우)
-            comments: orderData.comments || '',
-            explanation: orderData.explanation || ''
+            action: 'add',
+            service: orderData.service_id || orderData.detailedService?.id,
+            link: orderData.link,
+            quantity: orderData.quantity,
+            key: '5efae48d287931cf9bd80a1bc6fdfa6d'
           })
         })
-        
-        if (!completePaymentResponse.ok) {
-          const errorData = await completePaymentResponse.json()
-          throw new Error(errorData.error || '주문 결제 완료 실패')
+
+        if (smmResponse.ok) {
+          const smmResult = await smmResponse.json()
+          console.log('SMM Panel API 성공:', smmResult)
+        } else {
+          console.warn('SMM Panel API 실패, 하지만 주문은 완료됨')
         }
-        
-        const completeResult = await completePaymentResponse.json()
-        console.log('주문 결제 완료 성공:', completeResult)
-        
-        // 주문 성공 시 처리
-        setIsProcessing(false)
-        setPaymentSuccess(true)
-        
-        // 3초 후 주문 완료 페이지로 이동
-        setTimeout(() => {
-          navigate(`/order-complete/${orderData.orderId || 'temp'}`, { 
-            state: { 
-              orderData: orderData,
-              externalOrderId: completeResult.externalOrderId,
-              pointsUsed: completeResult.points_used,
-              remainingPoints: completeResult.remaining_points
-            } 
-          })
-        }, 3000)
-        
-      } catch (error) {
-        console.error('주문 결제 완료 실패:', error)
-        alert(`주문 처리 중 오류가 발생했습니다: ${error.message}`)
-        setIsProcessing(false)
+      } catch (smmError) {
+        console.warn('SMM Panel API 오류:', smmError)
+        // SMM Panel API 실패해도 주문은 완료된 것으로 처리
       }
-    }, 2000)
+
+      // 3. 결제 성공 처리
+      setIsProcessing(false)
+      setPaymentSuccess(true)
+      
+      // 2초 후 주문 완료 페이지로 이동
+      setTimeout(() => {
+        navigate('/order-complete', { 
+          state: { 
+            orderId: orderData.orderId,
+            orderData: orderData,
+            paymentMethod: getPaymentMethodName(selectedPaymentMethod)
+          }
+        })
+      }, 2000)
+
+    } catch (error) {
+      console.error('결제 오류:', error)
+      alert(`결제 실패: ${error.message}`)
+      setIsProcessing(false)
+    }
   }
 
   const handleBack = () => {
