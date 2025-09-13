@@ -607,7 +607,7 @@ def update_purchase_status(purchase_id):
             'status': status
         }), 200
         
-            except Exception as e:
+    except Exception as e:
         return jsonify({'error': f'구매 신청 처리 실패: {str(e)}'}), 500
     finally:
         if conn:
