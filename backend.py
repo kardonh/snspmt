@@ -630,14 +630,14 @@ def deduct_points():
             return jsonify({'error': '차감할 포인트는 0보다 커야 합니다.'}), 400
         
         conn = get_db_connection()
-            cursor = conn.cursor()
-            
+        cursor = conn.cursor()
+        
         # 사용자 포인트 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT points FROM points WHERE user_id = %s
             """, (user_id,))
-    else:
+        else:
             cursor.execute("""
                 SELECT points FROM points WHERE user_id = ?
             """, (user_id,))
