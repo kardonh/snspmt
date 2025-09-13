@@ -87,9 +87,13 @@ const AdminPage = () => {
   // 대시보드 통계 로드
   const loadDashboardStats = async () => {
     try {
+      console.log('🔍 대시보드 통계 로드 시작...')
       const response = await fetch('/api/admin/stats')
+      console.log('📊 대시보드 API 응답:', response.status, response.statusText)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('📊 대시보드 데이터:', data)
         setDashboardData({
           totalUsers: data.totalUsers || 0,
           totalOrders: data.totalOrders || 0,
@@ -98,22 +102,30 @@ const AdminPage = () => {
           todayOrders: data.todayOrders || 0,
           todayRevenue: data.todayRevenue || 0
         })
+      } else {
+        console.error('❌ 대시보드 API 오류:', response.status, response.statusText)
       }
     } catch (error) {
-      console.error('대시보드 통계 로드 실패:', error)
+      console.error('❌ 대시보드 통계 로드 실패:', error)
     }
   }
 
   // 사용자 데이터 로드
   const loadUsers = async () => {
     try {
+      console.log('🔍 사용자 데이터 로드 시작...')
       const response = await fetch('/api/admin/users')
+      console.log('👥 사용자 API 응답:', response.status, response.statusText)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('👥 사용자 데이터:', data)
         setUsers(Array.isArray(data) ? data : [])
+      } else {
+        console.error('❌ 사용자 API 오류:', response.status, response.statusText)
       }
     } catch (error) {
-      console.error('사용자 데이터 로드 실패:', error)
+      console.error('❌ 사용자 데이터 로드 실패:', error)
       setUsers([])
     }
   }
@@ -135,13 +147,19 @@ const AdminPage = () => {
   // 포인트 구매 신청 로드
   const loadPendingPurchases = async () => {
     try {
+      console.log('🔍 포인트 구매 신청 로드 시작...')
       const response = await fetch('/api/admin/purchases')
+      console.log('💰 포인트 구매 API 응답:', response.status, response.statusText)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('💰 포인트 구매 데이터:', data)
         setPendingPurchases(Array.isArray(data) ? data : [])
+      } else {
+        console.error('❌ 포인트 구매 API 오류:', response.status, response.statusText)
       }
     } catch (error) {
-      console.error('포인트 구매 신청 로드 실패:', error)
+      console.error('❌ 포인트 구매 신청 로드 실패:', error)
       setPendingPurchases([])
     }
   }
