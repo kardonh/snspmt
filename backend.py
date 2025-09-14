@@ -27,7 +27,7 @@ def get_db_connection():
             db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
             conn = sqlite3.connect(db_path)
             return conn
-    except Exception as e:
+        except Exception as e:
         print(f"데이터베이스 연결 실패: {e}")
         # SQLite fallback
         db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
@@ -38,7 +38,7 @@ def init_database():
     """데이터베이스 테이블을 초기화합니다."""
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
+                cursor = conn.cursor()
         
         # PostgreSQL인지 SQLite인지 확인
         is_postgresql = DATABASE_URL.startswith('postgresql://')
@@ -159,7 +159,7 @@ def initialize_app():
     """앱 시작 시 초기화"""
     try:
         print("🚀 SNS PMT 앱 시작 중...")
-        init_database()
+init_database()
         print("✅ 앱 시작 완료")
     except Exception as e:
         print(f"⚠️ 앱 초기화 중 오류: {e}")
@@ -607,7 +607,7 @@ def update_purchase_status(purchase_id):
             'status': status
         }), 200
         
-    except Exception as e:
+            except Exception as e:
         return jsonify({'error': f'구매 신청 처리 실패: {str(e)}'}), 500
     finally:
         if conn:
@@ -630,14 +630,14 @@ def deduct_points():
             return jsonify({'error': '차감할 포인트는 0보다 커야 합니다.'}), 400
         
         conn = get_db_connection()
-        cursor = conn.cursor()
-        
+            cursor = conn.cursor()
+            
         # 사용자 포인트 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT points FROM points WHERE user_id = %s
             """, (user_id,))
-        else:
+    else:
             cursor.execute("""
                 SELECT points FROM points WHERE user_id = ?
             """, (user_id,))
@@ -725,7 +725,7 @@ def get_user(user_id):
                 'name': user[2],
                 'created_at': user[3].isoformat() if hasattr(user[3], 'isoformat') else str(user[3])
             }), 200
-        else:
+    else:
             return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
         
     except Exception as e:
@@ -860,8 +860,8 @@ def get_admin_users():
     """관리자 사용자 목록"""
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
-        
+            cursor = conn.cursor()
+            
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT user_id, email, name, created_at
@@ -885,11 +885,11 @@ def get_admin_users():
                 'email': user[1],
                 'name': user[2],
                 'created_at': user[3].isoformat() if hasattr(user[3], 'isoformat') else str(user[3])
-            })
-        
-        return jsonify({
+                })
+            
+            return jsonify({
             'users': user_list
-        }), 200
+            }), 200
         
     except Exception as e:
         return jsonify({'error': f'사용자 목록 조회 실패: {str(e)}'}), 500
@@ -990,7 +990,7 @@ def smm_panel_test():
             'key': 'b27d9ef559a6f6402db471708f54186c'
         }
         
-        smm_panel_url = 'https://smmfollows.com/api/v2'
+        smm_panel_url = 'https://smmpanel.kr/api/v2'
         headers = {
             'Content-Type': 'application/json',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -1022,7 +1022,7 @@ def smm_panel_proxy():
         print(f"🔍 SMM Panel 프록시 요청: {data}")
         
         # SMM Panel API 호출
-        smm_panel_url = 'https://smmfollows.com/api/v2'
+        smm_panel_url = 'https://smmpanel.kr/api/v2'
         headers = {
             'Content-Type': 'application/json',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -1038,7 +1038,7 @@ def smm_panel_proxy():
             response_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text
         except:
             response_data = response.text
-            
+        
         return jsonify({
             'success': True,
             'data': response_data,

@@ -75,7 +75,7 @@ const PaymentPage = () => {
 
       // 2. SMM Panel API 호출 (백엔드 프록시 사용)
       try {
-        // SMM Panel API용 데이터 변환
+        // SMM Panel API용 데이터 변환 (새로운 API 형식)
         const smmOrderData = {
           action: 'add',
           service: orderData.service_id || orderData.detailedService?.id,
@@ -83,14 +83,6 @@ const PaymentPage = () => {
           quantity: orderData.quantity,
           runs: 1,
           interval: 0,
-          comments: orderData.comments || '',
-          username: '',
-          min: 0,
-          max: 0,
-          posts: 0,
-          delay: 0,
-          expiry: '',
-          old_posts: 0,
           key: 'b27d9ef559a6f6402db471708f54186c'
         }
         
@@ -110,7 +102,7 @@ const PaymentPage = () => {
           
           if (smmResult.success && smmResult.data) {
             console.log('🎉 외부 SMM Panel 주문 생성 성공:', smmResult.data)
-            // SMM Panel에서 주문 ID를 받았다면 저장
+            // 새로운 API 형식: {"order": 23501}
             if (smmResult.data.order) {
               console.log('📝 SMM Panel 주문 ID:', smmResult.data.order)
             }

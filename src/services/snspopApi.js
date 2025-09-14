@@ -7,7 +7,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.hostn
 const DEFAULT_API_KEY = import.meta.env.VITE_SMMPANEL_API_KEY || 'b27d9ef559a6f6402db471708f54186c'
 
 // SMM Panel API 엔드포인트
-const SMM_PANEL_API_URL = 'https://smmfollows.com/api/v2'
+const SMM_PANEL_API_URL = 'https://smmpanel.kr/api/v2'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
