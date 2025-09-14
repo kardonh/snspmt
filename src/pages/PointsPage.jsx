@@ -178,7 +178,9 @@ const PointsPage = () => {
         body: JSON.stringify({
           user_id: currentUser.uid,
           amount: selectedAmount,
-          price: pointPackages.find(pkg => pkg.amount === selectedAmount).price
+          price: pointPackages.find(pkg => pkg.amount === selectedAmount).price,
+          buyer_name: depositorName.trim(),
+          bank_info: bankName.trim()
         })
       })
       
