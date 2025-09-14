@@ -877,15 +877,17 @@ def get_admin_users():
             
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT user_id, email, name, created_at
-                FROM users
-                ORDER BY created_at DESC
+                SELECT u.user_id, u.email, u.name, u.created_at, COALESCE(p.points, 0) as points
+                FROM users u
+                LEFT JOIN points p ON u.user_id = p.user_id
+                ORDER BY u.created_at DESC
             """)
         else:
             cursor.execute("""
-                SELECT user_id, email, name, created_at
-                FROM users 
-                ORDER BY created_at DESC 
+                SELECT u.user_id, u.email, u.name, u.created_at, COALESCE(p.points, 0) as points
+                FROM users u
+                LEFT JOIN points p ON u.user_id = p.user_id
+                ORDER BY u.created_at DESC 
             """)
         
         users = cursor.fetchall()
@@ -897,12 +899,14 @@ def get_admin_users():
                 'user_id': user[0],
                 'email': user[1],
                 'name': user[2],
-                'created_at': user[3].isoformat() if hasattr(user[3], 'isoformat') else str(user[3])
-                })
-            
-            return jsonify({
+                'created_at': user[3].isoformat() if hasattr(user[3], 'isoformat') else str(user[3]),
+                'points': user[4] if len(user) > 4 else 0,
+                'last_activity': 'N/A'  # 마지막 활동은 추후 구현
+            })
+        
+        return jsonify({
             'users': user_list
-            }), 200
+        }), 200
         
     except Exception as e:
         return jsonify({'error': f'사용자 목록 조회 실패: {str(e)}'}), 500
