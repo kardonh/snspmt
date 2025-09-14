@@ -1,8 +1,84 @@
-// SMM KINGS API 서비스 매핑 유틸리티
+// SMM Panel API 서비스 매핑 유틸리티
 
-// 플랫폼별 SMM KINGS 서비스 ID 매핑 (실제 SMM KINGS API 기반)
+// 플랫폼별 SMM Panel 서비스 ID 매핑 (실제 SMM Panel API 기반)
 export const SMMKINGS_SERVICE_MAPPING = {
   instagram: {
+    // 인기게시물 상위 노출 서비스
+    top_exposure_photo_ti1: {
+      smmkings_id: 361,
+      name: '🥇인기게시물 상위 노출[🎨사진] TI1',
+      price: 2200000, // ₩2,200,000
+      min: 1,
+      max: 10
+    },
+    top_exposure_photo_ti1_maintain: {
+      smmkings_id: 444,
+      name: '🥇인기게시물 상위 노출 유지[🎨사진] TI1-1',
+      price: 70000, // ₩70,000
+      min: 100,
+      max: 3000
+    },
+    top_exposure_reels_tv1: {
+      smmkings_id: 435,
+      name: '🥇인기게시물 상위 노출[🎬릴스] TV1',
+      price: 9000000, // ₩9,000,000
+      min: 1,
+      max: 10
+    },
+    top_exposure_photo_ti2: {
+      smmkings_id: 443,
+      name: '🥇인기게시물 상위 노출[🎨사진] TI2',
+      price: 18000, // ₩18,000
+      min: 100,
+      max: 500
+    },
+    top_exposure_photo_ti2_maintain: {
+      smmkings_id: 445,
+      name: '🥇인기게시물 상위 노출 유지[🎨사진] TI2-1',
+      price: 60000, // ₩60,000
+      min: 100,
+      max: 3000
+    },
+    
+    // 한국인 좋아요 서비스
+    korean_likes_powerup: {
+      smmkings_id: 122,
+      name: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]',
+      price: 6000, // ₩6,000
+      min: 30,
+      max: 2500
+    },
+    korean_likes_real: {
+      smmkings_id: 124,
+      name: '🇰🇷 인스타그램 리얼 한국인 좋아요💖',
+      price: 13000, // ₩13,000
+      min: 30,
+      max: 10000
+    },
+    korean_likes_man: {
+      smmkings_id: 275,
+      name: '🇰🇷 인스타그램 리얼 한국인 [남자] 좋아요💖',
+      price: 17000, // ₩17,000
+      min: 30,
+      max: 5000
+    },
+    korean_likes_woman: {
+      smmkings_id: 276,
+      name: '🇰🇷 인스타그램 리얼 한국인 [여자] 좋아요💖',
+      price: 17000, // ₩17,000
+      min: 30,
+      max: 5000
+    },
+    
+    // 외국인 팔로워 서비스
+    foreign_followers_30day: {
+      smmkings_id: 472,
+      name: '🌐 인스타그램 외국인 팔로워👪♻️30일[고품질][✔️🥇중고속]',
+      price: 11000, // ₩11,000
+      min: 100,
+      max: 10000000
+    },
+    
     // 팔로워 서비스
     followers_hq_mixed_2m: {
       smmkings_id: 4972,
