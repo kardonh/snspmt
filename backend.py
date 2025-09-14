@@ -987,7 +987,7 @@ def smm_panel_test():
         # 간단한 테스트 요청
         test_data = {
             'action': 'balance',
-            'key': 'b27d9ef559a6f6402db471708f54186c'
+            'key': '35246b890345d819e1110d5cea9d5565'
         }
         
         smm_panel_url = 'https://smmpanel.kr/api/v2'

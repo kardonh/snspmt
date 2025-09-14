@@ -83,7 +83,7 @@ const PaymentPage = () => {
           quantity: orderData.quantity,
           runs: 1,
           interval: 0,
-          key: 'b27d9ef559a6f6402db471708f54186c'
+          key: '35246b890345d819e1110d5cea9d5565'
         }
         
         console.log('🔄 SMM Panel API 전송 데이터:', smmOrderData)
