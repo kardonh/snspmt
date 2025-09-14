@@ -440,9 +440,16 @@ def get_admin_stats():
             cursor.execute("SELECT COUNT(*) FROM orders")
             total_orders = cursor.fetchone()[0]
             
-            # 총 매출
-            cursor.execute("SELECT COALESCE(SUM(price), 0) FROM orders WHERE status = 'completed'")
-            total_revenue = cursor.fetchone()[0]
+            # 총 매출 (주문 + 포인트 구매)
+            cursor.execute("""
+                SELECT COALESCE(SUM(price), 0) FROM orders WHERE status = 'completed'
+                UNION ALL
+                SELECT COALESCE(SUM(price), 0) FROM point_purchases WHERE status = 'approved'
+            """)
+            order_revenue = cursor.fetchone()[0] if cursor.rowcount > 0 else 0
+            cursor.execute("SELECT COALESCE(SUM(price), 0) FROM point_purchases WHERE status = 'approved'")
+            purchase_revenue = cursor.fetchone()[0]
+            total_revenue = order_revenue + purchase_revenue
             
             # 대기 중인 포인트 구매
             cursor.execute("SELECT COUNT(*) FROM point_purchases WHERE status = 'pending'")
@@ -451,6 +458,13 @@ def get_admin_stats():
             # 오늘 주문 수
             cursor.execute("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = CURRENT_DATE")
             today_orders = cursor.fetchone()[0]
+            
+            # 오늘 매출 (주문 + 포인트 구매)
+            cursor.execute("SELECT COALESCE(SUM(price), 0) FROM orders WHERE DATE(created_at) = CURRENT_DATE AND status = 'completed'")
+            today_order_revenue = cursor.fetchone()[0]
+            cursor.execute("SELECT COALESCE(SUM(price), 0) FROM point_purchases WHERE DATE(created_at) = CURRENT_DATE AND status = 'approved'")
+            today_purchase_revenue = cursor.fetchone()[0]
+            today_revenue = today_order_revenue + today_purchase_revenue
         else:
             # SQLite 버전
             cursor.execute("SELECT COUNT(*) FROM users")
@@ -459,14 +473,25 @@ def get_admin_stats():
             cursor.execute("SELECT COUNT(*) FROM orders")
             total_orders = cursor.fetchone()[0]
             
+            # 총 매출 (주문 + 포인트 구매)
             cursor.execute("SELECT COALESCE(SUM(price), 0) FROM orders WHERE status = 'completed'")
-            total_revenue = cursor.fetchone()[0]
+            order_revenue = cursor.fetchone()[0]
+            cursor.execute("SELECT COALESCE(SUM(price), 0) FROM point_purchases WHERE status = 'approved'")
+            purchase_revenue = cursor.fetchone()[0]
+            total_revenue = order_revenue + purchase_revenue
             
             cursor.execute("SELECT COUNT(*) FROM point_purchases WHERE status = 'pending'")
             pending_purchases = cursor.fetchone()[0]
             
             cursor.execute("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = DATE('now')")
             today_orders = cursor.fetchone()[0]
+            
+            # 오늘 매출 (주문 + 포인트 구매)
+            cursor.execute("SELECT COALESCE(SUM(price), 0) FROM orders WHERE DATE(created_at) = DATE('now') AND status = 'completed'")
+            today_order_revenue = cursor.fetchone()[0]
+            cursor.execute("SELECT COALESCE(SUM(price), 0) FROM point_purchases WHERE DATE(created_at) = DATE('now') AND status = 'approved'")
+            today_purchase_revenue = cursor.fetchone()[0]
+            today_revenue = today_order_revenue + today_purchase_revenue
         
         conn.close()
         
@@ -475,7 +500,8 @@ def get_admin_stats():
             'total_orders': total_orders,
             'total_revenue': float(total_revenue),
             'pending_purchases': pending_purchases,
-            'today_orders': today_orders
+            'today_orders': today_orders,
+            'today_revenue': float(today_revenue)
         }), 200
             
     except Exception as e:
