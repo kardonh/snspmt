@@ -154,11 +154,13 @@ const AdminPage = () => {
             orderId: order.order_id,
             userId: order.user_id,
             platform: order.platform || 'N/A',
-            service: order.service || 'N/A',
+            service: order.service_name || 'N/A',
             quantity: order.quantity || 0,
-            price: order.price || 0,
+            amount: order.price || 0,
             status: order.status,
-            createdAt: order.created_at
+            createdAt: order.created_at,
+            link: order.link || 'N/A',
+            comments: order.comments || 'N/A'
           })) : []
         
         console.log('📦 변환된 주문 데이터:', transformedOrders)
@@ -326,6 +328,7 @@ const AdminPage = () => {
         '서비스': order.service,
         '수량': order.quantity,
         '금액': order.amount,
+        '링크': order.link,
         '상태': order.status,
         '주문일': order.createdAt
       }));
@@ -583,6 +586,7 @@ const AdminPage = () => {
               <th>서비스</th>
               <th>수량</th>
               <th>금액</th>
+              <th>링크</th>
               <th>상태</th>
               <th>주문일</th>
             </tr>
@@ -595,6 +599,13 @@ const AdminPage = () => {
                 <td>{order.service || 'N/A'}</td>
                 <td>{order.quantity?.toLocaleString() || 0}</td>
                 <td>₩{order.amount?.toLocaleString() || 0}</td>
+                <td>
+                  {order.link && order.link !== 'N/A' ? (
+                    <a href={order.link} target="_blank" rel="noopener noreferrer" className="order-link">
+                      {order.link.length > 30 ? order.link.substring(0, 30) + '...' : order.link}
+                    </a>
+                  ) : 'N/A'}
+                </td>
                 <td>
                   <span className={`status ${order.status || 'pending'}`}>
                     {order.status || '대기중'}

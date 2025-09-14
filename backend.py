@@ -917,15 +917,17 @@ def get_admin_transactions():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT order_id, user_id, service_id, price, status, created_at
-                FROM orders
-                ORDER BY created_at DESC
+                SELECT o.order_id, o.user_id, o.service_id, o.price, o.status, o.created_at,
+                       o.platform, o.service_name, o.quantity, o.link, o.comments
+                FROM orders o
+                ORDER BY o.created_at DESC
             """)
         else:
             cursor.execute("""
-                SELECT order_id, user_id, service_id, price, status, created_at
-                FROM orders
-                ORDER BY created_at DESC
+                SELECT o.order_id, o.user_id, o.service_id, o.price, o.status, o.created_at,
+                       o.platform, o.service_name, o.quantity, o.link, o.comments
+                FROM orders o
+                ORDER BY o.created_at DESC
             """)
         
         transactions = cursor.fetchall()
@@ -939,7 +941,12 @@ def get_admin_transactions():
                 'service_id': transaction[2],
                 'price': float(transaction[3]),
                 'status': transaction[4],
-                'created_at': transaction[5].isoformat() if hasattr(transaction[5], 'isoformat') else str(transaction[5])
+                'created_at': transaction[5].isoformat() if hasattr(transaction[5], 'isoformat') else str(transaction[5]),
+                'platform': transaction[6] if len(transaction) > 6 else 'N/A',
+                'service_name': transaction[7] if len(transaction) > 7 else 'N/A',
+                'quantity': transaction[8] if len(transaction) > 8 else 0,
+                'link': transaction[9] if len(transaction) > 9 else 'N/A',
+                'comments': transaction[10] if len(transaction) > 10 else 'N/A'
             })
         
         return jsonify({
