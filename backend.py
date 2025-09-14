@@ -89,6 +89,8 @@ def init_database():
                     amount INTEGER NOT NULL,
                     price DECIMAL(10,2) NOT NULL,
                     status VARCHAR(50) DEFAULT 'pending',
+                    buyer_name VARCHAR(255),
+                    bank_info TEXT,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
@@ -140,6 +142,8 @@ def init_database():
                     amount INTEGER NOT NULL,
                     price REAL NOT NULL,
                     status TEXT DEFAULT 'pending',
+                    buyer_name TEXT,
+                    bank_info TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -383,6 +387,8 @@ def purchase_points():
         user_id = data.get('user_id')
         amount = data.get('amount')
         price = data.get('price')
+        buyer_name = data.get('buyer_name', '')
+        bank_info = data.get('bank_info', '')
         
         if not all([user_id, amount, price]):
             return jsonify({'error': '필수 필드가 누락되었습니다.'}), 400
@@ -392,15 +398,15 @@ def purchase_points():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                INSERT INTO point_purchases (user_id, amount, price, status, created_at, updated_at)
-                VALUES (%s, %s, %s, 'pending', NOW(), NOW())
+                INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at)
+                VALUES (%s, %s, %s, 'pending', %s, %s, NOW(), NOW())
                 RETURNING id
-            """, (user_id, amount, price))
+            """, (user_id, amount, price, buyer_name, bank_info))
         else:
             cursor.execute("""
-                INSERT INTO point_purchases (user_id, amount, price, status, created_at, updated_at)
-                VALUES (?, ?, ?, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """, (user_id, amount, price))
+                INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at)
+                VALUES (?, ?, ?, 'pending', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, (user_id, amount, price, buyer_name, bank_info))
             cursor.execute("SELECT last_insert_rowid()")
         
         purchase_id = cursor.fetchone()[0]
@@ -485,15 +491,19 @@ def get_admin_purchases():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT id, user_id, amount, price, status, created_at
-                FROM point_purchases
-                ORDER BY created_at DESC
+                SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, pp.created_at, 
+                       pp.buyer_name, pp.bank_info, u.email
+                FROM point_purchases pp
+                LEFT JOIN users u ON pp.user_id = u.user_id
+                ORDER BY pp.created_at DESC
             """)
         else:
             cursor.execute("""
-                SELECT id, user_id, amount, price, status, created_at
-                FROM point_purchases
-                ORDER BY created_at DESC
+                SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, pp.created_at,
+                       pp.buyer_name, pp.bank_info, u.email
+                FROM point_purchases pp
+                LEFT JOIN users u ON pp.user_id = u.user_id
+                ORDER BY pp.created_at DESC
             """)
         
         purchases = cursor.fetchall()
@@ -507,7 +517,10 @@ def get_admin_purchases():
                 'amount': purchase[2],
                 'price': float(purchase[3]),
                 'status': purchase[4],
-                'created_at': purchase[5].isoformat() if hasattr(purchase[5], 'isoformat') else str(purchase[5])
+                'created_at': purchase[5].isoformat() if hasattr(purchase[5], 'isoformat') else str(purchase[5]),
+                'buyer_name': purchase[6] if len(purchase) > 6 else 'N/A',
+                'bank_info': purchase[7] if len(purchase) > 7 else 'N/A',
+                'email': purchase[8] if len(purchase) > 8 else 'N/A'
             })
         
         return jsonify({

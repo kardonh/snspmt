@@ -335,7 +335,8 @@ const AdminPage = () => {
         '신청 ID': purchase.id,
         '사용자 ID': purchase.userId,
         '이메일': purchase.email,
-        '구매 포인트': purchase.points,
+        '구매자 이름': purchase.buyerName,
+        '은행 정보': purchase.bankInfo,
         '결제 금액': purchase.amount,
         '신청일': purchase.createdAt,
         '상태': purchase.status
@@ -627,7 +628,8 @@ const AdminPage = () => {
               <th>신청 ID</th>
               <th>사용자 ID</th>
               <th>이메일</th>
-              <th>구매 포인트</th>
+              <th>구매자 이름</th>
+              <th>은행 정보</th>
               <th>결제 금액</th>
               <th>신청일</th>
               <th>상태</th>
@@ -640,7 +642,8 @@ const AdminPage = () => {
                 <td>{purchase.id || 'N/A'}</td>
                 <td>{purchase.userId || 'N/A'}</td>
                 <td>{purchase.email || 'N/A'}</td>
-                <td>{purchase.points?.toLocaleString() || 0}</td>
+                <td>{purchase.buyerName || 'N/A'}</td>
+                <td>{purchase.bankInfo || 'N/A'}</td>
                 <td>₩{purchase.amount?.toLocaleString() || 0}</td>
                 <td>{purchase.createdAt || 'N/A'}</td>
                 <td>
@@ -793,7 +796,7 @@ const AdminPage = () => {
   return (
     <div className="admin-page">
       <div className="admin-header">
-        <h1>관리자 대시보드 - 업데이트됨!</h1>
+        <h1>관리자 대시보드</h1>
         <div className="header-actions">
           <button 
             className="btn-refresh"
