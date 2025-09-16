@@ -555,6 +555,7 @@
   gap: 12px;
   margin-bottom: 20px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .quick-subtract-btn {
@@ -1170,6 +1171,17 @@
     font-size: 18px;
   }
   
+  .quick-add-buttons {
+    gap: 10px;
+  }
+  
+  .quick-subtract-btn,
+  .quick-add-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+    min-width: 55px;
+  }
+  
   .quantity-input {
     width: 100px;
     padding: 10px;
@@ -1284,13 +1296,24 @@
   }
   
   .quantity-controls {
-  gap: 8px;
+    gap: 8px;
   }
   
   .quantity-btn {
     width: 36px;
     height: 36px;
     font-size: 16px;
+  }
+  
+  .quick-add-buttons {
+    gap: 8px;
+  }
+  
+  .quick-subtract-btn,
+  .quick-add-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-width: 50px;
   }
   
   .quantity-input {
