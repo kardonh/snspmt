@@ -65,7 +65,10 @@ def init_database():
             """)
             
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS orders (
+                DROP TABLE IF EXISTS orders
+            """)
+            cursor.execute("""
+                CREATE TABLE orders (
                     order_id SERIAL PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
                     service_id VARCHAR(255) NOT NULL,
@@ -121,7 +124,10 @@ def init_database():
             """)
             
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS orders (
+                DROP TABLE IF EXISTS orders
+            """)
+            cursor.execute("""
+                CREATE TABLE orders (
                     order_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
                     service_id TEXT NOT NULL,
