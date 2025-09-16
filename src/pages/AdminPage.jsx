@@ -191,7 +191,9 @@ const AdminPage = () => {
             points: purchase.amount,
             amount: purchase.price,
             createdAt: purchase.created_at,
-            status: purchase.status
+            status: purchase.status,
+            buyerName: purchase.buyer_name || 'N/A',
+            bankInfo: purchase.bank_info || 'N/A'
           })) : []
         
         console.log('💰 변환된 포인트 구매 데이터:', transformedPurchases)
