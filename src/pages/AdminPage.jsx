@@ -45,6 +45,7 @@ const AdminPage = () => {
   // 포인트 구매 신청 데이터
   const [pendingPurchases, setPendingPurchases] = useState([])
   const [purchaseSearchTerm, setPurchaseSearchTerm] = useState('')
+  const [filteredPurchases, setFilteredPurchases] = useState([])
 
   // 추천인 데이터
   const [referralCodes, setReferralCodes] = useState([])
@@ -198,6 +199,7 @@ const AdminPage = () => {
         
         console.log('💰 변환된 포인트 구매 데이터:', transformedPurchases)
         setPendingPurchases(transformedPurchases)
+        setFilteredPurchases(transformedPurchases)
       } else {
         console.error('❌ 포인트 구매 API 오류:', response.status, response.statusText)
       }
@@ -252,6 +254,21 @@ const AdminPage = () => {
     } catch (error) {
       console.error('거절 처리 실패:', error)
       alert('거절 처리 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 포인트 구매 신청 검색 핸들러
+  const handlePurchaseSearch = (searchTerm) => {
+    setPurchaseSearchTerm(searchTerm)
+    if (searchTerm.trim() === '') {
+      setFilteredPurchases(pendingPurchases)
+    } else {
+      const filtered = pendingPurchases.filter(purchase => 
+        purchase.buyerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        purchase.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        purchase.userId.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      setFilteredPurchases(filtered)
     }
   }
 
@@ -628,9 +645,9 @@ const AdminPage = () => {
         <Search size={20} />
         <input
           type="text"
-          placeholder="사용자 ID 또는 이메일로 검색..."
+          placeholder="구매자 이름, 이메일 또는 사용자 ID로 검색..."
           value={purchaseSearchTerm}
-          onChange={(e) => setPurchaseSearchTerm(e.target.value)}
+          onChange={(e) => handlePurchaseSearch(e.target.value)}
         />
                     </div>
 
