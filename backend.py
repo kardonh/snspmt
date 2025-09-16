@@ -65,7 +65,7 @@ def init_database():
             """)
             
             cursor.execute("""
-            CREATE TABLE IF NOT EXISTS orders (
+                CREATE TABLE IF NOT EXISTS orders (
                     order_id SERIAL PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
                     service_id VARCHAR(255) NOT NULL,
@@ -74,6 +74,9 @@ def init_database():
                     price DECIMAL(10,2) NOT NULL,
                     status VARCHAR(50) DEFAULT 'pending_payment',
                     external_order_id VARCHAR(255),
+                    platform VARCHAR(255),
+                    service_name VARCHAR(255),
+                    comments TEXT,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
@@ -127,6 +130,9 @@ def init_database():
                     price REAL NOT NULL,
                     status TEXT DEFAULT 'pending_payment',
                     external_order_id TEXT,
+                    platform TEXT,
+                    service_name TEXT,
+                    comments TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
