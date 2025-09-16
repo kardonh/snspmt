@@ -415,20 +415,6 @@ const AdminPage = () => {
     }
   })
 
-  const filteredPurchases = (pendingPurchases || []).filter(purchase => {
-    try {
-      const userId = String(purchase?.userId || '')
-      const email = String(purchase?.email || '')
-      const searchTerm = String(purchaseSearchTerm || '').toLowerCase()
-      
-      return userId.toLowerCase().includes(searchTerm) ||
-             email.toLowerCase().includes(searchTerm)
-    } catch (error) {
-      console.error('구매 필터링 오류:', error, purchase)
-      return false
-    }
-  })
-
   // 탭 렌더링
   const renderDashboard = () => (
     <div className="dashboard-content">
