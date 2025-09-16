@@ -32,7 +32,7 @@ const ServicesPage = () => {
         delivery: '24-48시간',
         minQuantity: 100,
         maxQuantity: 20000,
-        apiId: 577
+        apiId: 361
       },
       {
         id: 'followers_foreign',
@@ -44,7 +44,7 @@ const ServicesPage = () => {
         delivery: '24-48시간',
         minQuantity: 100,
         maxQuantity: 2000,
-        apiId: 855
+        apiId: 472
       },
       {
         id: 'likes_korean',
@@ -56,7 +56,7 @@ const ServicesPage = () => {
         delivery: '즉시',
         minQuantity: 50,
         maxQuantity: 5000,
-        apiId: 790
+        apiId: 122
       },
       {
         id: 'views_korean',
@@ -68,7 +68,7 @@ const ServicesPage = () => {
         delivery: '즉시',
         minQuantity: 100,
         maxQuantity: 10000,
-        apiId: 619
+        apiId: 124
       }
     ],
     youtube: [
