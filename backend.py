@@ -99,7 +99,7 @@ def init_database():
         else:
             # SQLite 테이블 생성
             cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
+                CREATE TABLE IF NOT EXISTS users (
                     user_id TEXT PRIMARY KEY,
                     email TEXT UNIQUE NOT NULL,
                     name TEXT NOT NULL,
@@ -111,8 +111,8 @@ def init_database():
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS points (
                     user_id TEXT PRIMARY KEY,
-                points INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    points INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
