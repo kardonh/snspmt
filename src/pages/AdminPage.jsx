@@ -257,21 +257,6 @@ const AdminPage = () => {
     }
   }
 
-  // 포인트 구매 신청 검색 핸들러
-  const handlePurchaseSearch = (searchTerm) => {
-    setPurchaseSearchTerm(searchTerm)
-    if (searchTerm.trim() === '') {
-      setFilteredPurchases(pendingPurchases)
-    } else {
-      const filtered = pendingPurchases.filter(purchase => 
-        purchase.buyerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        purchase.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        purchase.userId.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      setFilteredPurchases(filtered)
-    }
-  }
-
   // 데이터 내보내기 함수
   // 추천인 데이터 로드
   const loadReferralData = async () => {
@@ -411,6 +396,20 @@ const AdminPage = () => {
              platform.toLowerCase().includes(searchTerm)
     } catch (error) {
       console.error('주문 필터링 오류:', error, order)
+      return false
+    }
+  })
+
+  const filteredPurchases = (pendingPurchases || []).filter(purchase => {
+    try {
+      const userId = String(purchase?.userId || '')
+      const email = String(purchase?.email || '')
+      const searchTerm = String(purchaseSearchTerm || '').toLowerCase()
+      
+      return userId.toLowerCase().includes(searchTerm) ||
+             email.toLowerCase().includes(searchTerm)
+    } catch (error) {
+      console.error('구매 필터링 오류:', error, purchase)
       return false
     }
   })
@@ -631,9 +630,9 @@ const AdminPage = () => {
         <Search size={20} />
         <input
           type="text"
-          placeholder="구매자 이름, 이메일 또는 사용자 ID로 검색..."
+          placeholder="사용자 ID 또는 이메일로 검색..."
           value={purchaseSearchTerm}
-          onChange={(e) => handlePurchaseSearch(e.target.value)}
+          onChange={(e) => setPurchaseSearchTerm(e.target.value)}
         />
                     </div>
 
