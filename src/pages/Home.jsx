@@ -436,7 +436,7 @@ const Home = () => {
     if (selectedDetailedService && selectedPlatform === 'instagram') {
       const selectedService = getSelectedDetailedService()
       if (selectedService) {
-        return selectedService.price * quantity / 1000 // 1000개당 가격이므로 수량으로 나누어 계산
+        return selectedService.price * quantity // 1개당 가격
       }
     }
     return 0
@@ -698,7 +698,7 @@ const Home = () => {
     
     // 인스타그램, 스레드, 유튜브, 페이스북, 네이버, 틱톡, 트위터, 텔레그램, 왓츠앱의 경우 새로운 가격 계산 로직 사용
     if (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp') {
-      basePrice = selectedDetailedService.price * quantity // 개당 가격
+      basePrice = selectedDetailedService.price * quantity // 1개당 가격
     } else {
       // 기존 SMM KINGS 가격 사용
       basePrice = selectedDetailedService.price * quantity
