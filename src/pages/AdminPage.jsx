@@ -58,6 +58,26 @@ const AdminPage = () => {
     loadReferralData()
   }, [])
 
+  // 구매 신청 검색 필터링
+  useEffect(() => {
+    const filtered = (pendingPurchases || []).filter(purchase => {
+      try {
+        const userId = String(purchase?.userId || '')
+        const email = String(purchase?.email || '')
+        const buyerName = String(purchase?.buyerName || '')
+        const searchTerm = String(purchaseSearchTerm || '').toLowerCase()
+        
+        return userId.toLowerCase().includes(searchTerm) ||
+               email.toLowerCase().includes(searchTerm) ||
+               buyerName.toLowerCase().includes(searchTerm)
+      } catch (error) {
+        console.error('구매 필터링 오류:', error, purchase)
+        return false
+      }
+    })
+    setFilteredPurchases(filtered)
+  }, [pendingPurchases, purchaseSearchTerm])
+
   // 관리자 데이터 로드
   const loadAdminData = async () => {
     setIsLoading(true)
@@ -400,19 +420,7 @@ const AdminPage = () => {
     }
   })
 
-  const filteredPurchases = (pendingPurchases || []).filter(purchase => {
-    try {
-      const userId = String(purchase?.userId || '')
-      const email = String(purchase?.email || '')
-      const searchTerm = String(purchaseSearchTerm || '').toLowerCase()
-      
-      return userId.toLowerCase().includes(searchTerm) ||
-             email.toLowerCase().includes(searchTerm)
-    } catch (error) {
-      console.error('구매 필터링 오류:', error, purchase)
-      return false
-    }
-  })
+  // filteredPurchases는 상태 변수로 이미 선언되어 있음
 
   // 탭 렌더링
   const renderDashboard = () => (
@@ -630,7 +638,7 @@ const AdminPage = () => {
         <Search size={20} />
         <input
           type="text"
-          placeholder="사용자 ID 또는 이메일로 검색..."
+          placeholder="구매자 이름, 이메일 또는 사용자 ID로 검색..."
           value={purchaseSearchTerm}
           onChange={(e) => setPurchaseSearchTerm(e.target.value)}
         />
