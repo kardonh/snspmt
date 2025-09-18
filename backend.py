@@ -27,7 +27,7 @@ def get_db_connection():
             db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
             conn = sqlite3.connect(db_path)
             return conn
-        except Exception as e:
+    except Exception as e:
         print(f"데이터베이스 연결 실패: {e}")
         # SQLite fallback
         db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
@@ -38,7 +38,7 @@ def init_database():
     """데이터베이스 테이블을 초기화합니다."""
     try:
         conn = get_db_connection()
-                cursor = conn.cursor()
+        cursor = conn.cursor()
         
         # PostgreSQL인지 SQLite인지 확인
         is_postgresql = DATABASE_URL.startswith('postgresql://')
@@ -90,7 +90,7 @@ def init_database():
             """)
             cursor.execute("""
                 CREATE TABLE point_purchases (
-                id SERIAL PRIMARY KEY,
+                    id SERIAL PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
                     amount INTEGER NOT NULL,
                     price DECIMAL(10,2) NOT NULL,
@@ -105,7 +105,7 @@ def init_database():
         else:
             # SQLite 테이블 생성
             cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
+                CREATE TABLE IF NOT EXISTS users (
                     user_id TEXT PRIMARY KEY,
                     email TEXT UNIQUE NOT NULL,
                     name TEXT NOT NULL,
@@ -117,8 +117,8 @@ def init_database():
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS points (
                     user_id TEXT PRIMARY KEY,
-                points INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    points INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -139,9 +139,9 @@ def init_database():
                     platform TEXT,
                     service_name TEXT,
                     comments TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
             """)
             
             cursor.execute("""
@@ -156,9 +156,9 @@ def init_database():
                     status TEXT DEFAULT 'pending',
                     buyer_name TEXT,
                     bank_info TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
             """)
         
         conn.commit()
@@ -175,7 +175,7 @@ def initialize_app():
     """앱 시작 시 초기화"""
     try:
         print("🚀 SNS PMT 앱 시작 중...")
-init_database()
+        init_database()
         print("✅ 앱 시작 완료")
     except Exception as e:
         print(f"⚠️ 앱 초기화 중 오류: {e}")
@@ -606,7 +606,7 @@ def update_purchase_status(purchase_id):
         
         # 상태 업데이트
         if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
+            cursor.execute("""
                 UPDATE point_purchases
                 SET status = %s, updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
@@ -658,10 +658,10 @@ def update_purchase_status(purchase_id):
             'status': status
         }), 200
         
-            except Exception as e:
+    except Exception as e:
         return jsonify({'error': f'구매 신청 처리 실패: {str(e)}'}), 500
     finally:
-        if conn:
+        if 'conn' in locals():
             conn.close()
 
 # 포인트 차감 (주문 결제용)
@@ -681,14 +681,14 @@ def deduct_points():
             return jsonify({'error': '차감할 포인트는 0보다 커야 합니다.'}), 400
         
         conn = get_db_connection()
-            cursor = conn.cursor()
-            
+        cursor = conn.cursor()
+        
         # 사용자 포인트 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT points FROM points WHERE user_id = %s
             """, (user_id,))
-    else:
+        else:
             cursor.execute("""
                 SELECT points FROM points WHERE user_id = ?
             """, (user_id,))
@@ -719,20 +719,6 @@ def deduct_points():
                 WHERE user_id = ?
             """, (new_points, user_id))
         
-        # 포인트 사용 내역 기록은 현재 비활성화 (테이블이 없음)
-        # TODO: point_transactions 테이블 생성 후 활성화
-        # if order_id:
-        #     if DATABASE_URL.startswith('postgresql://'):
-        #         cursor.execute("""
-        #             INSERT INTO point_transactions (user_id, order_id, amount, type, created_at)
-        #             VALUES (%s, %s, %s, 'deduct', CURRENT_TIMESTAMP)
-        #         """, (user_id, order_id, amount))
-        #     else:
-        #         cursor.execute("""
-        #             INSERT INTO point_transactions (user_id, order_id, amount, type, created_at)
-        #             VALUES (?, ?, ?, 'deduct', CURRENT_TIMESTAMP)
-        #         """, (user_id, order_id, amount))
-        
         conn.commit()
         
         return jsonify({
@@ -744,7 +730,7 @@ def deduct_points():
     except Exception as e:
         return jsonify({'error': f'포인트 차감 실패: {str(e)}'}), 500
     finally:
-        if conn:
+        if 'conn' in locals():
             conn.close()
 
 # 사용자 정보 조회
@@ -776,7 +762,7 @@ def get_user(user_id):
                 'name': user[2],
                 'created_at': user[3].isoformat() if hasattr(user[3], 'isoformat') else str(user[3])
             }), 200
-    else:
+        else:
             return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
         
     except Exception as e:
@@ -911,8 +897,8 @@ def get_admin_users():
     """관리자 사용자 목록"""
     try:
         conn = get_db_connection()
-            cursor = conn.cursor()
-            
+        cursor = conn.cursor()
+        
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT u.user_id, u.email, u.name, u.created_at, COALESCE(p.points, 0) as points
@@ -940,11 +926,11 @@ def get_admin_users():
                 'created_at': user[3].isoformat() if hasattr(user[3], 'isoformat') else str(user[3]),
                 'points': user[4] if len(user) > 4 else 0,
                 'last_activity': 'N/A'  # 마지막 활동은 추후 구현
-                })
-            
-            return jsonify({
+            })
+        
+        return jsonify({
             'users': user_list
-            }), 200
+        }), 200
         
     except Exception as e:
         return jsonify({'error': f'사용자 목록 조회 실패: {str(e)}'}), 500
@@ -997,6 +983,15 @@ def get_admin_transactions():
         
     except Exception as e:
         return jsonify({'error': f'거래 내역 조회 실패: {str(e)}'}), 500
+
+# 관리자 페이지 라우트
+@app.route('/admin')
+def serve_admin():
+    """관리자 페이지 서빙"""
+    try:
+        return app.send_static_file('index.html')
+    except:
+        return "Admin page not found", 404
 
 # 정적 파일 서빙
 @app.route('/<path:filename>')
