@@ -446,19 +446,18 @@ const Home = () => {
     { id: 'recommended', name: '추천서비스', icon: Star, color: '#f59e0b' },
     { id: 'event', name: '이벤트', icon: Package, color: '#8b5cf6' },
     { id: 'top-exposure', name: '상위노출', icon: Trophy, color: '#f59e0b' },
-    { id: 'package', name: '패키지', icon: Folder, color: '#3b82f6' },
     { id: 'instagram', name: '인스타그램', icon: Instagram, color: '#e4405f' },
     { id: 'youtube', name: '유튜브', icon: Youtube, color: '#ff0000' },
     { id: 'facebook', name: '페이스북', icon: Facebook, color: '#1877f2' },
     { id: 'tiktok', name: '틱톡', icon: MessageCircle, color: '#000000' },
     { id: 'threads', name: '스레드', icon: MessageSquare, color: '#000000' },
     { id: 'twitter', name: '트위터', icon: Twitter, color: '#1da1f2' },
-    { id: 'naver', name: '네이버', icon: Globe, color: '#03c75a' },
+    { id: 'kakao', name: '카카오', icon: MessageCircle, color: '#fbbf24' },
     { id: 'telegram', name: '텔레그램', icon: MessageCircle, color: '#0088cc' },
     { id: 'whatsapp', name: '왓츠앱', icon: MessageSquare, color: '#25d366' },
     // { id: 'news-media', name: '뉴스언론보도', icon: FileText, color: '#3b82f6' },
     // { id: 'experience-group', name: '체험단', icon: Users, color: '#10b981' },
-    // { id: 'kakao', name: '카카오', icon: MessageCircle, color: '#fbbf24' },
+   
     // { id: 'store-marketing', name: '스토어마케팅', icon: HomeIcon, color: '#f59e0b' },
     // { id: 'app-marketing', name: '어플마케팅', icon: Smartphone, color: '#3b82f6' },
     // { id: 'seo-traffic', name: 'SEO트래픽', icon: TrendingUp, color: '#8b5cf6' }
@@ -962,6 +961,7 @@ const Home = () => {
     <div className="order-page">
       {/* Service Selection */}
       <div className="service-selection">
+        <span className="step-number">1</span>
         <h2>주문하기</h2>
         <p>원하는 서비스를 선택하고 주문해보세요!</p>
         
@@ -1001,7 +1001,10 @@ const Home = () => {
         
         {/* Service Selection */}
         <div className="service-category">
-          <h3 className="category-title">{platforms.find(p => p.id === selectedPlatform)?.name} 서비스</h3>
+          <h3 className="category-title">
+            <span className="step-number">2</span>
+            {platforms.find(p => p.id === selectedPlatform)?.name} 서비스
+          </h3>
           <div className="service-list">
             {services.map(({ id, name, badge, featured, special }) => (
               <div 
@@ -1029,7 +1032,10 @@ const Home = () => {
       {/* Detailed Service Selection */}
       {selectedService && detailedServices.length > 0 && (
         <div className="detailed-service-selection">
-          <h3>세부 서비스를 선택해주세요</h3>
+          <h3>
+            <span className="step-number">3</span>
+            세부 서비스를 선택해주세요
+          </h3>
           <div className="detailed-service-list">
             {detailedServices.map((service) => (
               <div 
@@ -1042,10 +1048,7 @@ const Home = () => {
                     <div className="detailed-service-name">{service.name}</div>
                     <div className="detailed-service-range">
                       최소: {service.min.toLocaleString()} ~ 최대: {service.max.toLocaleString()}
-                      {service.time && service.time !== '데이터가 충분하지 않습니다' && (
-                        <span className="service-time"> | 평균 완료시간: {service.time}</span>
-                      )}
-          </div>
+                    </div>
                   </div>
                   <div className="detailed-service-price">
                     {(selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp') ? 
@@ -1063,84 +1066,33 @@ const Home = () => {
       {/* Order Form */}
       {selectedDetailedService && (
         <div className="order-form">
-          <h3>주문 정보 입력</h3>
+          <h3>
+            <span className="step-number">4</span>
+            주문 정보 입력
+          </h3>
           
-          {/* Service Description */}
-          <div className="service-description">
-            <h4>선택된 서비스</h4>
-            <p>{selectedDetailedService.name}</p>
-            
-            {/* 패키지 서비스인 경우 단계별 정보 표시 */}
-            {selectedDetailedService.package && selectedDetailedService.steps ? (
-              <div className="package-steps">
-                <h5>📦 패키지 구성</h5>
-                {selectedDetailedService.steps.map((step, index) => (
-                  <div key={index} className="package-step">
-                    <div className="step-header">
-                      <span className="step-number">{index + 1}</span>
-                      <span className="step-name">{step.name}</span>
-                      <span className="step-price">₩{step.price.toLocaleString()}</span>
-                    </div>
-                    <div className="step-details">
-                      <p className="step-description">{step.description}</p>
-                      {step.quantity > 0 && (
-                        <p className="step-quantity">수량: {step.quantity.toLocaleString()}개</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                <div className="package-total">
-                  <strong>총 가격: ₩{selectedDetailedService.price.toLocaleString()}</strong>
-                </div>
-              </div>
-            ) : (
-              <p>
-                {(selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp') ? 
-                  `1개당 ₩${selectedDetailedService.price.toFixed(2)}` : 
-                  `1개당 ${selectedDetailedService.price.toFixed(2)}원`
-                } | 최소: {selectedDetailedService.min.toLocaleString()} ~ 최대: {selectedDetailedService.max.toLocaleString()}
-                {selectedDetailedService.time && selectedDetailedService.time !== '데이터가 충분하지 않습니다' && (
-                  <span> | 평균 완료시간: {selectedDetailedService.time}</span>
-                )}
-              </p>
-            )}
-          </div>
           
           {/* Quantity Selection */}
           <div className="form-group">
             <label>수량 선택</label>
-            <div className="quantity-controls">
-              <button 
-                className="quantity-btn" 
-                onClick={() => {
-                  const newQuantity = Math.max(selectedDetailedService.min, quantity - 1)
-                  if (newQuantity >= selectedDetailedService.min) {
-                    handleQuantityChange(newQuantity)
-                  }
-                }}
-                disabled={quantity <= selectedDetailedService.min}
-              >
-                -
-              </button>
-              <input
-                type="text"
-                value={quantity.toLocaleString()}
-                readOnly
-                className="quantity-input"
-              />
-              <button 
-                className="quantity-btn"
-                onClick={() => {
-                  const newQuantity = Math.min(selectedDetailedService.max, quantity + 1)
-                  if (newQuantity <= selectedDetailedService.max) {
-                    handleQuantityChange(newQuantity)
-                  }
-                }}
-                disabled={quantity >= selectedDetailedService.max}
-              >
-                +
-              </button>
+            <input
+              type="number"
+              value={quantity}
+              onChange={(e) => {
+                const newQuantity = parseInt(e.target.value) || 0
+                if (newQuantity >= selectedDetailedService.min && newQuantity <= selectedDetailedService.max) {
+                  handleQuantityChange(newQuantity)
+                }
+              }}
+              min={selectedDetailedService.min}
+              max={selectedDetailedService.max}
+              className="quantity-input-field"
+              placeholder={`최소 ${selectedDetailedService.min.toLocaleString()} ~ 최대 ${selectedDetailedService.max.toLocaleString()}`}
+            />
+            <div className="quantity-hint">
+              최소: {selectedDetailedService.min.toLocaleString()} ~ 최대: {selectedDetailedService.max.toLocaleString()}
             </div>
+          </div>
             
             {/* Quick Add/Subtract Buttons */}
             <div className="quick-add-buttons">
