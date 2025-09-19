@@ -94,11 +94,12 @@
   
   .main-content {
     order: 2;
-    max-width: 100% !important;
+    max-width: calc(100% - 280px) !important;
     margin-left: 0 !important;
-    width: 100% !important;
+    width: calc(100% - 280px) !important;
     padding: 16px;
     padding-bottom: 80px; /* 하단 탭 바를 위한 여백 */
+    margin-right: 280px; /* GuidePanel을 위한 여백 */
   }
   
   .sidebar-container {
@@ -135,7 +136,7 @@
   }
   
   .guide-panel {
-    display: none;
+    display: block;
   }
 }
 
@@ -153,6 +154,9 @@
   }
   
   .main-content {
+    max-width: calc(100% - 240px) !important;
+    width: calc(100% - 240px) !important;
+    margin-right: 240px; /* GuidePanel을 위한 여백 */
     padding: 12px;
     padding-bottom: 80px; /* 하단 탭 바를 위한 여백 */
   }

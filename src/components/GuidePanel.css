@@ -382,6 +382,103 @@
 
 @media (max-width: 768px) {
   .guide-panel {
-    display: none; /* 모바일에서는 가이드 패널 숨김 */
+    width: 280px;
+    padding: 16px;
+    height: calc(100vh - 60px);
+    position: fixed;
+    top: 60px;
+    right: 0;
+    z-index: 100;
+    border-radius: 16px 0 0 16px;
+    margin: 0;
+  }
+  
+  .guide-header h3 {
+    font-size: 14px;
+  }
+  
+  .platform-filters {
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  
+  .platform-filter-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  
+  .guide-item-header {
+    padding: 8px 12px;
+  }
+  
+  .guide-text {
+    font-size: 12px;
+  }
+  
+  .guide-item-content {
+    padding: 12px;
+  }
+  
+  .guide-description {
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+  
+  .guide-steps h4,
+  .guide-tips h4 {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  
+  .guide-steps ul,
+  .guide-tips ul {
+    font-size: 10px;
+  }
+  
+  .guide-steps li,
+  .guide-tips li {
+    margin-bottom: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .guide-panel {
+    width: 240px;
+    padding: 12px;
+  }
+  
+  .guide-header h3 {
+    font-size: 12px;
+  }
+  
+  .platform-filter-btn {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+  
+  .guide-item-header {
+    padding: 6px 8px;
+  }
+  
+  .guide-text {
+    font-size: 11px;
+  }
+  
+  .guide-item-content {
+    padding: 8px;
+  }
+  
+  .guide-description {
+    font-size: 10px;
+  }
+  
+  .guide-steps h4,
+  .guide-tips h4 {
+    font-size: 11px;
+  }
+  
+  .guide-steps ul,
+  .guide-tips ul {
+    font-size: 9px;
   }
 }

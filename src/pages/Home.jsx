@@ -399,6 +399,9 @@ const Home = () => {
     if (platform === 'threads' && instagramDetailedServices.threads && instagramDetailedServices.threads[serviceType]) {
       return instagramDetailedServices.threads[serviceType]
     }
+    if (platform === 'threads' && serviceType === 'threads_services') {
+      return instagramDetailedServices.threads.likes_korean
+    }
     if (platform === 'youtube' && instagramDetailedServices.youtube && instagramDetailedServices.youtube[serviceType]) {
       return instagramDetailedServices.youtube[serviceType]
     }
@@ -411,14 +414,29 @@ const Home = () => {
     if (platform === 'tiktok' && instagramDetailedServices.tiktok && instagramDetailedServices.tiktok[serviceType]) {
       return instagramDetailedServices.tiktok[serviceType]
     }
+    if (platform === 'tiktok' && serviceType === 'tiktok_services') {
+      return instagramDetailedServices.tiktok.tiktok_services
+    }
+    if (platform === 'tiktok' && serviceType === 'tiktok_live_streaming') {
+      return instagramDetailedServices.tiktok.tiktok_live_streaming
+    }
     if (platform === 'twitter' && instagramDetailedServices.twitter && instagramDetailedServices.twitter[serviceType]) {
       return instagramDetailedServices.twitter[serviceType]
+    }
+    if (platform === 'twitter' && serviceType === 'twitter_services') {
+      return instagramDetailedServices.twitter.twitter_services
     }
     if (platform === 'telegram' && instagramDetailedServices.telegram && instagramDetailedServices.telegram[serviceType]) {
       return instagramDetailedServices.telegram[serviceType]
     }
+    if (platform === 'telegram' && serviceType === 'telegram_services') {
+      return instagramDetailedServices.telegram.telegram_services
+    }
     if (platform === 'whatsapp' && instagramDetailedServices.whatsapp && instagramDetailedServices.whatsapp[serviceType]) {
       return instagramDetailedServices.whatsapp[serviceType]
+    }
+    if (platform === 'whatsapp' && serviceType === 'whatsapp_services') {
+      return instagramDetailedServices.whatsapp.whatsapp_services
     }
     // 기존 로직 사용
     return getDetailedServicesLegacy(platform, serviceType)
@@ -507,7 +525,7 @@ const Home = () => {
         ]
       case 'tiktok':
         return [
-          { id: 'tiktok_services', name: '🇰🇷🌐TikTok[틱톡]', description: '틱톡 서비스' },
+          { id: 'tiktok_services', name: '🌐TikTok[틱톡]', description: '틱톡 서비스' },
           { id: 'tiktok_live_streaming', name: '🌐TikTok[틱톡] 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' }
         ]
       case 'facebook':
@@ -523,7 +541,7 @@ const Home = () => {
         ]
       case 'threads':
         return [
-          { id: 'likes_korean', name: '🌐스레드[THREADS] 서비스', description: '스레드 서비스' }
+          { id: 'threads_services', name: '🌐스레드[THREADS] 서비스', description: '스레드 서비스' }
         ]
       case 'naver':
         return [
@@ -1051,18 +1069,24 @@ const Home = () => {
                          service.id === 'auto_exposure_save_share' ||
                          service.id === 'tiktok_services' ||
                          service.id === 'tiktok_live_streaming' ||
-                         service.id === 'threads' ||
-                         service.id === 'naver' ||
-                         service.id === 'kakao' ||
-                         service.id === 'telegram' ||
-                         service.id === 'whatsapp' ||
-                         service.id === 'twitter'
+                         service.id === 'threads_services' ||
+                         service.id === 'n_k_services' ||
+                         service.id === 'twitter_services' ||
+                         service.id === 'telegram_services' ||
+                         service.id === 'whatsapp_services'
                 } else if (selectedTab === 'foreign') {
                   return service.id.includes('foreign') || 
                          service.id === 'live_streaming' || 
                          service.id === 'auto_likes' || 
                          service.id === 'auto_views' || 
-                         service.id === 'auto_comments'
+                         service.id === 'auto_comments' ||
+                         service.id === 'tiktok_services' ||
+                         service.id === 'tiktok_live_streaming' ||
+                         service.id === 'threads_services' ||
+                         service.id === 'n_k_services' ||
+                         service.id === 'twitter_services' ||
+                         service.id === 'telegram_services' ||
+                         service.id === 'whatsapp_services'
                 }
                 return true
               })
