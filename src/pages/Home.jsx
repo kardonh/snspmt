@@ -18,7 +18,8 @@ import {
   Twitter,
   Globe,
   MessageSquare,
-  Sparkles
+  Sparkles,
+  ChevronRight
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { smmpanelApi, transformOrderData } from '../services/snspopApi'
@@ -31,6 +32,7 @@ const Home = () => {
   const [selectedServiceType, setSelectedServiceType] = useState('recommended')
   const [selectedService, setSelectedService] = useState('followers_korean')
   const [selectedDetailedService, setSelectedDetailedService] = useState(null)
+  const [selectedTab, setSelectedTab] = useState('korean') // 'korean' or 'foreign'
   const [quantity, setQuantity] = useState(200)
   const [totalPrice, setTotalPrice] = useState(0)
   const [showChecklist, setShowChecklist] = useState(false)
@@ -1005,26 +1007,104 @@ const Home = () => {
             <span className="step-number">2</span>
             {platforms.find(p => p.id === selectedPlatform)?.name} 서비스
           </h3>
+          
+          {/* Tab Navigation */}
+          <div className="service-tabs">
+            <button 
+              className={`tab-button ${selectedTab === 'korean' ? 'active' : ''}`}
+              onClick={() => setSelectedTab('korean')}
+            >
+              <Users size={20} />
+              한국인
+            </button>
+            <button 
+              className={`tab-button ${selectedTab === 'foreign' ? 'active' : ''}`}
+              onClick={() => setSelectedTab('foreign')}
+            >
+              <Globe size={20} />
+              외국인
+            </button>
+          </div>
+
+          {/* Premium Quality Banner */}
+          <div className="premium-banner">
+            <div className="banner-content">
+              <span>선택상품의 프리미엄 퀄리티확인</span>
+              <ChevronRight size={20} />
+            </div>
+          </div>
+
           <div className="service-list">
-            {services.map(({ id, name, badge, featured, special }) => (
-              <div 
-                key={id} 
-                className={`service-item ${special ? 'special' : ''} ${featured ? 'featured' : ''} ${selectedService === id ? 'selected' : ''}`}
-                onClick={() => handleServiceSelect(id)}
-              >
-                <div className="service-content">
-                  <span className="service-name">{name}</span>
-                  {badge && <span className="service-badge">{badge}</span>}
-                  {featured && <Star size={16} className="featured-icon" />}
-                  {special && (
-                    <div className="special-indicator">
-                      <Sparkles size={16} />
-                      <Sparkles size={16} />
-      </div>
-                  )}
+            {services.map(({ id, name, badge, featured, special }) => {
+              // 서비스별 아이콘 매핑
+              const getServiceIcon = (serviceId) => {
+                switch (serviceId) {
+                  case 'popular_posts':
+                    return <Heart size={24} className="service-icon" style={{ color: '#e4405f' }} />
+                  case 'likes_korean':
+                    return <Heart size={24} className="service-icon" style={{ color: '#e4405f' }} />
+                  case 'likes_foreign':
+                    return <Heart size={24} className="service-icon" style={{ color: '#ff6b6b' }} />
+                  case 'followers_korean':
+                    return <Users size={24} className="service-icon" style={{ color: '#4f46e5' }} />
+                  case 'views':
+                    return <Eye size={24} className="service-icon" style={{ color: '#10b981' }} />
+                  case 'comments_korean':
+                    return <MessageCircle size={24} className="service-icon" style={{ color: '#f59e0b' }} />
+                  case 'regram_korean':
+                    return <Package size={24} className="service-icon" style={{ color: '#8b5cf6' }} />
+                  case 'followers_foreign':
+                    return <Users size={24} className="service-icon" style={{ color: '#6b7280' }} />
+                  case 'exposure_save_share':
+                    return <TrendingUp size={24} className="service-icon" style={{ color: '#06b6d4' }} />
+                  case 'auto_exposure_save_share':
+                    return <Zap size={24} className="service-icon" style={{ color: '#f59e0b' }} />
+                  case 'live_streaming':
+                    return <MessageCircle size={24} className="service-icon" style={{ color: '#ef4444' }} />
+                  case 'auto_likes':
+                    return <Heart size={24} className="service-icon" style={{ color: '#ec4899' }} />
+                  case 'auto_views':
+                    return <Eye size={24} className="service-icon" style={{ color: '#10b981' }} />
+                  case 'auto_comments':
+                    return <MessageCircle size={24} className="service-icon" style={{ color: '#f59e0b' }} />
+                  default:
+                    return <Globe size={24} className="service-icon" style={{ color: '#6b7280' }} />
+                }
+              }
+
+              // 서비스별 배지 매핑
+              const getServiceBadge = (serviceId) => {
+                if (serviceId.includes('auto_')) {
+                  return <span className="service-badge auto">자동</span>
+                }
+                if (serviceId === 'popular_posts') {
+                  return <span className="service-badge new">N</span>
+                }
+                return null
+              }
+
+              return (
+                <div 
+                  key={id} 
+                  className={`service-item ${special ? 'special' : ''} ${featured ? 'featured' : ''} ${selectedService === id ? 'selected' : ''}`}
+                  onClick={() => handleServiceSelect(id)}
+                >
+                  <div className="service-content">
+                    {getServiceIcon(id)}
+                    <span className="service-name">{name}</span>
+                    {getServiceBadge(id)}
+                    {badge && <span className="service-badge custom">{badge}</span>}
+                    {featured && <Star size={16} className="featured-icon" />}
+                    {special && (
+                      <div className="special-indicator">
+                        <Sparkles size={16} />
+                        <Sparkles size={16} />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
