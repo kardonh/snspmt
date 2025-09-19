@@ -223,6 +223,80 @@
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1), 0 4px 12px rgba(16, 185, 129, 0.1);
 }
 
+/* 계좌 정보 섹션 */
+.account-info {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  margin: 24px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.account-info h3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.account-info h3 svg {
+  color: #667eea;
+}
+
+.account-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.account-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.account-label {
+  font-weight: 600;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.account-value {
+  font-weight: 700;
+  color: #1e293b;
+  font-size: 16px;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.5px;
+}
+
+.account-note {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.account-note p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.account-note p:last-child {
+  margin-bottom: 0;
+}
+
 .form-input:focus {
   outline: none;
   border-color: #87ceeb;

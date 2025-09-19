@@ -1031,23 +1031,25 @@ const Home = () => {
             {platforms.find(p => p.id === selectedPlatform)?.name} 서비스
           </h3>
           
-          {/* Tab Navigation */}
-          <div className="service-tabs">
-            <button 
-              className={`tab-button ${selectedTab === 'korean' ? 'active' : ''}`}
-              onClick={() => setSelectedTab('korean')}
-            >
-              <Users size={20} />
-              한국인
-            </button>
-            <button 
-              className={`tab-button ${selectedTab === 'foreign' ? 'active' : ''}`}
-              onClick={() => setSelectedTab('foreign')}
-            >
-              <Globe size={20} />
-              외국인
-            </button>
-          </div>
+          {/* Tab Navigation - 특정 플랫폼에서는 숨김 */}
+          {!['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp'].includes(selectedPlatform) && (
+            <div className="service-tabs">
+              <button 
+                className={`tab-button ${selectedTab === 'korean' ? 'active' : ''}`}
+                onClick={() => setSelectedTab('korean')}
+              >
+                <Users size={20} />
+                한국인
+              </button>
+              <button 
+                className={`tab-button ${selectedTab === 'foreign' ? 'active' : ''}`}
+                onClick={() => setSelectedTab('foreign')}
+              >
+                <Globe size={20} />
+                외국인
+              </button>
+            </div>
+          )}
 
           {/* Premium Quality Banner */}
           <div className="premium-banner">
@@ -1060,6 +1062,11 @@ const Home = () => {
           <div className="service-list">
             {services
               .filter(service => {
+                // 특정 플랫폼들은 탭 구분 없이 모든 서비스 표시
+                if (['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp'].includes(selectedPlatform)) {
+                  return true
+                }
+                
                 // 한국인/외국인 탭에 따라 필터링
                 if (selectedTab === 'korean') {
                   return service.id.includes('korean') || 
@@ -1067,26 +1074,13 @@ const Home = () => {
                          service.id === 'views' || 
                          service.id === 'exposure_save_share' || 
                          service.id === 'auto_exposure_save_share' ||
-                         service.id === 'tiktok_services' ||
-                         service.id === 'tiktok_live_streaming' ||
-                         service.id === 'threads_services' ||
-                         service.id === 'n_k_services' ||
-                         service.id === 'twitter_services' ||
-                         service.id === 'telegram_services' ||
-                         service.id === 'whatsapp_services'
+                         service.id === 'n_k_services'
                 } else if (selectedTab === 'foreign') {
                   return service.id.includes('foreign') || 
                          service.id === 'live_streaming' || 
                          service.id === 'auto_likes' || 
                          service.id === 'auto_views' || 
-                         service.id === 'auto_comments' ||
-                         service.id === 'tiktok_services' ||
-                         service.id === 'tiktok_live_streaming' ||
-                         service.id === 'threads_services' ||
-                         service.id === 'n_k_services' ||
-                         service.id === 'twitter_services' ||
-                         service.id === 'telegram_services' ||
-                         service.id === 'whatsapp_services'
+                         service.id === 'auto_comments'
                 }
                 return true
               })

@@ -377,19 +377,22 @@
 /* 서비스 그리드 반응형 조정 */
 @media (max-width: 1200px) {
   .service-list {
-    gap: 14px;
+    flex-wrap: wrap;
+    gap: 16px;
   }
 }
 
 @media (max-width: 900px) {
   .service-list {
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 14px;
   }
 }
 
 @media (max-width: 768px) {
   .service-list {
-    gap: 10px;
+    flex-direction: column;
+    gap: 12px;
   }
   
   .service-tabs {
@@ -413,7 +416,8 @@
 
 @media (max-width: 480px) {
   .service-list {
-    gap: 8px;
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
   
   .service-tabs {
@@ -439,7 +443,7 @@
   background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
   border: 2px solid rgba(135, 206, 235, 0.15);
   border-radius: 16px;
-  padding: 16px 20px;
+  padding: 20px;
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
@@ -447,14 +451,15 @@
   box-shadow: 
     0 8px 25px rgba(135, 206, 235, 0.08),
     0 4px 10px rgba(0, 0, 0, 0.04);
-  min-height: 80px;
-  min-width: 200px;
-  flex: 1;
+  min-height: 120px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
+  flex: 1;
+  min-width: 200px;
+  max-width: 300px;
 }
 
 .service-item::before {
@@ -1249,7 +1254,7 @@
   }
   
   .service-list {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1264,7 +1269,8 @@
   }
   
   .service-list {
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
   
   .service-selection,
@@ -1306,9 +1312,8 @@
   }
   
   .service-item {
-    padding: 14px 16px;
-    min-height: 80px;
-    min-width: 180px;
+    padding: 16px;
+    min-height: 100px;
   }
   
   .service-name {
@@ -1393,7 +1398,8 @@
   }
   
   .service-list {
-    gap: 8px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
   
   .service-selection,
@@ -1435,9 +1441,8 @@
   }
   
   .service-item {
-    padding: 12px 14px;
-    min-height: 70px;
-    min-width: 160px;
+    padding: 14px;
+    min-height: 90px;
   }
   
   .service-name {

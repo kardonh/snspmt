@@ -250,6 +250,32 @@ const PointsPage = () => {
             />
           </div>
 
+          {/* 카카오뱅크 계좌번호 정보 */}
+          <div className="account-info">
+            <h3>
+              <CreditCard size={20} />
+              입금 계좌 정보
+            </h3>
+            <div className="account-details">
+              <div className="account-item">
+                <span className="account-label">은행명</span>
+                <span className="account-value">카카오뱅크</span>
+              </div>
+              <div className="account-item">
+                <span className="account-label">계좌번호</span>
+                <span className="account-value">3333-34-9347430</span>
+              </div>
+              <div className="account-item">
+                <span className="account-label">예금주</span>
+                <span className="account-value">(주)스마트소셜미디어</span>
+              </div>
+            </div>
+            <div className="account-note">
+              <p>※ 위 계좌로 입금 후 구매 신청을 해주세요.</p>
+              <p>※ 입금자 명은 반드시 본인 명의로 입금해주세요.</p>
+            </div>
+          </div>
+
           {/* 영수증 계산서 선택 */}
           <div className="receipt-section">
             <h3>
