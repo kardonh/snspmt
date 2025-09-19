@@ -35,14 +35,16 @@
 .mobile-close-btn:active {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  background: #ef4444;
+  background: white;
+  color: #3b82f6;
 }
 
 .mobile-close-btn:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  background: #ef4444;
+  background: white;
+  color: #3b82f6;
 }
 
 /* Logo */
@@ -138,14 +140,16 @@
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   transform: translateY(0);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
+  color: #3b82f6;
 }
 
 .login-btn:focus, .logout-btn:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
+  color: #3b82f6;
 }
 
 /* Navigation Menu */
@@ -181,14 +185,14 @@
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   transform: translateX(2px);
-  background: transparent;
+  background: white;
 }
 
 .sidebar-item:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  background: transparent;
+  background: white;
 }
 
 .sidebar-item.active {
@@ -231,14 +235,14 @@
   border-color: #dc2626;
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
   transform: translateX(2px);
-  background: transparent;
+  background: white;
 }
 
 .admin-item:focus {
   outline: none;
   border-color: #dc2626;
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
-  background: transparent;
+  background: white;
 }
 
 .admin-item.active {
