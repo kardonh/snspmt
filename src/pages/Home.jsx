@@ -1103,9 +1103,11 @@ const Home = () => {
                     onClick={() => handleServiceSelect(id)}
                   >
                     <div className="service-content">
-                      <span className="service-name">{name}</span>
-                      {getServiceBadge(id)}
-                      {badge && <span className="service-badge custom">{badge}</span>}
+                      <div className="service-title-row">
+                        <span className="service-name">{name}</span>
+                        {getServiceBadge(id)}
+                        {badge && <span className="service-badge custom">{badge}</span>}
+                      </div>
                       {featured && <Star size={16} className="featured-icon" />}
                       {special && (
                         <div className="special-indicator">
