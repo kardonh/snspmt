@@ -974,6 +974,8 @@
   position: relative;
   z-index: 2;
   width: 100%;
+  justify-content: center;
+  min-height: 80px;
 }
 
 .service-content span {
@@ -984,18 +986,7 @@
   word-break: keep-all;
 }
 
-.service-icon {
-  margin-bottom: 8px;
-  transition: all 0.3s ease;
-}
-
-.service-item:hover .service-icon {
-  transform: scale(1.1);
-}
-
-.service-item.selected .service-icon {
-  transform: scale(1.05);
-}
+/* 아이콘 스타일 제거됨 */
 
 /* 서비스 배지 */
 .service-badge {

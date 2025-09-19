@@ -159,13 +159,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
   background: #007bff;
   color: white;
   border-radius: 50%;
   font-weight: 700;
-  font-size: 18px;
+
   flex-shrink: 0;
 }
 

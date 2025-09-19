@@ -24,14 +24,19 @@ const Header = () => {
       if (currentUser) {
         setPointsLoading(true)
         try {
+          console.log('포인트 조회 시작:', currentUser.uid)
           const response = await smmpanelApi.getUserPoints(currentUser.uid)
-          setUserPoints(response.data.points || 0)
+          console.log('포인트 조회 응답:', response)
+          setUserPoints(response.data?.points || response.points || 0)
         } catch (error) {
           console.error('포인트 조회 실패:', error)
           setUserPoints(0)
         } finally {
           setPointsLoading(false)
         }
+      } else {
+        setUserPoints(0)
+        setPointsLoading(false)
       }
     }
 
@@ -76,7 +81,7 @@ const Header = () => {
                 <div className="points-info">
                   <Coins size={16} />
                   <span className="points-amount">
-                    {pointsLoading ? '...' : userPoints.toLocaleString()}P
+                    {pointsLoading ? '로딩...' : `${userPoints.toLocaleString()}P`}
                   </span>
                 </div>
                 <Link to="/points" className="charge-btn">

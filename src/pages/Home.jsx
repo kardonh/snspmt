@@ -495,12 +495,14 @@ const Home = () => {
         ]
       case 'youtube':
         return [
-          { id: 'views', name: '🇰🇷🌐유튜브 조회수', description: '동영상 조회수 서비스' },
-          { id: 'auto_views', name: '🇰🇷🌐유튜브 자동 조회수', description: '자동 조회수 서비스' },
-          { id: 'likes', name: '🇰🇷🌐유튜브 좋아요', description: '동영상 좋아요 서비스' },
-          { id: 'auto_likes', name: '🇰🇷🌐유튜브 자동 좋아요', description: '자동 좋아요 서비스' },
-          { id: 'subscribers', name: '🇰🇷🌐유튜브 채널 구독자', description: '채널 구독자 서비스' },
-          { id: 'comments_shares', name: '🇰🇷🌐유튜브 댓글/공유/기타', description: '댓글, 공유, 기타 서비스' },
+          { id: 'views_korean', name: '🇰🇷유튜브 한국인 조회수', description: '한국인 조회수 서비스' },
+          { id: 'views_foreign', name: '🌐유튜브 외국인 조회수', description: '외국인 조회수 서비스' },
+          { id: 'likes_korean', name: '🇰🇷유튜브 한국인 좋아요', description: '한국인 좋아요 서비스' },
+          { id: 'likes_foreign', name: '🌐유튜브 외국인 좋아요', description: '외국인 좋아요 서비스' },
+          { id: 'subscribers_korean', name: '🇰🇷유튜브 한국인 채널 구독자', description: '한국인 채널 구독자 서비스' },
+          { id: 'subscribers_foreign', name: '🌐유튜브 외국인 채널 구독자', description: '외국인 채널 구독자 서비스' },
+          { id: 'comments_korean', name: '🇰🇷유튜브 한국인 댓글', description: '한국인 댓글 서비스' },
+          { id: 'comments_foreign', name: '🌐유튜브 외국인 댓글', description: '외국인 댓글 서비스' },
           { id: 'live_streaming', name: '🌐유튜브 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' }
         ]
       case 'tiktok':
@@ -510,11 +512,14 @@ const Home = () => {
         ]
       case 'facebook':
         return [
-          { id: 'foreign_services', name: '🌐페이스북 외국인 서비스', description: '외국인 서비스' },
           { id: 'page_likes_korean', name: '🇰🇷페이스북 한국인 페이지 좋아요', description: '한국인 페이지 좋아요 서비스' },
+          { id: 'page_likes_foreign', name: '🌐페이스북 외국인 페이지 좋아요', description: '외국인 페이지 좋아요 서비스' },
           { id: 'post_likes_korean', name: '🇰🇷페이스북 한국인 게시물 좋아요', description: '한국인 게시물 좋아요 서비스' },
+          { id: 'post_likes_foreign', name: '🌐페이스북 외국인 게시물 좋아요', description: '외국인 게시물 좋아요 서비스' },
           { id: 'post_comments_korean', name: '🇰🇷페이스북 한국인 게시물 댓글', description: '한국인 게시물 댓글 서비스' },
-          { id: 'profile_follows_korean', name: '🇰🇷페이스북 한국인 개인계정 팔로우', description: '한국인 개인계정 팔로우 서비스' }
+          { id: 'post_comments_foreign', name: '🌐페이스북 외국인 게시물 댓글', description: '외국인 게시물 댓글 서비스' },
+          { id: 'profile_follows_korean', name: '🇰🇷페이스북 한국인 개인계정 팔로우', description: '한국인 개인계정 팔로우 서비스' },
+          { id: 'profile_follows_foreign', name: '🌐페이스북 외국인 개인계정 팔로우', description: '외국인 개인계정 팔로우 서비스' }
         ]
       case 'threads':
         return [
@@ -1035,76 +1040,65 @@ const Home = () => {
           </div>
 
           <div className="service-list">
-            {services.map(({ id, name, badge, featured, special }) => {
-              // 서비스별 아이콘 매핑
-              const getServiceIcon = (serviceId) => {
-                switch (serviceId) {
-                  case 'popular_posts':
-                    return <Heart size={24} className="service-icon" style={{ color: '#e4405f' }} />
-                  case 'likes_korean':
-                    return <Heart size={24} className="service-icon" style={{ color: '#e4405f' }} />
-                  case 'likes_foreign':
-                    return <Heart size={24} className="service-icon" style={{ color: '#ff6b6b' }} />
-                  case 'followers_korean':
-                    return <Users size={24} className="service-icon" style={{ color: '#4f46e5' }} />
-                  case 'views':
-                    return <Eye size={24} className="service-icon" style={{ color: '#10b981' }} />
-                  case 'comments_korean':
-                    return <MessageCircle size={24} className="service-icon" style={{ color: '#f59e0b' }} />
-                  case 'regram_korean':
-                    return <Package size={24} className="service-icon" style={{ color: '#8b5cf6' }} />
-                  case 'followers_foreign':
-                    return <Users size={24} className="service-icon" style={{ color: '#6b7280' }} />
-                  case 'exposure_save_share':
-                    return <TrendingUp size={24} className="service-icon" style={{ color: '#06b6d4' }} />
-                  case 'auto_exposure_save_share':
-                    return <Zap size={24} className="service-icon" style={{ color: '#f59e0b' }} />
-                  case 'live_streaming':
-                    return <MessageCircle size={24} className="service-icon" style={{ color: '#ef4444' }} />
-                  case 'auto_likes':
-                    return <Heart size={24} className="service-icon" style={{ color: '#ec4899' }} />
-                  case 'auto_views':
-                    return <Eye size={24} className="service-icon" style={{ color: '#10b981' }} />
-                  case 'auto_comments':
-                    return <MessageCircle size={24} className="service-icon" style={{ color: '#f59e0b' }} />
-                  default:
-                    return <Globe size={24} className="service-icon" style={{ color: '#6b7280' }} />
+            {services
+              .filter(service => {
+                // 한국인/외국인 탭에 따라 필터링
+                if (selectedTab === 'korean') {
+                  return service.id.includes('korean') || 
+                         service.id === 'popular_posts' || 
+                         service.id === 'views' || 
+                         service.id === 'exposure_save_share' || 
+                         service.id === 'auto_exposure_save_share' ||
+                         service.id === 'tiktok_services' ||
+                         service.id === 'tiktok_live_streaming' ||
+                         service.id === 'threads' ||
+                         service.id === 'naver' ||
+                         service.id === 'kakao' ||
+                         service.id === 'telegram' ||
+                         service.id === 'whatsapp' ||
+                         service.id === 'twitter'
+                } else if (selectedTab === 'foreign') {
+                  return service.id.includes('foreign') || 
+                         service.id === 'live_streaming' || 
+                         service.id === 'auto_likes' || 
+                         service.id === 'auto_views' || 
+                         service.id === 'auto_comments'
                 }
-              }
+                return true
+              })
+              .map(({ id, name, badge, featured, special }) => {
+                // 서비스별 배지 매핑
+                const getServiceBadge = (serviceId) => {
+                  if (serviceId.includes('auto_')) {
+                    return <span className="service-badge auto">자동</span>
+                  }
+                  if (serviceId === 'popular_posts') {
+                    return <span className="service-badge new">N</span>
+                  }
+                  return null
+                }
 
-              // 서비스별 배지 매핑
-              const getServiceBadge = (serviceId) => {
-                if (serviceId.includes('auto_')) {
-                  return <span className="service-badge auto">자동</span>
-                }
-                if (serviceId === 'popular_posts') {
-                  return <span className="service-badge new">N</span>
-                }
-                return null
-              }
-
-              return (
-                <div 
-                  key={id} 
-                  className={`service-item ${special ? 'special' : ''} ${featured ? 'featured' : ''} ${selectedService === id ? 'selected' : ''}`}
-                  onClick={() => handleServiceSelect(id)}
-                >
-                  <div className="service-content">
-                    {getServiceIcon(id)}
-                    <span className="service-name">{name}</span>
-                    {getServiceBadge(id)}
-                    {badge && <span className="service-badge custom">{badge}</span>}
-                    {featured && <Star size={16} className="featured-icon" />}
-                    {special && (
-                      <div className="special-indicator">
-                        <Sparkles size={16} />
-                        <Sparkles size={16} />
-                      </div>
-                    )}
+                return (
+                  <div 
+                    key={id} 
+                    className={`service-item ${special ? 'special' : ''} ${featured ? 'featured' : ''} ${selectedService === id ? 'selected' : ''}`}
+                    onClick={() => handleServiceSelect(id)}
+                  >
+                    <div className="service-content">
+                      <span className="service-name">{name}</span>
+                      {getServiceBadge(id)}
+                      {badge && <span className="service-badge custom">{badge}</span>}
+                      {featured && <Star size={16} className="featured-icon" />}
+                      {special && (
+                        <div className="special-indicator">
+                          <Sparkles size={16} />
+                          <Sparkles size={16} />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
           </div>
         </div>
       </div>
