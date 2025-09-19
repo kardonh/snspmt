@@ -73,6 +73,51 @@
   gap: 16px;
 }
 
+.mobile-user-info {
+  display: none;
+  align-items: center;
+  gap: 12px;
+}
+
+.desktop-user-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.points-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #667eea;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.points-amount {
+  white-space: nowrap;
+}
+
+.charge-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.charge-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
 .orders-link {
   color: #64748b;
   text-decoration: none;
@@ -169,26 +214,25 @@
   }
   
   .header-nav {
-    gap: 12px;
+    display: none; /* 모바일에서는 네비게이션 숨김 */
   }
   
-  .nav-link {
-    font-size: 12px;
-    padding: 5px 10px;
+  .mobile-user-info {
+    display: flex;
   }
   
-  .orders-link {
-    font-size: 13px;
-    padding: 6px 12px;
+  .desktop-user-info {
+    display: none;
   }
   
-  .username {
-    font-size: 13px;
-  }
-  
-  .logout-btn {
+  .points-info {
     font-size: 13px;
     padding: 6px 10px;
+  }
+  
+  .charge-btn {
+    font-size: 13px;
+    padding: 6px 12px;
   }
 }
 
@@ -203,26 +247,26 @@
   }
   
   .header-nav {
+    display: none; /* 모바일에서는 네비게이션 숨김 */
+  }
+  
+  .mobile-user-info {
+    display: flex;
     gap: 8px;
   }
   
-  .nav-link {
-    font-size: 11px;
-    padding: 4px 8px;
+  .desktop-user-info {
+    display: none;
   }
   
-  .orders-link {
-    font-size: 12px;
-    padding: 5px 10px;
-  }
-  
-  .username {
-    font-size: 12px;
-  }
-  
-  .logout-btn {
+  .points-info {
     font-size: 12px;
     padding: 5px 8px;
+  }
+  
+  .charge-btn {
+    font-size: 12px;
+    padding: 5px 10px;
   }
 }
 
