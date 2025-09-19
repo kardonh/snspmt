@@ -158,8 +158,8 @@ export const smmpanelApi = {
   registerUser: (userData) => apiClient.post('/register', userData),
   
   
-  // 사용자 활동 업데이트
-  updateUserActivity: (userId) => apiClient.post('/activity', { userId }),
+  // 사용자 활동 업데이트 (현재 백엔드에서 지원하지 않음)
+  // updateUserActivity: (userId) => apiClient.post('/activity', { userId }),
   
   // 관리자용 사용자 정보 조회
   getUsersInfo: () => apiClient.get('/admin/users'),

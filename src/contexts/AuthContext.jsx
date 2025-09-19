@@ -108,17 +108,8 @@ export function AuthProvider({ children }) {
             name: user.displayName || ''
           });
           
-          // 주기적으로 활동 업데이트 (30분마다로 최적화)
-          const activityInterval = setInterval(async () => {
-            try {
-              await smmpanelApi.updateUserActivity(user.uid);
-            } catch (error) {
-              console.error('활동 업데이트 실패:', error);
-            }
-          }, 30 * 60 * 1000); // 30분으로 최적화
-          
-          // 컴포넌트 언마운트 시 인터벌 정리
-          return () => clearInterval(activityInterval);
+          // 활동 업데이트는 현재 백엔드에서 지원하지 않으므로 제거
+          // 필요시 나중에 구현 예정
         } catch (error) {
           console.error('사용자 정보 저장 실패:', error);
           // 오프라인 모드에서는 에러를 무시하고 계속 진행
