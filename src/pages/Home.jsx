@@ -994,7 +994,7 @@ const Home = () => {
         </div>
           ))}
         </div>
-          </div>
+      </div>
       
       {/* Service Type Selection */}
       <div className="service-type-selection">
@@ -1052,12 +1052,12 @@ const Home = () => {
                   </div>
                   <div className="detailed-service-price">
                     {(selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp') ? 
-                      `1개당 ₩${service.price.toFixed(2)}` : 
-                      `1개당 ${service.price.toFixed(2)}원`
+                      `₩${service.price.toFixed(2)}` : 
+                      `${service.price.toFixed(2)}원`
                     }
                   </div>
                 </div>
-                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -1093,94 +1093,7 @@ const Home = () => {
               최소: {selectedDetailedService.min.toLocaleString()} ~ 최대: {selectedDetailedService.max.toLocaleString()}
             </div>
           </div>
-            
-            {/* Quick Add/Subtract Buttons */}
-            <div className="quick-add-buttons">
-              <button 
-                className="quick-subtract-btn"
-                onClick={() => {
-                  const newQuantity = Math.max(selectedDetailedService.min, quantity - 10)
-                  if (newQuantity >= selectedDetailedService.min) {
-                    handleQuantityChange(newQuantity)
-                  }
-                }}
-                disabled={quantity <= selectedDetailedService.min}
-              >
-                -10
-              </button>
-              <button 
-                className="quick-subtract-btn"
-                onClick={() => {
-                  const newQuantity = Math.max(selectedDetailedService.min, quantity - 100)
-                  if (newQuantity >= selectedDetailedService.min) {
-                    handleQuantityChange(newQuantity)
-                  }
-                }}
-                disabled={quantity <= selectedDetailedService.min}
-              >
-                -100
-              </button>
-              <button 
-                className="quick-subtract-btn"
-                onClick={() => {
-                  const newQuantity = Math.max(selectedDetailedService.min, quantity - 1000)
-                  if (newQuantity >= selectedDetailedService.min) {
-                    handleQuantityChange(newQuantity)
-                  }
-                }}
-                disabled={quantity <= selectedDetailedService.min}
-              >
-                -1000
-              </button>
-              <button 
-                className="quick-add-btn"
-                onClick={() => {
-                  const newQuantity = Math.min(selectedDetailedService.max, quantity + 10)
-                  if (newQuantity <= selectedDetailedService.max) {
-                    handleQuantityChange(newQuantity)
-                  }
-                }}
-                disabled={quantity >= selectedDetailedService.max}
-              >
-                +10
-              </button>
-              <button 
-                className="quick-add-btn"
-                onClick={() => {
-                  const newQuantity = Math.min(selectedDetailedService.max, quantity + 100)
-                  if (newQuantity <= selectedDetailedService.max) {
-                    handleQuantityChange(newQuantity)
-                  }
-                }}
-                disabled={quantity >= selectedDetailedService.max}
-              >
-                +100
-              </button>
-              <button 
-                className="quick-add-btn"
-                onClick={() => {
-                  const newQuantity = Math.min(selectedDetailedService.max, quantity + 1000)
-                  if (newQuantity <= selectedDetailedService.max) {
-                    handleQuantityChange(newQuantity)
-                  }
-                }}
-                disabled={quantity >= selectedDetailedService.max}
-              >
-                +1000
-              </button>
-                </div>
-            
-            <div className="quantity-info">
-              <p>1개당 {selectedDetailedService.price.toFixed(2)}원</p>
-              <p>최소: {selectedDetailedService.min.toLocaleString()} ~ 최대: {selectedDetailedService.max.toLocaleString()}</p>
-              <p>1개 단위로 조정 가능</p>
-              {getDiscount(quantity) > 0 && (
-                <p className="discount-applied">{getDiscount(quantity)}% 할인 적용</p>
-              )}
-        </div>
-      </div>
 
-          {/* Link Input */}
           <div className="form-group">
             <label>링크 입력</label>
             <input
@@ -1192,7 +1105,6 @@ const Home = () => {
             />
           </div>
 
-          {/* Package Service Steps Display */}
           {selectedDetailedService && selectedDetailedService.package && selectedDetailedService.steps && (
             <div className="package-steps">
               <h3>📦 패키지 구성</h3>
@@ -1231,7 +1143,7 @@ const Home = () => {
                 rows="4"
               />
               <div className="char-count">{(comments || '').length}/200</div>
-                </div>
+            </div>
           )}
 
 
@@ -1240,7 +1152,7 @@ const Home = () => {
           <div className="price-display">
             <div className="total-price">{totalPrice.toLocaleString()}원</div>
             <div className="price-label">총 금액</div>
-            </div>
+          </div>
 
           {/* Action Buttons */}
           <div className="action-buttons">
@@ -1250,10 +1162,6 @@ const Home = () => {
           </div>
         </div>
       )}
-
-
-
-
 
     </div>
   )
