@@ -580,9 +580,9 @@ const Home = () => {
   const getAvailableServices = (platform) => {
     // 기본 서비스 목록 (실제로는 API에서 가져와야 함)
     return [
-      { id: 'followers_korean', name: '한국인 팔로워', price: 1000, min: 10, max: 10000 },
-      { id: 'likes_korean', name: '한국인 좋아요', price: 500, min: 10, max: 10000 },
-      { id: 'comments_korean', name: '한국인 댓글', price: 2000, min: 5, max: 1000 }
+      //{ id: 'followers_korean', name: '한국인 팔로워', price: 1000, min: 10, max: 10000 },
+      //{ id: 'likes_korean', name: '한국인 좋아요', price: 500, min: 10, max: 10000 },
+      //{ id: 'comments_korean', name: '한국인 댓글', price: 2000, min: 5, max: 1000 }
     ]
   }
 

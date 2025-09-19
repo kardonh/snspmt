@@ -441,7 +441,7 @@
 
 .service-item {
   background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
-  border: 2px solid rgba(135, 206, 235, 0.15);
+  border: 2px solid #000000;
   border-radius: 16px;
   padding: 20px;
   cursor: pointer;
@@ -487,11 +487,11 @@
 
 .service-item.selected {
   background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
-  border: 3px solid #87ceeb;
+  border: 3px solid #000000;
   box-shadow: 
-    0 20px 40px rgba(135, 206, 235, 0.2),
+    0 20px 40px rgba(0, 0, 0, 0.2),
     0 8px 16px rgba(0, 0, 0, 0.08),
-    0 0 0 1px rgba(135, 206, 235, 0.1);
+    0 0 0 1px rgba(0, 0, 0, 0.1);
   position: relative;
   overflow: hidden;
   transform: translateY(-4px);
