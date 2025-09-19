@@ -1,10 +1,59 @@
 import React, { useState } from 'react'
-import { ChevronRight, HelpCircle, ChevronDown, ChevronUp, Instagram, Youtube, Facebook, MessageCircle, Globe, Star, Users, Heart, Eye, MessageSquare } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+import { ChevronRight, HelpCircle, ChevronDown, ChevronUp, Instagram, Youtube, Facebook, MessageCircle, Globe, Star, Users, Heart, Eye, MessageSquare, CreditCard } from 'lucide-react'
 import './GuidePanel.css'
 
 const GuidePanel = () => {
+  const location = useLocation()
   const [expandedGuide, setExpandedGuide] = useState(null)
   const [selectedPlatform, setSelectedPlatform] = useState('all')
+  
+  // 포인트 구매 페이지인지 확인
+  const isPointsPage = location.pathname === '/points'
+
+  // 포인트 구매 페이지용 가이드
+  const paymentGuides = [
+    {
+      id: 1,
+      title: '포인트 구매 결제방법',
+      platform: 'payment',
+      icon: CreditCard,
+      color: '#10b981',
+      description: '포인트를 구매하여 다양한 소셜미디어 서비스를 이용할 수 있습니다.',
+      steps: [
+        '1. 원하는 포인트 패키지를 선택해주세요',
+        '2. 입금자 명과 은행명을 정확히 입력해주세요',
+        '3. 영수증/세금계산서 필요시 관련 정보를 입력해주세요',
+        '4. 결제 금액을 확인하고 구매 신청을 해주세요',
+        '5. 입금 후 24시간 내에 포인트가 충전됩니다'
+      ],
+      tips: [
+        '• 입금자 명은 반드시 본인 명의로 입금해주세요',
+        '• 입금 후 고객센터로 연락주시면 빠른 처리가 가능합니다',
+        '• 세금계산서는 사업자 등록증이 필요합니다'
+      ]
+    },
+    {
+      id: 2,
+      title: '포인트 사용 방법',
+      platform: 'payment',
+      icon: Star,
+      color: '#f59e0b',
+      description: '구매한 포인트로 다양한 소셜미디어 서비스를 주문할 수 있습니다.',
+      steps: [
+        '1. 원하는 플랫폼과 서비스를 선택해주세요',
+        '2. 서비스 링크와 수량을 입력해주세요',
+        '3. 포인트로 결제하여 주문을 완료해주세요',
+        '4. 주문 후 5분 내에 작업이 시작됩니다',
+        '5. 작업 진행 상황은 주문내역에서 확인할 수 있습니다'
+      ],
+      tips: [
+        '• 포인트는 현금으로 환불되지 않습니다',
+        '• 포인트 잔액은 언제든지 확인할 수 있습니다',
+        '• 포인트 구매 시 추가 포인트가 지급될 수 있습니다'
+      ]
+    }
+  ]
 
   const guides = [
     {
@@ -189,16 +238,22 @@ const GuidePanel = () => {
     }
   ]
 
-  const platformFilters = [
-    { id: 'all', name: '전체', icon: Star },
-    { id: 'instagram', name: '인스타그램', icon: Instagram, color: '#e4405f' },
-    { id: 'youtube', name: '유튜브', icon: Youtube, color: '#ff0000' },
-    { id: 'facebook', name: '페이스북', icon: Facebook, color: '#1877f2' }
-  ]
+  const platformFilters = isPointsPage 
+    ? [
+        { id: 'all', name: '전체', icon: Star },
+        { id: 'payment', name: '결제방법', icon: CreditCard, color: '#10b981' }
+      ]
+    : [
+        { id: 'all', name: '전체', icon: Star },
+        { id: 'instagram', name: '인스타그램', icon: Instagram, color: '#e4405f' },
+        { id: 'youtube', name: '유튜브', icon: Youtube, color: '#ff0000' },
+        { id: 'facebook', name: '페이스북', icon: Facebook, color: '#1877f2' }
+      ]
 
+  const currentGuides = isPointsPage ? paymentGuides : guides
   const filteredGuides = selectedPlatform === 'all' 
-    ? guides 
-    : guides.filter(guide => guide.platform === selectedPlatform)
+    ? currentGuides 
+    : currentGuides.filter(guide => guide.platform === selectedPlatform)
 
   const handleGuideClick = (guideId) => {
     setExpandedGuide(expandedGuide === guideId ? null : guideId)
@@ -213,7 +268,7 @@ const GuidePanel = () => {
     <aside className="guide-panel">
       <div className="guide-header">
         <HelpCircle size={20} />
-        <h3>주문방법 : 링크 입력 가이드</h3>
+        <h3>{isPointsPage ? '결제방법 : 포인트 구매 가이드' : '주문방법 : 링크 입력 가이드'}</h3>
       </div>
 
       {/* 플랫폼 필터 */}
