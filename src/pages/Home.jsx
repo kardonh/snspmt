@@ -1049,8 +1049,8 @@ const Home = () => {
                   </div>
                   <div className="detailed-service-price">
                     {(selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp') ? 
-                      `₩${(service.price / 1000).toLocaleString()}` : 
-                      `${service.price.toFixed(2)}원`
+                      `1개당 ₩${service.price.toFixed(2)}` : 
+                      `1개당 ${service.price.toFixed(2)}원`
                     }
                   </div>
                 </div>
@@ -1096,7 +1096,7 @@ const Home = () => {
             ) : (
               <p>
                 {(selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp') ? 
-                  `1000개당 ₩${(selectedDetailedService.price / 1000).toLocaleString()}` : 
+                  `1개당 ₩${selectedDetailedService.price.toFixed(2)}` : 
                   `1개당 ${selectedDetailedService.price.toFixed(2)}원`
                 } | 최소: {selectedDetailedService.min.toLocaleString()} ~ 최대: {selectedDetailedService.max.toLocaleString()}
                 {selectedDetailedService.time && selectedDetailedService.time !== '데이터가 충분하지 않습니다' && (
