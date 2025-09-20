@@ -466,13 +466,13 @@ const Home = () => {
     { id: 'recommended', name: '추천서비스', icon: Star, color: '#f59e0b' },
     { id: 'event', name: '이벤트', icon: Package, color: '#8b5cf6' },
     { id: 'top-exposure', name: '상위노출', icon: Trophy, color: '#f59e0b' },
-    { id: 'instagram', name: '인스타그램', icon: Instagram, color: '#e4405f' },
-    { id: 'youtube', name: '유튜브', icon: Youtube, color: '#ff0000' },
-    { id: 'facebook', name: '페이스북', icon: Facebook, color: '#1877f2' },
-    { id: 'tiktok', name: '틱톡', icon: MessageCircle, color: '#000000' },
-    { id: 'threads', name: '스레드', icon: MessageSquare, color: '#000000' },
-    { id: 'twitter', name: '트위터', icon: Twitter, color: '#1da1f2' },
-    { id: 'kakao', name: '카카오', icon: MessageCircle, color: '#fbbf24' },
+    { id: 'instagram', name: '인스타그램', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/instagram.svg', color: '#e4405f' },
+    { id: 'youtube', name: '유튜브', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/youtube.svg', color: '#ff0000' },
+    { id: 'facebook', name: '페이스북', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/facebook.svg', color: '#1877f2' },
+    { id: 'tiktok', name: '틱톡', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/naver.svg', color: '#000000' },
+    { id: 'threads', name: '스레드', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/threads.svg', color: '#000000' },
+    { id: 'twitter', name: '트위터', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/X.svg', color: '#1da1f2' },
+    { id: 'kakao', name: '카카오', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/kakao.svg', color: '#fbbf24' },
     { id: 'telegram', name: '텔레그램', icon: MessageCircle, color: '#0088cc' },
     { id: 'whatsapp', name: '왓츠앱', icon: MessageSquare, color: '#25d366' },
     // { id: 'news-media', name: '뉴스언론보도', icon: FileText, color: '#3b82f6' },
@@ -991,7 +991,7 @@ const Home = () => {
         <p>원하는 서비스를 선택하고 주문해보세요!</p>
         
         <div className="platform-grid">
-          {platforms.map(({ id, name, icon: Icon, color, description }) => (
+          {platforms.map(({ id, name, icon, color, description }) => (
             <div
               key={id}
               className={`platform-item ${selectedPlatform === id ? 'selected' : ''}`}
@@ -1013,7 +1013,11 @@ const Home = () => {
                                             color === '#6b7280' ? '#4b5563' : '#667eea'
               }}
             >
-              <Icon size={32} className="platform-icon" />
+              {typeof icon === 'string' ? (
+                <img src={icon} alt={name} className="platform-icon" style={{ width: 32, height: 32 }} />
+              ) : (
+                <icon size={32} className="platform-icon" />
+              )}
               <div className="platform-name">{name}</div>
               <div className="platform-description">{description}</div>
         </div>
