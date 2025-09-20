@@ -13,21 +13,34 @@ import sqlite3
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
 
-# AWS Secrets Manager에서 설정 로드
+# 데이터베이스 연결 설정 (AWS Secrets Manager 우선, 환경 변수 폴백)
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-cluste.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
+SMMPANEL_API_KEY = os.environ.get('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
+
+# AWS Secrets Manager 시도 (선택사항)
 try:
     from aws_secrets_manager import get_database_url, get_smmpanel_api_key
-    DATABASE_URL = get_database_url()
-    SMMPANEL_API_KEY = get_smmpanel_api_key()
-    print("✅ AWS Secrets Manager에서 설정 로드 완료")
-except ImportError:
-    # AWS Secrets Manager를 사용할 수 없는 경우 환경 변수 사용
-    DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-cluste.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
-    SMMPANEL_API_KEY = os.environ.get('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
-    print("⚠️ 환경 변수에서 설정 로드")
+    aws_db_url = get_database_url()
+    aws_api_key = get_smmpanel_api_key()
+    if aws_db_url and aws_db_url != DATABASE_URL:
+        DATABASE_URL = aws_db_url
+        print("✅ AWS Secrets Manager에서 데이터베이스 URL 로드")
+    if aws_api_key and aws_api_key != SMMPANEL_API_KEY:
+        SMMPANEL_API_KEY = aws_api_key
+        print("✅ AWS Secrets Manager에서 API 키 로드")
+except ImportError as e:
+    print(f"⚠️ AWS Secrets Manager 사용 불가: {e}")
+except Exception as e:
+    print(f"⚠️ AWS Secrets Manager 오류: {e}")
+
+print(f"🔗 데이터베이스 URL: {DATABASE_URL[:50]}...")
+print(f"🔑 API 키: {SMMPANEL_API_KEY[:20]}...")
 
 def get_db_connection():
     """데이터베이스 연결을 가져옵니다."""
     try:
+        print(f"🔗 데이터베이스 연결 시도: {DATABASE_URL[:50]}...")
+        
         if DATABASE_URL.startswith('postgresql://'):
             # PostgreSQL 연결 설정 최적화
             conn = psycopg2.connect(
@@ -39,33 +52,43 @@ def get_db_connection():
             )
             # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
             conn.autocommit = False
+            print("✅ PostgreSQL 연결 성공")
             return conn
         else:
             # SQLite fallback
             db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row  # 딕셔너리 형태로 결과 반환
+            print("✅ SQLite 연결 성공")
             return conn
+    except psycopg2.Error as e:
+        print(f"❌ PostgreSQL 연결 실패: {e}")
+        print(f"   데이터베이스 URL: {DATABASE_URL[:50]}...")
+        raise e
     except Exception as e:
-        print(f"데이터베이스 연결 실패: {e}")
+        print(f"❌ 데이터베이스 연결 실패: {e}")
         # SQLite fallback
         try:
+            print("🔄 SQLite 폴백 시도...")
             db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
+            print("✅ SQLite 폴백 연결 성공")
             return conn
         except Exception as fallback_error:
-            print(f"SQLite 폴백도 실패: {fallback_error}")
+            print(f"❌ SQLite 폴백도 실패: {fallback_error}")
             raise fallback_error
 
 def init_database():
     """데이터베이스 테이블을 초기화합니다."""
     try:
+        print("🔧 데이터베이스 초기화 시작")
         conn = get_db_connection()
         cursor = conn.cursor()
         
         # PostgreSQL인지 SQLite인지 확인
         is_postgresql = DATABASE_URL.startswith('postgresql://')
+        print(f"📊 데이터베이스 타입: {'PostgreSQL' if is_postgresql else 'SQLite'}")
         
         if is_postgresql:
             # PostgreSQL 테이블 생성
@@ -240,6 +263,45 @@ def initialize_app():
         print("✅ 앱 시작 완료")
     except Exception as e:
         print(f"⚠️ 앱 초기화 중 오류: {e}")
+
+# 데이터베이스 연결 테스트
+@app.route('/api/test/db', methods=['GET'])
+def test_database_connection():
+    """데이터베이스 연결 테스트"""
+    try:
+        print("🔍 데이터베이스 연결 테스트 시작")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("SELECT 1 as test")
+            result = cursor.fetchone()
+            conn.close()
+            return jsonify({
+                'status': 'success',
+                'database': 'postgresql',
+                'connection': 'ok',
+                'test_result': result[0] if result else None
+            }), 200
+        else:
+            cursor.execute("SELECT 1 as test")
+            result = cursor.fetchone()
+            conn.close()
+            return jsonify({
+                'status': 'success',
+                'database': 'sqlite',
+                'connection': 'ok',
+                'test_result': result[0] if result else None
+            }), 200
+            
+    except Exception as e:
+        print(f"❌ 데이터베이스 연결 테스트 실패: {e}")
+        return jsonify({
+            'status': 'error',
+            'database': 'unknown',
+            'connection': 'failed',
+            'error': str(e)
+        }), 500
 
 # 헬스 체크
 @app.route('/health', methods=['GET'])
@@ -585,6 +647,7 @@ def get_admin_stats():
 def get_admin_purchases():
     """관리자 포인트 구매 목록"""
     try:
+        print("🔍 관리자 포인트 구매 목록 조회 시작")
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -958,6 +1021,7 @@ def get_purchase_history():
 def get_admin_users():
     """관리자 사용자 목록"""
     try:
+        print("🔍 관리자 사용자 목록 조회 시작")
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -979,6 +1043,7 @@ def get_admin_users():
             """)
         
         users = cursor.fetchall()
+        print(f"📊 조회된 사용자 수: {len(users)}")
         conn.close()
         
         user_list = []
@@ -1005,11 +1070,15 @@ def get_admin_users():
                     'last_activity': 'N/A'
                 })
             
+        print(f"✅ 사용자 목록 반환: {len(user_list)}명")
         return jsonify({
             'users': user_list
         }), 200
         
     except Exception as e:
+        print(f"❌ 사용자 목록 조회 실패: {str(e)}")
+        import traceback
+        print(f"❌ 상세 오류: {traceback.format_exc()}")
         return jsonify({'error': f'사용자 목록 조회 실패: {str(e)}'}), 500
 
 # 관리자 거래 내역
