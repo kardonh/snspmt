@@ -194,9 +194,9 @@
 }
 
 .sidebar-item.active {
-  background: linear-gradient(135deg, #5a69aa 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+ 
+  color: rgb(0, 0, 0);
+  
 }
 
 .sidebar-item-icon {

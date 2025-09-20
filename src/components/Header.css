@@ -221,11 +221,11 @@
   }
   
   .mobile-user-info {
-    display: flex;
+    display: flex !important;
   }
   
   .desktop-user-info {
-    display: none;
+    display: none !important;
   }
   
   .points-info {
@@ -255,12 +255,12 @@
   }
   
   .mobile-user-info {
-    display: flex;
+    display: flex !important;
     gap: 8px;
   }
   
   .desktop-user-info {
-    display: none;
+    display: none !important;
   }
   
   .points-info {
