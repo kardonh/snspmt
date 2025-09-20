@@ -27,6 +27,9 @@ COPY . .
 # Build frontend
 RUN npm install && npm run build
 
+# Make migration script executable
+RUN chmod +x migrate_database.py
+
 # Create directories for Flask and SQLite
 RUN mkdir -p /app/logs && chmod 777 /app/logs
 RUN mkdir -p /app/data && chmod 777 /app/data

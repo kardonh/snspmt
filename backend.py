@@ -13,26 +13,50 @@ import sqlite3
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
 
-# 데이터베이스 연결 설정
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-cluste.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
+# AWS Secrets Manager에서 설정 로드
+try:
+    from aws_secrets_manager import get_database_url, get_smmpanel_api_key
+    DATABASE_URL = get_database_url()
+    SMMPANEL_API_KEY = get_smmpanel_api_key()
+    print("✅ AWS Secrets Manager에서 설정 로드 완료")
+except ImportError:
+    # AWS Secrets Manager를 사용할 수 없는 경우 환경 변수 사용
+    DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-cluste.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
+    SMMPANEL_API_KEY = os.environ.get('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
+    print("⚠️ 환경 변수에서 설정 로드")
 
 def get_db_connection():
     """데이터베이스 연결을 가져옵니다."""
     try:
         if DATABASE_URL.startswith('postgresql://'):
-            conn = psycopg2.connect(DATABASE_URL)
+            # PostgreSQL 연결 설정 최적화
+            conn = psycopg2.connect(
+                DATABASE_URL,
+                connect_timeout=30,
+                keepalives_idle=600,
+                keepalives_interval=30,
+                keepalives_count=3
+            )
+            # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
+            conn.autocommit = False
             return conn
         else:
             # SQLite fallback
             db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path, timeout=30)
+            conn.row_factory = sqlite3.Row  # 딕셔너리 형태로 결과 반환
             return conn
     except Exception as e:
         print(f"데이터베이스 연결 실패: {e}")
         # SQLite fallback
-        db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
-        conn = sqlite3.connect(db_path)
-        return conn
+        try:
+            db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
+            conn = sqlite3.connect(db_path, timeout=30)
+            conn.row_factory = sqlite3.Row
+            return conn
+        except Exception as fallback_error:
+            print(f"SQLite 폴백도 실패: {fallback_error}")
+            raise fallback_error
 
 def init_database():
     """데이터베이스 테이블을 초기화합니다."""
@@ -50,6 +74,8 @@ def init_database():
                     user_id VARCHAR(255) PRIMARY KEY,
                     email VARCHAR(255) UNIQUE NOT NULL,
                     name VARCHAR(255) NOT NULL,
+                    display_name VARCHAR(255),
+                    last_activity TIMESTAMP DEFAULT NOW(),
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
@@ -65,20 +91,52 @@ def init_database():
             """)
             
             cursor.execute("""
-                DROP TABLE IF EXISTS orders
+                CREATE TABLE IF NOT EXISTS referral_codes (
+                    id SERIAL PRIMARY KEY,
+                    code VARCHAR(50) UNIQUE NOT NULL,
+                    user_id VARCHAR(255),
+                    user_email VARCHAR(255),
+                    is_active BOOLEAN DEFAULT true,
+                    usage_count INTEGER DEFAULT 0,
+                    total_commission DECIMAL(10,2) DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
             """)
+            
             cursor.execute("""
-                CREATE TABLE orders (
+                CREATE TABLE IF NOT EXISTS referrals (
+                    id SERIAL PRIMARY KEY,
+                    referrer_id VARCHAR(255) NOT NULL,
+                    referrer_email VARCHAR(255) NOT NULL,
+                    referred_id VARCHAR(255) NOT NULL,
+                    referred_email VARCHAR(255) NOT NULL,
+                    referral_code VARCHAR(50) NOT NULL,
+                    commission DECIMAL(10,2) DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
                     order_id SERIAL PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
+                    user_email VARCHAR(255),
                     service_id VARCHAR(255) NOT NULL,
+                    platform VARCHAR(255),
+                    service_name VARCHAR(255),
+                    service_type VARCHAR(255),
+                    service_platform VARCHAR(255),
+                    service_quantity INTEGER,
+                    service_link TEXT,
                     link TEXT NOT NULL,
                     quantity INTEGER NOT NULL,
                     price DECIMAL(10,2) NOT NULL,
-                    status VARCHAR(50) DEFAULT 'pending_payment',
+                    total_price DECIMAL(10,2),
+                    amount DECIMAL(10,2),
+                    status VARCHAR(50) DEFAULT 'pending',
                     external_order_id VARCHAR(255),
-                    platform VARCHAR(255),
-                    service_name VARCHAR(255),
+                    remarks TEXT,
                     comments TEXT,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
@@ -86,17 +144,20 @@ def init_database():
             """)
             
             cursor.execute("""
-                DROP TABLE IF EXISTS point_purchases
-            """)
-            cursor.execute("""
-                CREATE TABLE point_purchases (
-                id SERIAL PRIMARY KEY,
+                CREATE TABLE IF NOT EXISTS point_purchases (
+                    id SERIAL PRIMARY KEY,
+                    purchase_id VARCHAR(255) UNIQUE,
                     user_id VARCHAR(255) NOT NULL,
+                    user_email VARCHAR(255),
                     amount INTEGER NOT NULL,
                     price DECIMAL(10,2) NOT NULL,
                     status VARCHAR(50) DEFAULT 'pending',
+                    depositor_name VARCHAR(255),
                     buyer_name VARCHAR(255),
+                    bank_name VARCHAR(255),
                     bank_info TEXT,
+                    receipt_type VARCHAR(50),
+                    business_info TEXT,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
@@ -529,8 +590,9 @@ def get_admin_purchases():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, pp.created_at, 
-                       pp.buyer_name, pp.bank_info, u.email
+                SELECT pp.id, pp.purchase_id, pp.user_id, pp.user_email, pp.amount, pp.price, pp.status, 
+                       pp.depositor_name, pp.buyer_name, pp.bank_name, pp.bank_info, pp.receipt_type, pp.business_info,
+                       pp.created_at, pp.updated_at, u.email as user_email_from_users, u.name
                 FROM point_purchases pp
                 LEFT JOIN users u ON pp.user_id = u.user_id
                 ORDER BY pp.created_at DESC
@@ -898,17 +960,19 @@ def get_admin_users():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-            
+        
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT u.user_id, u.email, u.name, u.created_at, COALESCE(p.points, 0) as points
+                SELECT u.user_id, u.email, u.name, u.display_name, u.last_activity, u.created_at, u.updated_at,
+                       COALESCE(p.points, 0) as points
                 FROM users u
                 LEFT JOIN points p ON u.user_id = p.user_id
                 ORDER BY u.created_at DESC
             """)
         else:
             cursor.execute("""
-                SELECT u.user_id, u.email, u.name, u.created_at, COALESCE(p.points, 0) as points
+                SELECT u.user_id, u.email, u.name, u.created_at, u.updated_at,
+                       COALESCE(p.points, 0) as points
                 FROM users u
                 LEFT JOIN points p ON u.user_id = p.user_id
                 ORDER BY u.created_at DESC 
@@ -919,18 +983,31 @@ def get_admin_users():
         
         user_list = []
         for user in users:
-            user_list.append({
-                'user_id': user[0],
-                'email': user[1],
-                'name': user[2],
-                'created_at': user[3].isoformat() if hasattr(user[3], 'isoformat') else str(user[3]),
-                'points': user[4] if len(user) > 4 else 0,
-                'last_activity': 'N/A'  # 마지막 활동은 추후 구현
+            if DATABASE_URL.startswith('postgresql://'):
+                user_list.append({
+                    'user_id': user[0],
+                    'email': user[1],
+                    'name': user[2],
+                    'display_name': user[3],
+                    'last_activity': user[4].isoformat() if user[4] and hasattr(user[4], 'isoformat') else 'N/A',
+                    'created_at': user[5].isoformat() if user[5] and hasattr(user[5], 'isoformat') else str(user[5]),
+                    'updated_at': user[6].isoformat() if user[6] and hasattr(user[6], 'isoformat') else str(user[6]),
+                    'points': user[7]
+                })
+            else:
+                user_list.append({
+                    'user_id': user[0],
+                    'email': user[1],
+                    'name': user[2],
+                    'created_at': user[3].isoformat() if user[3] and hasattr(user[3], 'isoformat') else str(user[3]),
+                    'updated_at': user[4].isoformat() if user[4] and hasattr(user[4], 'isoformat') else str(user[4]),
+                    'points': user[5],
+                    'last_activity': 'N/A'
                 })
             
-            return jsonify({
+        return jsonify({
             'users': user_list
-            }), 200
+        }), 200
         
     except Exception as e:
         return jsonify({'error': f'사용자 목록 조회 실패: {str(e)}'}), 500

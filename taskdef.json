@@ -43,6 +43,18 @@
         {
           "name": "TMPDIR",
           "value": "/tmp"
+        },
+        {
+          "name": "PGSSLMODE",
+          "value": "require"
+        },
+        {
+          "name": "DATABASE_POOL_SIZE",
+          "value": "10"
+        },
+        {
+          "name": "DATABASE_TIMEOUT",
+          "value": "30"
         }
       ],
       "healthCheck": {
