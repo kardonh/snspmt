@@ -62,9 +62,9 @@
 }
 
 .filter-btn.active {
-  background: #dc2626;
+  background: #827edc;
   color: white;
-  border-color: #dc2626;
+  border-color: #000000;
 }
 
 .search-container {

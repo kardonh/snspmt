@@ -463,18 +463,18 @@ const Home = () => {
   }
 
   const platforms = [
-    { id: 'recommended', name: '추천서비스', icon: Star, color: '#f59e0b' },
-    { id: 'event', name: '이벤트', icon: Package, color: '#8b5cf6' },
-    { id: 'top-exposure', name: '상위노출', icon: Trophy, color: '#f59e0b' },
+    { id: 'recommended', name: '추천서비스', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/recommend.svg', color: '#f59e0b' },
+    { id: 'event', name: '이벤트', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/brand.svg', color: '#8b5cf6' },
+    { id: 'top-exposure', name: '상위노출', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/top.svg', color: '#f59e0b' },
     { id: 'instagram', name: '인스타그램', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/instagram.svg', color: '#e4405f' },
     { id: 'youtube', name: '유튜브', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/youtube.svg', color: '#ff0000' },
     { id: 'facebook', name: '페이스북', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/facebook.svg', color: '#1877f2' },
-    { id: 'tiktok', name: '틱톡', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/naver.svg', color: '#000000' },
+    { id: 'tiktok', name: '틱톡', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/tiktok.svg', color: '#000000' },
     { id: 'threads', name: '스레드', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/threads.svg', color: '#000000' },
     { id: 'twitter', name: '트위터', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/X.svg', color: '#1da1f2' },
     { id: 'kakao', name: '카카오', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/kakao.svg', color: '#fbbf24' },
-    { id: 'telegram', name: '텔레그램', icon: MessageCircle, color: '#0088cc' },
-    { id: 'whatsapp', name: '왓츠앱', icon: MessageSquare, color: '#25d366' },
+    { id: 'telegram', name: '텔레그램', icon: 'https://i.namu.wiki/i/2pvXoMTu71ZgA-wfwH_ViqiDeUAeyWrHa9x_EdBNkEIP79BO3g6r9rlwnP6Ju908NkRExU4M2dQpWtyXXfHgoQ.svg', color: '#0088cc' },
+    { id: 'whatsapp', name: '왓츠앱', icon: 'https://i.namu.wiki/i/wjmczy8xH2kajvQEpf9LfYepq7oDncymQTAQweVhaMpoZi_2X0uctv3E9Z7BUMcaQpFzYFx6_1GGKs0QPnEuZWeRbO4zsyEc1W7vz0-sUHUkN3eqEQEKSqEbSFBNffi5BN54cix2E01Y2KNyma-4pg.svg', color: '#25d366' },
     // { id: 'news-media', name: '뉴스언론보도', icon: FileText, color: '#3b82f6' },
     // { id: 'experience-group', name: '체험단', icon: Users, color: '#10b981' },
    
