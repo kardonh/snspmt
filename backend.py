@@ -1110,104 +1110,87 @@ def get_admin_users():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        if DATABASE_URL.startswith('postgresql://'):
-            # 테이블 존재 여부 확인
-            cursor.execute("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_schema = 'public' 
-                    AND table_name = 'users'
-                );
-            """)
-            users_table_exists = cursor.fetchone()[0]
-            
-            cursor.execute("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_schema = 'public' 
-                    AND table_name = 'points'
-                );
-            """)
-            points_table_exists = cursor.fetchone()[0]
-            
-            print(f"📊 테이블 존재 여부 - users: {users_table_exists}, points: {points_table_exists}")
-            
-            if users_table_exists and points_table_exists:
-                cursor.execute("""
-                    SELECT u.user_id, u.email, u.name, u.created_at, u.updated_at,
-                           COALESCE(p.points, 0) as points
-                    FROM users u
-                    LEFT JOIN points p ON u.user_id = p.user_id
-                    ORDER BY u.created_at DESC
-                """)
-            elif users_table_exists:
-                cursor.execute("""
-                    SELECT user_id, email, name, created_at, updated_at, 0 as points
-                    FROM users
-                    ORDER BY created_at DESC
-                """)
-            else:
-                print("⚠️ users 테이블이 존재하지 않습니다. 빈 배열을 반환합니다.")
-                users = []
-                conn.close()
-                return jsonify({'users': []}), 200
-        else:
-            cursor.execute("""
-                SELECT u.user_id, u.email, u.name, u.created_at, u.updated_at,
-                       COALESCE(p.points, 0) as points
-                FROM users u
-                LEFT JOIN points p ON u.user_id = p.user_id
-                ORDER BY u.created_at DESC 
-            """)
+        # 먼저 간단한 쿼리로 테스트
+        print("📊 기본 연결 테스트 중...")
+        cursor.execute("SELECT 1")
+        test_result = cursor.fetchone()
+        print(f"✅ 기본 쿼리 성공: {test_result}")
         
-        users = cursor.fetchall()
-        print(f"📊 조회된 사용자 수: {len(users)}")
-        conn.close()
+        # 테이블 목록 확인
+        print("📊 테이블 목록 조회 중...")
+        cursor.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public'
+            ORDER BY table_name
+        """)
+        tables = [row[0] for row in cursor.fetchall()]
+        print(f"📊 존재하는 테이블: {tables}")
         
         user_list = []
-        for user in users:
-            if DATABASE_URL.startswith('postgresql://'):
-                user_list.append({
-                    'user_id': user[0],
-                    'email': user[1],
-                    'name': user[2],
-                    'display_name': user[3],
-                    'last_activity': user[4].isoformat() if user[4] and hasattr(user[4], 'isoformat') else 'N/A',
-                    'created_at': user[5].isoformat() if user[5] and hasattr(user[5], 'isoformat') else str(user[5]),
-                    'updated_at': user[6].isoformat() if user[6] and hasattr(user[6], 'isoformat') else str(user[6]),
-                    'points': user[7]
-                })
-            else:
-                user_list.append({
-                    'user_id': user[0],
-                    'email': user[1],
-                    'name': user[2],
-                    'created_at': user[3].isoformat() if user[3] and hasattr(user[3], 'isoformat') else str(user[3]),
-                    'updated_at': user[4].isoformat() if user[4] and hasattr(user[4], 'isoformat') else str(user[4]),
-                    'points': user[5],
-                    'last_activity': 'N/A'
-                })
-            
+        
+        if 'users' in tables:
+            print("📊 users 테이블 발견, 데이터 조회 중...")
+            try:
+                # 간단한 쿼리부터 시작
+                cursor.execute("SELECT COUNT(*) FROM users")
+                user_count = cursor.fetchone()[0]
+                print(f"📊 users 테이블 레코드 수: {user_count}")
+                
+                if user_count > 0:
+                    # 기본 컬럼만 조회
+                    cursor.execute("""
+                        SELECT user_id, email, name, created_at
+                        FROM users
+                        ORDER BY created_at DESC
+                        LIMIT 50
+                    """)
+                    users = cursor.fetchall()
+                    
+                    for user in users:
+                        user_list.append({
+                            'user_id': user[0] if user[0] else 'N/A',
+                            'email': user[1] if user[1] else 'N/A',
+                            'name': user[2] if user[2] else 'N/A',
+                            'created_at': user[3].isoformat() if user[3] and hasattr(user[3], 'isoformat') else str(user[3]) if user[3] else 'N/A',
+                            'points': 0,  # 기본값
+                            'last_activity': 'N/A'  # 기본값
+                        })
+                else:
+                    print("📊 users 테이블이 비어있습니다.")
+                    
+            except Exception as table_e:
+                print(f"❌ users 테이블 조회 실패: {table_e}")
+                # 테이블 구조 확인
+                try:
+                    cursor.execute("""
+                        SELECT column_name, data_type
+                        FROM information_schema.columns
+                        WHERE table_name = 'users' AND table_schema = 'public'
+                        ORDER BY ordinal_position
+                    """)
+                    columns = cursor.fetchall()
+                    print(f"📊 users 테이블 컬럼: {columns}")
+                except Exception as col_e:
+                    print(f"❌ 컬럼 정보 조회 실패: {col_e}")
+        else:
+            print("⚠️ users 테이블이 존재하지 않습니다.")
+        
+        conn.close()
         print(f"✅ 사용자 목록 반환: {len(user_list)}명")
+        
         return jsonify({
-            'users': user_list
+            'users': user_list,
+            'debug_info': {
+                'tables': tables,
+                'user_count': len(user_list)
+            }
         }), 200
         
     except Exception as e:
         print(f"❌ 사용자 목록 조회 실패: {str(e)}")
         import traceback
         print(f"❌ 상세 오류: {traceback.format_exc()}")
-        
-        # 추가 디버깅 정보
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT version()")
-            db_version = cursor.fetchone()[0]
-            print(f"📊 데이터베이스 버전: {db_version}")
-            conn.close()
-        except Exception as db_e:
-            print(f"❌ 데이터베이스 버전 조회 실패: {db_e}")
         
         return jsonify({
             'error': f'사용자 목록 조회 실패: {str(e)}',
