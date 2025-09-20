@@ -652,14 +652,30 @@ def get_admin_purchases():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
+            # 테이블 존재 여부 확인
             cursor.execute("""
-                SELECT pp.id, pp.purchase_id, pp.user_id, pp.user_email, pp.amount, pp.price, pp.status, 
-                       pp.depositor_name, pp.buyer_name, pp.bank_name, pp.bank_info, pp.receipt_type, pp.business_info,
-                       pp.created_at, pp.updated_at, u.email as user_email_from_users, u.name
-                FROM point_purchases pp
-                LEFT JOIN users u ON pp.user_id = u.user_id
-                ORDER BY pp.created_at DESC
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'point_purchases'
+                );
             """)
+            purchases_table_exists = cursor.fetchone()[0]
+            
+            print(f"📊 point_purchases 테이블 존재 여부: {purchases_table_exists}")
+            
+            if purchases_table_exists:
+                cursor.execute("""
+                    SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, 
+                           pp.buyer_name, pp.bank_info, pp.created_at
+                    FROM point_purchases pp
+                    ORDER BY pp.created_at DESC
+                """)
+            else:
+                print("⚠️ point_purchases 테이블이 존재하지 않습니다. 빈 배열을 반환합니다.")
+                purchases = []
+                conn.close()
+                return jsonify({'purchases': []}), 200
         else:
             cursor.execute("""
                 SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, pp.created_at,
@@ -1026,13 +1042,46 @@ def get_admin_users():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
+            # 테이블 존재 여부 확인
             cursor.execute("""
-                SELECT u.user_id, u.email, u.name, u.display_name, u.last_activity, u.created_at, u.updated_at,
-                       COALESCE(p.points, 0) as points
-                FROM users u
-                LEFT JOIN points p ON u.user_id = p.user_id
-                ORDER BY u.created_at DESC
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'users'
+                );
             """)
+            users_table_exists = cursor.fetchone()[0]
+            
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'points'
+                );
+            """)
+            points_table_exists = cursor.fetchone()[0]
+            
+            print(f"📊 테이블 존재 여부 - users: {users_table_exists}, points: {points_table_exists}")
+            
+            if users_table_exists and points_table_exists:
+                cursor.execute("""
+                    SELECT u.user_id, u.email, u.name, u.created_at, u.updated_at,
+                           COALESCE(p.points, 0) as points
+                    FROM users u
+                    LEFT JOIN points p ON u.user_id = p.user_id
+                    ORDER BY u.created_at DESC
+                """)
+            elif users_table_exists:
+                cursor.execute("""
+                    SELECT user_id, email, name, created_at, updated_at, 0 as points
+                    FROM users
+                    ORDER BY created_at DESC
+                """)
+            else:
+                print("⚠️ users 테이블이 존재하지 않습니다. 빈 배열을 반환합니다.")
+                users = []
+                conn.close()
+                return jsonify({'users': []}), 200
         else:
             cursor.execute("""
                 SELECT u.user_id, u.email, u.name, u.created_at, u.updated_at,
