@@ -1744,7 +1744,7 @@
 }
 
 .step-number {
-  background: #3b82f6;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   width: 24px;
   height: 24px;
@@ -1754,6 +1754,7 @@
   justify-content: center;
   font-size: 12px;
   font-weight: 600;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .step-name {
