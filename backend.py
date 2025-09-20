@@ -276,12 +276,23 @@ def test_database_connection():
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("SELECT 1 as test")
             result = cursor.fetchone()
+            
+            # 테이블 목록 조회
+            cursor.execute("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public'
+                ORDER BY table_name
+            """)
+            tables = [row[0] for row in cursor.fetchall()]
+            
             conn.close()
             return jsonify({
                 'status': 'success',
                 'database': 'postgresql',
                 'connection': 'ok',
-                'test_result': result[0] if result else None
+                'test_result': result[0] if result else None,
+                'tables': tables
             }), 200
         else:
             cursor.execute("SELECT 1 as test")
@@ -301,6 +312,64 @@ def test_database_connection():
             'database': 'unknown',
             'connection': 'failed',
             'error': str(e)
+        }), 500
+
+# 사용자 테이블 테스트
+@app.route('/api/test/users', methods=['GET'])
+def test_users_table():
+    """사용자 테이블 테스트"""
+    try:
+        print("🔍 사용자 테이블 테스트 시작")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # users 테이블 존재 확인
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'users'
+            );
+        """)
+        users_exists = cursor.fetchone()[0]
+        
+        if users_exists:
+            # 테이블 구조 확인
+            cursor.execute("""
+                SELECT column_name, data_type, is_nullable
+                FROM information_schema.columns
+                WHERE table_name = 'users' AND table_schema = 'public'
+                ORDER BY ordinal_position
+            """)
+            columns = cursor.fetchall()
+            
+            # 레코드 수 확인
+            cursor.execute("SELECT COUNT(*) FROM users")
+            count = cursor.fetchone()[0]
+            
+            conn.close()
+            return jsonify({
+                'status': 'success',
+                'table_exists': True,
+                'columns': [{'name': col[0], 'type': col[1], 'nullable': col[2]} for col in columns],
+                'record_count': count
+            }), 200
+        else:
+            conn.close()
+            return jsonify({
+                'status': 'error',
+                'table_exists': False,
+                'message': 'users 테이블이 존재하지 않습니다'
+            }), 404
+            
+    except Exception as e:
+        print(f"❌ 사용자 테이블 테스트 실패: {e}")
+        import traceback
+        print(f"❌ 상세 오류: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'traceback': traceback.format_exc()
         }), 500
 
 # 헬스 체크
@@ -1128,7 +1197,23 @@ def get_admin_users():
         print(f"❌ 사용자 목록 조회 실패: {str(e)}")
         import traceback
         print(f"❌ 상세 오류: {traceback.format_exc()}")
-        return jsonify({'error': f'사용자 목록 조회 실패: {str(e)}'}), 500
+        
+        # 추가 디버깅 정보
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT version()")
+            db_version = cursor.fetchone()[0]
+            print(f"📊 데이터베이스 버전: {db_version}")
+            conn.close()
+        except Exception as db_e:
+            print(f"❌ 데이터베이스 버전 조회 실패: {db_e}")
+        
+        return jsonify({
+            'error': f'사용자 목록 조회 실패: {str(e)}',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 # 관리자 거래 내역
 @app.route('/api/admin/transactions', methods=['GET'])
