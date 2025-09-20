@@ -1127,9 +1127,10 @@ const Home = () => {
       {selectedService && detailedServices.length > 0 && (
         <div className="detailed-service-selection">
           <h3>
-            <span className="step-number">3</span>
+            
             세부 서비스를 선택해주세요
           </h3>
+          <span className="step-number">3</span>
           <div className="detailed-service-list">
             {detailedServices.map((service) => (
               <div 
