@@ -23,6 +23,15 @@ const AdminPage = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(null)
+  
+  // 탭별 상태 유지를 위한 상태
+  const [tabStates, setTabStates] = useState({
+    dashboard: { lastUpdate: null },
+    users: { searchTerm: '', lastUpdate: null },
+    orders: { searchTerm: '', lastUpdate: null },
+    purchases: { searchTerm: '', lastUpdate: null },
+    referrals: { lastUpdate: null }
+  })
 
   // 대시보드 데이터
   const [dashboardData, setDashboardData] = useState({
@@ -36,15 +45,12 @@ const AdminPage = () => {
 
   // 사용자 데이터
   const [users, setUsers] = useState([])
-  const [userSearchTerm, setUserSearchTerm] = useState('')
 
   // 주문 데이터
   const [orders, setOrders] = useState([])
-  const [orderSearchTerm, setOrderSearchTerm] = useState('')
 
   // 포인트 구매 신청 데이터
   const [pendingPurchases, setPendingPurchases] = useState([])
-  const [purchaseSearchTerm, setPurchaseSearchTerm] = useState('')
   const [filteredPurchases, setFilteredPurchases] = useState([])
 
   // 추천인 데이터
@@ -60,23 +66,51 @@ const AdminPage = () => {
 
   // 구매 신청 검색 필터링
   useEffect(() => {
+    const searchTerm = tabStates.purchases.searchTerm
     const filtered = (pendingPurchases || []).filter(purchase => {
       try {
         const userId = String(purchase?.userId || '')
         const email = String(purchase?.email || '')
         const buyerName = String(purchase?.buyerName || '')
-        const searchTerm = String(purchaseSearchTerm || '').toLowerCase()
+        const searchLower = String(searchTerm || '').toLowerCase()
         
-        return userId.toLowerCase().includes(searchTerm) ||
-               email.toLowerCase().includes(searchTerm) ||
-               buyerName.toLowerCase().includes(searchTerm)
+        return userId.toLowerCase().includes(searchLower) ||
+               email.toLowerCase().includes(searchLower) ||
+               buyerName.toLowerCase().includes(searchLower)
       } catch (error) {
         console.error('구매 필터링 오류:', error, purchase)
         return false
       }
     })
     setFilteredPurchases(filtered)
-  }, [pendingPurchases, purchaseSearchTerm])
+  }, [pendingPurchases, tabStates.purchases.searchTerm])
+
+  // 검색어 업데이트 함수들
+  const updateSearchTerm = (tab, searchTerm) => {
+    setTabStates(prev => ({
+      ...prev,
+      [tab]: { ...prev[tab], searchTerm }
+    }))
+  }
+
+  // 날짜 포맷팅 함수
+  const formatDate = (dateString) => {
+    if (!dateString || dateString === 'N/A') return 'N/A'
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return dateString
+      return date.toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch (error) {
+      console.error('날짜 포맷팅 오류:', error, dateString)
+      return dateString
+    }
+  }
 
   // 관리자 데이터 로드
   const loadAdminData = async () => {
@@ -144,12 +178,12 @@ const AdminPage = () => {
         // API 응답을 프론트엔드 형식으로 변환
         const transformedUsers = Array.isArray(data.users) ? 
           data.users.map(user => ({
-            userId: user.user_id,
+            userId: user.user_id || user.userId,
             email: user.email,
-            name: user.name,
+            name: user.name || user.displayName,
             points: user.points || 0,
-            createdAt: user.created_at,
-            lastActivity: user.last_activity || 'N/A'
+            createdAt: user.created_at || user.createdAt,
+            lastActivity: user.last_activity || user.lastActivity || user.last_login || 'N/A'
           })) : []
         
         console.log('👥 변환된 사용자 데이터:', transformedUsers)
@@ -166,29 +200,36 @@ const AdminPage = () => {
   // 주문 데이터 로드
   const loadOrders = async () => {
     try {
+      console.log('🔍 주문 데이터 로드 시작...')
       const response = await fetch('/api/admin/transactions')
+      console.log('📦 주문 API 응답:', response.status, response.statusText)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('📦 주문 원본 데이터:', data)
+        
         // API 응답을 프론트엔드 형식으로 변환
-        const transformedOrders = Array.isArray(data.transactions) ? 
-          data.transactions.map(order => ({
-            orderId: order.order_id,
-            userId: order.user_id,
-            platform: order.platform || 'N/A',
-            service: order.service_name || 'N/A',
-            quantity: order.quantity || 0,
-            amount: order.price || 0,
-            status: order.status,
-            createdAt: order.created_at,
-            link: order.link || 'N/A',
-            comments: order.comments || 'N/A'
+        const transformedOrders = Array.isArray(data.transactions || data.orders) ? 
+          (data.transactions || data.orders).map(order => ({
+            orderId: order.order_id || order.orderId || order.id,
+            userId: order.user_id || order.userId,
+            platform: order.platform || order.service_platform || 'N/A',
+            service: order.service_name || order.service || order.service_type || 'N/A',
+            quantity: order.quantity || order.service_quantity || 0,
+            amount: order.price || order.amount || order.total_price || 0,
+            status: order.status || 'pending',
+            createdAt: order.created_at || order.createdAt || order.order_date,
+            link: order.link || order.service_link || 'N/A',
+            comments: order.comments || order.remarks || 'N/A'
           })) : []
         
         console.log('📦 변환된 주문 데이터:', transformedOrders)
         setOrders(transformedOrders)
+      } else {
+        console.error('❌ 주문 API 오류:', response.status, response.statusText)
       }
     } catch (error) {
-      console.error('주문 데이터 로드 실패:', error)
+      console.error('❌ 주문 데이터 로드 실패:', error)
       setOrders([])
     }
   }
@@ -242,8 +283,16 @@ const AdminPage = () => {
 
       if (response.ok) {
         alert('포인트 구매 신청이 승인되었습니다.')
-        loadPendingPurchases() // 목록 새로고침
-        loadDashboardStats() // 통계 업데이트
+        // 현재 상태를 유지하면서 특정 항목만 업데이트
+        setPendingPurchases(prevPurchases => 
+          prevPurchases.map(purchase => 
+            purchase.id === purchaseId 
+              ? { ...purchase, status: 'approved' }
+              : purchase
+          )
+        )
+        // 통계만 업데이트 (전체 데이터 새로고침 없이)
+        loadDashboardStats()
       } else {
         alert('승인 처리 중 오류가 발생했습니다.')
       }
@@ -266,8 +315,16 @@ const AdminPage = () => {
 
       if (response.ok) {
         alert('포인트 구매 신청이 거절되었습니다.')
-        loadPendingPurchases() // 목록 새로고침
-        loadDashboardStats() // 통계 업데이트
+        // 현재 상태를 유지하면서 특정 항목만 업데이트
+        setPendingPurchases(prevPurchases => 
+          prevPurchases.map(purchase => 
+            purchase.id === purchaseId 
+              ? { ...purchase, status: 'rejected' }
+              : purchase
+          )
+        )
+        // 통계만 업데이트 (전체 데이터 새로고침 없이)
+        loadDashboardStats()
       } else {
         alert('거절 처리 중 오류가 발생했습니다.')
       }
@@ -321,7 +378,15 @@ const AdminPage = () => {
       const result = await response.json()
         alert(`추천인 코드가 생성되었습니다: ${result.code}`)
         setNewReferralUser('')
-        loadReferralData() // 데이터 새로고침
+        // 새로 생성된 코드를 기존 목록에 추가 (전체 새로고침 없이)
+        const newCode = {
+          code: result.code,
+          is_active: true,
+          usage_count: 0,
+          total_commission: 0,
+          created_at: new Date().toISOString()
+        }
+        setReferralCodes(prevCodes => [...prevCodes, newCode])
       } else {
         const error = await response.json()
         alert(`오류: ${error.error}`)
@@ -396,7 +461,7 @@ const AdminPage = () => {
     try {
       const userId = String(user?.userId || '')
       const email = String(user?.email || '')
-      const searchTerm = String(userSearchTerm || '').toLowerCase()
+      const searchTerm = String(tabStates.users.searchTerm || '').toLowerCase()
       
       return userId.toLowerCase().includes(searchTerm) ||
              email.toLowerCase().includes(searchTerm)
@@ -410,7 +475,7 @@ const AdminPage = () => {
     try {
       const orderId = String(order?.orderId || '')
       const platform = String(order?.platform || '')
-      const searchTerm = String(orderSearchTerm || '').toLowerCase()
+      const searchTerm = String(tabStates.orders.searchTerm || '').toLowerCase()
       
       return orderId.toLowerCase().includes(searchTerm) ||
              platform.toLowerCase().includes(searchTerm)
@@ -545,8 +610,8 @@ const AdminPage = () => {
         <input
           type="text"
           placeholder="사용자 ID 또는 이메일로 검색..."
-          value={userSearchTerm}
-          onChange={(e) => setUserSearchTerm(e.target.value)}
+          value={tabStates.users.searchTerm}
+          onChange={(e) => updateSearchTerm('users', e.target.value)}
         />
                     </div>
 
@@ -562,15 +627,23 @@ const AdminPage = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map((user, index) => (
-              <tr key={index}>
-                <td>{user.userId || 'N/A'}</td>
-                <td>{user.email || 'N/A'}</td>
-                <td>{user.points?.toLocaleString() || 0}</td>
-                <td>{user.createdAt || 'N/A'}</td>
-                <td>{user.lastActivity || 'N/A'}</td>
+            {filteredUsers.length > 0 ? (
+              filteredUsers.map((user, index) => (
+                <tr key={index}>
+                  <td>{user.userId || 'N/A'}</td>
+                  <td>{user.email || 'N/A'}</td>
+                  <td>{user.points?.toLocaleString() || 0}</td>
+                  <td>{formatDate(user.createdAt)}</td>
+                  <td>{formatDate(user.lastActivity)}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" className="no-data">
+                  {users.length === 0 ? '사용자 데이터를 불러오는 중...' : '검색 결과가 없습니다.'}
+                </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
                     </div>
@@ -584,8 +657,8 @@ const AdminPage = () => {
         <input
           type="text"
           placeholder="주문 ID 또는 플랫폼으로 검색..."
-          value={orderSearchTerm}
-          onChange={(e) => setOrderSearchTerm(e.target.value)}
+          value={tabStates.orders.searchTerm}
+          onChange={(e) => updateSearchTerm('orders', e.target.value)}
         />
           </div>
 
@@ -604,28 +677,36 @@ const AdminPage = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredOrders.map((order, index) => (
-              <tr key={index}>
-                <td>{order.orderId || 'N/A'}</td>
-                <td>{order.platform || 'N/A'}</td>
-                <td>{order.service || 'N/A'}</td>
-                <td>{order.quantity?.toLocaleString() || 0}</td>
-                <td>₩{order.amount?.toLocaleString() || 0}</td>
-                <td>
-                  {order.link && order.link !== 'N/A' ? (
-                    <a href={order.link} target="_blank" rel="noopener noreferrer" className="order-link">
-                      {order.link.length > 30 ? order.link.substring(0, 30) + '...' : order.link}
-                    </a>
-                  ) : 'N/A'}
+            {filteredOrders.length > 0 ? (
+              filteredOrders.map((order, index) => (
+                <tr key={index}>
+                  <td>{order.orderId || 'N/A'}</td>
+                  <td>{order.platform || 'N/A'}</td>
+                  <td>{order.service || 'N/A'}</td>
+                  <td>{order.quantity?.toLocaleString() || 0}</td>
+                  <td>₩{order.amount?.toLocaleString() || 0}</td>
+                  <td>
+                    {order.link && order.link !== 'N/A' ? (
+                      <a href={order.link} target="_blank" rel="noopener noreferrer" className="order-link">
+                        {order.link.length > 30 ? order.link.substring(0, 30) + '...' : order.link}
+                      </a>
+                    ) : 'N/A'}
+                  </td>
+                  <td>
+                    <span className={`status ${order.status || 'pending'}`}>
+                      {order.status || '대기중'}
+                    </span>
+                  </td>
+                  <td>{formatDate(order.createdAt)}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="8" className="no-data">
+                  {orders.length === 0 ? '주문 데이터를 불러오는 중...' : '검색 결과가 없습니다.'}
                 </td>
-                <td>
-                  <span className={`status ${order.status || 'pending'}`}>
-                    {order.status || '대기중'}
-                  </span>
-                </td>
-                <td>{order.createdAt || 'N/A'}</td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
             </div>
@@ -639,8 +720,8 @@ const AdminPage = () => {
         <input
           type="text"
           placeholder="구매자 이름, 이메일 또는 사용자 ID로 검색..."
-          value={purchaseSearchTerm}
-          onChange={(e) => setPurchaseSearchTerm(e.target.value)}
+          value={tabStates.purchases.searchTerm}
+          onChange={(e) => updateSearchTerm('purchases', e.target.value)}
         />
                     </div>
 
@@ -668,7 +749,7 @@ const AdminPage = () => {
                 <td>{purchase.buyerName || 'N/A'}</td>
                 <td>{purchase.bankInfo || 'N/A'}</td>
                 <td>₩{purchase.amount?.toLocaleString() || 0}</td>
-                <td>{purchase.createdAt || 'N/A'}</td>
+                <td>{formatDate(purchase.createdAt)}</td>
                 <td>
                   <span className={`status ${purchase.status || 'pending'}`}>
                     {purchase.status === 'approved' ? '승인됨' : 
@@ -823,7 +904,20 @@ const AdminPage = () => {
         <div className="header-actions">
           <button 
             className="btn-refresh"
-            onClick={loadAdminData}
+            onClick={() => {
+              if (activeTab === 'dashboard') {
+                loadDashboardStats()
+              } else if (activeTab === 'users') {
+                loadUsers()
+              } else if (activeTab === 'orders') {
+                loadOrders()
+              } else if (activeTab === 'purchases') {
+                loadPendingPurchases()
+              } else if (activeTab === 'referrals') {
+                loadReferralData()
+              }
+              setLastUpdate(new Date().toLocaleString())
+            }}
             disabled={isLoading}
           >
             <RefreshCw size={16} className={isLoading ? 'spinning' : ''} />

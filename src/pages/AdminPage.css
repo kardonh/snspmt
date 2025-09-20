@@ -1,5 +1,15 @@
 /* AdminPage.css - 현대적이고 아름다운 관리자 페이지 스타일 */
 
+/* 데이터 없음 스타일 */
+.no-data {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 40px 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
 .admin-page {
   max-width: 1400px;
   margin: 0 auto;
