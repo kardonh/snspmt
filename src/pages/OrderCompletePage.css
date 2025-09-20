@@ -159,7 +159,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #007bff;
+  background:linear-gradient(135deg, #78caf3 0%, #7f8ebe 100%);
   color: white;
   border-radius: 50%;
   font-weight: 700;

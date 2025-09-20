@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom'
 import { User, LogOut, Coins } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { smmpanelApi } from '../services/snspopApi'
+import LoginModal from './LoginModal'
 import './Header.css'
 
 const Header = () => {
   const { currentUser, logout, loading } = useAuth()
   const [userPoints, setUserPoints] = useState(0)
   const [pointsLoading, setPointsLoading] = useState(false)
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
 
   const handleLogout = async () => {
     try {
@@ -102,13 +104,21 @@ const Header = () => {
               </div>
             </div>
           ) : (
-            <Link to="/login" className="member-btn">
+            <button 
+              className="member-btn"
+              onClick={() => setIsLoginModalOpen(true)}
+            >
               <User size={20} />
               <span>로그인</span>
-            </Link>
+            </button>
           )}
         </div>
       </div>
+      
+      <LoginModal 
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+      />
     </header>
   )
 }

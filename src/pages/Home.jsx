@@ -496,37 +496,37 @@ const Home = () => {
         ]
       case 'instagram':
         return [
-          { id: 'popular_posts', name: '💗인스타그램 인기게시물 등록[업데이트]', description: '인기게시물 등록 및 상위 노출 서비스' },
-          { id: 'likes_korean', name: '🇰🇷인스타그램 한국인 좋아요', description: '한국인 좋아요 서비스' },
-          { id: 'likes_foreign', name: '🌐인스타그램 외국인 좋아요', description: '외국인 좋아요 서비스' },
-          { id: 'followers_korean', name: '🇰🇷인스타그램 한국인 팔로워', description: '한국인 팔로워 서비스' },
-          { id: 'views', name: '🌐🇰🇷인스타그램 조회수', description: '동영상 조회수 서비스' },
-          { id: 'comments_korean', name: '🌐🇰🇷인스타그램 댓글', description: '댓글 서비스' },
-          { id: 'regram_korean', name: '🇰🇷인스타그램 한국인 리그램', description: '한국인 리그램 서비스' },
-          { id: 'followers_foreign', name: '🌐인스타그램 외국인 팔로워', description: '외국인 팔로워 서비스' },
-          { id: 'exposure_save_share', name: '🇰🇷🌐인스타그램 [노출/도달/저장/공유]', description: '노출, 도달, 저장, 공유 서비스' },
-          { id: 'auto_exposure_save_share', name: '🇰🇷🌐인스타그램 자동 노출/도달/저장/공유/기타', description: '자동 노출, 도달, 저장, 공유 서비스' },
-          { id: 'live_streaming', name: '🌐인스타그램 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' },
-          { id: 'auto_likes', name: '🇰🇷🌐인스타그램 자동 좋아요', description: '자동 좋아요 서비스' },
-          { id: 'auto_views', name: '🇰🇷🌐인스타그램 자동 조회수', description: '자동 조회수 서비스' },
-          { id: 'auto_comments', name: '🇰🇷🌐인스타그램 자동 댓글', description: '자동 댓글 서비스' }
+          { id: 'popular_posts', name: '인스타그램 인기게시물 등록[업데이트]', description: '인기게시물 등록 및 상위 노출 서비스' },
+          { id: 'likes_korean', name: '인스타그램 한국인 좋아요', description: '한국인 좋아요 서비스' },
+          { id: 'likes_foreign', name: '인스타그램 외국인 좋아요', description: '외국인 좋아요 서비스' },
+          { id: 'followers_korean', name: '인스타그램 한국인 팔로워', description: '한국인 팔로워 서비스' },
+          { id: 'views', name: '인스타그램 조회수', description: '동영상 조회수 서비스' },
+          { id: 'comments_korean', name: '인스타그램 댓글', description: '댓글 서비스' },
+          { id: 'regram_korean', name: '인스타그램 한국인 리그램', description: '한국인 리그램 서비스' },
+          { id: 'followers_foreign', name: '인스타그램 외국인 팔로워', description: '외국인 팔로워 서비스' },
+          { id: 'exposure_save_share', name: '인스타그램 [노출/도달/저장/공유]', description: '노출, 도달, 저장, 공유 서비스' },
+          { id: 'auto_exposure_save_share', name: '인스타그램 자동 노출/도달/저장/공유/기타', description: '자동 노출, 도달, 저장, 공유 서비스' },
+          { id: 'live_streaming', name: '인스타그램 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' },
+          { id: 'auto_likes', name: '인스타그램 자동 좋아요', description: '자동 좋아요 서비스' },
+          { id: 'auto_views', name: '인스타그램 자동 조회수', description: '자동 조회수 서비스' },
+          { id: 'auto_comments', name: '인스타그램 자동 댓글', description: '자동 댓글 서비스' }
         ]
       case 'youtube':
         return [
-          { id: 'views_korean', name: '🇰🇷유튜브 한국인 조회수', description: '한국인 조회수 서비스' },
-          { id: 'views_foreign', name: '🌐유튜브 외국인 조회수', description: '외국인 조회수 서비스' },
-          { id: 'likes_korean', name: '🇰🇷유튜브 한국인 좋아요', description: '한국인 좋아요 서비스' },
-          { id: 'likes_foreign', name: '🌐유튜브 외국인 좋아요', description: '외국인 좋아요 서비스' },
-          { id: 'subscribers_korean', name: '🇰🇷유튜브 한국인 채널 구독자', description: '한국인 채널 구독자 서비스' },
-          { id: 'subscribers_foreign', name: '🌐유튜브 외국인 채널 구독자', description: '외국인 채널 구독자 서비스' },
-          { id: 'comments_korean', name: '🇰🇷유튜브 한국인 댓글', description: '한국인 댓글 서비스' },
-          { id: 'comments_foreign', name: '🌐유튜브 외국인 댓글', description: '외국인 댓글 서비스' },
-          { id: 'live_streaming', name: '🌐유튜브 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' }
+          { id: 'views_korean', name: '유튜브 한국인 조회수', description: '한국인 조회수 서비스' },
+          { id: 'views_foreign', name: '유튜브 외국인 조회수', description: '외국인 조회수 서비스' },
+          { id: 'likes_korean', name: '유튜브 한국인 좋아요', description: '한국인 좋아요 서비스' },
+          { id: 'likes_foreign', name: '유튜브 외국인 좋아요', description: '외국인 좋아요 서비스' },
+          { id: 'subscribers_korean', name: '유튜브 한국인 채널 구독자', description: '한국인 채널 구독자 서비스' },
+          { id: 'subscribers_foreign', name: '유튜브 외국인 채널 구독자', description: '외국인 채널 구독자 서비스' },
+          { id: 'comments_korean', name: '유튜브 한국인 댓글', description: '한국인 댓글 서비스' },
+          { id: 'comments_foreign', name: '유튜브 외국인 댓글', description: '외국인 댓글 서비스' },
+          { id: 'live_streaming', name: '유튜브 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' }
         ]
       case 'tiktok':
         return [
-          { id: 'tiktok_services', name: '🌐TikTok[틱톡]', description: '틱톡 서비스' },
-          { id: 'tiktok_live_streaming', name: '🌐TikTok[틱톡] 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' }
+          { id: 'tiktok_services', name: 'TikTok[틱톡]', description: '틱톡 서비스' },
+          { id: 'tiktok_live_streaming', name: 'TikTok[틱톡] 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' }
         ]
       case 'facebook':
         return [
@@ -1042,7 +1042,7 @@ const Home = () => {
                 className={`tab-button ${selectedTab === 'korean' ? 'active' : ''}`}
                 onClick={() => setSelectedTab('korean')}
               >
-                <Users size={20} />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/0/09/Flag_of_South_Korea.svg" alt="태극기" style={{ width: 20, height: 20 }} />
                 한국인
               </button>
               <button 
