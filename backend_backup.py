@@ -1871,7 +1871,7 @@ def export_purchases():
                     '은행': purchase.get('bankName', ''),
                     '영수증타입': purchase.get('receiptType', 'none'),
                     '사업자등록번호': purchase.get('businessNumber', ''),
-                    '회사명': purchase.get('businessName', ''),
+                    '상호명': purchase.get('businessName', ''),
                     '대표자': purchase.get('representative', ''),
                     '담당자연락처': purchase.get('contactPhone', ''),
                     '메일주소': purchase.get('contactEmail', ''),
@@ -1891,7 +1891,7 @@ def export_purchases():
         writer = csv.writer(output)
         
         # 헤더 작성
-        writer.writerow(['구매ID', '사용자ID', '입금자명', '은행', '영수증타입', '사업자등록번호', '회사명', '대표자', '담당자연락처', '메일주소', '현금영수증전화번호', '포인트', '금액', '상태', '신청일', '처리일'])
+        writer.writerow(['구매ID', '사용자ID', '입금자명', '은행', '영수증타입', '사업자등록번호', '상호명', '대표자', '담당자연락처', '메일주소', '현금영수증전화번호', '포인트', '금액', '상태', '신청일', '처리일'])
         
         # 데이터 작성
         for purchase in all_purchases:
@@ -1902,7 +1902,7 @@ def export_purchases():
                 purchase['은행'],
                 purchase['영수증타입'],
                 purchase['사업자등록번호'],
-                purchase['회사명'],
+                purchase['상호명'],
                 purchase['대표자'],
                 purchase['담당자연락처'],
                 purchase['메일주소'],

@@ -344,7 +344,7 @@ const PointsPage = () => {
               <div className="form-group">
                 <label>
                   <Building2 size={16} />
-                  회사명
+                  상호명
                   {userInfo && userInfo.accountType === 'business' && (
                     <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
                       (자동 입력됨)
@@ -355,7 +355,7 @@ const PointsPage = () => {
                   type="text"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="회사명을 입력하세요"
+                  placeholder="상호명을 입력하세요"
                   className={`form-input ${userInfo && userInfo.accountType === 'business' ? 'auto-filled' : ''}`}
                   readOnly={userInfo && userInfo.accountType === 'business'}
                 />

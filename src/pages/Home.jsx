@@ -986,7 +986,6 @@ const Home = () => {
     <div className="order-page">
       {/* Service Selection */}
       <div className="service-selection">
-        <span className="step-number">1</span>
         <h2>주문하기</h2>
         <p>원하는 서비스를 선택하고 주문해보세요!</p>
         
@@ -1031,9 +1030,9 @@ const Home = () => {
         {/* Service Selection */}
         <div className="service-category">
           <h3 className="category-title">
-            <span className="step-number">2</span>
             {platforms.find(p => p.id === selectedPlatform)?.name} 서비스
           </h3>
+          <p className="category-description">상세 서비스를 선택해주세요</p>
           
           {/* Tab Navigation - 특정 플랫폼에서는 숨김 */}
           {!['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp'].includes(selectedPlatform) && (
@@ -1095,7 +1094,7 @@ const Home = () => {
                     return <span className="service-badge auto">자동</span>
                   }
                   if (serviceId === 'popular_posts') {
-                    return <span className="service-badge new">N</span>
+                    return <span className="service-badge new">B</span>
                   }
                   return null
                 }
@@ -1108,9 +1107,9 @@ const Home = () => {
                   >
                     <div className="service-content">
                       <div className="service-title-row">
-                        <span className="service-name">{name}</span>
                         {getServiceBadge(id)}
                         {badge && <span className="service-badge custom">{badge}</span>}
+                        <span className="service-name">{name}</span>
                       </div>
                       {featured && <Star size={16} className="featured-icon" />}
                       {special && (
@@ -1134,7 +1133,6 @@ const Home = () => {
             
             세부 서비스를 선택해주세요
           </h3>
-          <span className="step-number">3</span>
           <div className="detailed-service-list">
             {detailedServices.map((service) => (
               <div 
@@ -1166,7 +1164,6 @@ const Home = () => {
       {selectedDetailedService && (
         <div className="order-form">
           <h3>
-            <span className="step-number">4</span>
             주문 정보 입력
           </h3>
           

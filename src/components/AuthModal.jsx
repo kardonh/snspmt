@@ -20,6 +20,10 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
   const [loginAttempts, setLoginAttempts] = useState(0)
   const [isLocked, setIsLocked] = useState(false)
   const [lockoutTime, setLockoutTime] = useState(0)
+  const [agreeToTerms, setAgreeToTerms] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
+  const [signupSource, setSignupSource] = useState('')
+  const [referralCode, setReferralCode] = useState('')
   
   const { login, signup } = useAuth()
 
@@ -198,6 +202,10 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
     setRepresentative('')
     setContactPhone('')
     setContactEmail('')
+    setAgreeToTerms(false)
+    setRememberMe(false)
+    setSignupSource('')
+    setReferralCode('')
   }
 
   if (!isOpen) return null
@@ -216,7 +224,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
           {/* 모바일용 상단 이미지 섹션 */}
           <div className="auth-modal-image-mobile">
             <img 
-              src="https://assets.snsshop.kr/assets/img2/signin-banner-01.jpg" 
+              src="https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-d298-622f-9bb1-0ab31fc3d201/raw?se=2025-09-21T09%3A27%3A43Z&sp=r&sv=2024-08-04&sr=b&scid=45308c27-206e-504a-b2a4-5df668cc778c&skoid=bbd22fc4-f881-4ea4-b2f3-c12033cf6a8b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-09-21T07%3A42%3A18Z&ske=2025-09-22T07%3A42%3A18Z&sks=b&skv=2024-08-04&sig=vEbAbLB6HWW50w/cLJ6Yw6tzR8qZ1r6R6p21Qioz4V0%3D" 
               alt="Sociality 로그인"
               className="auth-image-mobile"
             />
@@ -225,7 +233,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
           {/* 데스크톱용 왼쪽 이미지 섹션 */}
           <div className="auth-modal-image">
             <img 
-              src="https://assets.snsshop.kr/assets/img2/signin-banner-01.jpg" 
+              src="https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-d298-622f-9bb1-0ab31fc3d201/raw?se=2025-09-21T09%3A27%3A43Z&sp=r&sv=2024-08-04&sr=b&scid=45308c27-206e-504a-b2a4-5df668cc778c&skoid=bbd22fc4-f881-4ea4-b2f3-c12033cf6a8b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-09-21T07%3A42%3A18Z&ske=2025-09-22T07%3A42%3A18Z&sks=b&skv=2024-08-04&sig=vEbAbLB6HWW50w/cLJ6Yw6tzR8qZ1r6R6p21Qioz4V0%3D" 
               alt="Sociality 로그인"
               className="auth-image"
             />
@@ -278,6 +286,43 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
                     <span>비즈니스 계정</span>
                   </label>
                 </div>
+              </div>
+
+              {/* 가입경로 선택 */}
+              <div className="form-group">
+                <label htmlFor="signupSource">
+                  <Briefcase size={16} />
+                  가입경로
+                </label>
+                <select
+                  id="signupSource"
+                  value={signupSource}
+                  onChange={(e) => setSignupSource(e.target.value)}
+                  required={!isLogin}
+                >
+                  <option value="">가입경로를 선택하세요</option>
+                  <option value="naver">네이버</option>
+                  <option value="instagram">인스타그램</option>
+                  <option value="google">구글</option>
+                  <option value="youtube">유튜브</option>
+                  <option value="referral">지인소개</option>
+                  <option value="other">기타</option>
+                </select>
+              </div>
+
+              {/* 추천인 코드 */}
+              <div className="form-group">
+                <label htmlFor="referralCode">
+                  <User size={16} />
+                  추천인 코드 (선택사항)
+                </label>
+                <input
+                  type="text"
+                  id="referralCode"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  placeholder="추천인 코드를 입력하세요"
+                />
               </div>
 
               <div className="signup-form-row">
@@ -381,12 +426,26 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
           )}
 
+          {isLogin && (
+            <div className="remember-me">
+              <label className="remember-checkbox">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                />
+                <span className="checkmark"></span>
+                <span className="remember-text">자동 로그인</span>
+              </label>
+            </div>
+          )}
+
           {/* 비즈니스 계정 정보 */}
           {!isLogin && accountType === 'business' && (
             <div className="business-info-section">
               <h3 className="business-info-title">
                 <Briefcase size={16} />
-                비즈니스 정보
+                비즈니스 정보 세금 계산서 발행용
               </h3>
               
               <div className="business-form-row">
@@ -403,13 +462,13 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="businessName">회사명</label>
+                  <label htmlFor="businessName">상호명</label>
                   <input
                     type="text"
                     id="businessName"
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
-                    placeholder="회사명을 입력하세요"
+                    placeholder="상호명을 입력하세요"
                     required
                   />
                 </div>
@@ -455,9 +514,27 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
           )}
 
+          {!isLogin && (
+            <div className="terms-agreement">
+              <label className="terms-checkbox">
+                <input
+                  type="checkbox"
+                  checked={agreeToTerms}
+                  onChange={(e) => setAgreeToTerms(e.target.checked)}
+                  required
+                />
+                <span className="checkmark"></span>
+                <span className="terms-text">
+                  <a href="/terms" target="_blank" className="terms-link">이용약관</a> 및 
+                  <a href="/privacy" target="_blank" className="terms-link">개인정보처리방침</a>에 동의합니다
+                </span>
+              </label>
+            </div>
+          )}
+
           {error && <div className="auth-error">{error}</div>}
 
-          <button type="submit" className="auth-submit" disabled={loading}>
+          <button type="submit" className="auth-submit" disabled={loading || (!isLogin && !agreeToTerms)}>
             {loading ? '처리중...' : (isLogin ? '로그인' : '회원가입')}
           </button>
         </form>

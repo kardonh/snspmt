@@ -199,14 +199,14 @@ export default function SignupPage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="businessName" className="form-label">회사명</label>
+                <label htmlFor="businessName" className="form-label">상호명</label>
                 <div className="input-wrapper">
                   <Building2 size={20} className="input-icon" />
                   <input
                     type="text"
                     id="businessName"
                     className="form-input"
-                    placeholder="회사명을 입력하세요"
+                    placeholder="상호명을 입력하세요"
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
                     required
