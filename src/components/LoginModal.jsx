@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
-import { X, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { X, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import './LoginModal.css'
 
 const LoginModal = ({ isOpen, onClose }) => {
@@ -53,17 +53,17 @@ const LoginModal = ({ isOpen, onClose }) => {
     <div className="login-modal-overlay" onClick={onClose}>
       <div className="login-modal" onClick={(e) => e.stopPropagation()}>
         <div className="login-modal-header">
-          <h2>로그인</h2>
-          <Link to="/signup" className="signup-link">
-            아직 회원이 아니신가요? 회원가입하기
-          </Link>
+          <div className="logo-container">
+            <div className="logo">Sociality</div>
+          </div>
+          <h2 className="login-title">
+            <ArrowRight size={24} />
+            로그인
+          </h2>
+          <p className="login-subtitle">Sociality에 오신 것을 환영합니다</p>
         </div>
         
         <div className="login-modal-content">
-          <p className="welcome-message">
-            SNS샵은 잘 이용하고 계신가요? 오늘도 즐거운 일 가득하시길 바래요.
-          </p>
-          
           <form onSubmit={handleSubmit} className="login-form">
             {error && (
               <div className="error-message">
@@ -72,19 +72,25 @@ const LoginModal = ({ isOpen, onClose }) => {
             )}
             
             <div className="form-group">
-              <label htmlFor="email">아이디</label>
+              <label htmlFor="email">
+                <Mail size={16} />
+                이메일
+              </label>
               <input
-                type="text"
+                type="email"
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="아이디를 입력하세요"
+                placeholder="your@email.com"
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="password">비밀번호</label>
+              <label htmlFor="password">
+                <Lock size={16} />
+                비밀번호
+              </label>
               <div className="password-input-wrapper">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -111,25 +117,14 @@ const LoginModal = ({ isOpen, onClose }) => {
             >
               {loading ? '로그인 중...' : '로그인'}
             </button>
-            
-            <div className="login-options">
-              <label className="remember-login">
-                <input
-                  type="checkbox"
-                  checked={rememberLogin}
-                  onChange={(e) => setRememberLogin(e.target.checked)}
-                />
-                로그인정보 기억하기
-              </label>
-              <button
-                type="button"
-                className="forgot-password"
-                onClick={handleForgotPassword}
-              >
-                비밀번호 찾기
-              </button>
-            </div>
           </form>
+          
+          <div className="signup-section">
+            <span>계정이 없으신가요?</span>
+            <Link to="/signup" className="signup-link">
+              회원가입
+            </Link>
+          </div>
         </div>
         
         <button className="close-button" onClick={onClose}>

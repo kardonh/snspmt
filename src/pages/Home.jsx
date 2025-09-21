@@ -505,7 +505,7 @@ const Home = () => {
           { id: 'regram_korean', name: '인스타그램 한국인 리그램', description: '한국인 리그램 서비스' },
           { id: 'followers_foreign', name: '인스타그램 외국인 팔로워', description: '외국인 팔로워 서비스' },
           { id: 'exposure_save_share', name: '인스타그램 [노출/도달/저장/공유]', description: '노출, 도달, 저장, 공유 서비스' },
-          { id: 'auto_exposure_save_share', name: '인스타그램 자동 노출/도달/저장/공유/기타', description: '자동 노출, 도달, 저장, 공유 서비스' },
+          { id: 'auto_exposure_save_share', name: '인스타그램 자동노출/도달/저장/공유', description: '자동 노출, 도달, 저장, 공유 서비스' },
           { id: 'live_streaming', name: '인스타그램 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' },
           { id: 'auto_likes', name: '인스타그램 자동 좋아요', description: '자동 좋아요 서비스' },
           { id: 'auto_views', name: '인스타그램 자동 조회수', description: '자동 조회수 서비스' },

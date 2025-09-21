@@ -41,42 +41,43 @@
 
 /* 모달 헤더 */
 .login-modal-header {
-  padding: 24px 24px 16px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 32px 32px 24px;
+  text-align: center;
   position: relative;
 }
 
-.login-modal-header h2 {
-  font-size: 20px;
+.logo-container {
+  margin-bottom: 20px;
+}
+
+.logo {
+  font-size: 1.8rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #3b82f6;
+  letter-spacing: -0.02em;
+}
+
+.login-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
   margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.signup-link {
-  color: #667eea;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-  transition: color 0.2s ease;
-}
-
-.signup-link:hover {
-  color: #5a67d8;
-  text-decoration: underline;
+.login-subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
 }
 
 /* 모달 콘텐츠 */
 .login-modal-content {
-  padding: 24px;
-}
-
-.welcome-message {
-  color: #6b7280;
-  font-size: 14px;
-  line-height: 1.5;
-  margin: 0 0 24px 0;
-  text-align: center;
+  padding: 0 32px 32px;
 }
 
 /* 폼 스타일 */
@@ -96,21 +97,27 @@
   font-size: 14px;
   font-weight: 600;
   color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .form-group input {
-  padding: 12px 16px;
-  border: 1px solid #d1d5db;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.2s ease;
-  background: white;
+  background: #f9fafb;
+  width: 100%;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  background: white;
 }
 
 .form-group input::placeholder {
@@ -147,65 +154,62 @@
 
 /* 로그인 버튼 */
 .login-button {
-  background: #1e293b;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%);
   color: white;
   border: none;
-  padding: 14px 24px;
+  padding: 16px 32px;
   border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: 8px;
+  transition: all 0.3s ease;
+  margin-top: 24px;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
 }
 
 .login-button:hover:not(:disabled) {
-  background: #334155;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.6);
 }
 
 .login-button:disabled {
   background: #9ca3af;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
-/* 로그인 옵션 */
-.login-options {
+/* 회원가입 섹션 */
+.signup-section {
+  text-align: center;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 24px;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 12px;
   align-items: center;
-  margin-top: 16px;
-  font-size: 14px;
 }
 
-.remember-login {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #6b7280;
-  cursor: pointer;
-  user-select: none;
+.signup-section span {
+  color: #64748b;
+  font-size: 0.875rem;
 }
 
-.remember-login input {
-  margin: 0;
-  width: 16px;
-  height: 16px;
+.signup-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  background: rgba(59, 130, 246, 0.1);
 }
 
-.forgot-password {
-  background: none;
-  border: none;
-  color: #667eea;
-  font-size: 14px;
-  cursor: pointer;
-  text-decoration: underline;
-  transition: color 0.2s ease;
-}
-
-.forgot-password:hover {
-  color: #5a67d8;
+.signup-link:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: #1d4ed8;
 }
 
 /* 에러 메시지 */

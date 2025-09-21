@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, LogIn, UserPlus, Mail, Lock, User, Building2, Briefcase, Eye, EyeOff, AlertTriangle } from 'lucide-react'
+import { X, LogIn, UserPlus, Mail, Lock, User, Building2, Briefcase, Eye, EyeOff, AlertTriangle, ArrowRight } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import './AuthModal.css'
 
@@ -212,16 +212,41 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
           </button>
         )}
 
-        <div className="auth-modal-header">
-          <div className="logo-container">
-            <div className="logo">Sociality</div>
+        <div className="auth-modal-content">
+          {/* 모바일용 상단 이미지 섹션 */}
+          <div className="auth-modal-image-mobile">
+            <img 
+              src="https://assets.snsshop.kr/assets/img2/signin-banner-01.jpg" 
+              alt="Sociality 로그인"
+              className="auth-image-mobile"
+            />
           </div>
-          <div className="auth-modal-icon">
-            {isLogin ? <LogIn size={32} /> : <UserPlus size={32} />}
+
+          {/* 데스크톱용 왼쪽 이미지 섹션 */}
+          <div className="auth-modal-image">
+            <img 
+              src="https://assets.snsshop.kr/assets/img2/signin-banner-01.jpg" 
+              alt="Sociality 로그인"
+              className="auth-image"
+            />
           </div>
-          <h2>{isLogin ? '로그인' : '회원가입'}</h2>
-          <p>{isLogin ? 'Sociality에 오신 것을 환영합니다' : 'Sociality 계정을 만들어보세요'}</p>
-        </div>
+
+          {/* 오른쪽 폼 섹션 */}
+          <div className="auth-modal-form">
+            <div className="auth-modal-header">
+              <div className="logo-container">
+                <div className="logo">Sociality</div>
+              </div>
+              <h2 className="login-title">
+                <ArrowRight size={24} />
+                {isLogin ? '로그인' : '회원가입'}
+              </h2>
+              {!isLogin && (
+                <p className="welcome-message">
+                  반가워요! 당신을 SNS마케팅의 놀라운 세계로 초대합니다.
+                </p>
+              )}
+            </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           {!isLogin && (
@@ -255,52 +280,106 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
                 </div>
               </div>
 
+              <div className="signup-form-row">
+                <div className="form-group">
+                  <label htmlFor="displayName">
+                    <User size={16} />
+                    이름
+                  </label>
+                  <input
+                    type="text"
+                    id="displayName"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="이름을 입력하세요"
+                    required={!isLogin}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="email">
+                    <Mail size={16} />
+                    이메일
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    required
+                  />
+                </div>
+              </div>
+
               <div className="form-group">
-                <label htmlFor="displayName">
-                  <User size={16} />
-                  이름
+                <label htmlFor="password">
+                  <Lock size={16} />
+                  비밀번호
                 </label>
-                <input
-                  type="text"
-                  id="displayName"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="이름을 입력하세요"
-                  required={!isLogin}
-                />
+                <div className="password-input-wrapper">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="비밀번호를 입력하세요"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
             </>
           )}
 
-          <div className="form-group">
-            <label htmlFor="email">
-              <Mail size={16} />
-              이메일
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="이메일을 입력하세요"
-              required
-            />
-          </div>
+          {isLogin && (
+            <div className="login-form-row">
+              <div className="form-group">
+                <label htmlFor="email">
+                  <Mail size={16} />
+                  이메일
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="password">
-              <Lock size={16} />
-              비밀번호
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="비밀번호를 입력하세요"
-              required
-            />
-          </div>
+              <div className="form-group">
+                <label htmlFor="password">
+                  <Lock size={16} />
+                  비밀번호
+                </label>
+                <div className="password-input-wrapper">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="비밀번호를 입력하세요"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 비즈니스 계정 정보 */}
           {!isLogin && accountType === 'business' && (
@@ -310,52 +389,56 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
                 비즈니스 정보
               </h3>
               
-              <div className="form-group">
-                <label htmlFor="businessNumber">사업자등록번호</label>
-                <input
-                  type="text"
-                  id="businessNumber"
-                  value={businessNumber}
-                  onChange={(e) => setBusinessNumber(e.target.value)}
-                  placeholder="사업자등록번호를 입력하세요 (예: 123-45-67890)"
-                  required
-                />
+              <div className="business-form-row">
+                <div className="form-group">
+                  <label htmlFor="businessNumber">사업자등록번호</label>
+                  <input
+                    type="text"
+                    id="businessNumber"
+                    value={businessNumber}
+                    onChange={(e) => setBusinessNumber(e.target.value)}
+                    placeholder="사업자등록번호를 입력하세요 (예: 123-45-67890)"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="businessName">회사명</label>
+                  <input
+                    type="text"
+                    id="businessName"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    placeholder="회사명을 입력하세요"
+                    required
+                  />
+                </div>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="businessName">회사명</label>
-                <input
-                  type="text"
-                  id="businessName"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="회사명을 입력하세요"
-                  required
-                />
-              </div>
+              <div className="business-form-row">
+                <div className="form-group">
+                  <label htmlFor="representative">대표자</label>
+                  <input
+                    type="text"
+                    id="representative"
+                    value={representative}
+                    onChange={(e) => setRepresentative(e.target.value)}
+                    placeholder="대표자명을 입력하세요"
+                    required
+                  />
+                </div>
 
-              <div className="form-group">
-                <label htmlFor="representative">대표자</label>
-                <input
-                  type="text"
-                  id="representative"
-                  value={representative}
-                  onChange={(e) => setRepresentative(e.target.value)}
-                  placeholder="대표자명을 입력하세요"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="contactPhone">담당자 연락처</label>
-                <input
-                  type="tel"
-                  id="contactPhone"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  placeholder="담당자 연락처를 입력하세요 (예: 010-1234-5678)"
-                  required
-                />
+                <div className="form-group">
+                  <label htmlFor="contactPhone">담당자 연락처</label>
+                  <input
+                    type="tel"
+                    id="contactPhone"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="담당자 연락처를 입력하세요 (예: 010-1234-5678)"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -379,13 +462,26 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
           </button>
         </form>
 
-        <div className="auth-modal-footer">
-          <p>
-            {isLogin ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}
-            <button onClick={switchMode} className="auth-switch-btn">
-              {isLogin ? '회원가입' : '로그인'}
+        {isLogin && (
+          <div className="signup-section">
+            <span>계정이 없으신가요?</span>
+            <button onClick={switchMode} className="signup-link">
+              회원가입
             </button>
-          </p>
+          </div>
+        )}
+
+        {!isLogin && (
+          <div className="auth-modal-footer">
+            <p>
+              이미 계정이 있으신가요?
+              <button onClick={switchMode} className="auth-switch-btn">
+                로그인
+              </button>
+            </p>
+          </div>
+        )}
+          </div>
         </div>
       </div>
     </div>
