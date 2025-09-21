@@ -153,7 +153,10 @@ export default function LoginPage() {
           <div className="logo-container">
             <div className="logo">Sociality</div>
           </div>
-          <h2 className="login-title">로그인</h2>
+          <h2 className="login-title">
+            <ArrowRight size={24} />
+            로그인
+          </h2>
           <p className="login-subtitle">Sociality에 오신 것을 환영합니다</p>
         </div>
         
