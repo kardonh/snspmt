@@ -57,15 +57,15 @@ const Home = () => {
   const instagramDetailedServices = {
     popular_posts: [
       // 🎯 새로운 묶음 서비스 - 추천탭 상위노출 (셀프) - 진입단계
-      { id: 1001, name: '🎯 추천탭 상위노출 (셀프) - 진입단계 [4단계 패키지]', price: 6610, min: 1, max: 1, time: '24-48시간', description: '진입단계 4단계 완전 패키지', package: true, steps: [
-        { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', price: 1800, quantity: 300, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
-        { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', price: 3000, quantity: 10000, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
-        { id: 328, name: '3단계: 파워 게시물 저장 유입', price: 210, quantity: 1000, description: '4️⃣[등록단계]파워 게시물 저장 유입' },
-        { id: 326, name: '4단계: 리얼 한국인 댓글 유입', price: 1600, quantity: 10, description: '2️⃣[상승단계] 리얼 한국인 댓글 유입' }
+      { id: 1001, name: '🎯 추천탭 상위노출 (셀프) - 진입단계 [4단계 패키지]', price: 6610000, min: 1, max: 1, time: '24-48시간', description: '진입단계 4단계 완전 패키지', package: true, steps: [
+        { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', price: 1800000, quantity: 300, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
+        { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', price: 3000000, quantity: 10000, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
+        { id: 328, name: '3단계: 파워 게시물 저장 유입', price: 210000, quantity: 1000, description: '4️⃣[등록단계]파워 게시물 저장 유입' },
+        { id: 326, name: '4단계: 리얼 한국인 댓글 유입', price: 1600000, quantity: 10, description: '2️⃣[상승단계] 리얼 한국인 댓글 유입' }
       ]},
       // 🎯 새로운 묶음 서비스 - 추천탭 상위노출 (셀프) - 유지단계  
-      { id: 1002, name: '🎯 추천탭 상위노출 (셀프) - 유지단계 [2단계 패키지]', price: 3250, min: 1, max: 1, time: '12-24시간', description: '유지단계 2단계 완전 패키지', package: true, steps: [
-        { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', price: 3250, quantity: 250, description: '[상승단계]:리얼 한국인 좋아요' },
+      { id: 1002, name: '🎯 추천탭 상위노출 (셀프) - 유지단계 [2단계 패키지]', price: 3250000, min: 1, max: 1, time: '12-24시간', description: '유지단계 2단계 완전 패키지', package: true, steps: [
+        { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', price: 3250000, quantity: 250, description: '[상승단계]:리얼 한국인 좋아요' },
         { id: 331, name: '2단계: 게시물 노출+도달+홈 [✔연속 유입]', price: 0, quantity: 0, description: '게시물 노출+도달+홈 [✔연속 유입] 작업' }
       ]},
       // 기존 서비스들
