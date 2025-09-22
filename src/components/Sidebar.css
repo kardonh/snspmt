@@ -55,15 +55,17 @@
 }
 
 .sidebar-logo h2 {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 36px;
+  font-weight: 800;
   background: linear-gradient(135deg, #528bc5 20%, #ffffff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0;
   text-align: center;
+  letter-spacing: -0.02em;
 }
+
 
 /* User Status */
 .user-status {

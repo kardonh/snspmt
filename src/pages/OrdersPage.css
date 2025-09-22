@@ -41,6 +41,7 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  justify-content: flex-start;
 }
 
 .filter-btn {
@@ -504,7 +505,7 @@
   }
   
   .filter-buttons {
-    justify-content: center;
+    justify-content: flex-start;
   }
   
   .filter-btn {

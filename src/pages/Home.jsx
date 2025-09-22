@@ -40,6 +40,7 @@ const Home = () => {
   const [comments, setComments] = useState('')
   const [explanation, setExplanation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [showOrderMethodModal, setShowOrderMethodModal] = useState(false)
 
   // 컴포넌트 마운트 시 기본 서비스 자동 선택
   useEffect(() => {
@@ -83,233 +84,204 @@ const Home = () => {
       { id: 331, name: '7️⃣.[유지단계]:게시물 노출+도달+홈 [✔연속 유입] 작업', price: 450, min: 100, max: 1000000, time: '데이터가 충분하지 않습니다' }
     ],
     likes_korean: [
-      { id: 122, name: '🇰🇷 인스타그램 한국인 ❤️ 파워업 좋아요', price: 19, min: 30, max: 2500, time: '14시간 54분', description: '상세정보' },
-      { id: 333, name: '🇰🇷 인스타그램 한국인 ❤️ 슈퍼프리미엄 좋아요', price: 29, min: 100, max: 1000, time: '데이터 부족', description: '상세정보' },
-      { id: 275, name: '🇰🇷 인스타그램 한국인 ❤️ 좋아요 [남성]', price: 29, min: 30, max: 5000, time: '10분', description: '상세정보' },
-      { id: 276, name: '🇰🇷 인스타그램 한국인 ❤️ 좋아요 [여성]', price: 29, min: 30, max: 5000, time: '9분', description: '상세정보' },
-      { id: 277, name: '🇰🇷 인스타그램 한국인 ❤️ 좋아요 [20대]', price: 29, min: 30, max: 5000, time: '데이터 부족', description: '상세정보' },
-      { id: 279, name: '🇰🇷 인스타그램 한국인 ❤️ 좋아요 [20대남성]', price: 39, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
-      { id: 280, name: '🇰🇷 인스타그램 한국인 ❤️ 좋아요 [20대여성]', price: 39, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
-      { id: 278, name: '🇰🇷 인스타그램 한국인 ❤️ 좋아요 [30대]', price: 29, min: 30, max: 5000, time: '데이터 부족', description: '상세정보' },
-      { id: 281, name: '🇰🇷 인스타그램 한국인 ❤️ 좋아요 [30대남성]', price: 39, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
-      { id: 282, name: '🇰🇷 인스타그램 한국인 ❤️ 좋아요 [30대여성]', price: 39, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' }
-     ],
+      { id: 122, name: 'KR 인스타그램 한국인 ❤️ 파워업 좋아요', price: 19000, min: 30, max: 2500, time: '14시간 54분', description: '상세정보' },
+      { id: 333, name: 'KR 인스타그램 한국인 ❤️ 슈퍼프리미엄 좋아요', price: 29000, min: 100, max: 1000, time: '데이터 부족', description: '상세정보' },
+      { id: 276, name: 'KR 인스타그램 리얼 한국인 [여자] 좋아요', price: 29000, min: 30, max: 5000, time: '9분', description: '상세정보' },
+      { id: 275, name: 'KR 인스타그램 리얼 한국인 [남자] 좋아요', price: 29000, min: 30, max: 5000, time: '10분', description: '상세정보' },
+      { id: 277, name: 'KR 인스타그램 리얼 한국인 [20대] 좋아요', price: 29000, min: 30, max: 5000, time: '데이터 부족', description: '상세정보' },
+      { id: 280, name: 'KR 인스타그램 리얼 한국인 [20대여자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
+      { id: 279, name: 'KR 인스타그램 리얼 한국인 [20대남자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
+      { id: 278, name: 'KR 인스타그램 리얼 한국인 [30대] 좋아요', price: 29000, min: 30, max: 5000, time: '데이터 부족', description: '상세정보' },
+      { id: 282, name: 'KR 인스타그램 리얼 한국인 [30대여자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
+      { id: 281, name: 'KR 인스타그램 리얼 한국인 [30대남자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' }
+    ],
     likes_foreign: [
-      { id: 116, name: '440 [🥇추천]인스타그램 리얼 외국인 좋아요💖[저속][업데이트서버_08월_18일]', price: 1200, min: 100, max: 100000, time: '5 시간 7 분' }
+      { id: 105, name: '인스타그램 외국인 좋아요', price: 4000, min: 50, max: 10000, time: '데이터 부족' },
+      { id: 116, name: '인스타그램 리얼 외국인 좋아요', price: 6000, min: 50, max: 10000, time: '데이터 부족' }
     ],
     followers_korean: [
-      { id: 514, name: '🇰🇷 💯 리얼 한국인 팔로워 [일반]', price: 150, min: 30, max: 3000, time: '2시간 16분', description: '상세정보' },
-      { id: 491, name: '🇰🇷 💯 리얼 한국인 팔로워 [디럭스]', price: 210, min: 10, max: 1000, time: '데이터 부족', description: '상세정보' },
-      { id: 334, name: '🇰🇷 💯 리얼 한국인 팔로워 [프리미엄]', price: 270, min: 10, max: 40000, time: '1시간 3분', description: '상세정보' }
+      { id: 514, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [일반]', price: 150000, min: 30, max: 3000, time: '2시간 16분', description: '상세정보' },
+      { id: 491, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [디럭스]', price: 210000, min: 10, max: 1000, time: '데이터 부족', description: '상세정보' },
+      { id: 334, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [프리미엄]', price: 270000, min: 10, max: 40000, time: '1시간 3분', description: '상세정보' }
     ],
     views: [
-      { id: 111, name: '🇰🇷인스타그램 한국인 동영상 조회수', price: 2, min: 100, max: 2147483647, time: '20시간 33분', description: '상세정보' },
-      { id: 374, name: '🇰🇷인스타그램 한국인 노출(+도달+기타)', price: 8, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' },
-      { id: 141, name: '🇰🇷인스타그램 한국인 저장', price: 40, min: 10, max: 1000000, time: '2분', description: '상세정보' },
-      { id: 305, name: '🇰🇷 인스타그램 한국인 리그램', price: 450, min: 3, max: 3000, time: '6시간 12분', description: '상세정보' }
+      { id: 111, name: 'KR 인스타그램 리얼 한국인 동영상 조회수', price: 2000, min: 100, max: 2147483647, time: '20시간 33분', description: '상세정보' },
+      { id: 109, name: '인스타그램 동영상 조회수 [REEL/IGTV/VIDEO 가능]', price: 300, min: 100, max: 1000000, time: '데이터 부족' },
+      { id: 382, name: '인스타그램 동영상 조회수+저장+시간', price: 1200, min: 100, max: 1000000, time: '데이터 부족' },
+      { id: 515, name: '인스타그램 프로필 방문', price: 1000, min: 10, max: 10000, time: '데이터 부족' },
+      { id: 374, name: 'KR 인스타그램 한국인 노출 [+도달+기타]', price: 8000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' },
+      { id: 141, name: 'KR 인스타그램 리얼 한국인 저장', price: 40000, min: 10, max: 1000000, time: '2분', description: '상세정보' },
+      { id: 305, name: 'KR 인스타그램 한국인 리그램', price: 450000, min: 3, max: 3000, time: '6시간 12분', description: '상세정보' }
     ],
     comments_korean: [
-      { id: 296, name: '🇰🇷 인스타그램 한국인 랜덤 댓글 [일반]', price: 260, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
-      { id: 297, name: '🇰🇷 인스타그램 한국인 랜덤 댓글 [여성]', price: 400, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
-      { id: 298, name: '🇰🇷 인스타그램 한국인 랜덤 댓글 [남성]', price: 400, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
-      { id: 299, name: '🇰🇷 인스타그램 한국인 랜덤 댓글 [20대]', price: 260, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
-      { id: 300, name: '🇰🇷 인스타그램 한국인 랜덤 댓글 [20대남성]', price: 400, min: 5, max: 2500, time: '데이터 부족', description: '상세정보' },
-      { id: 301, name: '🇰🇷 인스타그램 한국인 랜덤 댓글 [20대여성]', price: 400, min: 5, max: 2500, time: '데이터 부족', description: '상세정보' },
-      { id: 302, name: '🇰🇷 인스타그램 한국인 랜덤 댓글 [30대남성]', price: 400, min: 5, max: 2500, time: '데이터 부족', description: '상세정보' },
-      { id: 303, name: '🇰🇷 인스타그램 한국인 랜덤 댓글 [30대여성]', price: 400, min: 5, max: 2500, time: '데이터 부족', description: '상세정보' },
-      { id: 291, name: '🇰🇷 인스타그램 한국인 이모지 댓글', price: 260, min: 5, max: 1000, time: '데이터 부족', description: '상세정보' },
-      { id: 339, name: '🇰🇷 인스타그램 한국인 커스텀 댓글 [일반]', price: 400, min: 5, max: 500, time: '6분', description: '상세정보' },
-      { id: 340, name: '🇰🇷 인스타그램 한국인 커스텀 댓글 [남성]', price: 500, min: 5, max: 500, time: '데이터 부족', description: '상세정보' },
-      { id: 341, name: '🇰🇷 인스타그램 한국인 커스텀 댓글 [여성]', price: 500, min: 5, max: 500, time: '6분', description: '상세정보' }
+      { id: 342, name: 'KR 인스타그램 리얼 한국인 랜덤 댓글', price: 260000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+      { id: 297, name: 'KR 인스타그램 리얼 한국인 랜덤 댓글 [여자]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+      { id: 296, name: 'KR 인스타그램 리얼 한국인 랜덤 댓글 [남자]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+      { id: 298, name: 'KR 인스타그램 리얼 한국인 랜덤 댓글 [20대]', price: 260000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+      { id: 299, name: 'KR 인스타그램 리얼 한국인 랜덤 댓글 [20대여자]', price: 400000, min: 5, max: 2500, time: '데이터 부족', description: '상세정보' },
+      { id: 300, name: 'KR 인스타그램 리얼 한국인 랜덤 댓글 [20대남자]', price: 400000, min: 5, max: 2500, time: '데이터 부족', description: '상세정보' },
+      { id: 301, name: 'KR 인스타그램 리얼 한국인 랜덤 댓글 [30대]', price: 260000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+      { id: 302, name: 'KR 인스타그램 리얼 한국인 랜덤 댓글 [30대여자]', price: 400000, min: 5, max: 2500, time: '데이터 부족', description: '상세정보' },
+      { id: 303, name: 'KR 인스타그램 리얼 한국인 랜덤 댓글 [30대남자]', price: 400000, min: 5, max: 2500, time: '데이터 부족', description: '상세정보' },
+      { id: 291, name: 'KR 인스타그램 한국인 이모지 댓글', price: 260000, min: 5, max: 1000, time: '데이터 부족', description: '상세정보' },
+      { id: 339, name: 'KR 인스타그램 한국인 커스텀 댓글', price: 400000, min: 5, max: 500, time: '6분', description: '상세정보' },
+      { id: 340, name: 'KR 인스타그램 한국인 커스텀 댓글 [여자]', price: 500000, min: 5, max: 500, time: '데이터 부족', description: '상세정보' },
+      { id: 341, name: 'KR 인스타그램 한국인 커스텀 댓글 [남자]', price: 500000, min: 5, max: 500, time: '6분', description: '상세정보' }
+    ],
+    comments_foreign: [
+      { id: 480, name: '인스타그램 외국인 랜덤 댓글', price: 50000, min: 20, max: 1000, time: '데이터 부족' },
+      { id: 481, name: '인스타그램 외국인 커스텀 댓글', price: 60000, min: 20, max: 1000, time: '데이터 부족' },
+      { id: 358, name: '인스타그램 외국인 랜덤 이모지 댓글', price: 50000, min: 20, max: 1000, time: '데이터 부족' }
     ],
     regram_korean: [
       { id: 305, name: '🇰🇷 인스타그램 한국인 리그램🎯', price: 375000, min: 3, max: 3000, time: '7 시간 21 분' }
     ],
     followers_foreign: [
-      { id: 475, name: '외국인 팔로워', price: 7500, min: 100, max: 20000, time: '15 시간 39 분' }
+      { id: 475, name: '인스타그램 외국인 팔로워', price: 10000, min: 100, max: 10000, time: '데이터 부족' }
     ],
     exposure_save_share: [
-      { id: 490, name: '🇰🇷인스타그램 리얼 한국인 스토리 공유🔗', price: 600000, min: 3, max: 500, time: '데이터가 충분하지 않습니다' },
-      { id: 142, name: '🌐인스타그램 노출👣[+도달+기타][좋아요x]', price: 330, min: 100, max: 1000000, time: '22 분' },
-      { id: 145, name: '🌐인스타그램 노출👣[+도달+홈+프로필+기타][좋아요x]', price: 900, min: 10, max: 1000000, time: '77 시간 42 분' },
-      { id: 374, name: '🇰🇷인스타그램 한국인 노출👣[+도달+기타][좋아요x]', price: 3000, min: 100, max: 1000000, time: '데이터가 충분하지 않습니다' },
-      { id: 141, name: '🇰🇷인스타그램 리얼 한국인 저장💾', price: 30000, min: 10, max: 1000000, time: '11 분' },
-      { id: 147, name: '🌐인스타그램 저장💾', price: 300, min: 100, max: 1000000, time: '15 분' },
-      { id: 312, name: '🌐인스타그램 저장💾', price: 300, min: 100, max: 50000, time: '5 분' },
-      { id: 313, name: '🌐인스타그램 공유🔗', price: 1500, min: 100, max: 10000000, time: '7 분' }
+      { id: 142, name: '인스타그램 노출(+도달+추+프로필+기타)', price: 2500, min: 100, max: 1000000, time: '데이터 부족' },
+      { id: 145, name: '인스타그램 노출(+도달+추+프로필+기타)', price: 5000, min: 100, max: 1000000, time: '데이터 부족' },
+      { id: 312, name: '인스타그램 저장', price: 500, min: 10, max: 10000, time: '데이터 부족' },
+      { id: 313, name: '인스타그램 공유', price: 8000, min: 10, max: 10000, time: '데이터 부족' }
     ],
-    auto_exposure_save_share: [
-      { id: 351, name: '🌐인스타그램 자동 저장💾', price: 150, min: 100, max: 1000000, time: '데이터가 충분하지 않습니다' },
-      { id: 356, name: '🌐인스타그램 자동 노출👣[+도달+기타][좋아요x]', price: 300, min: 100, max: 100000, time: '데이터가 충분하지 않습니다' },
-      { id: 357, name: '🌐인스타그램 자동 노출👣[+도달+홈+기타][좋아요x]', price: 900, min: 10, max: 1000000, time: '데이터가 충분하지 않습니다' },
-      { id: 370, name: '🌐인스타그램 자동 공유🔗', price: 1500, min: 100, max: 10000000, time: '9 분' }
-    ],
+
     live_streaming: [
-      { id: 393, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[15분]', price: 2250, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 394, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[30분]', price: 4500, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 395, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[60분]', price: 9000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 396, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[90분]', price: 13500, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 397, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[120분]', price: 18000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 398, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[180분]', price: 27000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 399, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[240분]', price: 36000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 400, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[360분]', price: 54000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
+      { id: 393, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[15분]', price: 3000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
+      { id: 394, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[30분]', price: 6000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
+      { id: 395, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[60분]', price: 12000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
+      { id: 396, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[90분]', price: 18000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
+      { id: 397, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[120분]', price: 24000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
+      { id: 398, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[180분]', price: 36000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
+      { id: 399, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[240분]', price: 48000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
+      { id: 400, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[360분]', price: 72000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
       { id: 426, name: '🌐인스타그램 실시간 라이브 스트리밍 시청 + 좋아요 + 댓글', price: 30000, min: 20, max: 40000, time: '데이터가 충분하지 않습니다' }
     ],
     auto_likes: [
-      { id: 348, name: '🇰🇷 인스타그램 한국인 💎💎파워업 자동 좋아요', price: 14, min: 50, max: 5000, time: '2시간 16분', description: '상세정보' },
-      { id: 368, name: '🇰🇷 인스타그램 한국인 자동 좋아요', price: 28, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' },
-      { id: 369, name: '🇰🇷 인스타그램 한국인 슈퍼프리미엄 자동 좋아요', price: 38, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' }
+      { id: 348, name: 'KR 인스타그램 한국인 ❤️ 파워업 좋아요', price: 19000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
+      { id: 369, name: 'KR 인스타그램 한국인 💎 슈퍼프리미엄 자동 좋아요', price: 30000, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' }
     ],
     auto_views: [
-      { id: 349, name: '인스타그램 동영상 자동 조회수', price: 2, min: 100, max: 2147483647, time: '데이터 부족', description: '상세정보' }
+      { id: 349, name: '인스타그램 동영상 자동 조회수', price: 6000, min: 100, max: 2147483647, time: '데이터 부족', description: '상세정보' }
     ],
     auto_comments: [
-      { id: 350, name: '🇰🇷 인스타그램 한국인 자동 랜덤 댓글', price: 320, min: 3, max: 100, time: '10분', description: '상세정보' },
-      { id: 358, name: '🌐인스타그램 외국인 자동 랜덤 이모지 댓글', price: 30, min: 10, max: 4000000, time: '데이터 부족', description: '상세정보' }
+      { id: 350, name: 'KR 인스타그램 한국인 자동 랜덤 댓글', price: 260000, min: 3, max: 100, time: '10분', description: '상세정보' }
     ],
 
     // 스레드 세부 서비스 데이터
     threads: {
       likes_korean: [
-        { id: 453, name: '🇰🇷 Threads 한국인 리얼 좋아요', price: 15, min: 50, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 454, name: '🇰🇷 Threads 한국인 리얼 팔로워', price: 75, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 457, name: '🇰🇷 Threads 한국인 리얼 댓글', price: 210, min: 5, max: 500, time: '데이터 부족', description: '상세정보' }
+        { id: 453, name: 'KR Threads 한국인 리얼 좋아요', price: 22000, min: 50, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 454, name: 'KR Threads 한국인 리얼 팔로워', price: 95000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 457, name: 'KR Threads 한국인 리얼 댓글', price: 270000, min: 5, max: 500, time: '데이터 부족', description: '상세정보' },
+        { id: 498, name: 'KR Threads 한국인 리얼 공유', price: 450000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' }
       ]
     },
 
-    // 유튜브 세부 서비스 데이터
-    youtube: {
-      views: [
-        { id: 371, name: '🌐유튜브 외국인 동영상 조회수', price: 6, min: 500, max: 10000000, time: '9시간 9분', description: '상세정보' },
-        { id: 360, name: '🇰🇷유튜브 한국인 동영상 조회수', price: 28, min: 4000, max: 100000, time: '데이터 부족', description: '상세정보' },
-        { id: 496, name: '🇰🇷유튜브 한국인 동영상 조회수(시청:20초)', price: 52, min: 10, max: 30000, time: '데이터 부족', description: '상세정보' }
-      ],
-      auto_views: [
-        { id: 486, name: '🌐유튜브 외국인 동영상 자동 조회수', price: 6, min: 1000, max: 10000000, time: '데이터 부족', description: '상세정보' }
-      ],
-      likes: [
-        { id: 136, name: '🌐유튜브 외국인 동영상 좋아요', price: 4, min: 100, max: 500000, time: '데이터 부족', description: '상세정보' },
-        { id: 137, name: '🌐유튜브 외국인 동영상 좋아요', price: 6, min: 100, max: 500000, time: '데이터 부족', description: '상세정보' },
-        { id: 489, name: '🇰🇷유튜브 한국인 동영상 좋아요', price: 100, min: 10, max: 1000, time: '데이터 부족', description: '상세정보' }
-      ],
-      auto_likes: [
-        { id: 487, name: '🌐유튜브 외국인 동영상 자동 좋아요', price: 4, min: 20, max: 500000, time: '데이터 부족', description: '상세정보' }
-      ],
-      subscribers: [
-        { id: 500, name: '🌐유튜브 외국인 채널 구독자', price: 100, min: 100, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 485, name: '🇰🇷유튜브 한국인 채널 구독자', price: 600, min: 50, max: 10000, time: '11시간 40분', description: '상세정보' },
-        { id: 236, name: '🇰🇷유튜브 한국인 채널 구독자', price: 1000, min: 200, max: 10000, time: '데이터 부족', description: '상세정보' }
-      ],
-      comments_shares: [
-        { id: 482, name: '🇰🇷유튜브 한국인 동영상 AI 랜덤 댓글', price: 70, min: 10, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 423, name: '🌐유튜브 외국인 랜덤 댓글', price: 46, min: 20, max: 11000, time: '데이터 부족', description: '상세정보' },
-        { id: 138, name: '🌐유튜브 외국인 커스텀 댓글', price: 20, min: 5, max: 100000, time: '데이터 부족', description: '상세정보' },
-        { id: 260, name: '🌐유튜브 외국인 이모지 댓글', price: 20, min: 10, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 261, name: '🇰🇷 유튜브 한국 소셜 공유', price: 12, min: 50, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 262, name: '🇰🇷유튜브 한국인 동영상 랜덤 댓글', price: 520, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 263, name: '🇰🇷유튜브 한국인 동영상 [남자] 랜덤 댓글', price: 800, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 264, name: '🇰🇷유튜브 한국인 동영상 [여자] 랜덤 댓글', price: 800, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 265, name: '🇰🇷유튜브 한국인 동영상 [20대] 랜덤 댓글', price: 800, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 266, name: '🇰🇷유튜브 한국인 동영상 [30대] 랜덤 댓글', price: 800, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 267, name: '🇰🇷유튜브 한국인 동영상 [20대][남자] 랜덤 댓글', price: 1040, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 268, name: '🇰🇷유튜브 한국인 동영상 [20대][여자] 랜덤 댓글', price: 1040, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 269, name: '🇰🇷유튜브 한국인 동영상 [30대][남자] 랜덤 댓글', price: 1040, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 270, name: '🇰🇷유튜브 한국인 동영상 [30대][여자] 랜덤 댓글', price: 1040, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 353, name: '🌐유튜브 댓글 좋아요', price: 30, min: 10, max: 10000, time: '데이터 부족', description: '상세정보' }
-      ],
-      live_streaming: [
-        { id: 409, name: '🌐유튜브 실시간 라이브 스트리밍 시청[15분]', price: 2, min: 100, max: 100000, time: '15분', description: '상세정보' },
-        { id: 410, name: '🌐유튜브 실시간 라이브 스트리밍 시청[30분]', price: 4, min: 100, max: 100000, time: '18분', description: '상세정보' },
-        { id: 411, name: '🌐유튜브 실시간 라이브 스트리밍 시청[60분]', price: 8, min: 100, max: 100000, time: '51분', description: '상세정보' },
-        { id: 412, name: '🌐유튜브 실시간 라이브 스트리밍 시청[90분]', price: 12, min: 100, max: 100000, time: '51분', description: '상세정보' },
-        { id: 413, name: '🌐유튜브 실시간 라이브 스트리밍 시청[120분]', price: 16, min: 100, max: 100000, time: '25분', description: '상세정보' },
-        { id: 414, name: '🌐유튜브 실시간 라이브 스트리밍 시청[180분]', price: 24, min: 100, max: 100000, time: '데이터 부족', description: '상세정보' },
-        { id: 415, name: '🌐유튜브 실시간 라이브 스트리밍 랜덤 댓글', price: 30, min: 10, max: 500000, time: '데이터 부족', description: '상세정보' },
-        { id: 416, name: '🌐유튜브 실시간 라이브 스트리밍 랜덤 긍정 이모지 댓글', price: 30, min: 10, max: 500000, time: '데이터 부족', description: '상세정보' },
-        { id: 417, name: '🌐유튜브 실시간 라이브 스트리밍 커스텀 댓글', price: 30, min: 10, max: 500000, time: '데이터 부족', description: '상세정보' }
-      ]
-    },
 
     // 페이스북 세부 서비스 데이터
     facebook: {
       foreign_services: [
-        { id: 154, name: '🌐페이스북 외국인 페이지 좋아요+팔로워💘 👪R30[✔️페이지]', price: 10500, min: 100, max: 1000000, time: '데이터가 충분하지 않습니다' },
-        { id: 156, name: '🌐페이스북 외국인 페이지 팔로우👪R30[✔️페이지]', price: 10500, min: 100, max: 500000, time: '데이터가 충분하지 않습니다' },
-        { id: 314, name: '페이스북 외국인 프로필 팔로워👪R30[✔️프로필]', price: 10500, min: 100, max: 1000000, time: '데이터가 충분하지 않습니다' },
-        { id: 318, name: '🌐페이스북 외국인 게시물 좋아요💘R30[✔️게시물]', price: 9000, min: 100, max: 100000, time: '데이터가 충분하지 않습니다' },
-        { id: 319, name: '🌐페이스북 외국인 이모지 리액션[LOVE] ❤️', price: 6000, min: 50, max: 100000, time: '데이터가 충분하지 않습니다' }
+        { id: 154, name: '페이스북 외국인 페이지 좋아요+팔로워', price: 15000, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 156, name: '페이스북 외국인 페이지 팔로우', price: 15000, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 314, name: '페이스북 외국인 프로필 팔로우', price: 35000, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 318, name: '페이스북 외국인 게시물 좋아요', price: 10000, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 319, name: '페이스북 외국인 이모지 리액션 [LOVE]', price: 30000, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' }
       ],
       page_likes_korean: [
-        { id: 226, name: '🇰🇷 페이스북 리얼 한국인 페이지 좋아요+팔로워 [일반]', price: 190, min: 20, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 227, name: '🇰🇷 페이스북 리얼 한국인 페이지 좋아요+팔로워 [남성]', price: 210, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 228, name: '🇰🇷 페이스북 리얼 한국인 페이지 좋아요+팔로워 [여성]', price: 210, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 229, name: '🇰🇷 페이스북 리얼 한국인 페이지 좋아요+팔로워 [20대]', price: 210, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 230, name: '🇰🇷 페이스북 리얼 한국인 페이지 좋아요+팔로워 [30대]', price: 210, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' }
+        { id: 226, name: 'KR 페이스북 리얼 한국인 페이지 좋아요+팔로워 [일반]', price: 250000, min: 20, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 227, name: 'KR 페이스북 리얼 한국인 페이지 좋아요+팔로워 [남성]', price: 400000, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 228, name: 'KR 페이스북 리얼 한국인 페이지 좋아요+팔로워 [여성]', price: 400000, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 229, name: 'KR 페이스북 리얼 한국인 페이지 좋아요+팔로워 [20대]', price: 400000, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 230, name: 'KR 페이스북 리얼 한국인 페이지 좋아요+팔로워 [30대]', price: 400000, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 231, name: 'KR 페이스북 리얼 한국인 페이지 좋아요+팔로워 [20대여자]', price: 500000, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 232, name: 'KR 페이스북 리얼 한국인 페이지 좋아요+팔로워 [20대남자]', price: 500000, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 233, name: 'KR 페이스북 리얼 한국인 페이지 좋아요+팔로워 [30대여자]', price: 500000, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 234, name: 'KR 페이스북 리얼 한국인 페이지 좋아요+팔로워 [30대남자]', price: 500000, min: 50, max: 5000, time: '데이터 부족', description: '상세정보' }
       ],
       post_likes_korean: [
-        { id: 198, name: '🇰🇷 페이스북 리얼 한국인 게시물 좋아요', price: 22, min: 30, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 199, name: '🇰🇷 페이스북 리얼 한국인 게시물 좋아요 [남성]', price: 30, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 200, name: '🇰🇷 페이스북 리얼 한국인 게시물 좋아요 [여성]', price: 30, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 201, name: '🇰🇷 페이스북 리얼 한국인 게시물 좋아요 [20대]', price: 30, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 202, name: '🇰🇷 페이스북 리얼 한국인 게시물 좋아요 [30대]', price: 30, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' }
+        { id: 198, name: 'KR 페이스북 리얼 한국인 게시물 좋아요 [일반]', price: 38000, min: 30, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 199, name: 'KR 페이스북 리얼 한국인 게시물 좋아요 [남성]', price: 55000, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 200, name: 'KR 페이스북 리얼 한국인 게시물 좋아요 [여성]', price: 55000, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 201, name: 'KR 페이스북 리얼 한국인 게시물 좋아요 [20대]', price: 55000, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 202, name: 'KR 페이스북 리얼 한국인 게시물 좋아요 [30대]', price: 55000, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 203, name: 'KR 페이스북 리얼 한국인 게시물 좋아요 [20대남자]', price: 60000, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 204, name: 'KR 페이스북 리얼 한국인 게시물 좋아요 [20대여자]', price: 60000, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 205, name: 'KR 페이스북 리얼 한국인 게시물 좋아요 [30대남자]', price: 60000, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 206, name: 'KR 페이스북 리얼 한국인 게시물 좋아요 [30대여자]', price: 60000, min: 20, max: 5000, time: '데이터 부족', description: '상세정보' }
       ],
       post_comments_korean: [
-        { id: 207, name: '🇰🇷 페이스북 리얼 한국인 게시물 랜덤 댓글 [일반]', price: 190, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
-        { id: 209, name: '🇰🇷 페이스북 리얼 한국인 게시물 랜덤 댓글 [남성]', price: 220, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 210, name: '🇰🇷 페이스북 리얼 한국인 게시물 랜덤 댓글 [여성]', price: 220, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 211, name: '🇰🇷 페이스북 리얼 한국인 게시물 랜덤 댓글 [20대]', price: 220, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 212, name: '🇰🇷 페이스북 리얼 한국인 게시물 랜덤 댓글 [30대]', price: 220, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' }
+        { id: 207, name: 'KR 페이스북 리얼 한국인 게시물 랜덤 댓글 [일반]', price: 270000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 209, name: 'KR 페이스북 리얼 한국인 게시물 랜덤 댓글 [남성]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 210, name: 'KR 페이스북 리얼 한국인 게시물 랜덤 댓글 [여성]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 211, name: 'KR 페이스북 리얼 한국인 게시물 랜덤 댓글 [20대]', price: 450000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 212, name: 'KR 페이스북 리얼 한국인 게시물 랜덤 댓글 [30대]', price: 450000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 213, name: 'KR 페이스북 리얼 한국인 게시물 랜덤 댓글 [20대여자]', price: 450000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 214, name: 'KR 페이스북 리얼 한국인 게시물 랜덤 댓글 [20대남자]', price: 450000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 215, name: 'KR 페이스북 리얼 한국인 게시물 랜덤 댓글 [30대여자]', price: 450000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 216, name: 'KR 페이스북 리얼 한국인 게시물 랜덤 댓글 [30대남자]', price: 450000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' }
       ],
       profile_follows_korean: [
-        { id: 217, name: '🇰🇷 페이스북 리얼 한국인 개인계정 팔로우', price: 190, min: 5, max: 500, time: '데이터 부족', description: '상세정보' },
-        { id: 219, name: '🇰🇷 페이스북 리얼 한국인 개인계정 팔로우 [여성]', price: 210, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 220, name: '🇰🇷 페이스북 리얼 한국인 개인계정 팔로우 [20대]', price: 210, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
-        { id: 221, name: '🇰🇷 페이스북 리얼 한국인 개인계정 팔로우 [30대]', price: 210, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' }
+        { id: 217, name: 'KR 페이스북 리얼 한국인 개인계정 팔로우 [일반]', price: 270000, min: 5, max: 500, time: '데이터 부족', description: '상세정보' },
+        { id: 218, name: 'KR 페이스북 리얼 한국인 개인계정 팔로우 [남성]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 219, name: 'KR 페이스북 리얼 한국인 개인계정 팔로우 [여성]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 220, name: 'KR 페이스북 리얼 한국인 개인계정 팔로우 [20대]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 221, name: 'KR 페이스북 리얼 한국인 개인계정 팔로우 [30대]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 222, name: 'KR 페이스북 리얼 한국인 개인계정 팔로우 [20대여자]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 223, name: 'KR 페이스북 리얼 한국인 개인계정 팔로우 [20대남자]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 224, name: 'KR 페이스북 리얼 한국인 개인계정 팔로우 [30대여자]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 225, name: 'KR 페이스북 리얼 한국인 개인계정 팔로우 [30대남자]', price: 400000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' }
       ]
     },
 
     // 틱톡 세부 서비스 데이터
     tiktok: {
       likes_foreign: [
-        { id: 458, name: '🇰🇷 틱톡 외국인 리얼 좋아요', price: 1.5, min: 100, max: 1000000, time: '10분', description: '상세정보' }
+        { id: 458, name: '틱톡 외국인 리얼 좋아요', price: 9000, min: 100, max: 1000000, time: '10분', description: '상세정보' }
       ],
-      followers_foreign: [
-        { id: 476, name: '🇰🇷 틱톡 외국인 리얼 팔로워 [중속]', price: 7, min: 100, max: 1000000, time: '7시간 12분', description: '상세정보' },
-        { id: 478, name: '🇰🇷 틱톡 외국인 리얼 팔로워 [중고속]', price: 9, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' }
+      views_foreign: [
+        { id: 194, name: '틱톡 외국인 조회수', price: 400, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' }
       ],
       views_korean: [
-        { id: 497, name: '🇰🇷 틱톡 리얼 한국인 조회수 [15초]', price: 21, min: 100, max: 30000, time: '데이터 부족', description: '상세정보' }
+        { id: 497, name: 'KR 틱톡 리얼 한국인 조회수 [15초]', price: 30000, min: 100, max: 30000, time: '데이터 부족', description: '상세정보' }
+      ],
+      followers_foreign: [
+        { id: 476, name: '틱톡 외국인 리얼 계정 팔로워 [중속]', price: 25000, min: 100, max: 1000000, time: '7시간 12분', description: '상세정보' },
+        { id: 478, name: '틱톡 외국인 리얼 계정 팔로워 [중고속]', price: 30000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' }
+      ],
+      save_share: [
+        { id: 421, name: '틱톡 외국인 저장', price: 1500, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' },
+        { id: 422, name: '틱톡 외국인 공유', price: 2000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' }
+      ],
+      live_streaming: [
+        { id: 427, name: '틱톡 실시간 라이브 스트리밍 이모지 댓글', price: 8000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' },
+        { id: 429, name: '틱톡 실시간 라이브 스트리밍 커스텀 댓글', price: 12000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' },
+        { id: 430, name: '틱톡 실시간 라이브 스트리밍 100% 리얼 좋아요', price: 300000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' }
       ]
     },
 
     // 트위터 세부 서비스 데이터
     twitter: {
       followers_foreign: [
-        { id: 197, name: '트위터(X) 외국인 팔로워', price: 21, min: 100, max: 200000, time: '데이터 부족', description: '상세정보' }
+        { id: 197, name: '트위터(X) 외국인 팔로워', price: 80000, min: 100, max: 200000, time: '데이터 부족', description: '상세정보' }
       ]
     },
 
     // 카카오/네이버 세부 서비스 데이터
     kakao_naver: {
       kakao_services: [
-        { id: 271, name: 'K사 채널 친구추가', price: 200, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' }
+        { id: 271, name: 'K사 카카오 채널 친구 추가', price: 250000, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' }
       ],
-      naver_services: [
-        { id: 157, name: 'N사 블로그 팔로워', price: 190, min: 20, max: 1500, time: '데이터 부족', description: '상세정보' },
-        { id: 159, name: 'N사 블로그 공감', price: 39, min: 1, max: 1500, time: '2시간 5분', description: '상세정보' },
-        { id: 160, name: 'N사 블로그 댓글', price: 340, min: 3, max: 1500, time: '데이터 부족', description: '상세정보' },
-        { id: 162, name: 'N사 카페 가입', price: 210, min: 20, max: 1500, time: '데이터 부족', description: '상세정보' },
-        { id: 163, name: 'N사 카페 댓글', price: 390, min: 3, max: 1500, time: '데이터 부족', description: '상세정보' }
-      ]
+ 
     },
 
     // 텔레그램 세부 서비스 데이터
     telegram: {
       subscribers: [
-        { id: 190, name: '텔레그램 채널 구독자', price: 5, min: 100, max: 50000, time: '데이터 부족', description: '상세정보' }
+        { id: 437, name: '텔레그램 채널 구독자', price: 15000, min: 100, max: 50000, time: '데이터 부족', description: '상세정보' }
       ],
       views: [
-        { id: 191, name: '텔레그램 게시물 조회수', price: 0.17, min: 50, max: 10000, time: '데이터 부족', description: '상세정보' }
+        { id: 191, name: '텔레그램 게시물 조회수', price: 2000, min: 50, max: 10000, time: '데이터 부족', description: '상세정보' }
       ]
     },
 
@@ -320,70 +292,77 @@ const Home = () => {
       ]
     },
 
-    // 네이버 세부 서비스 데이터
-    naver: {
-      n_k_services: [
-        { id: 271, name: 'K사 리얼 채널 친구 추가👫', price: 300000, min: 100, max: 10000, time: '데이터가 충분하지 않습니다' },
-        { id: 157, name: 'N사 리얼 포스트 팔로워👪', price: 285000, min: 20, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 158, name: 'N사 리얼 블로그 이웃 추가👫', price: 285000, min: 20, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 159, name: 'N사 리얼 블로그 공감💝', price: 58500, min: 1, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 160, name: 'N사 리얼 블로그 댓글💬', price: 510000, min: 3, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 161, name: 'N사 리얼 블로그 스크랩🗂', price: 510000, min: 3, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 167, name: 'N사 리얼 블로그 검색 공감💝', price: 180000, min: 5, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 168, name: 'N사 리얼 블로그 검색 댓글💬', price: 705000, min: 20, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 162, name: 'N사 리얼 카페 가입👫', price: 315000, min: 20, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 163, name: 'N사 리얼 카페 댓글💬', price: 585000, min: 3, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 164, name: 'N사 리얼 인플루언서 팬하기👫', price: 390000, min: 50, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 166, name: 'N사 리얼 TV좋아요💖', price: 78000, min: 20, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 169, name: 'N사 리얼 플레이스 저장💾', price: 300000, min: 20, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 170, name: 'N사 리얼 플레이스 공유🔗', price: 360000, min: 20, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 174, name: 'N사 리얼 플레이스 방문+체류 트래픽🔋', price: 94500, min: 20, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 177, name: 'N사 리얼 플레이스 검색 알림받기📢', price: 360000, min: 20, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 178, name: 'N사 리얼 플레이스 검색+방문+체류 트래픽🔋', price: 120000, min: 20, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 179, name: 'N사 리얼 스토어팜 상품찜📌', price: 195000, min: 50, max: 1500, time: '데이터가 충분하지 않습니다' },
-        { id: 474, name: 'N사 TV 조회수🎬', price: 2700, min: 1000, max: 100000, time: '데이터가 충분하지 않습니다' }
-      ]
-    },
 
-    // 틱톡 세부 서비스 데이터
-    tiktok: {
-      tiktok_services: [
-        { id: 458, name: '틱톡 외국인 리얼 좋아요💘🚀', price: 2250, min: 100, max: 1000000, time: '50 분' },
-        { id: 192, name: '틱톡 외국인 리얼 좋아요💘🚀', price: 2250, min: 100, max: 100000, time: '데이터가 충분하지 않습니다' },
-        { id: 194, name: '틱톡 외국인 조회수🎬', price: 180, min: 100, max: 100000000, time: '2 시간 29 분' },
-        { id: 476, name: '틱톡 외국인 리얼 계정 팔로워👪🚀[🥇고품질][✔중속]', price: 10500, min: 100, max: 1000000, time: '1 시간 52 분' },
-        { id: 478, name: '틱톡 외국인 리얼 계정 팔로워👪🚀[🥇고품질][✔중고속]', price: 13500, min: 100, max: 1000000, time: '13 분' },
-        { id: 488, name: '🇰🇷틱톡 리얼 한국인 랜덤 댓글💬', price: 420000, min: 3, max: 100, time: '데이터가 충분하지 않습니다' },
-        { id: 421, name: '틱톡 외국인 저장💾', price: 450, min: 100, max: 2147483647, time: '데이터가 충분하지 않습니다' },
-        { id: 422, name: '틱톡 외국인 공유🔗', price: 750, min: 100, max: 2147483647, time: '데이터가 충분하지 않습니다' }
-      ],
-      tiktok_live_streaming: [
-        { id: 427, name: '🌐TikTok[틱톡] 실시간 라이브 스트리밍 이모지[Emoji] 댓글💬', price: 5400, min: 10, max: 10000, time: '데이터가 충분하지 않습니다' },
-        { id: 429, name: '🌐TikTok[틱톡] 실시간 라이브 스트리밍 커스텀 댓글💬[✔️직접입력]', price: 6000, min: 10, max: 5000, time: '데이터가 충분하지 않습니다' },
-        { id: 430, name: '🌐TikTok[틱톡] 실시간 라이브 스트리밍 100% 리얼 좋아요💖[🥇수량당 100개 이상]', price: 270000, min: 5, max: 1000, time: '데이터가 충분하지 않습니다' }
-      ]
-    },
+
 
     // 트위터 세부 서비스 데이터
     twitter: {
       twitter_services: [
-        { id: 197, name: '트위터 외국인 팔로워R30♻️', price: 31500, min: 100, max: 200000, time: '데이터가 충분하지 않습니다' }
+        { id: 197, name: '트위터 외국인 팔로워R30♻️', price: 80000, min: 100, max: 200000, time: '데이터가 충분하지 않습니다' }
       ]
     },
 
     // 텔레그램 세부 서비스 데이터
     telegram: {
       telegram_services: [
-        { id: 190, name: '텔레그램 채널 구독자👫T1', price: 7500, min: 100, max: 50000, time: '데이터가 충분하지 않습니다' },
-        { id: 437, name: '텔레그램 채널 구독자👫T3', price: 6000, min: 100, max: 100000, time: '4 분' },
-        { id: 191, name: '텔레그램 게시물 조회수', price: 255, min: 50, max: 10000, time: '데이터가 충분하지 않습니다' }
+
+        { id: 437, name: '텔레그램 채널 구독자👫T3', price: 15000, min: 100, max: 100000, time: '4 분' },
+        { id: 191, name: '텔레그램 게시물 조회수', price: 2000, min: 50, max: 10000, time: '데이터가 충분하지 않습니다' }
       ]
     },
 
     // 왓츠앱 세부 서비스 데이터
     whatsapp: {
       whatsapp_services: [
-        { id: 442, name: '왓츠앱 채널 팔로워👫', price: 22500, min: 100, max: 10000, time: '데이터가 충분하지 않습니다' }
+        { id: 442, name: '왓츠앱 채널 팔로워👫', price: 30000, min: 100, max: 10000, time: '데이터가 충분하지 않습니다' }
+      ]
+    },
+
+    // 유튜브 세부 서비스 데이터
+    youtube: {
+      views: [
+        { id: 360, name: 'KR 유튜브 리얼 한국인 조회수', price: 40000, min: 4000, max: 100000, time: '데이터 부족', description: '상세정보' },
+        { id: 496, name: 'KR 유튜브 리얼 한국인 조회수 [20초 시청]', price: 70000, min: 10, max: 30000, time: '데이터 부족', description: '상세정보' },
+        { id: 371, name: '유튜브 외국인 동영상 조회수', price: 6000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' }
+      ],
+      auto_views: [
+        { id: 486, name: '🌐유튜브 외국인 동영상 자동 조회수', price: 6000, min: 1000, max: 10000000, time: '데이터 부족', description: '상세정보' }
+      ],
+      likes: [
+        { id: 489, name: 'KR 유튜브 리얼 한국인 좋아요', price: 100000, min: 10, max: 1000, time: '데이터 부족', description: '상세정보' },
+        { id: 136, name: '유튜브 외국인 좋아요', price: 8000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' }
+      ],
+      auto_likes: [
+        { id: 487, name: '🌐유튜브 외국인 동영상 자동 좋아요', price: 8000, min: 20, max: 500000, time: '데이터 부족', description: '상세정보' }
+      ],
+      subscribers: [
+        { id: 485, name: 'KR 유튜브 리얼 한국인 채널 구독자 [고속]', price: 400000, min: 50, max: 10000, time: '11시간 40분', description: '상세정보' },
+        { id: 236, name: 'KR 유튜브 리얼 한국인 채널 구독자 [대량]', price: 700000, min: 200, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 500, name: '유튜브 외국인 채널 구독자', price: 65000, min: 100, max: 100000, time: '데이터 부족', description: '상세정보' }
+      ],
+      comments_shares: [
+        { id: 482, name: 'KR 유튜브 한국인 동영상 AI 랜덤 댓글', price: 300000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 262, name: 'KR 유튜브 한국인 동영상 랜덤 댓글 [일반]', price: 390000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 263, name: 'KR 유튜브 한국인 동영상 랜덤 댓글 [남성]', price: 590000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 264, name: 'KR 유튜브 한국인 동영상 랜덤 댓글 [여성]', price: 590000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 265, name: 'KR 유튜브 한국인 동영상 랜덤 댓글 [20대]', price: 590000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 266, name: 'KR 유튜브 한국인 동영상 랜덤 댓글 [30대]', price: 590000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 267, name: 'KR 유튜브 한국인 동영상 랜덤 댓글 [20대 남성]', price: 700000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 268, name: 'KR 유튜브 한국인 동영상 랜덤 댓글 [20대 여성]', price: 700000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 269, name: 'KR 유튜브 한국인 동영상 랜덤 댓글 [30대 남성]', price: 700000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 270, name: 'KR 유튜브 한국인 동영상 랜덤 댓글 [30대 여성]', price: 700000, min: 5, max: 10000, time: '데이터 부족', description: '상세정보' },
+        { id: 261, name: 'KR 유튜브 한국 소셜 공유', price: 10000, min: 1, max: 1500, time: '데이터 부족', description: '상세정보' },
+        { id: 423, name: '유튜브 외국인 랜덤 댓글', price: 50000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 138, name: '유튜브 외국인 커스텀 댓글', price: 60000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' },
+        { id: 260, name: '유튜브 외국인 이모지 랜덤 댓글', price: 50000, min: 5, max: 5000, time: '데이터 부족', description: '상세정보' }
+      ],
+      live_streaming: [
+        { id: 393, name: '유튜브 외국인 실시간 라이브 스트리밍 [15분]', price: 10000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' },
+        { id: 394, name: '유튜브 외국인 실시간 라이브 스트리밍 [30분]', price: 20000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' },
+        { id: 395, name: '유튜브 외국인 실시간 라이브 스트리밍 [60분]', price: 40000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' },
+        { id: 396, name: '유튜브 외국인 실시간 라이브 스트리밍 [90분]', price: 60000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' },
+        { id: 397, name: '유튜브 외국인 실시간 라이브 스트리밍 [120분]', price: 80000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' },
+        { id: 398, name: '유튜브 외국인 실시간 라이브 스트리밍 [180분]', price: 120000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' }
       ]
     }
   }
@@ -423,20 +402,11 @@ const Home = () => {
     if (platform === 'twitter' && instagramDetailedServices.twitter && instagramDetailedServices.twitter[serviceType]) {
       return instagramDetailedServices.twitter[serviceType]
     }
-    if (platform === 'twitter' && serviceType === 'twitter_services') {
-      return instagramDetailedServices.twitter.twitter_services
-    }
     if (platform === 'telegram' && instagramDetailedServices.telegram && instagramDetailedServices.telegram[serviceType]) {
       return instagramDetailedServices.telegram[serviceType]
     }
-    if (platform === 'telegram' && serviceType === 'telegram_services') {
-      return instagramDetailedServices.telegram.telegram_services
-    }
     if (platform === 'whatsapp' && instagramDetailedServices.whatsapp && instagramDetailedServices.whatsapp[serviceType]) {
       return instagramDetailedServices.whatsapp[serviceType]
-    }
-    if (platform === 'whatsapp' && serviceType === 'whatsapp_services') {
-      return instagramDetailedServices.whatsapp.whatsapp_services
     }
     // 기존 로직 사용
     return getDetailedServicesLegacy(platform, serviceType)
@@ -456,7 +426,7 @@ const Home = () => {
     if (selectedDetailedService && selectedPlatform === 'instagram') {
       const selectedService = getSelectedDetailedService()
       if (selectedService) {
-        return selectedService.price * quantity // 1개당 가격
+        return (selectedService.price / 1000) * quantity // 1000개 가격을 1개 가격으로 변환
       }
     }
     return 0
@@ -513,35 +483,33 @@ const Home = () => {
         ]
       case 'youtube':
         return [
-          { id: 'views_korean', name: '유튜브 한국인 조회수', description: '한국인 조회수 서비스' },
-          { id: 'views_foreign', name: '유튜브 외국인 조회수', description: '외국인 조회수 서비스' },
-          { id: 'likes_korean', name: '유튜브 한국인 좋아요', description: '한국인 좋아요 서비스' },
-          { id: 'likes_foreign', name: '유튜브 외국인 좋아요', description: '외국인 좋아요 서비스' },
-          { id: 'subscribers_korean', name: '유튜브 한국인 채널 구독자', description: '한국인 채널 구독자 서비스' },
-          { id: 'subscribers_foreign', name: '유튜브 외국인 채널 구독자', description: '외국인 채널 구독자 서비스' },
-          { id: 'comments_korean', name: '유튜브 한국인 댓글', description: '한국인 댓글 서비스' },
-          { id: 'comments_foreign', name: '유튜브 외국인 댓글', description: '외국인 댓글 서비스' },
-          { id: 'live_streaming', name: '유튜브 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' }
+          { id: 'views', name: '유튜브 조회수', description: '조회수 서비스' },
+          { id: 'auto_views', name: '유튜브 자동 조회수', description: '자동 조회수 서비스' },
+          { id: 'likes', name: '유튜브 좋아요', description: '좋아요 서비스' },
+          { id: 'subscribers', name: '유튜브 채널 구독자', description: '채널 구독자 서비스' },
+          { id: 'comments_shares', name: '유튜브 댓글/공유', description: '댓글/공유 서비스' },
+          { id: 'live_streaming', name: '유튜브 라이브 스트리밍', description: '라이브 스트리밍 서비스' }
         ]
       case 'tiktok':
         return [
-          { id: 'tiktok_services', name: 'TikTok[틱톡]', description: '틱톡 서비스' },
-          { id: 'tiktok_live_streaming', name: 'TikTok[틱톡] 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' }
+          { id: 'likes_foreign', name: '틱톡 외국인 좋아요', description: '외국인 좋아요 서비스' },
+          { id: 'views_foreign', name: '틱톡 외국인 조회수', description: '외국인 조회수 서비스' },
+          { id: 'views_korean', name: '틱톡 한국인 조회수', description: '한국인 조회수 서비스' },
+          { id: 'followers_foreign', name: '틱톡 외국인 팔로워', description: '외국인 팔로워 서비스' },
+          { id: 'save_share', name: '틱톡 저장/공유', description: '저장/공유 서비스' },
+          { id: 'live_streaming', name: '틱톡 라이브 스트리밍', description: '라이브 스트리밍 서비스' }
         ]
       case 'facebook':
         return [
-          { id: 'page_likes_korean', name: '🇰🇷페이스북 한국인 페이지 좋아요', description: '한국인 페이지 좋아요 서비스' },
-          { id: 'page_likes_foreign', name: '🌐페이스북 외국인 페이지 좋아요', description: '외국인 페이지 좋아요 서비스' },
-          { id: 'post_likes_korean', name: '🇰🇷페이스북 한국인 게시물 좋아요', description: '한국인 게시물 좋아요 서비스' },
-          { id: 'post_likes_foreign', name: '🌐페이스북 외국인 게시물 좋아요', description: '외국인 게시물 좋아요 서비스' },
-          { id: 'post_comments_korean', name: '🇰🇷페이스북 한국인 게시물 댓글', description: '한국인 게시물 댓글 서비스' },
-          { id: 'post_comments_foreign', name: '🌐페이스북 외국인 게시물 댓글', description: '외국인 게시물 댓글 서비스' },
-          { id: 'profile_follows_korean', name: '🇰🇷페이스북 한국인 개인계정 팔로우', description: '한국인 개인계정 팔로우 서비스' },
-          { id: 'profile_follows_foreign', name: '🌐페이스북 외국인 개인계정 팔로우', description: '외국인 개인계정 팔로우 서비스' }
+          { id: 'foreign_services', name: '페이스북 외국인 서비스', description: '외국인 서비스' },
+          { id: 'page_likes_korean', name: '페이스북 한국인 페이지 좋아요+팔로워', description: '한국인 페이지 좋아요+팔로워 서비스' },
+          { id: 'post_likes_korean', name: '페이스북 한국인 게시물 좋아요', description: '한국인 게시물 좋아요 서비스' },
+          { id: 'post_comments_korean', name: '페이스북 한국인 게시물 댓글', description: '한국인 게시물 댓글 서비스' },
+          { id: 'profile_follows_korean', name: '페이스북 한국인 개인계정 팔로우', description: '한국인 개인계정 팔로우 서비스' }
         ]
       case 'threads':
         return [
-          { id: 'threads_services', name: '🌐스레드[THREADS] 서비스', description: '스레드 서비스' }
+          { id: 'likes_korean', name: '스레드 한국인 서비스', description: '한국인 서비스' }
         ]
       case 'naver':
         return [
@@ -549,15 +517,16 @@ const Home = () => {
         ]
       case 'twitter':
         return [
-          { id: 'twitter_services', name: '🌐Twitter[트위터][X][엑스]', description: '트위터 서비스' }
+          { id: 'followers_foreign', name: '트위터 외국인 팔로워', description: '외국인 팔로워 서비스' }
         ]
       case 'telegram':
         return [
-          { id: 'telegram_services', name: '🌐Telegram[텔레그램]', description: '텔레그램 서비스' }
+          { id: 'subscribers', name: '텔레그램 채널 구독자', description: '채널 구독자 서비스' },
+          { id: 'views', name: '텔레그램 게시물 조회수', description: '게시물 조회수 서비스' }
         ]
       case 'whatsapp':
         return [
-          { id: 'whatsapp_services', name: '🌐Whatsapp[왓츠앱]', description: '왓츠앱 서비스' }
+          { id: 'followers', name: '왓츠앱 채널 팔로워', description: '채널 팔로워 서비스' }
         ]
       case 'recommended':
         return [
@@ -722,7 +691,7 @@ const Home = () => {
     
     // 인스타그램, 스레드, 유튜브, 페이스북, 네이버, 틱톡, 트위터, 텔레그램, 왓츠앱의 경우 새로운 가격 계산 로직 사용
     if (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp') {
-      basePrice = selectedDetailedService.price * quantity // 1개당 가격
+      basePrice = (selectedDetailedService.price / 1000) * quantity // 1000개 가격을 1개 가격으로 변환
     } else {
       // 기존 SMM KINGS 가격 사용
       basePrice = selectedDetailedService.price * quantity
@@ -772,22 +741,21 @@ const Home = () => {
     const detailedServices = getDetailedServices(selectedPlatform, serviceId)
     if (detailedServices && detailedServices.length > 0) {
       setSelectedDetailedService(detailedServices[0])
-      setQuantity(detailedServices[0].min)
+      setQuantity(0)
     }
   }
 
   const handleDetailedServiceSelect = (detailedService) => {
     setSelectedDetailedService(detailedService)
-    setQuantity(detailedService.min)
+    setQuantity(0)
   }
 
   const handleQuantityChange = (newQuantity) => {
     if (selectedDetailedService) {
-      const min = selectedDetailedService.min
       const max = selectedDetailedService.max
       
-      // 최소/최대 범위 내에서만 수량 변경 허용
-      if (newQuantity >= min && newQuantity <= max) {
+      // 최대값만 체크하고, 0 이상이면 허용
+      if (newQuantity >= 0 && newQuantity <= max) {
         setQuantity(newQuantity)
       }
     } else {
@@ -800,6 +768,7 @@ const Home = () => {
   const handleHelpClick = () => {
     alert('주문 방법에 대한 상세한 가이드를 확인할 수 있습니다.')
   }
+
 
 
 
@@ -823,6 +792,16 @@ const Home = () => {
 
       if (!link || !link.trim()) {
         alert('링크를 입력해주세요!')
+        return
+      }
+
+      if (!quantity || quantity === 0) {
+        alert('수량을 입력해주세요.')
+        return
+      }
+      
+      if (quantity < selectedDetailedService.min) {
+        alert(`수량은 최소 ${selectedDetailedService.min.toLocaleString()}개 이상이어야 합니다.`)
         return
       }
 
@@ -1035,7 +1014,7 @@ const Home = () => {
           <p className="category-description">상세 서비스를 선택해주세요</p>
           
           {/* Tab Navigation - 특정 플랫폼에서는 숨김 */}
-          {!['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp'].includes(selectedPlatform) && (
+          {!['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp', 'youtube'].includes(selectedPlatform) && (
             <div className="service-tabs">
               <button 
                 className={`tab-button ${selectedTab === 'korean' ? 'active' : ''}`}
@@ -1057,7 +1036,7 @@ const Home = () => {
           {/* Premium Quality Banner */}
           <div className="premium-banner">
             <div className="banner-content">
-              <span>선택상품의 프리미엄 퀄리티확인</span>
+              <span>선택서비스 소셜리티 퀄리티 확인</span>
               <ChevronRight size={20} />
             </div>
           </div>
@@ -1066,7 +1045,7 @@ const Home = () => {
             {services
               .filter(service => {
                 // 특정 플랫폼들은 탭 구분 없이 모든 서비스 표시
-                if (['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp'].includes(selectedPlatform)) {
+                if (['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp', 'youtube'].includes(selectedPlatform)) {
                   return true
                 }
                 
@@ -1149,8 +1128,8 @@ const Home = () => {
                   </div>
                   <div className="detailed-service-price">
                     {(selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp') ? 
-                      `₩${service.price.toFixed(2)}` : 
-                      `${service.price.toFixed(2)}원`
+                      `₩${(service.price / 1000).toFixed(2)}` : 
+                      `${(service.price / 1000).toFixed(2)}원`
                     }
                   </div>
                 </div>
@@ -1163,30 +1142,43 @@ const Home = () => {
       {/* Order Form */}
       {selectedDetailedService && (
         <div className="order-form">
-          <h3>
-            주문 정보 입력
-          </h3>
+          <div className="order-info-header">
+            <h3>
+              주문 정보 입력
+            </h3>
+            <button 
+              className="order-method-btn"
+              onClick={() => setShowOrderMethodModal(true)}
+            >
+              📋 주문방법
+            </button>
+          </div>
           
           
           {/* Quantity Selection */}
           <div className="form-group">
-            <label>수량 선택</label>
+            <label className="quantity-label">수량 선택</label>
             <input
               type="number"
-              value={quantity}
+              value={quantity === 0 ? '' : quantity}
               onChange={(e) => {
-                const newQuantity = parseInt(e.target.value) || 0
-                if (newQuantity >= selectedDetailedService.min && newQuantity <= selectedDetailedService.max) {
-                  handleQuantityChange(newQuantity)
+                const inputValue = e.target.value
+                if (inputValue === '') {
+                  handleQuantityChange(0)
+                } else {
+                  const newQuantity = parseInt(inputValue)
+                  if (!isNaN(newQuantity)) {
+                    handleQuantityChange(newQuantity)
+                  }
                 }
               }}
-              min={selectedDetailedService.min}
+              min="0"
               max={selectedDetailedService.max}
-              className="quantity-input-field"
-              placeholder={`최소 ${selectedDetailedService.min.toLocaleString()} ~ 최대 ${selectedDetailedService.max.toLocaleString()}`}
+              className={`quantity-input-field ${quantity > 0 && quantity < selectedDetailedService.min ? 'quantity-input-invalid' : ''}`}
+              placeholder="수량을 입력하세요 (0부터 시작)"
             />
-            <div className="quantity-hint">
-              최소: {selectedDetailedService.min.toLocaleString()} ~ 최대: {selectedDetailedService.max.toLocaleString()}
+            <div className="quantity-hint-left">
+              최소 {selectedDetailedService.min.toLocaleString()} : 최대 {selectedDetailedService.max.toLocaleString()}
             </div>
           </div>
 
@@ -1197,7 +1189,7 @@ const Home = () => {
               value={link}
               onChange={(e) => setLink(e.target.value)}
               placeholder={`${platformInfo.name} 게시물 URL 또는 사용자명을 입력하세요`}
-              className="form-control"
+              className="form-control link-input-field"
             />
           </div>
 
@@ -1210,7 +1202,7 @@ const Home = () => {
                     <div className="step-header">
                       <span className="step-number">{index + 1}</span>
                       <span className="step-name">{step.name}</span>
-                      <span className="step-price">{step.price.toLocaleString()}원</span>
+                      <span className="step-price">{(step.price / 1000).toLocaleString()}원</span>
                     </div>
                     <div className="step-details">
                       <p className="step-description">{step.description}</p>
@@ -1220,7 +1212,7 @@ const Home = () => {
                 ))}
               </div>
               <div className="package-total">
-                <strong>총 패키지 가격: {selectedDetailedService.price.toLocaleString()}원</strong>
+                <strong>총 패키지 가격: {(selectedDetailedService.price / 1000).toLocaleString()}원</strong>
               </div>
             </div>
           )}
@@ -1255,6 +1247,79 @@ const Home = () => {
             <button className="submit-btn" onClick={handlePurchase} disabled={isLoading}>
               {isLoading ? '처리 중...' : '구매하기'}
             </button>
+          </div>
+        </div>
+      )}
+
+
+      {/* 주문방법 모달 */}
+      {showOrderMethodModal && (
+        <div className="order-method-modal-overlay">
+          <div className="order-method-modal">
+            <div className="modal-header">
+              <h3>📋 주문방법 가이드</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={() => setShowOrderMethodModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="order-steps">
+                <div className="step">
+                  <div className="step-number">1</div>
+                  <div className="step-content">
+                    <h4>서비스 선택</h4>
+                    <p>원하는 플랫폼과 서비스를 선택하세요</p>
+                  </div>
+                </div>
+                
+                <div className="step">
+                  <div className="step-number">2</div>
+                  <div className="step-content">
+                    <h4>수량 입력</h4>
+                    <p>원하는 수량을 입력하세요 (최소 수량 이상)</p>
+                  </div>
+                </div>
+                
+                <div className="step">
+                  <div className="step-number">3</div>
+                  <div className="step-content">
+                    <h4>링크 입력</h4>
+                    <p>대상 게시물의 URL 또는 사용자명을 입력하세요</p>
+                  </div>
+                </div>
+                
+                <div className="step">
+                  <div className="step-number">4</div>
+                  <div className="step-content">
+                    <h4>구매하기</h4>
+                    <p>모든 정보를 확인하고 구매하기 버튼을 클릭하세요</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="important-notes">
+                <h4>⚠️ 주의사항</h4>
+                <ul>
+                  <li>공개 계정의 게시물만 주문 가능합니다</li>
+                  <li>링크는 정확한 URL 또는 사용자명을 입력해주세요</li>
+                  <li>수량은 최소 수량 이상 입력해주세요</li>
+                  <li>주문 후 취소는 불가능하니 신중히 선택해주세요</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="modal-confirm-btn"
+                onClick={() => setShowOrderMethodModal(false)}
+              >
+                확인
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -41,6 +41,82 @@
   background-clip: text;
 }
 
+/* 1대1 상담 섹션 */
+.consultation-section {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 150px;
+  z-index: 1000;
+}
+
+/* 1대1 상담 버튼 */
+.consultation-btn {
+  background: linear-gradient(135deg, #92e2dd 0%, #ffffff 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.consultation-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.consultation-btn:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+}
+
+.consultation-btn:hover::before {
+  left: 100%;
+}
+
+.consultation-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.consultation-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+}
+
+.talk-bubble {
+  background: #fbbf24;
+  border-radius: 16px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+
+  min-width: 40px;
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+}
+
+.talk-text {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: white;
+}
+
 /* 플랫폼 필터 */
 .platform-filters {
   display: flex;
@@ -115,7 +191,7 @@
 .guide-item-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   padding: 14px 18px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -128,7 +204,6 @@
 .guide-item-icon {
   display: flex;
   align-items: center;
-  justify-content: center;
   width: 24px;
   height: 24px;
   margin-right: 12px;

@@ -224,7 +224,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
           {/* 모바일용 상단 이미지 섹션 */}
           <div className="auth-modal-image-mobile">
             <img 
-              src="https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-d298-622f-9bb1-0ab31fc3d201/raw?se=2025-09-21T09%3A27%3A43Z&sp=r&sv=2024-08-04&sr=b&scid=45308c27-206e-504a-b2a4-5df668cc778c&skoid=bbd22fc4-f881-4ea4-b2f3-c12033cf6a8b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-09-21T07%3A42%3A18Z&ske=2025-09-22T07%3A42%3A18Z&sks=b&skv=2024-08-04&sig=vEbAbLB6HWW50w/cLJ6Yw6tzR8qZ1r6R6p21Qioz4V0%3D" 
+              src="/sns_illustration.png" 
               alt="Sociality 로그인"
               className="auth-image-mobile"
             />
@@ -233,7 +233,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
           {/* 데스크톱용 왼쪽 이미지 섹션 */}
           <div className="auth-modal-image">
             <img 
-              src="https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-d298-622f-9bb1-0ab31fc3d201/raw?se=2025-09-21T09%3A27%3A43Z&sp=r&sv=2024-08-04&sr=b&scid=45308c27-206e-504a-b2a4-5df668cc778c&skoid=bbd22fc4-f881-4ea4-b2f3-c12033cf6a8b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-09-21T07%3A42%3A18Z&ske=2025-09-22T07%3A42%3A18Z&sks=b&skv=2024-08-04&sig=vEbAbLB6HWW50w/cLJ6Yw6tzR8qZ1r6R6p21Qioz4V0%3D" 
+              src="/sns_illustration.png" 
               alt="Sociality 로그인"
               className="auth-image"
             />
@@ -242,13 +242,12 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
           {/* 오른쪽 폼 섹션 */}
           <div className="auth-modal-form">
             <div className="auth-modal-header">
-              <div className="logo-container">
-                <div className="logo">Sociality</div>
+              <div className="header-content">
+                <img src="/logo.png" alt="Sociality" className="logo" />
+                <h2 className="login-title">
+                  {isLogin ? '로그인' : '회원가입'}
+                </h2>
               </div>
-              <h2 className="login-title">
-                <ArrowRight size={24} />
-                {isLogin ? '로그인' : '회원가입'}
-              </h2>
               {!isLogin && (
                 <p className="welcome-message">
                   반가워요! 당신을 SNS마케팅의 놀라운 세계로 초대합니다.
