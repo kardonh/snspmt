@@ -94,7 +94,7 @@ const Home = () => {
       { id: 278, name: 'KR 인스타그램 리얼 한국인 [30대] 좋아요', price: 29000, min: 30, max: 5000, time: '데이터 부족', description: '상세정보' },
       { id: 282, name: 'KR 인스타그램 리얼 한국인 [30대여자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
       { id: 281, name: 'KR 인스타그램 리얼 한국인 [30대남자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' }
-    ],
+     ],
     likes_foreign: [
       { id: 105, name: '인스타그램 외국인 좋아요', price: 4000, min: 50, max: 10000, time: '데이터 부족' },
       { id: 116, name: '인스타그램 리얼 외국인 좋아요', price: 6000, min: 50, max: 10000, time: '데이터 부족' }
@@ -408,6 +408,9 @@ const Home = () => {
     if (platform === 'whatsapp' && instagramDetailedServices.whatsapp && instagramDetailedServices.whatsapp[serviceType]) {
       return instagramDetailedServices.whatsapp[serviceType]
     }
+    if (platform === 'kakao' && instagramDetailedServices.kakao && instagramDetailedServices.kakao[serviceType]) {
+      return instagramDetailedServices.kakao[serviceType]
+    }
     // 기존 로직 사용
     return getDetailedServicesLegacy(platform, serviceType)
   }
@@ -443,7 +446,7 @@ const Home = () => {
     { id: 'threads', name: '스레드', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/threads.svg', color: '#000000' },
     { id: 'twitter', name: '트위터', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/X.svg', color: '#1da1f2' },
     { id: 'kakao', name: '카카오', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/kakao.svg', color: '#fbbf24' },
-    { id: 'telegram', name: '텔레그램', icon: 'https://i.namu.wiki/i/2pvXoMTu71ZgA-wfwH_ViqiDeUAeyWrHa9x_EdBNkEIP79BO3g6r9rlwnP6Ju908NkRExU4M2dQpWtyXXfHgoQ.svg', color: '#0088cc' },
+    { id: 'telegram', name: '텔레그램', icon: 'https://i.namu.wiki/i/56X_CmKeLJoraH43aay-ucfVLwfDX7I2RuV8fyZpwhGSQnLA6PQK9D0FUv7VQ3sy71Lk5l2RQd9D3kgcIinTxA.svg', color: '#0088cc' },
     { id: 'whatsapp', name: '왓츠앱', icon: 'https://i.namu.wiki/i/wjmczy8xH2kajvQEpf9LfYepq7oDncymQTAQweVhaMpoZi_2X0uctv3E9Z7BUMcaQpFzYFx6_1GGKs0QPnEuZWeRbO4zsyEc1W7vz0-sUHUkN3eqEQEKSqEbSFBNffi5BN54cix2E01Y2KNyma-4pg.svg', color: '#25d366' },
     // { id: 'news-media', name: '뉴스언론보도', icon: FileText, color: '#3b82f6' },
     // { id: 'experience-group', name: '체험단', icon: Users, color: '#10b981' },
@@ -515,18 +518,21 @@ const Home = () => {
         return [
           { id: 'n_k_services', name: 'N사 / K사 서비스', description: '네이버/카카오 서비스' }
         ]
+      case 'kakao':
+        return [
+          { id: 'kakao_services', name: '카카오 서비스', description: '카카오 서비스' }
+        ]
       case 'twitter':
         return [
-          { id: 'followers_foreign', name: '트위터 외국인 팔로워', description: '외국인 팔로워 서비스' }
+          { id: 'twitter_services', name: '트위터 서비스', description: '트위터 서비스' }
         ]
       case 'telegram':
         return [
-          { id: 'subscribers', name: '텔레그램 채널 구독자', description: '채널 구독자 서비스' },
-          { id: 'views', name: '텔레그램 게시물 조회수', description: '게시물 조회수 서비스' }
+          { id: 'telegram_services', name: '텔레그램 서비스', description: '텔레그램 서비스' }
         ]
       case 'whatsapp':
         return [
-          { id: 'followers', name: '왓츠앱 채널 팔로워', description: '채널 팔로워 서비스' }
+          { id: 'whatsapp_services', name: '왓츠앱 서비스', description: '왓츠앱 서비스' }
         ]
       case 'recommended':
         return [
@@ -689,8 +695,8 @@ const Home = () => {
     
     let basePrice = 0
     
-    // 인스타그램, 스레드, 유튜브, 페이스북, 네이버, 틱톡, 트위터, 텔레그램, 왓츠앱의 경우 새로운 가격 계산 로직 사용
-    if (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp') {
+    // 인스타그램, 스레드, 유튜브, 페이스북, 네이버, 틱톡, 트위터, 텔레그램, 왓츠앱, 상위노출의 경우 새로운 가격 계산 로직 사용
+    if (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp' || selectedPlatform === 'top-exposure') {
       basePrice = (selectedDetailedService.price / 1000) * quantity // 1000개 가격을 1개 가격으로 변환
     } else {
       // 기존 SMM KINGS 가격 사용
@@ -1001,7 +1007,7 @@ const Home = () => {
         </div>
           ))}
         </div>
-      </div>
+          </div>
       
       {/* Service Type Selection */}
       <div className="service-type-selection">
@@ -1079,26 +1085,26 @@ const Home = () => {
                 }
 
                 return (
-                  <div 
-                    key={id} 
-                    className={`service-item ${special ? 'special' : ''} ${featured ? 'featured' : ''} ${selectedService === id ? 'selected' : ''}`}
-                    onClick={() => handleServiceSelect(id)}
-                  >
-                    <div className="service-content">
+              <div 
+                key={id} 
+                className={`service-item ${special ? 'special' : ''} ${featured ? 'featured' : ''} ${selectedService === id ? 'selected' : ''}`}
+                onClick={() => handleServiceSelect(id)}
+              >
+                <div className="service-content">
                       <div className="service-title-row">
                         {getServiceBadge(id)}
                         {badge && <span className="service-badge custom">{badge}</span>}
-                        <span className="service-name">{name}</span>
+                  <span className="service-name">{name}</span>
                       </div>
-                      {featured && <Star size={16} className="featured-icon" />}
-                      {special && (
-                        <div className="special-indicator">
-                          <Sparkles size={16} />
-                          <Sparkles size={16} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {featured && <Star size={16} className="featured-icon" />}
+                  {special && (
+                    <div className="special-indicator">
+                      <Sparkles size={16} />
+                      <Sparkles size={16} />
+      </div>
+                  )}
+                </div>
+              </div>
                 )
               })}
           </div>
@@ -1127,13 +1133,13 @@ const Home = () => {
                     </div>
                   </div>
                   <div className="detailed-service-price">
-                    {(selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp') ? 
+                    {(selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp' || selectedPlatform === 'top-exposure') ? 
                       `₩${(service.price / 1000).toFixed(2)}` : 
                       `${(service.price / 1000).toFixed(2)}원`
                     }
                   </div>
                 </div>
-              </div>
+                </div>
             ))}
           </div>
         </div>
@@ -1143,9 +1149,9 @@ const Home = () => {
       {selectedDetailedService && (
         <div className="order-form">
           <div className="order-info-header">
-            <h3>
-              주문 정보 입력
-            </h3>
+          <h3>
+            주문 정보 입력
+          </h3>
             <button 
               className="order-method-btn"
               onClick={() => setShowOrderMethodModal(true)}
@@ -1168,7 +1174,7 @@ const Home = () => {
                 } else {
                   const newQuantity = parseInt(inputValue)
                   if (!isNaN(newQuantity)) {
-                    handleQuantityChange(newQuantity)
+                  handleQuantityChange(newQuantity)
                   }
                 }
               }}
