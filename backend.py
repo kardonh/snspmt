@@ -113,8 +113,10 @@ def init_database():
                 )
             """)
             
+            # 기존 테이블 삭제 후 재생성
+            cursor.execute("DROP TABLE IF EXISTS referral_codes CASCADE")
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS referral_codes (
+                CREATE TABLE referral_codes (
                     id SERIAL PRIMARY KEY,
                     code VARCHAR(50) UNIQUE NOT NULL,
                     user_id VARCHAR(255),
@@ -129,8 +131,10 @@ def init_database():
                 )
             """)
             
+            # 기존 테이블 삭제 후 재생성
+            cursor.execute("DROP TABLE IF EXISTS referrals CASCADE")
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS referrals (
+                CREATE TABLE referrals (
                     id SERIAL PRIMARY KEY,
                     referrer_email VARCHAR(255) NOT NULL,
                     referral_code VARCHAR(50) NOT NULL,
@@ -141,10 +145,13 @@ def init_database():
                 )
             """)
             
+            # 기존 테이블 삭제 후 재생성
+            cursor.execute("DROP TABLE IF EXISTS commissions CASCADE")
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS commissions (
+                CREATE TABLE commissions (
                     id SERIAL PRIMARY KEY,
                     referred_user VARCHAR(255) NOT NULL,
+                    referrer_id VARCHAR(255) NOT NULL,
                     purchase_amount DECIMAL(10,2) NOT NULL,
                     commission_amount DECIMAL(10,2) NOT NULL,
                     commission_rate DECIMAL(5,4) NOT NULL,
