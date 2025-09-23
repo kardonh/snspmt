@@ -155,7 +155,9 @@ def init_database():
                     purchase_amount DECIMAL(10,2) NOT NULL,
                     commission_amount DECIMAL(10,2) NOT NULL,
                     commission_rate DECIMAL(5,4) NOT NULL,
+                    is_paid BOOLEAN DEFAULT false,
                     payment_date TIMESTAMP DEFAULT NOW(),
+                    paid_date TIMESTAMP,
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             """)
@@ -185,6 +187,19 @@ def init_database():
                     referral_code VARCHAR(50) NOT NULL,
                     referrer_email VARCHAR(255) NOT NULL,
                     created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            
+            # 커미션 환급 내역 테이블
+            cursor.execute("DROP TABLE IF EXISTS commission_payments CASCADE")
+            cursor.execute("""
+                CREATE TABLE commission_payments (
+                    id SERIAL PRIMARY KEY,
+                    referrer_email VARCHAR(255) NOT NULL,
+                    amount DECIMAL(10,2) NOT NULL,
+                    payment_method VARCHAR(50) DEFAULT 'bank_transfer',
+                    notes TEXT,
+                    paid_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             
@@ -1410,6 +1425,230 @@ def get_user_coupons():
         
     except Exception as e:
         return jsonify({'error': f'쿠폰 조회 실패: {str(e)}'}), 500
+
+# 관리자용 추천인 커미션 현황 조회
+@app.route('/api/admin/referral/commission-overview', methods=['GET'])
+def get_referral_commission_overview():
+    """관리자용 추천인 커미션 현황 조회"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            # 추천인별 커미션 현황 조회
+            cursor.execute("""
+                SELECT 
+                    rc.user_email,
+                    rc.name,
+                    rc.code,
+                    COUNT(DISTINCT urc.user_id) as referral_count,
+                    COALESCE(SUM(c.commission_amount), 0) as total_commission,
+                    COALESCE(SUM(CASE 
+                        WHEN c.payment_date >= DATE_TRUNC('month', CURRENT_DATE) 
+                        THEN c.commission_amount 
+                        ELSE 0 
+                    END), 0) as this_month_commission,
+                    COALESCE(SUM(CASE 
+                        WHEN c.payment_date >= DATE_TRUNC('month', CURRENT_DATE) 
+                        AND c.is_paid = false
+                        THEN c.commission_amount 
+                        ELSE 0 
+                    END), 0) as unpaid_commission
+                FROM referral_codes rc
+                LEFT JOIN user_referral_connections urc ON rc.code = urc.referral_code
+                LEFT JOIN commissions c ON rc.user_email = c.referrer_id
+                WHERE rc.is_active = true
+                GROUP BY rc.user_email, rc.name, rc.code
+                ORDER BY total_commission DESC
+            """)
+        else:
+            # SQLite 버전
+            cursor.execute("""
+                SELECT 
+                    rc.user_email,
+                    rc.name,
+                    rc.code,
+                    COUNT(DISTINCT urc.user_id) as referral_count,
+                    COALESCE(SUM(c.commission_amount), 0) as total_commission,
+                    COALESCE(SUM(CASE 
+                        WHEN date(c.payment_date) >= date('now', 'start of month') 
+                        THEN c.commission_amount 
+                        ELSE 0 
+                    END), 0) as this_month_commission,
+                    COALESCE(SUM(CASE 
+                        WHEN date(c.payment_date) >= date('now', 'start of month') 
+                        AND c.is_paid = 0
+                        THEN c.commission_amount 
+                        ELSE 0 
+                    END), 0) as unpaid_commission
+                FROM referral_codes rc
+                LEFT JOIN user_referral_connections urc ON rc.code = urc.referral_code
+                LEFT JOIN commissions c ON rc.user_email = c.referrer_id
+                WHERE rc.is_active = 1
+                GROUP BY rc.user_email, rc.name, rc.code
+                ORDER BY total_commission DESC
+            """)
+        
+        overview_data = []
+        for row in cursor.fetchall():
+            overview_data.append({
+                'referrer_email': row[0],
+                'referrer_name': row[1],
+                'referral_code': row[2],
+                'referral_count': row[3],
+                'total_commission': float(row[4]),
+                'this_month_commission': float(row[5]),
+                'unpaid_commission': float(row[6])
+            })
+        
+        # 전체 통계
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT 
+                    COUNT(DISTINCT rc.user_email) as total_referrers,
+                    COUNT(DISTINCT urc.user_id) as total_referrals,
+                    COALESCE(SUM(c.commission_amount), 0) as total_commissions,
+                    COALESCE(SUM(CASE 
+                        WHEN c.payment_date >= DATE_TRUNC('month', CURRENT_DATE) 
+                        THEN c.commission_amount 
+                        ELSE 0 
+                    END), 0) as this_month_commissions
+                FROM referral_codes rc
+                LEFT JOIN user_referral_connections urc ON rc.code = urc.referral_code
+                LEFT JOIN commissions c ON rc.user_email = c.referrer_id
+                WHERE rc.is_active = true
+            """)
+        else:
+            cursor.execute("""
+                SELECT 
+                    COUNT(DISTINCT rc.user_email) as total_referrers,
+                    COUNT(DISTINCT urc.user_id) as total_referrals,
+                    COALESCE(SUM(c.commission_amount), 0) as total_commissions,
+                    COALESCE(SUM(CASE 
+                        WHEN date(c.payment_date) >= date('now', 'start of month') 
+                        THEN c.commission_amount 
+                        ELSE 0 
+                    END), 0) as this_month_commissions
+                FROM referral_codes rc
+                LEFT JOIN user_referral_connections urc ON rc.code = urc.referral_code
+                LEFT JOIN commissions c ON rc.user_email = c.referrer_id
+                WHERE rc.is_active = 1
+            """)
+        
+        stats_row = cursor.fetchone()
+        total_stats = {
+            'total_referrers': stats_row[0],
+            'total_referrals': stats_row[1],
+            'total_commissions': float(stats_row[2]),
+            'this_month_commissions': float(stats_row[3])
+        }
+        
+        conn.close()
+        
+        return jsonify({
+            'overview': overview_data,
+            'stats': total_stats
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'커미션 현황 조회 실패: {str(e)}'}), 500
+
+# 관리자용 커미션 환급 처리
+@app.route('/api/admin/referral/pay-commission', methods=['POST'])
+def pay_commission():
+    """관리자용 커미션 환급 처리"""
+    try:
+        data = request.get_json()
+        referrer_email = data.get('referrer_email')
+        amount = data.get('amount')
+        payment_method = data.get('payment_method', 'bank_transfer')
+        notes = data.get('notes', '')
+        
+        if not referrer_email or not amount:
+            return jsonify({'error': 'referrer_email과 amount가 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 해당 추천인의 미지급 커미션을 지급 처리
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                UPDATE commissions 
+                SET is_paid = true, paid_date = NOW()
+                WHERE referrer_id = %s AND is_paid = false
+            """, (referrer_email,))
+        else:
+            cursor.execute("""
+                UPDATE commissions 
+                SET is_paid = 1, paid_date = datetime('now')
+                WHERE referrer_id = ? AND is_paid = 0
+            """, (referrer_email,))
+        
+        # 환급 내역 저장 (새로운 테이블 필요)
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                INSERT INTO commission_payments (referrer_email, amount, payment_method, notes, paid_at)
+                VALUES (%s, %s, %s, %s, NOW())
+            """, (referrer_email, amount, payment_method, notes))
+        else:
+            cursor.execute("""
+                INSERT INTO commission_payments (referrer_email, amount, payment_method, notes, paid_at)
+                VALUES (?, ?, ?, ?, datetime('now'))
+            """, (referrer_email, amount, payment_method, notes))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{referrer_email}님에게 {amount}원 커미션이 환급되었습니다.'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'커미션 환급 실패: {str(e)}'}), 500
+
+# 관리자용 환급 내역 조회
+@app.route('/api/admin/referral/payment-history', methods=['GET'])
+def get_payment_history():
+    """관리자용 환급 내역 조회"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT referrer_email, amount, payment_method, notes, paid_at
+                FROM commission_payments
+                ORDER BY paid_at DESC
+            """)
+        else:
+            cursor.execute("""
+                SELECT referrer_email, amount, payment_method, notes, paid_at
+                FROM commission_payments
+                ORDER BY paid_at DESC
+            """)
+        
+        payments = []
+        for row in cursor.fetchall():
+            paid_at = row[4]
+            if hasattr(paid_at, 'isoformat'):
+                paid_at = paid_at.isoformat()
+            else:
+                paid_at = str(paid_at)
+            
+            payments.append({
+                'referrer_email': row[0],
+                'amount': float(row[1]),
+                'payment_method': row[2],
+                'notes': row[3],
+                'paid_at': paid_at
+            })
+        
+        conn.close()
+        return jsonify({'payments': payments}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'환급 내역 조회 실패: {str(e)}'}), 500
 
 # 사용자용 추천인 통계 조회
 @app.route('/api/referral/stats', methods=['GET'])

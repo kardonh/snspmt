@@ -68,11 +68,24 @@ const AdminPage = () => {
   const [referralCodes, setReferralCodes] = useState([])
   const [referralCommissions, setReferralCommissions] = useState([])
   const [newReferralUser, setNewReferralUser] = useState('')
+  
+  // 추천인 커미션 관리 상태
+  const [commissionOverview, setCommissionOverview] = useState([])
+  const [commissionStats, setCommissionStats] = useState({})
+  const [paymentHistory, setPaymentHistory] = useState([])
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedReferrer, setSelectedReferrer] = useState(null)
+  const [paymentData, setPaymentData] = useState({
+    amount: '',
+    payment_method: 'bank_transfer',
+    notes: ''
+  })
 
   // 컴포넌트 마운트 시 데이터 로드
   useEffect(() => {
     loadAdminData()
     loadReferralData()
+    loadCommissionData()
   }, [])
 
   // 구매 신청 검색 필터링
@@ -381,6 +394,72 @@ const AdminPage = () => {
       setReferrals(referrals)
       setReferralCommissions(commissions)
     }
+  }
+
+  // 커미션 데이터 로드
+  const loadCommissionData = async () => {
+    try {
+      const [overviewResponse, historyResponse] = await Promise.all([
+        fetch('/api/admin/referral/commission-overview'),
+        fetch('/api/admin/referral/payment-history')
+      ])
+      
+      if (overviewResponse.ok) {
+        const overviewData = await overviewResponse.json()
+        setCommissionOverview(overviewData.overview || [])
+        setCommissionStats(overviewData.stats || {})
+      }
+      
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json()
+        setPaymentHistory(historyData.payments || [])
+      }
+    } catch (error) {
+      console.error('커미션 데이터 로드 실패:', error)
+    }
+  }
+
+  // 커미션 환급 처리
+  const handleCommissionPayment = async () => {
+    try {
+      const response = await fetch('/api/admin/referral/pay-commission', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          referrer_email: selectedReferrer.referrer_email,
+          amount: parseFloat(paymentData.amount),
+          payment_method: paymentData.payment_method,
+          notes: paymentData.notes
+        })
+      })
+
+      if (response.ok) {
+        alert('커미션이 성공적으로 환급되었습니다!')
+        setShowPaymentModal(false)
+        setSelectedReferrer(null)
+        setPaymentData({ amount: '', payment_method: 'bank_transfer', notes: '' })
+        loadCommissionData() // 데이터 새로고침
+      } else {
+        const errorData = await response.json()
+        alert(`환급 실패: ${errorData.error}`)
+      }
+    } catch (error) {
+      console.error('커미션 환급 실패:', error)
+      alert('커미션 환급 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 환급 모달 열기
+  const openPaymentModal = (referrer) => {
+    setSelectedReferrer(referrer)
+    setPaymentData({
+      amount: referrer.unpaid_commission.toString(),
+      payment_method: 'bank_transfer',
+      notes: ''
+    })
+    setShowPaymentModal(true)
   }
 
   // 추천인 등록 성공 핸들러
@@ -959,6 +1038,130 @@ const AdminPage = () => {
               </div>
   )
 
+  // 커미션 관리 탭 렌더링
+  const renderCommissions = () => (
+    <div className="commission-management">
+      <div className="commission-header">
+        <h2>커미션 관리</h2>
+        <div className="commission-stats">
+          <div className="stat-card">
+            <h4>총 추천인 수</h4>
+            <span className="stat-number">{commissionStats.total_referrers || 0}</span>
+          </div>
+          <div className="stat-card">
+            <h4>총 피추천인 수</h4>
+            <span className="stat-number">{commissionStats.total_referrals || 0}</span>
+          </div>
+          <div className="stat-card">
+            <h4>총 커미션</h4>
+            <span className="stat-number">{(commissionStats.total_commissions || 0).toLocaleString()}원</span>
+          </div>
+          <div className="stat-card">
+            <h4>이번 달 커미션</h4>
+            <span className="stat-number">{(commissionStats.this_month_commissions || 0).toLocaleString()}원</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="commission-overview">
+        <h3>추천인별 커미션 현황</h3>
+        <div className="commission-table-container">
+          <table className="commission-table">
+            <thead>
+              <tr>
+                <th>추천인</th>
+                <th>추천인 코드</th>
+                <th>피추천인 수</th>
+                <th>총 커미션</th>
+                <th>이번 달 커미션</th>
+                <th>미지급 커미션</th>
+                <th>액션</th>
+              </tr>
+            </thead>
+            <tbody>
+              {commissionOverview.map((referrer, index) => (
+                <tr key={index}>
+                  <td>
+                    <div className="referrer-info">
+                      <div className="referrer-avatar">👤</div>
+                      <div>
+                        <div className="referrer-name">{referrer.referrer_name || '이름 없음'}</div>
+                        <div className="referrer-email">{referrer.referrer_email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span className="referral-code">{referrer.referral_code}</span>
+                  </td>
+                  <td>
+                    <span className="referral-count">{referrer.referral_count}명</span>
+                  </td>
+                  <td>
+                    <span className="total-commission">{referrer.total_commission.toLocaleString()}원</span>
+                  </td>
+                  <td>
+                    <span className="month-commission">{referrer.this_month_commission.toLocaleString()}원</span>
+                  </td>
+                  <td>
+                    <span className={`unpaid-commission ${referrer.unpaid_commission > 0 ? 'has-unpaid' : ''}`}>
+                      {referrer.unpaid_commission.toLocaleString()}원
+                    </span>
+                  </td>
+                  <td>
+                    {referrer.unpaid_commission > 0 ? (
+                      <button 
+                        className="admin-button primary"
+                        onClick={() => openPaymentModal(referrer)}
+                      >
+                        환급하기
+                      </button>
+                    ) : (
+                      <span className="no-payment">환급 완료</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="payment-history">
+        <h3>환급 내역</h3>
+        <div className="payment-table-container">
+          <table className="payment-table">
+            <thead>
+              <tr>
+                <th>추천인</th>
+                <th>환급 금액</th>
+                <th>환급 방법</th>
+                <th>메모</th>
+                <th>환급일</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paymentHistory.map((payment, index) => (
+                <tr key={index}>
+                  <td>{payment.referrer_email}</td>
+                  <td className="payment-amount">{payment.amount.toLocaleString()}원</td>
+                  <td>
+                    <span className={`payment-method ${payment.payment_method}`}>
+                      {payment.payment_method === 'bank_transfer' ? '계좌이체' : 
+                       payment.payment_method === 'kakao_pay' ? '카카오페이' : 
+                       payment.payment_method === 'toss' ? '토스' : payment.payment_method}
+                    </span>
+                  </td>
+                  <td>{payment.notes || '-'}</td>
+                  <td>{new Date(payment.paid_at).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="admin-page">
       <div className="admin-header">
@@ -1035,6 +1238,13 @@ const AdminPage = () => {
           <TrendingUp size={20} />
           추천인 관리
                   </button>
+                  <button
+          className={`tab-button ${activeTab === 'commissions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('commissions')}
+                  >
+          <DollarSign size={20} />
+          커미션 관리
+                  </button>
                 </div>
 
       <div className="admin-content">
@@ -1050,6 +1260,7 @@ const AdminPage = () => {
             {activeTab === 'orders' && renderOrders()}
             {activeTab === 'purchases' && renderPurchases()}
             {activeTab === 'referrals' && renderReferrals()}
+            {activeTab === 'commissions' && renderCommissions()}
           </>
         )}
       </div>
@@ -1060,6 +1271,86 @@ const AdminPage = () => {
           onClose={() => setShowReferralModal(false)}
           onSuccess={handleReferralRegistrationSuccess}
         />
+      )}
+
+      {/* 커미션 환급 모달 */}
+      {showPaymentModal && selectedReferrer && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>커미션 환급</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowPaymentModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>추천인</label>
+                <div className="referrer-info">
+                  <div className="referrer-avatar">👤</div>
+                  <div>
+                    <div className="referrer-name">{selectedReferrer.referrer_name || '이름 없음'}</div>
+                    <div className="referrer-email">{selectedReferrer.referrer_email}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="form-group">
+                <label>환급 금액</label>
+                <input
+                  type="number"
+                  value={paymentData.amount}
+                  onChange={(e) => setPaymentData({...paymentData, amount: e.target.value})}
+                  placeholder="환급할 금액을 입력하세요"
+                  className="admin-input"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>환급 방법</label>
+                <select
+                  value={paymentData.payment_method}
+                  onChange={(e) => setPaymentData({...paymentData, payment_method: e.target.value})}
+                  className="admin-input"
+                >
+                  <option value="bank_transfer">계좌이체</option>
+                  <option value="kakao_pay">카카오페이</option>
+                  <option value="toss">토스</option>
+                  <option value="cash">현금</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label>메모</label>
+                <textarea
+                  value={paymentData.notes}
+                  onChange={(e) => setPaymentData({...paymentData, notes: e.target.value})}
+                  placeholder="환급 관련 메모를 입력하세요"
+                  className="admin-input"
+                  rows="3"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="admin-button secondary"
+                onClick={() => setShowPaymentModal(false)}
+              >
+                취소
+              </button>
+              <button 
+                className="admin-button primary"
+                onClick={handleCommissionPayment}
+                disabled={!paymentData.amount || parseFloat(paymentData.amount) <= 0}
+              >
+                환급 처리
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
