@@ -448,3 +448,118 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* 커미션 섹션 개선 스타일 */
+.commission-summary {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+}
+
+.summary-item {
+  text-align: center;
+  color: white;
+}
+
+.summary-label {
+  display: block;
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin-bottom: 8px;
+}
+
+.summary-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffd700;
+}
+
+.commission-table .user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.commission-amount .amount {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.commission-rate {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.status-badge.completed {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.no-data-content {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.no-data-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+.no-data-content p {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.no-data-content small {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .commission-summary {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .summary-item {
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+  }
+  
+  .commission-table {
+    font-size: 0.85rem;
+  }
+  
+  .commission-table th,
+  .commission-table td {
+    padding: 8px 6px;
+  }
+}

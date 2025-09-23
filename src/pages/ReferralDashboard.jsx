@@ -265,6 +265,20 @@ const ReferralDashboard = () => {
       <div className="commission-section">
         <div className="section-card">
           <h2>커미션 내역</h2>
+          <div className="commission-summary">
+            <div className="summary-item">
+              <span className="summary-label">총 커미션</span>
+              <span className="summary-value">{referralStats.totalCommission.toLocaleString()}원</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">이번 달 커미션</span>
+              <span className="summary-value">{referralStats.thisMonthCommission.toLocaleString()}원</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">커미션율</span>
+              <span className="summary-value">10%</span>
+            </div>
+          </div>
           <div className="table-container">
             <table className="commission-table">
               <thead>
@@ -274,18 +288,39 @@ const ReferralDashboard = () => {
                   <th>커미션 금액</th>
                   <th>커미션율</th>
                   <th>지급일</th>
+                  <th>상태</th>
                 </tr>
               </thead>
               <tbody>
-                {commissionHistory.map((commission) => (
-                  <tr key={commission.id}>
-                    <td>{commission.referredUser}</td>
-                    <td>{commission.purchaseAmount.toLocaleString()}원</td>
-                    <td className="commission-amount">{commission.commissionAmount.toLocaleString()}원</td>
-                    <td>{commission.commissionRate}</td>
-                    <td>{commission.paymentDate}</td>
+                {commissionHistory.length > 0 ? (
+                  commissionHistory.map((commission) => (
+                    <tr key={commission.id}>
+                      <td className="user-info">
+                        <div className="user-avatar">👤</div>
+                        <span>{commission.referredUser}</span>
+                      </td>
+                      <td className="purchase-amount">{commission.purchaseAmount.toLocaleString()}원</td>
+                      <td className="commission-amount">
+                        <span className="amount">+{commission.commissionAmount.toLocaleString()}원</span>
+                      </td>
+                      <td className="commission-rate">{(commission.commissionRate * 100).toFixed(1)}%</td>
+                      <td className="payment-date">{commission.paymentDate}</td>
+                      <td className="status">
+                        <span className="status-badge completed">지급완료</span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="no-data">
+                      <div className="no-data-content">
+                        <div className="no-data-icon">💰</div>
+                        <p>아직 커미션 내역이 없습니다</p>
+                        <small>친구를 추천하고 커미션을 받아보세요!</small>
+                      </div>
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

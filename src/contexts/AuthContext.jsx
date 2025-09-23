@@ -54,7 +54,29 @@ export function AuthProvider({ children }) {
             userData.referralCode = businessInfo.referralCode;
           }
           
-          return smmpanelApi.registerUser(userData);
+          return smmpanelApi.registerUser(userData).then(() => {
+            // 추천인 코드가 있으면 5% 할인 쿠폰 발급
+            if (businessInfo && businessInfo.referralCode) {
+              return fetch('/api/referral/issue-coupon', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  user_id: userCredential.user.uid,
+                  referral_code: businessInfo.referralCode
+                })
+              }).then(response => {
+                if (response.ok) {
+                  console.log('추천인 쿠폰이 발급되었습니다!');
+                } else {
+                  console.log('추천인 쿠폰 발급에 실패했습니다.');
+                }
+              }).catch(error => {
+                console.error('추천인 쿠폰 발급 오류:', error);
+              });
+            }
+          });
         });
       });
   }

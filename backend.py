@@ -205,6 +205,8 @@ def init_database():
                     price DECIMAL(10,2) NOT NULL,
                     total_price DECIMAL(10,2),
                     amount DECIMAL(10,2),
+                    discount_amount DECIMAL(10,2) DEFAULT 0,
+                    referral_code VARCHAR(50),
                     status VARCHAR(50) DEFAULT 'pending',
                     external_order_id VARCHAR(255),
                     remarks TEXT,
@@ -541,7 +543,7 @@ def get_user_points():
 # 주문 생성
 @app.route('/api/orders', methods=['POST'])
 def create_order():
-    """주문 생성"""
+    """주문 생성 (할인 및 커미션 적용)"""
     try:
         data = request.get_json()
         user_id = data.get('user_id')
@@ -556,20 +558,98 @@ def create_order():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # 사용자의 추천인 연결 확인
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                INSERT INTO orders (user_id, service_id, link, quantity, price, status, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, 'pending_payment', NOW(), NOW())
-                RETURNING order_id
-            """, (user_id, service_id, link, quantity, price))
+                SELECT referral_code, referrer_email FROM user_referral_connections 
+                WHERE user_id = %s
+            """, (user_id,))
         else:
             cursor.execute("""
-                INSERT INTO orders (user_id, service_id, link, quantity, price, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, 'pending_payment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """, (user_id, service_id, link, quantity, price))
+                SELECT referral_code, referrer_email FROM user_referral_connections 
+                WHERE user_id = ?
+            """, (user_id,))
+        
+        referral_data = cursor.fetchone()
+        discount_amount = 0
+        final_price = price
+        
+        # 추천인 코드가 있는 경우 5% 할인 적용
+        if referral_data:
+            referral_code, referrer_email = referral_data
+            
+            # 사용 가능한 쿠폰 확인
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    SELECT id, discount_value FROM coupons 
+                    WHERE user_id = %s AND referral_code = %s AND is_used = false 
+                    AND expires_at > NOW()
+                    ORDER BY created_at DESC LIMIT 1
+                """, (user_id, referral_code))
+            else:
+                cursor.execute("""
+                    SELECT id, discount_value FROM coupons 
+                    WHERE user_id = ? AND referral_code = ? AND is_used = false 
+                    AND expires_at > datetime('now')
+                    ORDER BY created_at DESC LIMIT 1
+                """, (user_id, referral_code))
+            
+            coupon_data = cursor.fetchone()
+            if coupon_data:
+                coupon_id, discount_value = coupon_data
+                discount_amount = price * (discount_value / 100)
+                final_price = price - discount_amount
+                
+                # 쿠폰 사용 처리
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        UPDATE coupons SET is_used = true, used_at = NOW() 
+                        WHERE id = %s
+                    """, (coupon_id,))
+                else:
+                    cursor.execute("""
+                        UPDATE coupons SET is_used = true, used_at = datetime('now') 
+                        WHERE id = ?
+                    """, (coupon_id,))
+        
+        # 주문 생성
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                INSERT INTO orders (user_id, service_id, link, quantity, price, total_price, 
+                                  discount_amount, referral_code, status, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pending_payment', NOW(), NOW())
+                RETURNING order_id
+            """, (user_id, service_id, link, quantity, price, final_price, discount_amount, 
+                  referral_data[0] if referral_data else None))
+        else:
+            cursor.execute("""
+                INSERT INTO orders (user_id, service_id, link, quantity, price, total_price, 
+                                  discount_amount, referral_code, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, (user_id, service_id, link, quantity, price, final_price, discount_amount,
+                  referral_data[0] if referral_data else None))
             cursor.execute("SELECT last_insert_rowid()")
         
         order_id = cursor.fetchone()[0]
+        
+        # 추천인이 있는 경우 10% 커미션 지급
+        if referral_data:
+            referrer_email = referral_data[1]
+            commission_amount = final_price * 0.1  # 10% 커미션
+            
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
+                                           commission_amount, commission_rate, payment_date)
+                    VALUES (%s, %s, %s, %s, %s, NOW())
+                """, (user_id, referrer_email, final_price, commission_amount, 0.1))
+            else:
+                cursor.execute("""
+                    INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
+                                           commission_amount, commission_rate, payment_date)
+                    VALUES (?, ?, ?, ?, ?, datetime('now'))
+                """, (user_id, referrer_email, final_price, commission_amount, 0.1))
+        
         conn.commit()
         conn.close()
         
@@ -577,6 +657,11 @@ def create_order():
             'success': True,
             'order_id': order_id,
             'status': 'pending_payment',
+            'original_price': price,
+            'discount_amount': discount_amount,
+            'final_price': final_price,
+            'referral_discount': discount_amount > 0,
+            'commission_earned': commission_amount if referral_data else 0,
             'message': '주문이 생성되었습니다.'
         }), 200
         
@@ -1150,6 +1235,80 @@ def get_commissions():
         if conn:
             conn.close()
 
+# 추천인 코드로 쿠폰 발급
+@app.route('/api/referral/issue-coupon', methods=['POST'])
+def issue_referral_coupon():
+    """추천인 코드로 5% 할인 쿠폰 발급"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        referral_code = data.get('referral_code')
+        
+        if not user_id or not referral_code:
+            return jsonify({'error': 'user_id와 referral_code가 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 추천인 코드 유효성 확인
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id, user_email FROM referral_codes 
+                WHERE code = %s AND is_active = true
+            """, (referral_code,))
+        else:
+            cursor.execute("""
+                SELECT id, user_email FROM referral_codes 
+                WHERE code = ? AND is_active = true
+            """, (referral_code,))
+        
+        referrer_data = cursor.fetchone()
+        if not referrer_data:
+            return jsonify({'error': '유효하지 않은 추천인 코드입니다.'}), 400
+        
+        referrer_id, referrer_email = referrer_data
+        
+        # 사용자-추천인 연결 저장
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                INSERT INTO user_referral_connections (user_id, referral_code, referrer_email)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (user_id) DO NOTHING
+            """, (user_id, referral_code, referrer_email))
+        else:
+            cursor.execute("""
+                INSERT OR IGNORE INTO user_referral_connections (user_id, referral_code, referrer_email)
+                VALUES (?, ?, ?)
+            """, (user_id, referral_code, referrer_email))
+        
+        # 5% 할인 쿠폰 발급
+        from datetime import datetime, timedelta
+        expires_at = datetime.now() + timedelta(days=30)  # 30일 유효
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                INSERT INTO coupons (user_id, referral_code, discount_type, discount_value, expires_at)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (user_id, referral_code, 'percentage', 5.0, expires_at))
+        else:
+            cursor.execute("""
+                INSERT INTO coupons (user_id, referral_code, discount_type, discount_value, expires_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (user_id, referral_code, 'percentage', 5.0, expires_at))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': '5% 할인 쿠폰이 발급되었습니다!',
+            'discount': 5.0,
+            'expires_at': expires_at.isoformat()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'쿠폰 발급 실패: {str(e)}'}), 500
+
 # 추천인 코드 검증
 @app.route('/api/referral/validate-code', methods=['GET'])
 def validate_referral_code():
@@ -1183,6 +1342,74 @@ def validate_referral_code():
             
     except Exception as e:
         return jsonify({'valid': False, 'error': f'코드 검증 실패: {str(e)}'}), 500
+
+# 사용자 쿠폰 조회
+@app.route('/api/user/coupons', methods=['GET'])
+def get_user_coupons():
+    """사용자의 쿠폰 목록 조회"""
+    try:
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'user_id가 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id, referral_code, discount_type, discount_value, is_used, 
+                       created_at, expires_at, used_at
+                FROM coupons 
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT id, referral_code, discount_type, discount_value, is_used, 
+                       created_at, expires_at, used_at
+                FROM coupons 
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+            """, (user_id,))
+        
+        coupons = []
+        for row in cursor.fetchall():
+            # 날짜 형식 처리
+            created_at = row[5]
+            expires_at = row[6]
+            used_at = row[7]
+            
+            if hasattr(created_at, 'isoformat'):
+                created_at = created_at.isoformat()
+            else:
+                created_at = str(created_at)
+                
+            if hasattr(expires_at, 'isoformat'):
+                expires_at = expires_at.isoformat()
+            else:
+                expires_at = str(expires_at)
+                
+            if used_at and hasattr(used_at, 'isoformat'):
+                used_at = used_at.isoformat()
+            else:
+                used_at = str(used_at) if used_at else None
+            
+            coupons.append({
+                'id': row[0],
+                'referral_code': row[1],
+                'discount_type': row[2],
+                'discount_value': row[3],
+                'is_used': row[4],
+                'created_at': created_at,
+                'expires_at': expires_at,
+                'used_at': used_at
+            })
+        
+        conn.close()
+        return jsonify({'coupons': coupons}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'쿠폰 조회 실패: {str(e)}'}), 500
 
 # 사용자용 추천인 통계 조회
 @app.route('/api/referral/stats', methods=['GET'])
