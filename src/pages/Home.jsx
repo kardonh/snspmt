@@ -432,9 +432,10 @@ const Home = () => {
   
   // 세부 서비스 목록 가져오기
   const getDetailedServices = (platform, serviceType) => {
-    if (platform === 'top-exposure' && serviceType === 'popular_posts') {
-      return instagramDetailedServices.popular_posts
-    }
+  if (platform === 'top-exposure') {
+    const services = instagramDetailedServices.top_exposure || {}
+    return selectedTab === 'manual' ? services.manual || [] : services.auto || []
+  }
     if (platform === 'instagram' && instagramDetailedServices[serviceType]) {
       return instagramDetailedServices[serviceType]
     }
@@ -645,7 +646,8 @@ const Home = () => {
     switch (platform) {
       case 'top-exposure':
         return [
-          { id: 'popular_posts', name: '🎯 추천탭 상위노출 서비스', description: '인스타그램 추천탭 상위노출 패키지 서비스' }
+          { id: 'manual', name: '수동', description: '수동 상위노출 서비스' },
+          { id: 'auto', name: '자동', description: '자동 상위노출 서비스' }
         ]
       case 'instagram':
         return [

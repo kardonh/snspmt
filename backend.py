@@ -1265,31 +1265,31 @@ def admin_register_referral():
         if DATABASE_URL.startswith('postgresql://'):
             # PostgreSQL
             cursor.execute("""
-                INSERT INTO referral_codes (id, user_email, code, name, phone, created_at, is_active)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO referral_codes (user_email, code, name, phone, created_at, is_active)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (user_email) DO UPDATE SET
                 code = EXCLUDED.code,
                 name = EXCLUDED.name,
                 phone = EXCLUDED.phone,
                 updated_at = CURRENT_TIMESTAMP
-            """, (str(uuid.uuid4()), email, code, name, phone, datetime.now(), True))
+            """, (email, code, name, phone, datetime.now(), True))
             
             # 추천인 등록
             cursor.execute("""
-                INSERT INTO referrals (id, referrer_email, referral_code, name, phone, created_at, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (str(uuid.uuid4()), email, code, name, phone, datetime.now(), 'active'))
+                INSERT INTO referrals (referrer_email, referral_code, name, phone, created_at, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (email, code, name, phone, datetime.now(), 'active'))
         else:
             # SQLite
             cursor.execute("""
-                INSERT OR REPLACE INTO referral_codes (id, user_email, code, name, phone, created_at, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (str(uuid.uuid4()), email, code, name, phone, datetime.now(), True))
+                INSERT OR REPLACE INTO referral_codes (user_email, code, name, phone, created_at, is_active)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (email, code, name, phone, datetime.now(), True))
             
             cursor.execute("""
-                INSERT INTO referrals (id, referrer_email, referral_code, name, phone, created_at, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (str(uuid.uuid4()), email, code, name, phone, datetime.now(), 'active'))
+                INSERT INTO referrals (referrer_email, referral_code, name, phone, created_at, status)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (email, code, name, phone, datetime.now(), 'active'))
         
         conn.commit()
         conn.close()
