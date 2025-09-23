@@ -12,10 +12,37 @@ const ReferralDashboard = () => {
   })
   const [referralHistory, setReferralHistory] = useState([])
   const [commissionHistory, setCommissionHistory] = useState([])
+  const [hasReferralCode, setHasReferralCode] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    loadReferralData()
+    checkReferralAccess()
   }, [])
+
+  const checkReferralAccess = async () => {
+    try {
+      const userId = localStorage.getItem('userId') || 'demo_user'
+      
+      // 사용자가 추천인 코드를 발급받았는지 확인
+      const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userId}`)
+      if (codeResponse.ok) {
+        const codeData = await codeResponse.json()
+        if (codeData.codes && codeData.codes.length > 0) {
+          setHasReferralCode(true)
+          loadReferralData()
+        } else {
+          setHasReferralCode(false)
+        }
+      } else {
+        setHasReferralCode(false)
+      }
+    } catch (error) {
+      console.error('추천인 접근 권한 확인 실패:', error)
+      setHasReferralCode(false)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const loadReferralData = async () => {
     try {
@@ -100,6 +127,43 @@ const ReferralDashboard = () => {
       navigator.clipboard.writeText(shareText)
       alert('추천인 코드가 복사되었습니다!')
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="referral-dashboard">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>추천인 정보를 불러오는 중...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!hasReferralCode) {
+    return (
+      <div className="referral-dashboard">
+        <div className="no-access-container">
+          <div className="no-access-icon">🔒</div>
+          <h1>추천인 대시보드</h1>
+          <p>추천인 코드를 발급받은 사용자만 접근할 수 있습니다.</p>
+          <div className="access-info">
+            <h3>추천인 코드 발급 방법</h3>
+            <ol>
+              <li>관리자에게 추천인 코드 발급을 요청하세요</li>
+              <li>발급받은 코드로 추천인 대시보드에 접근할 수 있습니다</li>
+              <li>친구들에게 추천인 코드를 공유하여 커미션을 받으세요</li>
+            </ol>
+          </div>
+          <button 
+            className="request-code-btn"
+            onClick={() => window.location.href = '/admin'}
+          >
+            관리자 페이지로 이동
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

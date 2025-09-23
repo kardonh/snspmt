@@ -831,3 +831,34 @@
     font-size: 12px;
   }
 }
+
+/* 추천인 코드 검증 스타일 */
+.valid-icon {
+  color: #10b981;
+  font-weight: bold;
+  margin-left: 8px;
+}
+
+.form-group input.valid {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.form-group input.invalid {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.success-message {
+  color: #10b981;
+  font-size: 0.875rem;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 4px;
+  font-weight: 500;
+}

@@ -160,6 +160,34 @@ def init_database():
                 )
             """)
             
+            # 쿠폰 테이블
+            cursor.execute("DROP TABLE IF EXISTS coupons CASCADE")
+            cursor.execute("""
+                CREATE TABLE coupons (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    referral_code VARCHAR(50),
+                    discount_type VARCHAR(20) DEFAULT 'percentage',
+                    discount_value DECIMAL(5,2) NOT NULL,
+                    is_used BOOLEAN DEFAULT false,
+                    used_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    expires_at TIMESTAMP
+                )
+            """)
+            
+            # 사용자 추천인 코드 연결 테이블
+            cursor.execute("DROP TABLE IF EXISTS user_referral_connections CASCADE")
+            cursor.execute("""
+                CREATE TABLE user_referral_connections (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    referral_code VARCHAR(50) NOT NULL,
+                    referrer_email VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     order_id SERIAL PRIMARY KEY,
@@ -1121,6 +1149,40 @@ def get_commissions():
             cursor.close()
         if conn:
             conn.close()
+
+# 추천인 코드 검증
+@app.route('/api/referral/validate-code', methods=['GET'])
+def validate_referral_code():
+    """추천인 코드 유효성 검증"""
+    try:
+        code = request.args.get('code')
+        if not code:
+            return jsonify({'valid': False, 'error': '코드가 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id, code, is_active FROM referral_codes 
+                WHERE code = %s AND is_active = true
+            """, (code,))
+        else:
+            cursor.execute("""
+                SELECT id, code, is_active FROM referral_codes 
+                WHERE code = ? AND is_active = true
+            """, (code,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            return jsonify({'valid': True, 'code': result[1]}), 200
+        else:
+            return jsonify({'valid': False, 'error': '유효하지 않은 코드입니다.'}), 200
+            
+    except Exception as e:
+        return jsonify({'valid': False, 'error': f'코드 검증 실패: {str(e)}'}), 500
 
 # 사용자용 추천인 통계 조회
 @app.route('/api/referral/stats', methods=['GET'])

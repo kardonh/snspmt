@@ -24,8 +24,51 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
   const [rememberMe, setRememberMe] = useState(false)
   const [signupSource, setSignupSource] = useState('')
   const [referralCode, setReferralCode] = useState('')
+  const [referralCodeValid, setReferralCodeValid] = useState(false)
+  const [referralCodeError, setReferralCodeError] = useState('')
   
   const { login, signup } = useAuth()
+
+  // 추천인 코드 검증
+  const validateReferralCode = async (code) => {
+    if (!code.trim()) {
+      setReferralCodeValid(false)
+      setReferralCodeError('')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/referral/validate-code?code=${encodeURIComponent(code)}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.valid) {
+          setReferralCodeValid(true)
+          setReferralCodeError('')
+        } else {
+          setReferralCodeValid(false)
+          setReferralCodeError('유효하지 않은 추천인 코드입니다.')
+        }
+      } else {
+        setReferralCodeValid(false)
+        setReferralCodeError('추천인 코드를 확인할 수 없습니다.')
+      }
+    } catch (error) {
+      setReferralCodeValid(false)
+      setReferralCodeError('추천인 코드 검증 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 추천인 코드 변경 핸들러
+  const handleReferralCodeChange = (e) => {
+    const code = e.target.value
+    setReferralCode(code)
+    if (code.trim()) {
+      validateReferralCode(code)
+    } else {
+      setReferralCodeValid(false)
+      setReferralCodeError('')
+    }
+  }
 
   // 로그인 시도 제한 확인 (AuthModal용)
   useEffect(() => {
@@ -149,7 +192,9 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
           businessName: businessName.trim(),
           representative: representative.trim(),
           contactPhone: contactPhone.trim(),
-          contactEmail: contactEmail.trim()
+          contactEmail: contactEmail.trim(),
+          signupSource: signupSource,
+          referralCode: referralCode.trim()
         })
       }
       console.log('Auth successful:', isLogin ? 'login' : 'signup')
@@ -314,14 +359,24 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
                 <label htmlFor="referralCode">
                   <User size={16} />
                   추천인 코드 (선택사항)
+                  {referralCode && referralCodeValid && (
+                    <span className="valid-icon">✓</span>
+                  )}
                 </label>
                 <input
                   type="text"
                   id="referralCode"
                   value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value)}
+                  onChange={handleReferralCodeChange}
                   placeholder="추천인 코드를 입력하세요"
+                  className={referralCode ? (referralCodeValid ? 'valid' : 'invalid') : ''}
                 />
+                {referralCodeError && (
+                  <div className="error-message">{referralCodeError}</div>
+                )}
+                {referralCode && referralCodeValid && (
+                  <div className="success-message">유효한 추천인 코드입니다! 5% 할인 쿠폰을 받으실 수 있습니다.</div>
+                )}
               </div>
 
               <div className="signup-form-row">
