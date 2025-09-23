@@ -1056,11 +1056,13 @@ def use_referral_code():
 @app.route('/api/referral/commissions', methods=['GET'])
 def get_commissions():
     """추천인 수수료 조회"""
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'user_id가 필요합니다.'}), 400
+    
+    conn = None
+    cursor = None
     try:
-        user_id = request.args.get('user_id')
-        if not user_id:
-            return jsonify({'error': 'user_id가 필요합니다.'}), 400
-        
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -1101,13 +1103,17 @@ def get_commissions():
                 'paymentDate': payment_date
             })
         
-        conn.close()
         return jsonify({
             'commissions': commissions
         }), 200
         
     except Exception as e:
         return jsonify({'error': f'수수료 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 사용자용 추천인 통계 조회
 @app.route('/api/referral/stats', methods=['GET'])
@@ -1209,11 +1215,13 @@ def get_referral_stats():
 @app.route('/api/referral/referrals', methods=['GET'])
 def get_user_referrals():
     """사용자용 추천인 목록 조회"""
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'user_id가 필요합니다.'}), 400
+    
+    conn = None
+    cursor = None
     try:
-        user_id = request.args.get('user_id')
-        if not user_id:
-            return jsonify({'error': 'user_id가 필요합니다.'}), 400
-        
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -1251,13 +1259,17 @@ def get_user_referrals():
                 'commission': 0  # 개별 커미션은 별도 계산 필요
             })
         
-        conn.close()
         return jsonify({
             'referrals': referrals
         }), 200
         
     except Exception as e:
         return jsonify({'error': f'추천인 목록 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 관리자용 추천인 등록
 @app.route('/api/admin/referral/register', methods=['POST'])
@@ -1272,45 +1284,64 @@ def admin_register_referral():
         if not email:
             return jsonify({'error': '이메일은 필수입니다.'}), 400
         
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # 추천인 코드 생성
-        import uuid
-        import time
-        code = f"REF{str(uuid.uuid4())[:8].upper()}"
-        
-        if DATABASE_URL.startswith('postgresql://'):
-            # PostgreSQL
-            cursor.execute("""
-                INSERT INTO referral_codes (user_email, code, name, phone, created_at, is_active)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (user_email) DO UPDATE SET
-                code = EXCLUDED.code,
-                name = EXCLUDED.name,
-                phone = EXCLUDED.phone,
-                updated_at = CURRENT_TIMESTAMP
-            """, (email, code, name, phone, datetime.now(), True))
+        conn = None
+        cursor = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
             
-            # 추천인 등록
-            cursor.execute("""
-                INSERT INTO referrals (referrer_email, referral_code, name, phone, created_at, status)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (email, code, name, phone, datetime.now(), 'active'))
-        else:
-            # SQLite
-            cursor.execute("""
-                INSERT OR REPLACE INTO referral_codes (user_email, code, name, phone, created_at, is_active)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (email, code, name, phone, datetime.now(), True))
+            # 추천인 코드 생성
+            import uuid
+            import time
+            code = f"REF{str(uuid.uuid4())[:8].upper()}"
             
-            cursor.execute("""
-                INSERT INTO referrals (referrer_email, referral_code, name, phone, created_at, status)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (email, code, name, phone, datetime.now(), 'active'))
-        
-        conn.commit()
-        conn.close()
+            if DATABASE_URL.startswith('postgresql://'):
+                # PostgreSQL - 먼저 기존 코드가 있는지 확인
+                cursor.execute("SELECT id FROM referral_codes WHERE user_email = %s", (email,))
+                existing_code = cursor.fetchone()
+                
+                if existing_code:
+                    # 기존 코드 업데이트
+                    cursor.execute("""
+                        UPDATE referral_codes 
+                        SET code = %s, name = %s, phone = %s, updated_at = CURRENT_TIMESTAMP
+                        WHERE user_email = %s
+                    """, (code, name, phone, email))
+                else:
+                    # 새 코드 생성
+                    cursor.execute("""
+                        INSERT INTO referral_codes (user_email, code, name, phone, created_at, is_active)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (email, code, name, phone, datetime.now(), True))
+                
+                # 추천인 등록
+                cursor.execute("""
+                    INSERT INTO referrals (referrer_email, referral_code, name, phone, created_at, status)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (email, code, name, phone, datetime.now(), 'active'))
+            else:
+                # SQLite
+                cursor.execute("""
+                    INSERT OR REPLACE INTO referral_codes (user_email, code, name, phone, created_at, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (email, code, name, phone, datetime.now(), True))
+                
+                cursor.execute("""
+                    INSERT INTO referrals (referrer_email, referral_code, name, phone, created_at, status)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (email, code, name, phone, datetime.now(), 'active'))
+            
+            conn.commit()
+            
+        except Exception as db_error:
+            if conn:
+                conn.rollback()
+            raise db_error
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
         
         return jsonify({
             'id': str(uuid.uuid4()),
@@ -1328,6 +1359,8 @@ def admin_register_referral():
 @app.route('/api/admin/referral/list', methods=['GET'])
 def admin_get_referrals():
     """관리자용 추천인 목록 조회"""
+    conn = None
+    cursor = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -1366,7 +1399,6 @@ def admin_get_referrals():
                 'status': row[6]
             })
         
-        conn.close()
         return jsonify({
             'referrals': referrals,
             'count': len(referrals)
@@ -1374,11 +1406,18 @@ def admin_get_referrals():
         
     except Exception as e:
         return jsonify({'error': f'추천인 목록 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 관리자용 추천인 코드 목록 조회
 @app.route('/api/admin/referral/codes', methods=['GET'])
 def admin_get_referral_codes():
     """관리자용 추천인 코드 목록 조회"""
+    conn = None
+    cursor = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -1423,7 +1462,6 @@ def admin_get_referral_codes():
                 'total_commission': row[8]
             })
         
-        conn.close()
         return jsonify({
             'codes': codes,
             'count': len(codes)
@@ -1431,6 +1469,11 @@ def admin_get_referral_codes():
         
     except Exception as e:
         return jsonify({'error': f'추천인 코드 목록 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 관리자용 커미션 내역 조회
 @app.route('/api/admin/referral/commissions', methods=['GET'])
