@@ -229,8 +229,8 @@ const Home = () => {
       { id: 145, name: '인스타그램 노출(+도달+추+프로필+기타)', price: 5000, min: 100, max: 1000000, time: '데이터 부족', description: '노출+도달+추+프로필+기타 서비스' },
       { id: 312, name: '인스타그램 저장', price: 500, min: 10, max: 10000, time: '데이터 부족', description: '저장 서비스' },
       { id: 313, name: '인스타그램 공유', price: 8000, min: 10, max: 10000, time: '데이터 부족', description: '공유 서비스' }
-    ],
-    live_streaming: [
+      ],
+      live_streaming: [
       { id: 393, name: '인스타그램 실시간 라이브 스트리밍 시청 [15분]', price: 3000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' },
       { id: 394, name: '인스타그램 실시간 라이브 스트리밍 시청 [30분]', price: 6000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' },
       { id: 395, name: '인스타그램 실시간 라이브 스트리밍 시청 [60분]', price: 12000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' },
@@ -626,7 +626,7 @@ const Home = () => {
     { id: 'threads', name: '스레드', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/threads.svg', color: '#000000' },
     { id: 'twitter', name: '트위터', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/X.svg', color: '#1da1f2' },
     { id: 'kakao', name: '카카오', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/kakao.svg', color: '#fbbf24' },
-    { id: 'telegram', name: '텔레그램', icon: 'https://i.namu.wiki/i/56X_CmKeLJoraH43aay-ucfVLwfDX7I2RuV8fyZpwhGSQnLA6PQK9D0FUv7VQ3sy71Lk5l2RQd9D3kgcIinTxA.svg', color: '#0088cc' },
+    { id: 'telegram', name: '텔레그램', icon: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_2019_Logo.svg', color: '#0088cc' },
     { id: 'whatsapp', name: '왓츠앱', icon: 'https://i.namu.wiki/i/wjmczy8xH2kajvQEpf9LfYepq7oDncymQTAQweVhaMpoZi_2X0uctv3E9Z7BUMcaQpFzYFx6_1GGKs0QPnEuZWeRbO4zsyEc1W7vz0-sUHUkN3eqEQEKSqEbSFBNffi5BN54cix2E01Y2KNyma-4pg.svg', color: '#25d366' },
     // { id: 'news-media', name: '뉴스언론보도', icon: FileText, color: '#3b82f6' },
     // { id: 'experience-group', name: '체험단', icon: Users, color: '#10b981' },

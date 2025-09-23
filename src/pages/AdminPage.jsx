@@ -13,8 +13,10 @@ import {
   TrendingUp,
   DollarSign,
   Activity,
-  Info
+  Info,
+  UserPlus
 } from 'lucide-react'
+import ReferralRegistration from '../components/ReferralRegistration'
 import './AdminPage.css'
 
 const AdminPage = () => {
@@ -51,9 +53,11 @@ const AdminPage = () => {
 
   // 포인트 구매 신청 데이터
   const [pendingPurchases, setPendingPurchases] = useState([])
-  const [filteredPurchases, setFilteredPurchases] = useState([])
 
   // 추천인 데이터
+  const [referrals, setReferrals] = useState([])
+  const [showReferralModal, setShowReferralModal] = useState(false)
+  const [filteredPurchases, setFilteredPurchases] = useState([])
   const [referralCodes, setReferralCodes] = useState([])
   const [referralCommissions, setReferralCommissions] = useState([])
   const [newReferralUser, setNewReferralUser] = useState('')
@@ -354,6 +358,37 @@ const AdminPage = () => {
     } catch (error) {
       console.error('추천인 데이터 로드 실패:', error)
     }
+  }
+
+  // 추천인 등록 성공 핸들러
+  const handleReferralRegistrationSuccess = (result) => {
+    // 추천인 목록에 새로 추가된 추천인 추가
+    const newReferral = {
+      id: result.id || Date.now(),
+      email: result.email,
+      referralCode: result.referralCode,
+      name: result.name || '',
+      phone: result.phone || '',
+      joinDate: new Date().toISOString().split('T')[0],
+      status: '활성',
+      registeredBy: 'admin'
+    }
+    
+    setReferrals(prev => [newReferral, ...prev])
+    
+    // 추천인 코드 목록도 업데이트
+    setReferralCodes(prev => [{
+      id: result.id || Date.now(),
+      code: result.referralCode,
+      email: result.email,
+      createdAt: new Date().toISOString(),
+      isActive: true,
+      usage_count: 0,
+      total_commission: 0
+    }, ...prev])
+
+    // 성공 메시지 표시
+    alert(`추천인이 성공적으로 등록되었습니다!\n이메일: ${result.email}\n추천인 코드: ${result.referralCode}`)
   }
 
   // 추천인 코드 생성
@@ -805,6 +840,13 @@ const AdminPage = () => {
               추천인 코드 생성
             </button>
           </div>
+          <button 
+            onClick={() => setShowReferralModal(true)}
+            className="register-referral-button"
+          >
+            <UserPlus size={16} />
+            이메일로 추천인 등록
+          </button>
         </div>
             </div>
 
@@ -991,6 +1033,14 @@ const AdminPage = () => {
           </>
         )}
       </div>
+
+      {/* 추천인 등록 모달 */}
+      {showReferralModal && (
+        <ReferralRegistration
+          onClose={() => setShowReferralModal(false)}
+          onSuccess={handleReferralRegistrationSuccess}
+        />
+      )}
     </div>
   )
 }

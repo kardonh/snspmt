@@ -14,6 +14,7 @@ import FAQPage from './pages/FAQPage'
 import ServicePage from './pages/ServicePage'
 import ServicesPage from './pages/ServicesPage'
 import AdminPage from './pages/AdminPage'
+import ReferralDashboard from './pages/ReferralDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import './App.css'
 
@@ -33,6 +34,7 @@ function App() {
                 <Route path="/points" element={<ProtectedRoute><PointsPage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                 <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+                <Route path="/referral" element={<ProtectedRoute><ReferralDashboard /></ProtectedRoute>} />
                 <Route path="/info" element={<InfoPage />} />
                 <Route path="/faq" element={<FAQPage />} />
                 <Route path="/service" element={<ServicePage />} />
