@@ -444,7 +444,7 @@ const Home = () => {
       return services.manual?.filter(s => s.id === 1004) || []
     }
     return []
-  }
+    }
     if (platform === 'instagram' && instagramDetailedServices[serviceType]) {
       return instagramDetailedServices[serviceType]
     }

@@ -1083,13 +1083,22 @@ def get_commissions():
         
         commissions = []
         for row in cursor.fetchall():
+            # 날짜 형식 처리
+            payment_date = row[5]
+            if hasattr(payment_date, 'strftime'):
+                payment_date = payment_date.strftime('%Y-%m-%d')
+            elif hasattr(payment_date, 'isoformat'):
+                payment_date = payment_date.isoformat()[:10]
+            else:
+                payment_date = str(payment_date)[:10]
+            
             commissions.append({
                 'id': row[0],
                 'referredUser': row[1],
                 'purchaseAmount': row[2],
                 'commissionAmount': row[3],
                 'commissionRate': f"{row[4] * 100}%" if row[4] else "0%",
-                'paymentDate': row[5].strftime('%Y-%m-%d') if hasattr(row[5], 'strftime') else row[5]
+                'paymentDate': payment_date
             })
         
         conn.close()
@@ -1225,10 +1234,19 @@ def get_user_referrals():
         
         referrals = []
         for row in cursor.fetchall():
+            # 날짜 형식 처리
+            join_date = row[5]
+            if hasattr(join_date, 'strftime'):
+                join_date = join_date.strftime('%Y-%m-%d')
+            elif hasattr(join_date, 'isoformat'):
+                join_date = join_date.isoformat()[:10]
+            else:
+                join_date = str(join_date)[:10]
+            
             referrals.append({
                 'id': row[0],
                 'user': row[1],
-                'joinDate': row[5].strftime('%Y-%m-%d') if hasattr(row[5], 'strftime') else row[5],
+                'joinDate': join_date,
                 'status': row[6],
                 'commission': 0  # 개별 커미션은 별도 계산 필요
             })
@@ -1329,13 +1347,22 @@ def admin_get_referrals():
         
         referrals = []
         for row in cursor.fetchall():
+            # 날짜 형식 처리
+            join_date = row[5]
+            if hasattr(join_date, 'strftime'):
+                join_date = join_date.strftime('%Y-%m-%d')
+            elif hasattr(join_date, 'isoformat'):
+                join_date = join_date.isoformat()[:10]
+            else:
+                join_date = str(join_date)[:10]
+            
             referrals.append({
                 'id': row[0],
                 'email': row[1],
                 'referralCode': row[2],
                 'name': row[3],
                 'phone': row[4],
-                'joinDate': row[5].strftime('%Y-%m-%d') if hasattr(row[5], 'strftime') else row[5],
+                'joinDate': join_date,
                 'status': row[6]
             })
         
@@ -1375,13 +1402,22 @@ def admin_get_referral_codes():
         
         codes = []
         for row in cursor.fetchall():
+            # 날짜 형식 처리
+            created_at = row[5]
+            if hasattr(created_at, 'isoformat'):
+                created_at = created_at.isoformat()
+            elif hasattr(created_at, 'strftime'):
+                created_at = created_at.strftime('%Y-%m-%dT%H:%M:%S')
+            else:
+                created_at = str(created_at)
+            
             codes.append({
                 'id': row[0],
                 'code': row[1],
                 'email': row[2],
                 'name': row[3],
                 'phone': row[4],
-                'createdAt': row[5].isoformat() if hasattr(row[5], 'isoformat') else row[5],
+                'createdAt': created_at,
                 'isActive': row[6],
                 'usage_count': row[7],
                 'total_commission': row[8]
