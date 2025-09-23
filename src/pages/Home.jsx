@@ -121,40 +121,6 @@ const Home = () => {
       { id: 305, name: 'KR 인스타그램 한국인 리그램', price: 450000, min: 3, max: 3000, time: '6시간 12분', description: '상세정보' }
     ],
     
-    // 외국인 서비스들
-    foreign_package: [
-      { id: 999, name: '인스타그램 외국인 패키지', price: 100000, min: 10, max: 1000, time: '1시간', description: '외국인 종합 패키지 서비스' }
-    ],
-    followers_foreign: [
-      { id: 100, name: '인스타그램 외국인 팔로워', price: 5000, min: 50, max: 10000, time: '데이터 부족', description: '외국인 팔로워 서비스' }
-    ],
-    comments_foreign: [
-      { id: 101, name: '인스타그램 외국인 댓글', price: 8000, min: 10, max: 1000, time: '데이터 부족', description: '외국인 댓글 서비스' }
-    ],
-    reels_views_foreign: [
-      { id: 102, name: '인스타그램 외국인 릴스 조회수', price: 3000, min: 100, max: 100000, time: '데이터 부족', description: '외국인 릴스 조회수 서비스' }
-    ],
-    exposure_save_share_foreign: [
-      { id: 103, name: '인스타그램 외국인 노출, 도달, 저장, 공유', price: 2000, min: 100, max: 100000, time: '데이터 부족', description: '외국인 노출, 도달, 저장, 공유 서비스' }
-    ],
-    live_streaming: [
-      { id: 104, name: '인스타그램 실시간 라이브 스트리밍 시청', price: 15000, min: 10, max: 1000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' }
-    ],
-    auto_likes_foreign: [
-      { id: 105, name: '인스타그램 외국인 자동 좋아요', price: 4000, min: 50, max: 10000, time: '데이터 부족', description: '외국인 자동 좋아요 서비스' }
-    ],
-    auto_followers_foreign: [
-      { id: 106, name: '인스타그램 외국인 자동 팔로워', price: 6000, min: 50, max: 10000, time: '데이터 부족', description: '외국인 자동 팔로워 서비스' }
-    ],
-    auto_comments_foreign: [
-      { id: 107, name: '인스타그램 외국인 자동 댓글', price: 10000, min: 10, max: 1000, time: '데이터 부족', description: '외국인 자동 댓글 서비스' }
-    ],
-    auto_reels_views_foreign: [
-      { id: 108, name: '인스타그램 외국인 자동 릴스 조회수', price: 5000, min: 100, max: 100000, time: '데이터 부족', description: '외국인 자동 릴스 조회수 서비스' }
-    ],
-    auto_exposure_save_share_foreign: [
-      { id: 109, name: '인스타그램 외국인 자동 노출, 도달, 저장, 공유', price: 3000, min: 100, max: 100000, time: '데이터 부족', description: '외국인 자동 노출, 도달, 저장, 공유 서비스' }
-    ],
     
     likes_korean: [
       { id: 122, name: 'KR 인스타그램 한국인 ❤️ 파워업 좋아요', price: 19000, min: 30, max: 2500, time: '14시간 54분', description: '상세정보' },
@@ -209,9 +175,6 @@ const Home = () => {
     regram_korean: [
       { id: 305, name: '🇰🇷 인스타그램 한국인 리그램🎯', price: 375000, min: 3, max: 3000, time: '7 시간 21 분' }
     ],
-    followers_foreign: [
-      { id: 475, name: '인스타그램 외국인 팔로워', price: 10000, min: 100, max: 10000, time: '데이터 부족' }
-    ],
     exposure_save_share: [
       { id: 142, name: '인스타그램 노출(+도달+추+프로필+기타)', price: 2500, min: 100, max: 1000000, time: '데이터 부족' },
       { id: 145, name: '인스타그램 노출(+도달+추+프로필+기타)', price: 5000, min: 100, max: 1000000, time: '데이터 부족' },
@@ -219,17 +182,6 @@ const Home = () => {
       { id: 313, name: '인스타그램 공유', price: 8000, min: 10, max: 10000, time: '데이터 부족' }
     ],
 
-    live_streaming: [
-      { id: 393, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[15분]', price: 3000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 394, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[30분]', price: 6000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 395, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[60분]', price: 12000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 396, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[90분]', price: 18000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 397, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[120분]', price: 24000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 398, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[180분]', price: 36000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 399, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[240분]', price: 48000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 400, name: '🌐인스타그램 실시간 라이브 스트리밍 시청[360분]', price: 72000, min: 100, max: 30000, time: '데이터가 충분하지 않습니다' },
-      { id: 426, name: '🌐인스타그램 실시간 라이브 스트리밍 시청 + 좋아요 + 댓글', price: 30000, min: 20, max: 40000, time: '데이터가 충분하지 않습니다' }
-    ],
     auto_likes: [
       { id: 348, name: 'KR 인스타그램 한국인 ❤️ 파워업 좋아요', price: 19000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
       { id: 369, name: 'KR 인스타그램 한국인 💎 슈퍼프리미엄 자동 좋아요', price: 30000, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' }
@@ -251,6 +203,66 @@ const Home = () => {
       ]
     },
 
+    // 인스타그램 외국인 서비스 데이터
+    foreign_package: [
+      
+    ],
+    followers_foreign: [
+      { id: 475, name: '인스타그램 외국인 팔로워', price: 10000, min: 100, max: 10000, time: '데이터 부족', description: '외국인 팔로워 서비스' }
+    ],
+    likes_foreign: [
+      { id: 105, name: '인스타그램 외국인 좋아요', price: 4000, min: 50, max: 10000, time: '데이터 부족', description: '외국인 좋아요 서비스' },
+      { id: 116, name: '인스타그램 리얼 외국인 좋아요', price: 6000, min: 50, max: 10000, time: '데이터 부족', description: '리얼 외국인 좋아요 서비스' }
+    ],
+    comments_foreign: [
+      { id: 480, name: '인스타그램 외국인 랜덤 댓글', price: 50000, min: 20, max: 1000, time: '데이터 부족', description: '외국인 랜덤 댓글 서비스' },
+      { id: 481, name: '인스타그램 외국인 커스텀 댓글', price: 60000, min: 20, max: 1000, time: '데이터 부족', description: '외국인 커스텀 댓글 서비스' },
+      { id: 358, name: '인스타그램 외국인 랜덤 이모지 댓글', price: 50000, min: 20, max: 1000, time: '데이터 부족', description: '외국인 랜덤 이모지 댓글 서비스' }
+    ],
+    reels_views_foreign: [
+      { id: 109, name: '인스타그램 동영상 조회수 [REEL/IGTV/VIDEO 가능]', price: 300, min: 100, max: 1000000, time: '데이터 부족', description: '동영상 조회수 서비스' },
+      { id: 382, name: '인스타그램 동영상 조회수+저장+시간', price: 1200, min: 100, max: 1000000, time: '데이터 부족', description: '동영상 조회수+저장+시간 서비스' }
+    ],
+    exposure_save_share_foreign: [
+      { id: 515, name: '인스타그램 프로필 방문', price: 1000, min: 10, max: 10000, time: '데이터 부족', description: '프로필 방문 서비스' },
+      { id: 142, name: '인스타그램 노출(+도달+추+프로필+기타)', price: 2500, min: 100, max: 1000000, time: '데이터 부족', description: '노출+도달+추+프로필+기타 서비스' },
+      { id: 145, name: '인스타그램 노출(+도달+추+프로필+기타)', price: 5000, min: 100, max: 1000000, time: '데이터 부족', description: '노출+도달+추+프로필+기타 서비스' },
+      { id: 312, name: '인스타그램 저장', price: 500, min: 10, max: 10000, time: '데이터 부족', description: '저장 서비스' },
+      { id: 313, name: '인스타그램 공유', price: 8000, min: 10, max: 10000, time: '데이터 부족', description: '공유 서비스' }
+    ],
+    live_streaming: [
+      { id: 393, name: '인스타그램 실시간 라이브 스트리밍 시청 [15분]', price: 3000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' },
+      { id: 394, name: '인스타그램 실시간 라이브 스트리밍 시청 [30분]', price: 6000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' },
+      { id: 395, name: '인스타그램 실시간 라이브 스트리밍 시청 [60분]', price: 12000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' },
+      { id: 396, name: '인스타그램 실시간 라이브 스트리밍 시청 [90분]', price: 18000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' },
+      { id: 397, name: '인스타그램 실시간 라이브 스트리밍 시청 [120분]', price: 24000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' },
+      { id: 398, name: '인스타그램 실시간 라이브 스트리밍 시청 [180분]', price: 36000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' },
+      { id: 399, name: '인스타그램 실시간 라이브 스트리밍 시청 [240분]', price: 48000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' },
+      { id: 400, name: '인스타그램 실시간 라이브 스트리밍 시청 [360분]', price: 72000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 서비스' },
+      { id: 426, name: '인스타그램 실시간 라이브 스트리밍 시청 + 좋아요 + 댓글', price: 40000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 + 좋아요 + 댓글 서비스' }
+    ],
+    auto_likes_foreign: [
+      { id: 105, name: '인스타그램 외국인 좋아요', price: 4000, min: 50, max: 10000, time: '데이터 부족', description: '외국인 좋아요 서비스' },
+      { id: 116, name: '인스타그램 리얼 외국인 좋아요', price: 6000, min: 50, max: 10000, time: '데이터 부족', description: '리얼 외국인 좋아요 서비스' }
+    ],
+    auto_followers_foreign: [
+      { id: 475, name: '인스타그램 외국인 팔로워', price: 10000, min: 100, max: 10000, time: '데이터 부족', description: '외국인 팔로워 서비스' }
+    ],
+    auto_comments_foreign: [
+      { id: 480, name: '인스타그램 외국인 랜덤 댓글', price: 50000, min: 20, max: 1000, time: '데이터 부족', description: '외국인 랜덤 댓글 서비스' },
+      { id: 481, name: '인스타그램 외국인 커스텀 댓글', price: 60000, min: 20, max: 1000, time: '데이터 부족', description: '외국인 커스텀 댓글 서비스' },
+      { id: 358, name: '인스타그램 외국인 랜덤 이모지 댓글', price: 50000, min: 20, max: 1000, time: '데이터 부족', description: '외국인 랜덤 이모지 댓글 서비스' }
+    ],
+    auto_reels_views_foreign: [
+      { id: 109, name: '인스타그램 동영상 조회수 [REEL/IGTV/VIDEO 가능]', price: 300, min: 100, max: 1000000, time: '데이터 부족', description: '동영상 조회수 서비스' },
+      { id: 382, name: '인스타그램 동영상 조회수+저장+시간', price: 1200, min: 100, max: 1000000, time: '데이터 부족', description: '동영상 조회수+저장+시간 서비스' }
+    ],
+    auto_exposure_save_share_foreign: [
+      { id: 142, name: '인스타그램 노출(+도달+추+프로필+기타)', price: 2500, min: 100, max: 1000000, time: '데이터 부족', description: '노출+도달+추+프로필+기타 서비스' },
+      { id: 145, name: '인스타그램 노출(+도달+추+프로필+기타)', price: 5000, min: 100, max: 1000000, time: '데이터 부족', description: '노출+도달+추+프로필+기타 서비스' },
+      { id: 312, name: '인스타그램 저장', price: 500, min: 10, max: 10000, time: '데이터 부족', description: '저장 서비스' },
+      { id: 313, name: '인스타그램 공유', price: 8000, min: 10, max: 10000, time: '데이터 부족', description: '공유 서비스' }
+    ],
 
     // 페이스북 세부 서비스 데이터
     facebook: {
@@ -427,6 +439,35 @@ const Home = () => {
       return instagramDetailedServices[serviceType]
     }
     
+    // 인스타그램 외국인 서비스 매핑
+    if (platform === 'instagram' && instagramDetailedServices) {
+      if (serviceType === 'foreign_package') {
+        return instagramDetailedServices.foreign_package || []
+      } else if (serviceType === 'followers_foreign') {
+        return instagramDetailedServices.followers_foreign || []
+      } else if (serviceType === 'likes_foreign') {
+        return instagramDetailedServices.likes_foreign || []
+      } else if (serviceType === 'comments_foreign') {
+        return instagramDetailedServices.comments_foreign || []
+      } else if (serviceType === 'reels_views_foreign') {
+        return instagramDetailedServices.reels_views_foreign || []
+      } else if (serviceType === 'exposure_save_share_foreign') {
+        return instagramDetailedServices.exposure_save_share_foreign || []
+      } else if (serviceType === 'live_streaming') {
+        return instagramDetailedServices.live_streaming || []
+      } else if (serviceType === 'auto_likes_foreign') {
+        return instagramDetailedServices.auto_likes_foreign || []
+      } else if (serviceType === 'auto_followers_foreign') {
+        return instagramDetailedServices.auto_followers_foreign || []
+      } else if (serviceType === 'auto_comments_foreign') {
+        return instagramDetailedServices.auto_comments_foreign || []
+      } else if (serviceType === 'auto_reels_views_foreign') {
+        return instagramDetailedServices.auto_reels_views_foreign || []
+      } else if (serviceType === 'auto_exposure_save_share_foreign') {
+        return instagramDetailedServices.auto_exposure_save_share_foreign || []
+      }
+    }
+    
     // 유튜브 서비스 매핑
     if (platform === 'youtube' && instagramDetailedServices.youtube) {
       if (serviceType === 'views_korean') {
@@ -467,15 +508,25 @@ const Home = () => {
       } else if (serviceType === 'profile_follows_korean') {
         return instagramDetailedServices.facebook.profile_follows_korean || []
       } else if (serviceType === 'event_page_likes_foreign') {
-        return instagramDetailedServices.facebook.foreign_services || []
+        return (instagramDetailedServices.facebook.foreign_services || []).filter(service => 
+          service.name.includes('페이지 좋아요') || service.name.includes('페이지 팔로워')
+        )
       } else if (serviceType === 'page_followers_foreign') {
-        return instagramDetailedServices.facebook.foreign_services || []
+        return (instagramDetailedServices.facebook.foreign_services || []).filter(service => 
+          service.name.includes('페이지 팔로워') || service.name.includes('페이지 팔로우')
+        )
       } else if (serviceType === 'post_likes_foreign') {
-        return instagramDetailedServices.facebook.foreign_services || []
+        return (instagramDetailedServices.facebook.foreign_services || []).filter(service => 
+          service.name.includes('게시물 좋아요')
+        )
       } else if (serviceType === 'profile_followers_foreign') {
-        return instagramDetailedServices.facebook.foreign_services || []
+        return (instagramDetailedServices.facebook.foreign_services || []).filter(service => 
+          service.name.includes('프로필 팔로워') || service.name.includes('프로필 팔로우')
+        )
       } else if (serviceType === 'post_comments_foreign') {
-        return instagramDetailedServices.facebook.foreign_services || []
+        return (instagramDetailedServices.facebook.foreign_services || []).filter(service => 
+          service.name.includes('댓글') || service.name.includes('리액션')
+        )
       }
     }
     
@@ -631,6 +682,7 @@ const Home = () => {
         return [
           // 한국인 서비스 (5개)
           { id: 'views_korean', name: '유튜브 조회수 늘리기', description: '한국인 조회수 서비스' },
+          { id: 'empty_service_korean', name: ' ', description: ' ' },
           { id: 'likes_korean', name: '유튜브 좋아요 늘리기', description: '한국인 좋아요 서비스' },
           { id: 'subscribers_korean', name: '유튜브 구독자 늘리기', description: '한국인 구독자 서비스' },
           { id: 'no', name: 'no', description: ' ' },
@@ -640,13 +692,13 @@ const Home = () => {
           
           // 외국인 서비스 (7개)
           { id: 'views_foreign', name: '유튜브 조회수 늘리기', description: '외국인 조회수 서비스' },
+          { id: 'empty_service_foreign', name: ' ', description: ' ' },
           { id: 'likes_foreign', name: '유튜브 좋아요 늘리기', description: '외국인 좋아요 서비스' },
           { id: 'subscribers_foreign', name: '유튜브 구독자 늘리기', description: '외국인 구독자 서비스' },
           { id: 'comments_foreign', name: '유튜브 댓글 늘리기', description: '외국인 댓글 서비스' },
-          { id: 'auto_views_foreign', name: '자동 : 유튜브 조회수 늘리기', description: '외국인 자동 조회수 서비스' },
-          { id: 'live_streaming', name: '유튜브 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' },
           { id: 'auto_likes_foreign', name: '자동 : 유튜브 좋아요 늘리기', description: '외국인 자동 좋아요 서비스' },
-          { id: 'comments_foreign', name: '유튜브 댓글 늘리기', description: '외국인 댓글 서비스' },
+          { id: 'live_streaming', name: '유튜브 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' },
+          { id: 'auto_views_foreign', name: '자동 : 유튜브 조회수 늘리기', description: '외국인 자동 조회수 서비스' },
         ]
       case 'tiktok':
         return [
@@ -667,10 +719,12 @@ const Home = () => {
           
           // 외국인 서비스 (5개)
           { id: 'event_page_likes_foreign', name: '이벤트 : 페이스북 페이지 좋아요 + 팔로워', description: '외국인 이벤트 페이지 좋아요+팔로워 서비스' },
+          { id: 'empty_service', name: ' ', description: ' ' },
           { id: 'page_followers_foreign', name: '페이스북 페이지 팔로워', description: '외국인 페이지 팔로워 서비스' },
           { id: 'post_likes_foreign', name: '페이스북 게시물 좋아요', description: '외국인 게시물 좋아요 서비스' },
           { id: 'profile_followers_foreign', name: '페이스북 프로필 팔로워', description: '외국인 프로필 팔로워 서비스' },
           { id: 'post_comments_foreign', name: '페이스북 게시물 댓글', description: '외국인 게시물 댓글 서비스' }
+
         ]
       case 'threads':
         return [
@@ -767,9 +821,31 @@ const Home = () => {
       availableServices = Object.values(instagramDetailedServices.telegram).flat()
     } else if (platform === 'whatsapp' && instagramDetailedServices.whatsapp) {
       availableServices = Object.values(instagramDetailedServices.whatsapp).flat()
-    } else if (platform === 'kakao' && instagramDetailedServices.kakao) {
-      availableServices = Object.values(instagramDetailedServices.kakao).flat()
+    } else if (platform === 'kakao' && instagramDetailedServices.kakao_naver) {
+      availableServices = Object.values(instagramDetailedServices.kakao_naver).flat()
     }
+    
+    // 플랫폼별 서비스 이름 필터링 추가
+    availableServices = availableServices.filter(service => {
+      if (platform === 'youtube') {
+        return service.name.includes('유튜브') || service.name.includes('YouTube')
+      } else if (platform === 'facebook') {
+        return service.name.includes('페이스북') || service.name.includes('Facebook')
+      } else if (platform === 'threads') {
+        return service.name.includes('Threads') || service.name.includes('스레드')
+      } else if (platform === 'tiktok') {
+        return service.name.includes('틱톡') || service.name.includes('TikTok')
+      } else if (platform === 'twitter') {
+        return service.name.includes('트위터') || service.name.includes('Twitter') || service.name.includes('X')
+      } else if (platform === 'telegram') {
+        return service.name.includes('텔레그램') || service.name.includes('Telegram')
+      } else if (platform === 'whatsapp') {
+        return service.name.includes('왓츠앱') || service.name.includes('WhatsApp')
+      } else if (platform === 'kakao') {
+        return service.name.includes('카카오') || service.name.includes('K사')
+      }
+      return true // 인스타그램은 모든 서비스 허용
+    })
     
     return availableServices.filter(service => {
       // 서비스 타입에 따라 필터링
@@ -788,7 +864,7 @@ const Home = () => {
       } else if (serviceType === 'random_comments_korean') {
         return String(service.id).includes('comments') && service.name.includes('한국') && service.name.includes('랜덤')
       } else if (serviceType === 'comments_foreign') {
-        return String(service.id).includes('comments') && !service.name.includes('한국')
+        return String(service.id).includes('comments') && !service.name.includes('한국') && service.name.includes('인스타그램')
       } else if (serviceType === 'comments' && platform === 'instagram') {
         return String(service.id).includes('comments')
       } else if (serviceType === 'likes' && platform === 'instagram') {
@@ -800,11 +876,11 @@ const Home = () => {
       } else if (serviceType === 'views' && platform === 'instagram') {
         return String(service.id).includes('views')
       } else if (serviceType === 'views_korean') {
-        return String(service.id).includes('views') && service.name.includes('한국')
+        return String(service.id).includes('views') && service.name.includes('한국') && service.name.includes('인스타그램')
       } else if (serviceType === 'views_foreign') {
-        return String(service.id).includes('views') && !service.name.includes('한국')
+        return String(service.id).includes('views') && !service.name.includes('한국') && service.name.includes('인스타그램')
       } else if (serviceType === 'shares_foreign') {
-        return String(service.id).includes('shares') || String(service.id).includes('saves')
+        return (String(service.id).includes('shares') || String(service.id).includes('saves')) && service.name.includes('인스타그램')
       } else if (serviceType === 'story_foreign') {
         return String(service.id).includes('story')
       } else if (serviceType === 'live_foreign') {
@@ -1297,6 +1373,16 @@ const Home = () => {
           <div className="service-list">
             {services
               .filter(service => {
+                // 빈 서비스는 외국인 탭에서만 표시
+                if (service.id === 'empty_service' || service.id === 'empty_service_foreign') {
+                  return selectedTab === 'foreign'
+                }
+                
+                // 유튜브 한국인 빈 서비스는 한국인 탭에서만 표시
+                if (service.id === 'empty_service_korean') {
+                  return selectedTab === 'korean'
+                }
+                
                 // 특정 플랫폼들은 탭 구분 없이 모든 서비스 표시
                 if (['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp'].includes(selectedPlatform)) {
                   return true
@@ -1388,10 +1474,13 @@ const Home = () => {
                     </div>
                   </div>
                   <div className="detailed-service-price">
-                    {(selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp' || selectedPlatform === 'top-exposure') ? 
-                      `₩${(service.price / 1000).toFixed(2)}` : 
-                      `${(service.price / 1000).toFixed(2)}원`
-                    }
+                    {(() => {
+                      const price = service.price / 1000;
+                      const formattedPrice = price % 1 === 0 ? price.toString() : price.toFixed(2);
+                      return (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp' || selectedPlatform === 'top-exposure') ? 
+                        `₩${formattedPrice}` : 
+                        `${formattedPrice}원`
+                    })()}
                   </div>
                 </div>
                 </div>
@@ -1473,7 +1562,11 @@ const Home = () => {
                 ))}
               </div>
               <div className="package-total">
-                <strong>총 패키지 가격: {(selectedDetailedService.price / 1000).toLocaleString()}원</strong>
+                <strong>총 패키지 가격: {(() => {
+                  const price = selectedDetailedService.price / 1000;
+                  const formattedPrice = price % 1 === 0 ? price.toString() : price.toFixed(2);
+                  return `${formattedPrice}원`;
+                })()}</strong>
               </div>
             </div>
           )}
@@ -1499,7 +1592,11 @@ const Home = () => {
 
           {/* Total Price */}
           <div className="price-display">
-            <div className="total-price">{totalPrice.toLocaleString()}원</div>
+            <div className="total-price">{(() => {
+              const price = totalPrice / 1000;
+              const formattedPrice = price % 1 === 0 ? price.toString() : price.toFixed(2);
+              return `${formattedPrice}원`;
+            })()}</div>
             <div className="price-label">총 금액</div>
           </div>
 
