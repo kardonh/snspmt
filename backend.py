@@ -1158,10 +1158,44 @@ def get_my_codes():
         if not user_id:
             return jsonify({'error': 'user_id가 필요합니다.'}), 400
         
-        # 임시로 빈 배열 반환 (추천인 기능은 나중에 구현)
-        return jsonify({
-            'codes': []
-        }), 200
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 사용자의 추천인 코드 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT code, is_active, usage_count, total_commission, created_at
+                FROM referral_codes 
+                WHERE user_id = %s OR user_email = %s
+                ORDER BY created_at DESC
+            """, (user_id, user_id))
+        else:
+            cursor.execute("""
+                SELECT code, is_active, usage_count, total_commission, created_at
+                FROM referral_codes 
+                WHERE user_id = ? OR user_email = ?
+                ORDER BY created_at DESC
+            """, (user_id, user_id))
+        
+        codes = []
+        for row in cursor.fetchall():
+            # 날짜 형식 처리
+            created_at = row[4]
+            if hasattr(created_at, 'isoformat'):
+                created_at = created_at.isoformat()
+            else:
+                created_at = str(created_at)
+            
+            codes.append({
+                'code': row[0],
+                'is_active': row[1],
+                'usage_count': row[2],
+                'total_commission': float(row[3]) if row[3] else 0.0,
+                'created_at': created_at
+            })
+        
+        conn.close()
+        return jsonify({'codes': codes}), 200
         
     except Exception as e:
         return jsonify({'error': f'추천인 코드 조회 실패: {str(e)}'}), 500
@@ -1839,15 +1873,15 @@ def admin_register_referral():
                     # 기존 코드 업데이트
                     cursor.execute("""
                         UPDATE referral_codes 
-                        SET code = %s, name = %s, phone = %s, updated_at = CURRENT_TIMESTAMP
+                        SET user_id = %s, code = %s, name = %s, phone = %s, updated_at = CURRENT_TIMESTAMP
                         WHERE user_email = %s
-                    """, (code, name, phone, email))
+                    """, (email.split('@')[0], code, name, phone, email))
                 else:
                     # 새 코드 생성
                     cursor.execute("""
-                        INSERT INTO referral_codes (user_email, code, name, phone, created_at, is_active)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (email, code, name, phone, datetime.now(), True))
+                        INSERT INTO referral_codes (user_id, user_email, code, name, phone, created_at, is_active)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (email.split('@')[0], email, code, name, phone, datetime.now(), True))
                 
                 # 추천인 등록
                 cursor.execute("""
@@ -1857,9 +1891,9 @@ def admin_register_referral():
             else:
                 # SQLite
                 cursor.execute("""
-                    INSERT OR REPLACE INTO referral_codes (user_email, code, name, phone, created_at, is_active)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (email, code, name, phone, datetime.now(), True))
+                    INSERT OR REPLACE INTO referral_codes (user_id, user_email, code, name, phone, created_at, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (email.split('@')[0], email, code, name, phone, datetime.now(), True))
                 
                 cursor.execute("""
                     INSERT INTO referrals (referrer_email, referral_code, name, phone, created_at, status)

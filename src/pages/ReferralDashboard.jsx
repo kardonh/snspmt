@@ -21,12 +21,21 @@ const ReferralDashboard = () => {
 
   const checkReferralAccess = async () => {
     try {
-      const userId = localStorage.getItem('userId') || 'demo_user'
+      // Firebase 사용자 ID 가져오기
+      const userId = localStorage.getItem('userId') || 
+                    localStorage.getItem('firebase_user_id') || 
+                    'demo_user'
+      
+      console.log('추천인 대시보드 접근 확인 - 사용자 ID:', userId)
       
       // 사용자가 추천인 코드를 발급받았는지 확인
       const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userId}`)
+      console.log('추천인 코드 조회 응답:', codeResponse.status)
+      
       if (codeResponse.ok) {
         const codeData = await codeResponse.json()
+        console.log('추천인 코드 데이터:', codeData)
+        
         if (codeData.codes && codeData.codes.length > 0) {
           setHasReferralCode(true)
           loadReferralData()
@@ -34,6 +43,8 @@ const ReferralDashboard = () => {
           setHasReferralCode(false)
         }
       } else {
+        const errorData = await codeResponse.json()
+        console.error('추천인 코드 조회 실패:', errorData)
         setHasReferralCode(false)
       }
     } catch (error) {
@@ -46,8 +57,10 @@ const ReferralDashboard = () => {
 
   const loadReferralData = async () => {
     try {
-      // 사용자 ID 가져오기 (실제로는 인증된 사용자 ID 사용)
-      const userId = localStorage.getItem('userId') || 'demo_user'
+      // Firebase 사용자 ID 가져오기
+      const userId = localStorage.getItem('userId') || 
+                    localStorage.getItem('firebase_user_id') || 
+                    'demo_user'
       
       // 추천인 코드 조회
       const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userId}`)
