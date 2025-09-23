@@ -434,7 +434,16 @@ const Home = () => {
   const getDetailedServices = (platform, serviceType) => {
   if (platform === 'top-exposure') {
     const services = instagramDetailedServices.top_exposure || {}
-    return selectedTab === 'manual' ? services.manual || [] : services.auto || []
+    if (serviceType === 'seo') {
+      return services.manual?.filter(s => s.id === 1001) || []
+    } else if (serviceType === 'instagram_optimization') {
+      return services.manual?.filter(s => s.id === 1002) || []
+    } else if (serviceType === 'entry_stage') {
+      return services.manual?.filter(s => s.id === 1003) || []
+    } else if (serviceType === 'maintenance_stage') {
+      return services.manual?.filter(s => s.id === 1004) || []
+    }
+    return []
   }
     if (platform === 'instagram' && instagramDetailedServices[serviceType]) {
       return instagramDetailedServices[serviceType]
@@ -646,8 +655,10 @@ const Home = () => {
     switch (platform) {
       case 'top-exposure':
         return [
-          { id: 'manual', name: '수동', description: '수동 상위노출 서비스' },
-          { id: 'auto', name: '자동', description: '자동 상위노출 서비스' }
+          { id: 'seo', name: '검색엔진 최적화 [SEO]', description: '웹사이트 SEO 최적화 서비스' },
+          { id: 'instagram_optimization', name: '인스타 최적화 계정만들기 [30일]', description: '인스타그램 계정 최적화 및 관리' },
+          { id: 'entry_stage', name: '추천탭 상위노출 (셀프) - 진입단계', description: '진입단계 4단계 완전 패키지' },
+          { id: 'maintenance_stage', name: '추천탭 상위노출 (셀프) - 유지단계', description: '유지단계 2단계 완전 패키지' }
         ]
       case 'instagram':
         return [
