@@ -46,16 +46,25 @@ const ReferralRegistration = ({ onClose, onSuccess }) => {
         generateReferralCode()
       }
 
-      // 임시로 프론트엔드에서만 처리 (백엔드 연동 전까지)
-      const result = {
-        id: Date.now(),
-        email: formData.email,
-        referralCode: formData.referralCode || 'REF' + Math.random().toString(36).substr(2, 8).toUpperCase(),
-        name: formData.name || '',
-        phone: formData.phone || '',
-        registeredBy: 'admin',
-        createdAt: new Date().toISOString()
-      }
+        // 서버에 추천인 등록 요청
+        const response = await fetch('/api/admin/referral/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            name: formData.name || '',
+            phone: formData.phone || ''
+          })
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || '추천인 등록에 실패했습니다.')
+        }
+        
+        const result = await response.json()
 
       // 성공 상태로 설정
       setSuccess(true)

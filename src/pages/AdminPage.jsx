@@ -17,6 +17,13 @@ import {
   UserPlus
 } from 'lucide-react'
 import ReferralRegistration from '../components/ReferralRegistration'
+import { 
+  saveReferralCode, 
+  getReferralCodes, 
+  saveReferral, 
+  getReferrals, 
+  getCommissions 
+} from '../utils/referralStorage'
 import './AdminPage.css'
 
 const AdminPage = () => {
@@ -342,53 +349,69 @@ const AdminPage = () => {
   // 추천인 데이터 로드
   const loadReferralData = async () => {
     try {
-      // 추천인 코드 목록 로드
-      const codesResponse = await fetch('/api/referral/my-codes?user_id=admin')
+      // 서버에서 데이터 로드
+      const [codesResponse, referralsResponse, commissionsResponse] = await Promise.all([
+        fetch('/api/admin/referral/codes'),
+        fetch('/api/admin/referral/list'),
+        fetch('/api/admin/referral/commissions')
+      ])
+      
       if (codesResponse.ok) {
         const codesData = await codesResponse.json()
         setReferralCodes(codesData.codes || [])
       }
-
-      // 추천인 커미션 내역 로드
-      const commissionsResponse = await fetch('/api/referral/commissions?user_id=admin')
+      
+      if (referralsResponse.ok) {
+        const referralsData = await referralsResponse.json()
+        setReferrals(referralsData.referrals || [])
+      }
+      
       if (commissionsResponse.ok) {
         const commissionsData = await commissionsResponse.json()
         setReferralCommissions(commissionsData.commissions || [])
       }
     } catch (error) {
       console.error('추천인 데이터 로드 실패:', error)
+      // 폴백으로 로컬 스토리지 사용
+      const codes = getReferralCodes()
+      const referrals = getReferrals()
+      const commissions = getCommissions()
+      
+      setReferralCodes(codes)
+      setReferrals(referrals)
+      setReferralCommissions(commissions)
     }
   }
 
   // 추천인 등록 성공 핸들러
-  const handleReferralRegistrationSuccess = (result) => {
-    // 추천인 목록에 새로 추가된 추천인 추가
-    const newReferral = {
-      id: result.id || Date.now(),
-      email: result.email,
-      referralCode: result.referralCode,
-      name: result.name || '',
-      phone: result.phone || '',
-      joinDate: new Date().toISOString().split('T')[0],
-      status: '활성',
-      registeredBy: 'admin'
+  const handleReferralRegistrationSuccess = async (result) => {
+    try {
+      // 서버에 추천인 등록
+      const response = await fetch('/api/admin/referral/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: result.email,
+          name: result.name,
+          phone: result.phone
+        })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        // 데이터 다시 로드
+        await loadReferralData()
+        alert(`추천인이 성공적으로 등록되었습니다!\n이메일: ${data.email}\n추천인 코드: ${data.referralCode}`)
+      } else {
+        const errorData = await response.json()
+        alert(`추천인 등록 실패: ${errorData.error}`)
+      }
+    } catch (error) {
+      console.error('추천인 등록 실패:', error)
+      alert('추천인 등록 중 오류가 발생했습니다.')
     }
-    
-    setReferrals(prev => [newReferral, ...prev])
-    
-    // 추천인 코드 목록도 업데이트
-    setReferralCodes(prev => [{
-      id: result.id || Date.now(),
-      code: result.referralCode,
-      email: result.email,
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      usage_count: 0,
-      total_commission: 0
-    }, ...prev])
-
-    // 성공 메시지 표시
-    alert(`추천인이 성공적으로 등록되었습니다!\n이메일: ${result.email}\n추천인 코드: ${result.referralCode}`)
   }
 
   // 추천인 코드 생성
@@ -399,32 +422,26 @@ const AdminPage = () => {
     }
 
     try {
-      const response = await fetch('/api/referral/generate-code', {
+      const response = await fetch('/api/admin/referral/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_id: newReferralUser.trim()
+          email: newReferralUser.trim() + '@example.com',
+          name: newReferralUser.trim(),
+          phone: ''
         })
       })
-
+      
       if (response.ok) {
-      const result = await response.json()
-        alert(`추천인 코드가 생성되었습니다: ${result.code}`)
+        const data = await response.json()
+        await loadReferralData()
         setNewReferralUser('')
-        // 새로 생성된 코드를 기존 목록에 추가 (전체 새로고침 없이)
-        const newCode = {
-          code: result.code,
-          is_active: true,
-          usage_count: 0,
-          total_commission: 0,
-          created_at: new Date().toISOString()
-        }
-        setReferralCodes(prevCodes => [...prevCodes, newCode])
+        alert(`추천인 코드가 생성되었습니다: ${data.referralCode}`)
       } else {
-        const error = await response.json()
-        alert(`오류: ${error.error}`)
+        const errorData = await response.json()
+        alert(`추천인 코드 생성 실패: ${errorData.error}`)
       }
     } catch (error) {
       console.error('추천인 코드 생성 실패:', error)
@@ -821,34 +838,37 @@ const AdminPage = () => {
 
   // 추천인 관리 탭 렌더링
   const renderReferrals = () => (
-    <div className="referral-content">
-      <div className="section-header">
-        <h2>추천인 코드 관리</h2>
+    <div className="referral-management">
+      <div className="referral-header">
+        <h2>추천인 관리</h2>
         <div className="referral-actions">
-          <div className="generate-code-section">
+          <div className="action-group">
+            <div className="input-group">
               <input
                 type="text"
-              placeholder="사용자 ID 입력"
-              value={newReferralUser}
-              onChange={(e) => setNewReferralUser(e.target.value)}
-              className="referral-input"
-            />
+                placeholder="사용자 ID 입력"
+                value={newReferralUser}
+                onChange={(e) => setNewReferralUser(e.target.value)}
+                className="admin-input"
+              />
+              <button 
+                onClick={handleGenerateReferralCode}
+                className="admin-button primary"
+              >
+                <UserPlus size={16} />
+                추천인 코드 생성
+              </button>
+            </div>
             <button 
-              onClick={handleGenerateReferralCode}
-              className="generate-button"
+              onClick={() => setShowReferralModal(true)}
+              className="admin-button success"
             >
-              추천인 코드 생성
+              <UserPlus size={16} />
+              이메일로 추천인 등록
             </button>
           </div>
-          <button 
-            onClick={() => setShowReferralModal(true)}
-            className="register-referral-button"
-          >
-            <UserPlus size={16} />
-            이메일로 추천인 등록
-          </button>
         </div>
-            </div>
+      </div>
 
       <div className="referral-grid">
         <div className="referral-codes-section">

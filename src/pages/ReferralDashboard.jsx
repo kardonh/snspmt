@@ -14,34 +14,75 @@ const ReferralDashboard = () => {
   const [commissionHistory, setCommissionHistory] = useState([])
 
   useEffect(() => {
-    // 추천인 코드 생성 (실제로는 API에서 가져와야 함)
-    const generateReferralCode = () => {
-      const code = 'REF' + Math.random().toString(36).substr(2, 8).toUpperCase()
-      setReferralCode(code)
-    }
-    generateReferralCode()
-
-    // 임시 데이터 (실제로는 API에서 가져와야 함)
-    setReferralStats({
-      totalReferrals: 15,
-      totalCommission: 125000,
-      activeReferrals: 8,
-      thisMonthReferrals: 3,
-      thisMonthCommission: 25000
-    })
-
-    setReferralHistory([
-      { id: 1, user: 'user123', joinDate: '2024-01-15', status: '활성', commission: 15000 },
-      { id: 2, user: 'user456', joinDate: '2024-01-20', status: '활성', commission: 20000 },
-      { id: 3, user: 'user789', joinDate: '2024-01-25', status: '비활성', commission: 0 }
-    ])
-
-    setCommissionHistory([
-      { id: 1, referredUser: 'user123', purchaseAmount: 100000, commissionAmount: 5000, commissionRate: '5%', paymentDate: '2024-01-16' },
-      { id: 2, referredUser: 'user456', purchaseAmount: 200000, commissionAmount: 10000, commissionRate: '5%', paymentDate: '2024-01-21' },
-      { id: 3, referredUser: 'user789', purchaseAmount: 300000, commissionAmount: 15000, commissionRate: '5%', paymentDate: '2024-01-26' }
-    ])
+    loadReferralData()
   }, [])
+
+  const loadReferralData = async () => {
+    try {
+      // 사용자 ID 가져오기 (실제로는 인증된 사용자 ID 사용)
+      const userId = localStorage.getItem('userId') || 'demo_user'
+      
+      // 추천인 코드 조회
+      const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userId}`)
+      if (codeResponse.ok) {
+        const codeData = await codeResponse.json()
+        if (codeData.codes && codeData.codes.length > 0) {
+          setReferralCode(codeData.codes[0].code)
+        } else {
+          // 코드가 없으면 새로 생성
+          const generateResponse = await fetch('/api/referral/generate-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, user_email: `${userId}@example.com` })
+          })
+          if (generateResponse.ok) {
+            const generateData = await generateResponse.json()
+            setReferralCode(generateData.code)
+          }
+        }
+      }
+
+      // 추천인 통계 조회
+      const statsResponse = await fetch(`/api/referral/stats?user_id=${userId}`)
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json()
+        setReferralStats(statsData)
+      } else {
+        // 폴백 데이터
+        setReferralStats({
+          totalReferrals: 0,
+          totalCommission: 0,
+          activeReferrals: 0,
+          thisMonthReferrals: 0,
+          thisMonthCommission: 0,
+        })
+      }
+
+      // 추천인 목록 조회
+      const referralsResponse = await fetch(`/api/referral/referrals?user_id=${userId}`)
+      if (referralsResponse.ok) {
+        const referralsData = await referralsResponse.json()
+        setReferralHistory(referralsData.referrals || [])
+      }
+
+      // 커미션 내역 조회
+      const commissionsResponse = await fetch(`/api/referral/commissions?user_id=${userId}`)
+      if (commissionsResponse.ok) {
+        const commissionsData = await commissionsResponse.json()
+        setCommissionHistory(commissionsData.commissions || [])
+      }
+    } catch (error) {
+      console.error('추천인 데이터 로드 실패:', error)
+      // 폴백으로 기본 데이터 사용
+      setReferralStats({
+        totalReferrals: 0,
+        totalCommission: 0,
+        activeReferrals: 0,
+        thisMonthReferrals: 0,
+        thisMonthCommission: 0,
+      })
+    }
+  }
 
   const copyReferralCode = () => {
     navigator.clipboard.writeText(referralCode)

@@ -1,5 +1,13 @@
 import json
+import uuid
 from ._utils import generate_referral_code, process_referral_code, set_cors_headers
+from .postgres_utils import (
+    create_referral_code_admin, 
+    get_referral_codes, 
+    register_referral_admin, 
+    get_referrals, 
+    get_commissions
+)
 
 def generate_referral(request):
     # CORS preflight 요청 처리
@@ -165,6 +173,193 @@ def get_user_referral_code(request, user_email):
             
     except Exception as e:
         print(f"❌ Error getting user referral code: {e}")
+        return {
+            'statusCode': 500,
+            'headers': set_cors_headers(),
+            'body': json.dumps({
+                'error': 'Internal server error',
+                'details': str(e)
+            })
+        }
+
+# 관리자용 추천인 등록
+def admin_register_referral(request):
+    if request.method == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'headers': set_cors_headers(),
+            'body': ''
+        }
+    
+    if request.method != 'POST':
+        return {
+            'statusCode': 405,
+            'headers': set_cors_headers(),
+            'body': json.dumps({'error': 'Method not allowed'})
+        }
+    
+    try:
+        request_data = request.get_json()
+        email = request_data.get('email')
+        name = request_data.get('name')
+        phone = request_data.get('phone')
+        
+        if not email:
+            return {
+                'statusCode': 400,
+                'headers': set_cors_headers(),
+                'body': json.dumps({'error': '이메일은 필수입니다'})
+            }
+        
+        # 추천인 코드 생성
+        code, message = create_referral_code_admin(email, name, phone)
+        
+        if code:
+            # 추천인 등록
+            success, reg_message = register_referral_admin(email, code, name, phone)
+            
+            if success:
+                return {
+                    'statusCode': 200,
+                    'headers': set_cors_headers(),
+                    'body': json.dumps({
+                        'id': str(uuid.uuid4()),
+                        'email': email,
+                        'referralCode': code,
+                        'name': name,
+                        'phone': phone,
+                        'message': '추천인 등록 성공'
+                    })
+                }
+            else:
+                return {
+                    'statusCode': 500,
+                    'headers': set_cors_headers(),
+                    'body': json.dumps({'error': reg_message})
+                }
+        else:
+            return {
+                'statusCode': 500,
+                'headers': set_cors_headers(),
+                'body': json.dumps({'error': message})
+            }
+            
+    except Exception as e:
+        print(f"❌ 관리자 추천인 등록 실패: {e}")
+        return {
+            'statusCode': 500,
+            'headers': set_cors_headers(),
+            'body': json.dumps({
+                'error': 'Internal server error',
+                'details': str(e)
+            })
+        }
+
+# 관리자용 추천인 목록 조회
+def admin_get_referrals(request):
+    if request.method == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'headers': set_cors_headers(),
+            'body': ''
+        }
+    
+    if request.method != 'GET':
+        return {
+            'statusCode': 405,
+            'headers': set_cors_headers(),
+            'body': json.dumps({'error': 'Method not allowed'})
+        }
+    
+    try:
+        referrals = get_referrals()
+        return {
+            'statusCode': 200,
+            'headers': set_cors_headers(),
+            'body': json.dumps({
+                'referrals': referrals,
+                'count': len(referrals)
+            })
+        }
+        
+    except Exception as e:
+        print(f"❌ 추천인 목록 조회 실패: {e}")
+        return {
+            'statusCode': 500,
+            'headers': set_cors_headers(),
+            'body': json.dumps({
+                'error': 'Internal server error',
+                'details': str(e)
+            })
+        }
+
+# 관리자용 추천인 코드 목록 조회
+def admin_get_referral_codes(request):
+    if request.method == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'headers': set_cors_headers(),
+            'body': ''
+        }
+    
+    if request.method != 'GET':
+        return {
+            'statusCode': 405,
+            'headers': set_cors_headers(),
+            'body': json.dumps({'error': 'Method not allowed'})
+        }
+    
+    try:
+        codes = get_referral_codes()
+        return {
+            'statusCode': 200,
+            'headers': set_cors_headers(),
+            'body': json.dumps({
+                'codes': codes,
+                'count': len(codes)
+            })
+        }
+        
+    except Exception as e:
+        print(f"❌ 추천인 코드 목록 조회 실패: {e}")
+        return {
+            'statusCode': 500,
+            'headers': set_cors_headers(),
+            'body': json.dumps({
+                'error': 'Internal server error',
+                'details': str(e)
+            })
+        }
+
+# 관리자용 커미션 내역 조회
+def admin_get_commissions(request):
+    if request.method == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'headers': set_cors_headers(),
+            'body': ''
+        }
+    
+    if request.method != 'GET':
+        return {
+            'statusCode': 405,
+            'headers': set_cors_headers(),
+            'body': json.dumps({'error': 'Method not allowed'})
+        }
+    
+    try:
+        commissions = get_commissions()
+        return {
+            'statusCode': 200,
+            'headers': set_cors_headers(),
+            'body': json.dumps({
+                'commissions': commissions,
+                'count': len(commissions)
+            })
+        }
+        
+    except Exception as e:
+        print(f"❌ 커미션 내역 조회 실패: {e}")
         return {
             'statusCode': 500,
             'headers': set_cors_headers(),

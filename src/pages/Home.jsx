@@ -1593,8 +1593,7 @@ const Home = () => {
           {/* Total Price */}
           <div className="price-display">
             <div className="total-price">{(() => {
-              const price = totalPrice / 1000;
-              const formattedPrice = price % 1 === 0 ? price.toString() : price.toFixed(2);
+              const formattedPrice = totalPrice % 1 === 0 ? totalPrice.toString() : totalPrice.toFixed(2);
               return `${formattedPrice}원`;
             })()}</div>
             <div className="price-label">총 금액</div>
