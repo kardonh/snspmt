@@ -1266,64 +1266,68 @@ def use_referral_code():
 @app.route('/api/referral/commissions', methods=['GET'])
 def get_commissions():
     """추천인 수수료 조회"""
+    try:
         user_id = request.args.get('user_id')
         if not user_id:
             return jsonify({'error': 'user_id가 필요합니다.'}), 400
         
-    conn = None
-    cursor = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        conn = None
+        cursor = None
         
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
                 SELECT id, referred_user, purchase_amount, commission_amount, 
                        commission_rate, payment_date
                 FROM commissions 
                 WHERE referrer_id = %s
                 ORDER BY payment_date DESC
-            """, (user_id,))
-        else:
-            cursor.execute("""
-                SELECT id, referred_user, purchase_amount, commission_amount, 
-                       commission_rate, payment_date
-                FROM commissions 
-                WHERE referrer_id = ?
-                ORDER BY payment_date DESC
-            """, (user_id,))
-        
-        commissions = []
-        for row in cursor.fetchall():
-            # 날짜 형식 처리
-            payment_date = row[5]
-            if hasattr(payment_date, 'strftime'):
-                payment_date = payment_date.strftime('%Y-%m-%d')
-            elif hasattr(payment_date, 'isoformat'):
-                payment_date = payment_date.isoformat()[:10]
+                """, (user_id,))
             else:
-                payment_date = str(payment_date)[:10]
+                cursor.execute("""
+                    SELECT id, referred_user, purchase_amount, commission_amount, 
+                           commission_rate, payment_date
+                    FROM commissions 
+                    WHERE referrer_id = ?
+                    ORDER BY payment_date DESC
+                """, (user_id,))
             
-            commissions.append({
-                'id': row[0],
-                'referredUser': row[1],
-                'purchaseAmount': row[2],
-                'commissionAmount': row[3],
-                'commissionRate': f"{row[4] * 100}%" if row[4] else "0%",
-                'paymentDate': payment_date
-            })
-        
-        return jsonify({
-            'commissions': commissions
-        }), 200
-        
+            commissions = []
+            for row in cursor.fetchall():
+                # 날짜 형식 처리
+                payment_date = row[5]
+                if hasattr(payment_date, 'strftime'):
+                    payment_date = payment_date.strftime('%Y-%m-%d')
+                elif hasattr(payment_date, 'isoformat'):
+                    payment_date = payment_date.isoformat()[:10]
+                else:
+                    payment_date = str(payment_date)[:10]
+                
+                commissions.append({
+                    'id': row[0],
+                    'referredUser': row[1],
+                    'purchaseAmount': row[2],
+                    'commissionAmount': row[3],
+                    'commissionRate': f"{row[4] * 100}%" if row[4] else "0%",
+                    'paymentDate': payment_date
+                })
+            
+            return jsonify({
+                'commissions': commissions
+            }), 200
+            
+        except Exception as e:
+            return jsonify({'error': f'수수료 조회 실패: {str(e)}'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
     except Exception as e:
         return jsonify({'error': f'수수료 조회 실패: {str(e)}'}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
 # 추천인 코드로 쿠폰 발급
 @app.route('/api/referral/issue-coupon', methods=['POST'])
@@ -2190,7 +2194,7 @@ def get_admin_users():
         
         # 테이블 목록 확인
         print("📊 테이블 목록 조회 중...")
-            cursor.execute("""
+        cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public'
@@ -2211,16 +2215,16 @@ def get_admin_users():
                 
                 if user_count > 0:
                     # 기본 컬럼만 조회
-            cursor.execute("""
+                    cursor.execute("""
                         SELECT user_id, email, name, created_at
                         FROM users
                         ORDER BY created_at DESC
                         LIMIT 50
                     """)
-        users = cursor.fetchall()
-        
-        for user in users:
-            user_list.append({
+                    users = cursor.fetchall()
+                    
+                    for user in users:
+                        user_list.append({
                             'user_id': user[0] if user[0] else 'N/A',
                             'email': user[1] if user[1] else 'N/A',
                             'name': user[2] if user[2] else 'N/A',

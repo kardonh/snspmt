@@ -1,5 +1,6 @@
 .guide-panel {
   width: 600px;
+  max-width: 600px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border-left: 1px solid rgba(255, 255, 255, 0.2);
@@ -13,6 +14,7 @@
   border-radius: 24px 0 0 24px;
   margin-top: 20px;
   margin-bottom: 20px;
+  transition: all 0.3s ease;
 }
 
 .guide-header {
@@ -555,5 +557,180 @@
   .guide-steps ul,
   .guide-tips ul {
     font-size: 9px;
+  }
+}
+
+/* GuidePanel 반응형 디자인 */
+/* 대형 화면 (1600px 이상) - 매우 작은 너비 */
+@media (min-width: 1600px) {
+  .guide-panel {
+    width: 250px;
+    max-width: 250px;
+    padding: 12px;
+  }
+  
+  .guide-header h3 {
+    font-size: 13px;
+  }
+  
+  .guide-item {
+    padding: 6px;
+  }
+  
+  .guide-item h4 {
+    font-size: 11px;
+  }
+  
+  .guide-steps,
+  .guide-tips {
+    padding: 4px 6px;
+  }
+  
+  .guide-steps h4,
+  .guide-tips h4 {
+    font-size: 10px;
+  }
+  
+  .guide-steps ul,
+  .guide-tips ul {
+    font-size: 9px;
+  }
+}
+
+/* 중대형 화면 (1400px - 1599px) - 매우 작은 너비 */
+@media (max-width: 1599px) and (min-width: 1400px) {
+  .guide-panel {
+    width: 400px;
+    max-width: 400px;
+    padding: 24px;
+  }
+  
+  .guide-header h3 {
+    font-size: 16px;
+  }
+  
+  .guide-item {
+    padding: 12px;
+  }
+  
+  .guide-item h4 {
+    font-size: 14px;
+  }
+  
+  .guide-steps,
+  .guide-tips {
+    padding: 8px 12px;
+  }
+}
+
+/* 중형 화면 (1200px - 1399px) - 작은 너비 */
+@media (max-width: 1399px) and (min-width: 1200px) {
+  .guide-panel {
+    width: 350px;
+    max-width: 350px;
+    padding: 20px;
+  }
+  
+  .guide-header h3 {
+    font-size: 15px;
+  }
+  
+  .guide-item {
+    padding: 10px;
+  }
+  
+  .guide-item h4 {
+    font-size: 13px;
+  }
+  
+  .guide-steps,
+  .guide-tips {
+    padding: 6px 10px;
+  }
+  
+  .guide-steps h4,
+  .guide-tips h4 {
+    font-size: 12px;
+  }
+}
+
+/* 소형 화면 (1000px - 1199px) - 더 작은 너비 */
+@media (max-width: 1199px) and (min-width: 1000px) {
+  .guide-panel {
+    width: 300px;
+    max-width: 300px;
+    padding: 16px;
+  }
+  
+  .guide-header h3 {
+    font-size: 14px;
+  }
+  
+  .guide-item {
+    padding: 8px;
+  }
+  
+  .guide-item h4 {
+    font-size: 12px;
+  }
+  
+  .guide-steps,
+  .guide-tips {
+    padding: 4px 8px;
+  }
+  
+  .guide-steps h4,
+  .guide-tips h4 {
+    font-size: 11px;
+  }
+  
+  .guide-steps ul,
+  .guide-tips ul {
+    font-size: 10px;
+  }
+}
+
+/* 모바일 화면 (768px 이하) - 작은 너비로 표시 */
+@media (max-width: 768px) {
+  .guide-panel {
+    width: 280px;
+    max-width: 280px;
+    padding: 16px;
+    position: fixed;
+    right: 10px;
+    top: 70px;
+    height: calc(100vh - 80px);
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(15px);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+  
+  .guide-header h3 {
+    font-size: 14px;
+  }
+  
+  .guide-item {
+    padding: 8px;
+  }
+  
+  .guide-item h4 {
+    font-size: 12px;
+  }
+  
+  .guide-steps,
+  .guide-tips {
+    padding: 6px 8px;
+  }
+  
+  .guide-steps h4,
+  .guide-tips h4 {
+    font-size: 11px;
+  }
+  
+  .guide-steps ul,
+  .guide-tips ul {
+    font-size: 10px;
   }
 }
