@@ -62,8 +62,11 @@ const ReferralDashboard = () => {
                     localStorage.getItem('firebase_user_id') || 
                     'demo_user'
       
+      // 사용자 이메일 가져오기 (추천인 코드는 이메일로 저장됨)
+      const userEmail = currentUser?.email || `${userId}@example.com`
+      
       // 추천인 코드 조회
-      const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userId}`)
+      const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userEmail}`)
       if (codeResponse.ok) {
         const codeData = await codeResponse.json()
         if (codeData.codes && codeData.codes.length > 0) {

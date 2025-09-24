@@ -70,11 +70,11 @@ def get_db_connection():
         # SQLite fallback
         try:
             print("🔄 SQLite 폴백 시도...")
-            db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
+        db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
             print("✅ SQLite 폴백 연결 성공")
-            return conn
+        return conn
         except Exception as fallback_error:
             print(f"❌ SQLite 폴백도 실패: {fallback_error}")
             raise fallback_error
@@ -681,6 +681,7 @@ def create_order():
             cursor.execute("SELECT last_insert_rowid()")
         
         order_id = cursor.fetchone()[0]
+        print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {user_id}, service_id: {service_id}, price: {final_price}")
         
         # 추천인이 있는 경우 10% 커미션 지급
         if referral_data:
@@ -753,6 +754,9 @@ def get_orders():
             """, (user_id,))
         
         orders = cursor.fetchall()
+        print(f"🔍 주문 조회 - user_id: {user_id}, 주문 개수: {len(orders)}")
+        if orders:
+            print(f"📋 주문 데이터: {orders}")
         conn.close()
         
         order_list = []
@@ -1205,21 +1209,21 @@ def get_my_codes():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 사용자의 추천인 코드 조회
+        # 사용자의 추천인 코드 조회 (user_email로 검색)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT code, is_active, usage_count, total_commission, created_at
                 FROM referral_codes 
-                WHERE user_id = %s OR user_email = %s
+                WHERE user_email = %s
                 ORDER BY created_at DESC
-            """, (user_id, user_id))
+            """, (user_id,))
         else:
             cursor.execute("""
                 SELECT code, is_active, usage_count, total_commission, created_at
                 FROM referral_codes 
-                WHERE user_id = ? OR user_email = ?
+                WHERE user_email = ?
                 ORDER BY created_at DESC
-            """, (user_id, user_id))
+            """, (user_id,))
         
         codes = []
         for row in cursor.fetchall():
@@ -1318,10 +1322,10 @@ def get_commissions():
                     'paymentDate': payment_date
                 })
             
-            return jsonify({
+        return jsonify({
                 'commissions': commissions
-            }), 200
-            
+        }), 200
+        
         except Exception as e:
             return jsonify({'error': f'수수료 조회 실패: {str(e)}'}), 500
         finally:
@@ -1918,18 +1922,20 @@ def admin_register_referral():
                 existing_code = cursor.fetchone()
                 
                 if existing_code:
-                    # 기존 코드 업데이트
+                    # 기존 코드 정보만 업데이트 (코드는 유지) - 강제로 활성화
                     cursor.execute("""
                         UPDATE referral_codes 
-                        SET user_id = %s, code = %s, name = %s, phone = %s, is_active = true, updated_at = CURRENT_TIMESTAMP
+                        SET user_id = %s, name = %s, phone = %s, is_active = true, updated_at = CURRENT_TIMESTAMP
                         WHERE user_email = %s
-                    """, (email.split('@')[0], code, name, phone, email))
+                    """, (email.split('@')[0], name, phone, email))
+                    print(f"✅ 기존 추천인 코드 활성화: {email}")
                 else:
-                    # 새 코드 생성
+                    # 새 코드 생성 - 바로 활성화
                     cursor.execute("""
                         INSERT INTO referral_codes (user_id, user_email, code, name, phone, created_at, is_active)
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """, (email.split('@')[0], email, code, name, phone, datetime.now(), True))
+                    print(f"✅ 새 추천인 코드 생성 및 활성화: {email} - {code}")
                 
                 # 추천인 등록
                 cursor.execute("""
@@ -1937,11 +1943,25 @@ def admin_register_referral():
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (email, code, name, phone, datetime.now(), 'active'))
             else:
-                # SQLite
-                cursor.execute("""
-                    INSERT OR REPLACE INTO referral_codes (user_id, user_email, code, name, phone, created_at, is_active)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (email.split('@')[0], email, code, name, phone, datetime.now(), True))
+                # SQLite - 기존 코드가 있는지 확인 후 처리
+                cursor.execute("SELECT id FROM referral_codes WHERE user_email = ?", (email,))
+                existing_code = cursor.fetchone()
+                
+                if existing_code:
+                    # 기존 코드 정보만 업데이트 (코드는 유지) - 강제로 활성화
+                    cursor.execute("""
+                        UPDATE referral_codes 
+                        SET user_id = ?, name = ?, phone = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
+                        WHERE user_email = ?
+                    """, (email.split('@')[0], name, phone, email))
+                    print(f"✅ 기존 추천인 코드 활성화 (SQLite): {email}")
+                else:
+                    # 새 코드 생성 - 바로 활성화
+                    cursor.execute("""
+                        INSERT INTO referral_codes (user_id, user_email, code, name, phone, created_at, is_active)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (email.split('@')[0], email, code, name, phone, datetime.now(), True))
+                    print(f"✅ 새 추천인 코드 생성 및 활성화 (SQLite): {email} - {code}")
                 
                 cursor.execute("""
                     INSERT INTO referrals (referrer_email, referral_code, name, phone, created_at, status)
@@ -2197,7 +2217,7 @@ def get_admin_users():
         
         # 테이블 목록 확인
         print("📊 테이블 목록 조회 중...")
-        cursor.execute("""
+            cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public'
@@ -2218,16 +2238,16 @@ def get_admin_users():
                 
                 if user_count > 0:
                     # 기본 컬럼만 조회
-                    cursor.execute("""
+            cursor.execute("""
                         SELECT user_id, email, name, created_at
                         FROM users
                         ORDER BY created_at DESC
                         LIMIT 50
                     """)
-                    users = cursor.fetchall()
-                    
-                    for user in users:
-                        user_list.append({
+        users = cursor.fetchall()
+        
+        for user in users:
+            user_list.append({
                             'user_id': user[0] if user[0] else 'N/A',
                             'email': user[1] if user[1] else 'N/A',
                             'name': user[2] if user[2] else 'N/A',
@@ -2257,14 +2277,14 @@ def get_admin_users():
         
         conn.close()
         print(f"✅ 사용자 목록 반환: {len(user_list)}명")
-        
-        return jsonify({
+            
+            return jsonify({
             'users': user_list,
             'debug_info': {
                 'tables': tables,
                 'user_count': len(user_list)
             }
-        }), 200
+            }), 200
         
     except Exception as e:
         print(f"❌ 사용자 목록 조회 실패: {str(e)}")

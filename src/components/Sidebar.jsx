@@ -60,8 +60,9 @@ const Sidebar = ({ onClose }) => {
     
     setReferralCodeLoading(true)
     try {
-      const userId = currentUser.uid || localStorage.getItem('firebase_user_id') || localStorage.getItem('userId') || 'demo_user'
-      const response = await fetch(`/api/referral/my-codes?user_id=${userId}`)
+      // 사용자 이메일 가져오기 (추천인 코드는 이메일로 저장됨)
+      const userEmail = currentUser.email || `${currentUser.uid}@example.com`
+      const response = await fetch(`/api/referral/my-codes?user_id=${userEmail}`)
       
       if (response.ok) {
         const data = await response.json()
