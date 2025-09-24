@@ -199,6 +199,51 @@ def init_database():
                 )
             """)
             
+            # 추천인 커미션 포인트 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS referral_commission_points (
+                    id SERIAL PRIMARY KEY,
+                    referrer_email VARCHAR(255) NOT NULL,
+                    referrer_name VARCHAR(255),
+                    total_earned DECIMAL(10,2) DEFAULT 0,
+                    total_paid DECIMAL(10,2) DEFAULT 0,
+                    current_balance DECIMAL(10,2) DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            
+            # 커미션 포인트 거래 내역 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS commission_point_transactions (
+                    id SERIAL PRIMARY KEY,
+                    referrer_email VARCHAR(255) NOT NULL,
+                    transaction_type VARCHAR(50) NOT NULL,
+                    amount DECIMAL(10,2) NOT NULL,
+                    balance_after DECIMAL(10,2) NOT NULL,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            
+            # 환급 신청 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS commission_withdrawal_requests (
+                    id SERIAL PRIMARY KEY,
+                    referrer_email VARCHAR(255) NOT NULL,
+                    referrer_name VARCHAR(255),
+                    bank_name VARCHAR(255) NOT NULL,
+                    account_number VARCHAR(255) NOT NULL,
+                    account_holder VARCHAR(255) NOT NULL,
+                    amount DECIMAL(10,2) NOT NULL,
+                    status VARCHAR(50) DEFAULT 'pending',
+                    admin_notes TEXT,
+                    requested_at TIMESTAMP DEFAULT NOW(),
+                    processed_at TIMESTAMP,
+                    processed_by VARCHAR(255)
+                )
+            """)
+            
             # 주문 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
@@ -671,13 +716,14 @@ def create_order():
         order_id = cursor.fetchone()[0]
         print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {user_id}, service_id: {service_id}, price: {final_price}")
         
-        # 추천인이 있는 경우 10% 커미션 지급
+        # 추천인이 있는 경우 10% 커미션 포인트 적립
         commission_amount = 0
         if referral_data:
             try:
                 referrer_email = referral_data[1]
                 commission_amount = final_price * 0.1  # 10% 커미션
                 
+                # 기존 커미션 테이블에 기록
                 if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
                         INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
@@ -690,9 +736,65 @@ def create_order():
                                                 commission_amount, commission_rate, created_at)
                         VALUES (?, ?, ?, ?, ?, datetime('now'))
                     """, (user_id, referrer_email, final_price, commission_amount, 0.1))
-                print(f"✅ 커미션 지급 완료: {commission_amount}원")
+                
+                # 커미션 포인트 적립 처리
+                if DATABASE_URL.startswith('postgresql://'):
+                    # 추천인 포인트 계정이 있는지 확인
+                    cursor.execute("SELECT id FROM referral_commission_points WHERE referrer_email = %s", (referrer_email,))
+                    existing_account = cursor.fetchone()
+                    
+                    if existing_account:
+                        # 기존 계정 업데이트
+                        cursor.execute("""
+                            UPDATE referral_commission_points 
+                            SET total_earned = total_earned + %s, 
+                                current_balance = current_balance + %s,
+                                updated_at = NOW()
+                            WHERE referrer_email = %s
+                        """, (commission_amount, commission_amount, referrer_email))
+                    else:
+                        # 새 계정 생성
+                        cursor.execute("""
+                            INSERT INTO referral_commission_points 
+                            (referrer_email, total_earned, current_balance, created_at, updated_at)
+                            VALUES (%s, %s, %s, NOW(), NOW())
+                        """, (referrer_email, commission_amount, commission_amount))
+                    
+                    # 거래 내역 기록
+                    cursor.execute("""
+                        INSERT INTO commission_point_transactions 
+                        (referrer_email, transaction_type, amount, balance_after, description, created_at)
+                        VALUES (%s, %s, %s, %s, %s, NOW())
+                    """, (referrer_email, 'earned', commission_amount, commission_amount, f'추천인 커미션 적립 - 주문 ID: {order_id}'))
+                else:
+                    # SQLite 버전
+                    cursor.execute("SELECT id FROM referral_commission_points WHERE referrer_email = ?", (referrer_email,))
+                    existing_account = cursor.fetchone()
+                    
+                    if existing_account:
+                        cursor.execute("""
+                            UPDATE referral_commission_points 
+                            SET total_earned = total_earned + ?, 
+                                current_balance = current_balance + ?,
+                                updated_at = datetime('now')
+                            WHERE referrer_email = ?
+                        """, (commission_amount, commission_amount, referrer_email))
+                    else:
+                        cursor.execute("""
+                            INSERT INTO referral_commission_points 
+                            (referrer_email, total_earned, current_balance, created_at, updated_at)
+                            VALUES (?, ?, ?, datetime('now'), datetime('now'))
+                        """, (referrer_email, commission_amount, commission_amount))
+                    
+                    cursor.execute("""
+                        INSERT INTO commission_point_transactions 
+                        (referrer_email, transaction_type, amount, balance_after, description, created_at)
+                        VALUES (?, ?, ?, ?, ?, datetime('now'))
+                    """, (referrer_email, 'earned', commission_amount, commission_amount, f'추천인 커미션 적립 - 주문 ID: {order_id}'))
+                
+                print(f"✅ 커미션 포인트 적립 완료: {commission_amount}원")
             except Exception as commission_error:
-                print(f"⚠️ 커미션 지급 실패 (주문은 계속 진행): {commission_error}")
+                print(f"⚠️ 커미션 포인트 적립 실패 (주문은 계속 진행): {commission_error}")
                 commission_amount = 0
         
         conn.commit()
@@ -2511,6 +2613,305 @@ def activate_all_referral_codes():
     except Exception as e:
         print(f"추천인 코드 활성화 오류: {e}")
         return jsonify({'error': '서버 오류가 발생했습니다'}), 500
+
+# 추천인 커미션 포인트 조회
+@app.route('/api/referral/commission-points', methods=['GET'])
+def get_commission_points():
+    """추천인 커미션 포인트 조회"""
+    try:
+        referrer_email = request.args.get('referrer_email')
+        if not referrer_email:
+            return jsonify({'error': 'referrer_email이 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT total_earned, total_paid, current_balance, created_at, updated_at
+                FROM referral_commission_points 
+                WHERE referrer_email = %s
+            """, (referrer_email,))
+        else:
+            cursor.execute("""
+                SELECT total_earned, total_paid, current_balance, created_at, updated_at
+                FROM referral_commission_points 
+                WHERE referrer_email = ?
+            """, (referrer_email,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            return jsonify({
+                'total_earned': float(result[0]),
+                'total_paid': float(result[1]),
+                'current_balance': float(result[2]),
+                'created_at': result[3].isoformat() if hasattr(result[3], 'isoformat') else str(result[3]),
+                'updated_at': result[4].isoformat() if hasattr(result[4], 'isoformat') else str(result[4])
+            }), 200
+        else:
+            return jsonify({
+                'total_earned': 0,
+                'total_paid': 0,
+                'current_balance': 0,
+                'created_at': None,
+                'updated_at': None
+            }), 200
+            
+    except Exception as e:
+        return jsonify({'error': f'커미션 포인트 조회 실패: {str(e)}'}), 500
+
+# 커미션 포인트 거래 내역 조회
+@app.route('/api/referral/commission-transactions', methods=['GET'])
+def get_commission_transactions():
+    """커미션 포인트 거래 내역 조회"""
+    try:
+        referrer_email = request.args.get('referrer_email')
+        if not referrer_email:
+            return jsonify({'error': 'referrer_email이 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT transaction_type, amount, balance_after, description, created_at
+                FROM commission_point_transactions 
+                WHERE referrer_email = %s
+                ORDER BY created_at DESC
+            """, (referrer_email,))
+        else:
+            cursor.execute("""
+                SELECT transaction_type, amount, balance_after, description, created_at
+                FROM commission_point_transactions 
+                WHERE referrer_email = ?
+                ORDER BY created_at DESC
+            """, (referrer_email,))
+        
+        transactions = []
+        for row in cursor.fetchall():
+            transactions.append({
+                'type': row[0],
+                'amount': float(row[1]),
+                'balance_after': float(row[2]),
+                'description': row[3],
+                'created_at': row[4].isoformat() if hasattr(row[4], 'isoformat') else str(row[4])
+            })
+        
+        conn.close()
+        return jsonify({'transactions': transactions}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'거래 내역 조회 실패: {str(e)}'}), 500
+
+# 환급 신청
+@app.route('/api/referral/withdrawal-request', methods=['POST'])
+def request_withdrawal():
+    """환급 신청"""
+    try:
+        data = request.get_json()
+        referrer_email = data.get('referrer_email')
+        referrer_name = data.get('referrer_name')
+        bank_name = data.get('bank_name')
+        account_number = data.get('account_number')
+        account_holder = data.get('account_holder')
+        amount = data.get('amount')
+        
+        if not all([referrer_email, referrer_name, bank_name, account_number, account_holder, amount]):
+            return jsonify({'error': '모든 필드가 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 현재 잔액 확인
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT current_balance FROM referral_commission_points 
+                WHERE referrer_email = %s
+            """, (referrer_email,))
+        else:
+            cursor.execute("""
+                SELECT current_balance FROM referral_commission_points 
+                WHERE referrer_email = ?
+            """, (referrer_email,))
+        
+        result = cursor.fetchone()
+        if not result or float(result[0]) < float(amount):
+            return jsonify({'error': '잔액이 부족합니다.'}), 400
+        
+        # 환급 신청 저장
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                INSERT INTO commission_withdrawal_requests 
+                (referrer_email, referrer_name, bank_name, account_number, account_holder, amount, requested_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            """, (referrer_email, referrer_name, bank_name, account_number, account_holder, amount))
+        else:
+            cursor.execute("""
+                INSERT INTO commission_withdrawal_requests 
+                (referrer_email, referrer_name, bank_name, account_number, account_holder, amount, requested_at)
+                VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            """, (referrer_email, referrer_name, bank_name, account_number, account_holder, amount))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': '환급 신청이 접수되었습니다.'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'환급 신청 실패: {str(e)}'}), 500
+
+# 관리자용 환급 신청 목록 조회
+@app.route('/api/admin/withdrawal-requests', methods=['GET'])
+def get_withdrawal_requests():
+    """관리자용 환급 신청 목록 조회"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id, referrer_email, referrer_name, bank_name, account_number, 
+                       account_holder, amount, status, admin_notes, requested_at, processed_at
+                FROM commission_withdrawal_requests 
+                ORDER BY requested_at DESC
+            """)
+        else:
+            cursor.execute("""
+                SELECT id, referrer_email, referrer_name, bank_name, account_number, 
+                       account_holder, amount, status, admin_notes, requested_at, processed_at
+                FROM commission_withdrawal_requests 
+                ORDER BY requested_at DESC
+            """)
+        
+        requests = []
+        for row in cursor.fetchall():
+            requests.append({
+                'id': row[0],
+                'referrer_email': row[1],
+                'referrer_name': row[2],
+                'bank_name': row[3],
+                'account_number': row[4],
+                'account_holder': row[5],
+                'amount': float(row[6]),
+                'status': row[7],
+                'admin_notes': row[8],
+                'requested_at': row[9].isoformat() if hasattr(row[9], 'isoformat') else str(row[9]),
+                'processed_at': row[10].isoformat() if hasattr(row[10], 'isoformat') else str(row[10]) if row[10] else None
+            })
+        
+        conn.close()
+        return jsonify({'requests': requests}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'환급 신청 목록 조회 실패: {str(e)}'}), 500
+
+# 관리자용 환급 신청 처리
+@app.route('/api/admin/process-withdrawal', methods=['POST'])
+def process_withdrawal():
+    """관리자용 환급 신청 처리"""
+    try:
+        data = request.get_json()
+        request_id = data.get('request_id')
+        action = data.get('action')  # 'approve' or 'reject'
+        admin_notes = data.get('admin_notes', '')
+        processed_by = data.get('processed_by', 'admin')
+        
+        if not request_id or not action:
+            return jsonify({'error': 'request_id와 action이 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 환급 신청 정보 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT referrer_email, amount FROM commission_withdrawal_requests 
+                WHERE id = %s AND status = 'pending'
+            """, (request_id,))
+        else:
+            cursor.execute("""
+                SELECT referrer_email, amount FROM commission_withdrawal_requests 
+                WHERE id = ? AND status = ?
+            """, (request_id, 'pending'))
+        
+        request_data = cursor.fetchone()
+        if not request_data:
+            return jsonify({'error': '처리할 환급 신청을 찾을 수 없습니다.'}), 400
+        
+        referrer_email, amount = request_data
+        
+        if action == 'approve':
+            # 포인트 차감
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE referral_commission_points 
+                    SET current_balance = current_balance - %s, 
+                        total_paid = total_paid + %s,
+                        updated_at = NOW()
+                    WHERE referrer_email = %s
+                """, (amount, amount, referrer_email))
+                
+                # 거래 내역 기록
+                cursor.execute("""
+                    INSERT INTO commission_point_transactions 
+                    (referrer_email, transaction_type, amount, balance_after, description, created_at)
+                    VALUES (%s, %s, %s, %s, %s, NOW())
+                """, (referrer_email, 'withdrawal', -float(amount), 0, f'환급 처리 - 신청 ID: {request_id}'))
+                
+                # 환급 신청 상태 업데이트
+                cursor.execute("""
+                    UPDATE commission_withdrawal_requests 
+                    SET status = 'approved', admin_notes = %s, processed_at = NOW(), processed_by = %s
+                    WHERE id = %s
+                """, (admin_notes, processed_by, request_id))
+            else:
+                # SQLite 버전
+                cursor.execute("""
+                    UPDATE referral_commission_points 
+                    SET current_balance = current_balance - ?, 
+                        total_paid = total_paid + ?,
+                        updated_at = datetime('now')
+                    WHERE referrer_email = ?
+                """, (amount, amount, referrer_email))
+                
+                cursor.execute("""
+                    INSERT INTO commission_point_transactions 
+                    (referrer_email, transaction_type, amount, balance_after, description, created_at)
+                    VALUES (?, ?, ?, ?, ?, datetime('now'))
+                """, (referrer_email, 'withdrawal', -float(amount), 0, f'환급 처리 - 신청 ID: {request_id}'))
+                
+                cursor.execute("""
+                    UPDATE commission_withdrawal_requests 
+                    SET status = 'approved', admin_notes = ?, processed_at = datetime('now'), processed_by = ?
+                    WHERE id = ?
+                """, (admin_notes, processed_by, request_id))
+            
+            message = '환급 신청이 승인되었습니다.'
+        else:  # reject
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE commission_withdrawal_requests 
+                    SET status = 'rejected', admin_notes = %s, processed_at = NOW(), processed_by = %s
+                    WHERE id = %s
+                """, (admin_notes, processed_by, request_id))
+            else:
+                cursor.execute("""
+                    UPDATE commission_withdrawal_requests 
+                    SET status = 'rejected', admin_notes = ?, processed_at = datetime('now'), processed_by = ?
+                    WHERE id = ?
+                """, (admin_notes, processed_by, request_id))
+            
+            message = '환급 신청이 거절되었습니다.'
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': message}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'환급 신청 처리 실패: {str(e)}'}), 500
 
 # 앱 시작 시 자동 초기화
 initialize_app()

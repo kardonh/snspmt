@@ -14,6 +14,22 @@ const ReferralDashboard = () => {
   const [commissionHistory, setCommissionHistory] = useState([])
   const [hasReferralCode, setHasReferralCode] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  
+  // 커미션 포인트 관련 상태
+  const [commissionPoints, setCommissionPoints] = useState({
+    total_earned: 0,
+    total_paid: 0,
+    current_balance: 0
+  })
+  const [commissionTransactions, setCommissionTransactions] = useState([])
+  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false)
+  const [withdrawalData, setWithdrawalData] = useState({
+    referrer_name: '',
+    bank_name: '',
+    account_number: '',
+    account_holder: '',
+    amount: ''
+  })
 
   useEffect(() => {
     checkReferralAccess()
@@ -39,6 +55,7 @@ const ReferralDashboard = () => {
         if (codeData.codes && codeData.codes.length > 0) {
           setHasReferralCode(true)
           loadReferralData()
+          loadCommissionPoints()
         } else {
           setHasReferralCode(false)
         }
@@ -127,6 +144,32 @@ const ReferralDashboard = () => {
     }
   }
 
+  // 커미션 포인트 데이터 로드
+  const loadCommissionPoints = async () => {
+    try {
+      const userEmail = localStorage.getItem('userEmail') || 
+                       localStorage.getItem('firebase_user_email') || 
+                       'demo@example.com'
+      
+      // 커미션 포인트 조회
+      const pointsResponse = await fetch(`/api/referral/commission-points?referrer_email=${userEmail}`)
+      if (pointsResponse.ok) {
+        const pointsData = await pointsResponse.json()
+        setCommissionPoints(pointsData)
+      }
+      
+      // 커미션 포인트 거래 내역 조회
+      const transactionsResponse = await fetch(`/api/referral/commission-transactions?referrer_email=${userEmail}`)
+      if (transactionsResponse.ok) {
+        const transactionsData = await transactionsResponse.json()
+        setCommissionTransactions(transactionsData.transactions || [])
+      }
+      
+    } catch (error) {
+      console.error('커미션 포인트 데이터 로드 실패:', error)
+    }
+  }
+
   const copyReferralCode = () => {
     navigator.clipboard.writeText(referralCode)
     alert('추천인 코드가 복사되었습니다!')
@@ -142,6 +185,45 @@ const ReferralDashboard = () => {
     } else {
       navigator.clipboard.writeText(shareText)
       alert('추천인 코드가 복사되었습니다!')
+    }
+  }
+
+  // 환급 신청 처리
+  const handleWithdrawalRequest = async () => {
+    try {
+      const userEmail = localStorage.getItem('userEmail') || 
+                       localStorage.getItem('firebase_user_email') || 
+                       'demo@example.com'
+      
+      const response = await fetch('/api/referral/withdrawal-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          referrer_email: userEmail,
+          ...withdrawalData
+        })
+      })
+
+      if (response.ok) {
+        alert('환급 신청이 접수되었습니다!')
+        setShowWithdrawalModal(false)
+        setWithdrawalData({
+          referrer_name: '',
+          bank_name: '',
+          account_number: '',
+          account_holder: '',
+          amount: ''
+        })
+        loadCommissionPoints() // 데이터 새로고침
+      } else {
+        const errorData = await response.json()
+        alert(`환급 신청 실패: ${errorData.error}`)
+      }
+    } catch (error) {
+      console.error('환급 신청 오류:', error)
+      alert('환급 신청 중 오류가 발생했습니다.')
     }
   }
 
@@ -240,6 +322,44 @@ const ReferralDashboard = () => {
           <div className="stat-content">
             <h3>이번 달 수익</h3>
             <p className="stat-number">{referralStats.thisMonthCommission.toLocaleString()}원</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 커미션 포인트 섹션 */}
+      <div className="commission-points-section">
+        <div className="points-header">
+          <h2>커미션 포인트</h2>
+          <button 
+            className="withdrawal-btn"
+            onClick={() => setShowWithdrawalModal(true)}
+            disabled={commissionPoints.current_balance <= 0}
+          >
+            환급 신청
+          </button>
+        </div>
+        
+        <div className="points-grid">
+          <div className="points-card">
+            <div className="points-icon">💎</div>
+            <div className="points-content">
+              <h3>현재 잔액</h3>
+              <p className="points-number">{commissionPoints.current_balance.toLocaleString()}원</p>
+            </div>
+          </div>
+          <div className="points-card">
+            <div className="points-icon">📈</div>
+            <div className="points-content">
+              <h3>총 적립</h3>
+              <p className="points-number">{commissionPoints.total_earned.toLocaleString()}원</p>
+            </div>
+          </div>
+          <div className="points-card">
+            <div className="points-icon">💸</div>
+            <div className="points-content">
+              <h3>총 환급</h3>
+              <p className="points-number">{commissionPoints.total_paid.toLocaleString()}원</p>
+            </div>
           </div>
         </div>
       </div>
@@ -366,6 +486,93 @@ const ReferralDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* 환급 신청 모달 */}
+      {showWithdrawalModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>환급 신청</h2>
+              <button 
+                className="close-btn"
+                onClick={() => setShowWithdrawalModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="form-group">
+                <label>이름</label>
+                <input
+                  type="text"
+                  value={withdrawalData.referrer_name}
+                  onChange={(e) => setWithdrawalData({...withdrawalData, referrer_name: e.target.value})}
+                  placeholder="실명을 입력하세요"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>은행명</label>
+                <input
+                  type="text"
+                  value={withdrawalData.bank_name}
+                  onChange={(e) => setWithdrawalData({...withdrawalData, bank_name: e.target.value})}
+                  placeholder="예: 국민은행"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>계좌번호</label>
+                <input
+                  type="text"
+                  value={withdrawalData.account_number}
+                  onChange={(e) => setWithdrawalData({...withdrawalData, account_number: e.target.value})}
+                  placeholder="계좌번호를 입력하세요"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>예금주명</label>
+                <input
+                  type="text"
+                  value={withdrawalData.account_holder}
+                  onChange={(e) => setWithdrawalData({...withdrawalData, account_holder: e.target.value})}
+                  placeholder="예금주명을 입력하세요"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>환급 신청 금액</label>
+                <input
+                  type="number"
+                  value={withdrawalData.amount}
+                  onChange={(e) => setWithdrawalData({...withdrawalData, amount: e.target.value})}
+                  placeholder="환급받을 금액을 입력하세요"
+                  max={commissionPoints.current_balance}
+                />
+                <small>최대 {commissionPoints.current_balance.toLocaleString()}원까지 신청 가능</small>
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="cancel-btn"
+                onClick={() => setShowWithdrawalModal(false)}
+              >
+                취소
+              </button>
+              <button 
+                className="submit-btn"
+                onClick={handleWithdrawalRequest}
+                disabled={!withdrawalData.referrer_name || !withdrawalData.bank_name || !withdrawalData.account_number || !withdrawalData.account_holder || !withdrawalData.amount}
+              >
+                신청하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
