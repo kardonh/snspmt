@@ -132,6 +132,16 @@ def init_database():
                 )
             """)
             
+            # 기존 데이터 강제 활성화 (데이터 손실 없음)
+            cursor.execute("UPDATE referral_codes SET is_active = true WHERE is_active = false")
+            updated_count = cursor.rowcount
+            print(f"🔄 기존 추천인 코드 강제 활성화 완료: {updated_count}개 업데이트")
+            
+            # 데이터 보존 확인
+            cursor.execute("SELECT COUNT(*) FROM referral_codes")
+            total_count = cursor.fetchone()[0]
+            print(f"📊 총 추천인 코드 수: {total_count}개 (데이터 보존됨)")
+            
             # 추천인 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS referrals (
@@ -2670,6 +2680,20 @@ def activate_all_referral_codes():
             print(f"📊 활성화 후 상태 확인:")
             for code, is_active, created_at in active_codes:
                 print(f"  - {code}: 활성화={is_active}, 생성일={created_at}")
+            
+            # 강제로 모든 코드를 다시 활성화 (데이터 보존)
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("UPDATE referral_codes SET is_active = true")
+            else:
+                cursor.execute("UPDATE referral_codes SET is_active = 1")
+            conn.commit()
+            final_count = cursor.rowcount
+            print(f"🔄 모든 코드 강제 재활성화 완료: {final_count}개 업데이트")
+            
+            # 최종 데이터 확인
+            cursor.execute("SELECT COUNT(*) FROM referral_codes WHERE is_active = true")
+            active_count = cursor.fetchone()[0]
+            print(f"✅ 최종 활성화된 코드 수: {active_count}개")
             
             return jsonify({'message': f'{affected_rows}개의 추천인 코드가 활성화되었습니다'}), 200
             

@@ -476,11 +476,15 @@ const AdminPage = () => {
         const result = await response.json()
         alert(result.message)
         
-        // 강제 새로고침 - 2초 후 실행
+        // 강제 새로고침 - 즉시 실행
+        await loadReferralData()
+        console.log('🔄 추천인 데이터 강제 새로고침 완료')
+        
+        // 추가 새로고침 - 3초 후
         setTimeout(async () => {
           await loadReferralData()
-          console.log('🔄 추천인 데이터 강제 새로고침 완료')
-        }, 2000)
+          console.log('🔄 추천인 데이터 추가 새로고침 완료')
+        }, 3000)
       } else {
         const errorData = await response.json()
         alert(`활성화 실패: ${errorData.error}`)
