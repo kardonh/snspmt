@@ -1199,6 +1199,28 @@ const Home = () => {
       console.log('Order Data:', orderData)
       console.log('Selected Detailed Service:', selectedDetailedService)
 
+      // 주문 데이터 검증
+      if (!orderData.user_id || orderData.user_id === 'anonymous') {
+        throw new Error('사용자 ID가 유효하지 않습니다. 다시 로그인해주세요.')
+      }
+      
+      if (!orderData.service_id || orderData.service_id === 'unknown') {
+        throw new Error('서비스 ID가 유효하지 않습니다. 서비스를 다시 선택해주세요.')
+      }
+      
+      if (!orderData.link || orderData.link.trim() === '') {
+        throw new Error('링크를 입력해주세요.')
+      }
+      
+      if (!orderData.quantity || orderData.quantity <= 0) {
+        throw new Error('수량을 올바르게 입력해주세요.')
+      }
+      
+      if (!orderData.price || orderData.price <= 0) {
+        throw new Error('가격이 올바르지 않습니다.')
+      }
+
+      console.log('✅ 주문 데이터 검증 통과')
       console.log('Order Data for Backend API:', orderData)
       
       // 백엔드 API 호출 (SMM Panel 변환 없이 직접 전송)
@@ -1215,11 +1237,14 @@ const Home = () => {
       console.log('API Response:', result)
 
       if (!response.ok) {
-        throw new Error(result.error || '주문 생성에 실패했습니다.')
+        console.error('❌ API 응답 오류:', response.status, result)
+        throw new Error(result.error || `서버 오류 (${response.status}): 주문 생성에 실패했습니다.`)
       }
 
       if (result.error) {
+        console.error('❌ 주문 생성 실패:', result.error)
         alert(`주문 생성 실패: ${result.error}`)
+        return
       } else {
         // 주문 생성 성공 후 포인트 결제 페이지로 이동
         console.log('✅ 주문 생성 성공, 포인트 결제 페이지로 이동:', result)

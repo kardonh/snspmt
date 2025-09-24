@@ -70,11 +70,11 @@ def get_db_connection():
         # SQLite fallback
         try:
             print("🔄 SQLite 폴백 시도...")
-            db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
+        db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
             print("✅ SQLite 폴백 연결 성공")
-            return conn
+        return conn
         except Exception as fallback_error:
             print(f"❌ SQLite 폴백도 실패: {fallback_error}")
             raise fallback_error
@@ -233,7 +233,7 @@ def init_database():
             
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
-                    id SERIAL PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                     purchase_id VARCHAR(255) UNIQUE,
                     user_id VARCHAR(255) NOT NULL,
                     user_email VARCHAR(255),
@@ -283,6 +283,9 @@ def init_database():
                     link TEXT NOT NULL,
                     quantity INTEGER NOT NULL,
                     price REAL NOT NULL,
+                    total_price REAL,
+                    discount_amount REAL DEFAULT 0,
+                    referral_code TEXT,
                     status TEXT DEFAULT 'pending_payment',
                     external_order_id TEXT,
                     platform TEXT,
@@ -559,19 +562,48 @@ def get_user_points():
 @app.route('/api/orders', methods=['POST'])
 def create_order():
     """주문 생성 (할인 및 커미션 적용)"""
+    conn = None
+    cursor = None
+    
     try:
         data = request.get_json()
+        print(f"=== 주문 생성 요청 ===")
+        print(f"요청 데이터: {data}")
+        
         user_id = data.get('user_id')
         service_id = data.get('service_id')
         link = data.get('link')
         quantity = data.get('quantity')
         price = data.get('price')
         
-        if not all([user_id, service_id, link, quantity, price]):
-            return jsonify({'error': '필수 필드가 누락되었습니다.'}), 400
+        # 필수 필드 검증 및 로깅
+        missing_fields = []
+        if not user_id:
+            missing_fields.append('user_id')
+        if not service_id:
+            missing_fields.append('service_id')
+        if not link:
+            missing_fields.append('link')
+        if not quantity:
+            missing_fields.append('quantity')
+        if not price:
+            missing_fields.append('price')
+        
+        if missing_fields:
+            error_msg = f'필수 필드가 누락되었습니다: {", ".join(missing_fields)}'
+            print(f"❌ {error_msg}")
+            return jsonify({'error': error_msg}), 400
+        
+        print(f"✅ 필수 필드 검증 통과")
+        print(f"사용자 ID: {user_id}")
+        print(f"서비스 ID: {service_id}")
+        print(f"링크: {link}")
+        print(f"수량: {quantity}")
+        print(f"가격: {price}")
         
         conn = get_db_connection()
         cursor = conn.cursor()
+        print("✅ 데이터베이스 연결 성공")
         
         # 사용자의 추천인 연결 확인
         if DATABASE_URL.startswith('postgresql://'):
@@ -666,7 +698,7 @@ def create_order():
                 """, (user_id, referrer_email, final_price, commission_amount, 0.1))
         
         conn.commit()
-        conn.close()
+        print(f"✅ 주문 생성 성공 - 주문 ID: {order_id}")
         
         return jsonify({
             'success': True,
@@ -681,7 +713,16 @@ def create_order():
         }), 200
         
     except Exception as e:
+        print(f"❌ 주문 생성 실패: {str(e)}")
+        if conn:
+            conn.rollback()
         return jsonify({'error': f'주문 생성 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        print("✅ 데이터베이스 연결 종료")
 
 # 주문 목록 조회
 @app.route('/api/orders', methods=['GET'])
@@ -885,9 +926,9 @@ def get_admin_purchases():
                 cursor.execute("""
                     SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, 
                            pp.buyer_name, pp.bank_info, pp.created_at
-                    FROM point_purchases pp
-                    ORDER BY pp.created_at DESC
-                """)
+                FROM point_purchases pp
+                ORDER BY pp.created_at DESC
+            """)
             else:
                 print("⚠️ point_purchases 테이블이 존재하지 않습니다. 빈 배열을 반환합니다.")
                 purchases = []
@@ -1225,10 +1266,10 @@ def use_referral_code():
 @app.route('/api/referral/commissions', methods=['GET'])
 def get_commissions():
     """추천인 수수료 조회"""
-    user_id = request.args.get('user_id')
-    if not user_id:
-        return jsonify({'error': 'user_id가 필요합니다.'}), 400
-    
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'user_id가 필요합니다.'}), 400
+        
     conn = None
     cursor = None
     try:
@@ -2140,7 +2181,7 @@ def get_admin_users():
         print("🔍 관리자 사용자 목록 조회 시작")
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+            
         # 먼저 간단한 쿼리로 테스트
         print("📊 기본 연결 테스트 중...")
         cursor.execute("SELECT 1")
@@ -2149,7 +2190,7 @@ def get_admin_users():
         
         # 테이블 목록 확인
         print("📊 테이블 목록 조회 중...")
-        cursor.execute("""
+            cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public'
@@ -2170,16 +2211,16 @@ def get_admin_users():
                 
                 if user_count > 0:
                     # 기본 컬럼만 조회
-                    cursor.execute("""
+            cursor.execute("""
                         SELECT user_id, email, name, created_at
                         FROM users
                         ORDER BY created_at DESC
                         LIMIT 50
                     """)
-                    users = cursor.fetchall()
-                    
-                    for user in users:
-                        user_list.append({
+        users = cursor.fetchall()
+        
+        for user in users:
+            user_list.append({
                             'user_id': user[0] if user[0] else 'N/A',
                             'email': user[1] if user[1] else 'N/A',
                             'name': user[2] if user[2] else 'N/A',
@@ -2209,14 +2250,14 @@ def get_admin_users():
         
         conn.close()
         print(f"✅ 사용자 목록 반환: {len(user_list)}명")
-        
-        return jsonify({
+            
+            return jsonify({
             'users': user_list,
             'debug_info': {
                 'tables': tables,
                 'user_count': len(user_list)
             }
-        }), 200
+            }), 200
         
     except Exception as e:
         print(f"❌ 사용자 목록 조회 실패: {str(e)}")
