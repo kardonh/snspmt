@@ -116,11 +116,16 @@ const ReferralDashboard = () => {
         if (codeData.codes && codeData.codes.length > 0) {
           setReferralCode(codeData.codes[0].code)
         } else {
-          // 코드가 없으면 새로 생성
-          const generateResponse = await fetch('/api/referral/generate-code', {
+          // 코드가 없으면 관리자 API로 생성
+          const generateResponse = await fetch('/api/admin/referral/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: userId, user_email: `${userId}@example.com` })
+            body: JSON.stringify({ 
+              user_id: userId, 
+              user_email: userEmail, 
+              name: 'New Referrer', 
+              phone: 'N/A' 
+            })
           })
           if (generateResponse.ok) {
             const generateData = await generateResponse.json()

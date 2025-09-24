@@ -527,6 +527,7 @@ def register():
         name = data.get('name')
         
         print(f"🔍 파싱된 데이터 - user_id: {user_id}, email: {email}, name: {name}")
+        print(f"🔍 데이터 타입 - user_id: {type(user_id)}, email: {type(email)}, name: {type(name)}")
         
         if not all([user_id, email, name]):
             print(f"❌ 필수 필드 누락 - user_id: {user_id}, email: {email}, name: {name}")
@@ -1490,10 +1491,15 @@ def issue_referral_coupon():
     """추천인 코드로 5% 할인 쿠폰 발급"""
     try:
         data = request.get_json()
+        print(f"🔍 쿠폰 발급 요청 데이터: {data}")
+        
         user_id = data.get('user_id')
         referral_code = data.get('referral_code')
         
+        print(f"🔍 쿠폰 발급 파싱 - user_id: {user_id}, referral_code: {referral_code}")
+        
         if not user_id or not referral_code:
+            print(f"❌ 쿠폰 발급 필수 필드 누락 - user_id: {user_id}, referral_code: {referral_code}")
             return jsonify({'error': 'user_id와 referral_code가 필요합니다.'}), 400
         
         conn = get_db_connection()
