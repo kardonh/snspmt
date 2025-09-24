@@ -1784,6 +1784,7 @@
 }
 
 /* 반응형 디자인 */
+/* 대형 화면 (1400px 이하) */
 @media (max-width: 1400px) {
   .platform-grid {
     grid-template-columns: repeat(5, 1fr);
@@ -1791,10 +1792,29 @@
   }
 }
 
+/* 중형 화면 (1200px 이하) */
 @media (max-width: 1200px) {
   .platform-grid {
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
+  }
+  
+  .platform-button {
+    padding: 16px 12px;
+    font-size: 14px;
+  }
+}
+
+/* 소형 화면 (900px 이하) */
+@media (max-width: 900px) {
+  .platform-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  
+  .platform-button {
+    padding: 14px 10px;
+    font-size: 13px;
   }
 }
 
@@ -2064,9 +2084,43 @@
 }
 
 /* 모바일에서 사이드바 숨김 */
+/* 태블릿 크기 (1024px 이하) */
+@media (max-width: 1024px) {
+  .sidebar-container {
+    width: 280px;
+  }
+  
+  .main-content {
+    margin-left: 280px;
+  }
+  
+  .order-page {
+    max-width: 100%;
+    margin: 10px;
+    padding: 20px;
+  }
+  
+  .platform-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+}
+
+/* 모바일 크기 (768px 이하) */
 @media (max-width: 768px) {
   .sidebar-container {
-    display: none;
+    position: fixed;
+    left: -280px;
+    top: 0;
+    height: 100vh;
+    z-index: 1000;
+    transition: left 0.3s ease;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+  }
+  
+  .sidebar-container.mobile-open {
+    left: 0;
   }
   
   .main-content {
@@ -2075,8 +2129,152 @@
     width: 100% !important;
   }
   
+  .order-page {
+    margin: 5px;
+    padding: 15px;
+    border-radius: 20px;
+  }
+  
+  .order-header {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+  
+  .order-title {
+    font-size: 28px;
+  }
+  
+  .platform-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  
   .guide-panel {
     display: none;
+  }
+}
+
+/* 작은 모바일 (480px 이하) */
+@media (max-width: 480px) {
+  .order-page {
+    margin: 2px;
+    padding: 10px;
+    border-radius: 16px;
+  }
+  
+  .order-title {
+    font-size: 24px;
+  }
+  
+  .order-help-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+  
+  .platform-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  
+  .platform-button {
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+  
+  .platform-button .platform-icon {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* 모바일 최적화 및 터치 친화적 UI */
+@media (max-width: 768px) {
+  /* 터치 친화적 버튼 크기 */
+  .platform-button,
+  .service-button,
+  .tab-button,
+  .order-help-btn {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+  
+  /* 스크롤 개선 */
+  .order-page {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: hidden;
+  }
+  
+  /* 폼 요소 터치 최적화 */
+  input[type="text"],
+  input[type="number"],
+  textarea {
+    font-size: 16px; /* iOS 줌 방지 */
+    padding: 12px;
+    border-radius: 8px;
+  }
+  
+  /* 버튼 호버 효과 모바일에서 비활성화 */
+  .platform-button:hover,
+  .service-button:hover {
+    transform: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* 활성 상태 강조 */
+  .platform-button.active,
+  .service-button.active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* 매우 작은 화면 (360px 이하) */
+@media (max-width: 360px) {
+  .order-page {
+    margin: 1px;
+    padding: 8px;
+  }
+  
+  .platform-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  
+  .platform-button {
+    padding: 10px 6px;
+    font-size: 11px;
+  }
+  
+  .order-title {
+    font-size: 20px;
+  }
+  
+  .order-help-btn {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+}
+
+/* 가로 모드 최적화 */
+@media (max-width: 768px) and (orientation: landscape) {
+  .order-page {
+    padding: 10px;
+  }
+  
+  .platform-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  
+  .order-header {
+    flex-direction: row;
+    gap: 15px;
+  }
+  
+  .order-title {
+    font-size: 24px;
   }
 }
 
@@ -2198,6 +2396,26 @@
 }
 
 /* Mobile Responsive for Detailed Service Selection */
+/* 서비스 선택 영역 반응형 개선 */
+@media (max-width: 1024px) {
+  .service-selection,
+  .service-type-selection,
+  .order-form {
+    padding: 20px;
+    margin: 16px 0;
+  }
+  
+  .service-tabs {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .tab-button {
+    flex: 1;
+    min-width: 120px;
+  }
+}
+
 @media (max-width: 768px) {
   .detailed-service-selection {
     padding: 20px;
@@ -2207,6 +2425,23 @@
   .detailed-service-selection h3 {
     font-size: 18px;
     margin-bottom: 16px;
+  }
+  
+  .service-selection,
+  .service-type-selection,
+  .order-form {
+    padding: 16px;
+    margin: 12px 0;
+  }
+  
+  .service-tabs {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .tab-button {
+    width: 100%;
+    text-align: center;
   }
   
   .detailed-service-item {

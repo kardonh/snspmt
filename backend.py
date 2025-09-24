@@ -70,11 +70,11 @@ def get_db_connection():
         # SQLite fallback
         try:
             print("🔄 SQLite 폴백 시도...")
-        db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
+            db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
             print("✅ SQLite 폴백 연결 성공")
-        return conn
+            return conn
         except Exception as fallback_error:
             print(f"❌ SQLite 폴백도 실패: {fallback_error}")
             raise fallback_error
