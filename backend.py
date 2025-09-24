@@ -2597,12 +2597,26 @@ def activate_all_referral_codes():
             if DATABASE_URL.startswith('postgresql://'):
                 # 모든 추천인 코드를 강제로 활성화
                 cursor.execute("UPDATE referral_codes SET is_active = true, updated_at = CURRENT_TIMESTAMP")
+                print(f"🔄 PostgreSQL: 모든 추천인 코드 활성화 실행")
             else:
                 # SQLite - 모든 추천인 코드를 강제로 활성화
                 cursor.execute("UPDATE referral_codes SET is_active = 1, updated_at = CURRENT_TIMESTAMP")
+                print(f"🔄 SQLite: 모든 추천인 코드 활성화 실행")
             
             conn.commit()
             affected_rows = cursor.rowcount
+            print(f"✅ 활성화된 코드 수: {affected_rows}")
+            
+            # 활성화 후 상태 확인
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("SELECT code, is_active FROM referral_codes")
+            else:
+                cursor.execute("SELECT code, is_active FROM referral_codes")
+            
+            active_codes = cursor.fetchall()
+            print(f"📊 활성화 후 상태 확인:")
+            for code, is_active in active_codes:
+                print(f"  - {code}: {is_active}")
             
             return jsonify({'message': f'{affected_rows}개의 추천인 코드가 활성화되었습니다'}), 200
             
