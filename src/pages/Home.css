@@ -1783,61 +1783,59 @@
   left: 100%;
 }
 
-/* 반응형 디자인 */
-/* 대형 화면 (1400px 이하) */
-@media (max-width: 1400px) {
-  .platform-grid {
-    grid-template-columns: repeat(5, 1fr);
-    gap: 18px;
-  }
+/* 플랫폼 그리드 고정 크기 - 크기 변동 없음 */
+.platform-grid {
+  grid-template-columns: repeat(6, 1fr);
+  gap: 20px;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
-/* 중형 화면 (1200px 이하) */
-@media (max-width: 1200px) {
+.platform-button {
+  width: 120px;
+  height: 120px;
+  padding: 16px;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.platform-button .platform-icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 8px;
+}
+
+/* 모바일 모드 (768px 이하) - 플랫폼 그리드 숨김 */
+@media (max-width: 768px) {
   .platform-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+    display: none;
   }
   
-  .platform-button {
-    padding: 16px 12px;
+  .order-page {
+    padding: 20px;
+  }
+  
+  .order-header {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+  
+  .order-title {
+    font-size: 28px;
+  }
+  
+  .order-help-btn {
+    padding: 12px 20px;
     font-size: 14px;
   }
 }
 
-/* 소형 화면 (900px 이하) */
-@media (max-width: 900px) {
-  .platform-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-  }
-  
-  .platform-button {
-    padding: 14px 10px;
-    font-size: 13px;
-  }
-}
-
-@media (max-width: 900px) {
-  .platform-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-  }
-  
-  .service-list {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .order-page {
-    padding: 16px;
-  }
-  
-  .platform-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-  }
+/* 중복 제거 - 위에서 이미 처리됨 */
   
   .service-list {
     grid-template-columns: repeat(2, 1fr);
@@ -1956,7 +1954,7 @@
     padding: 12px 20px;
     font-size: 14px;
   }
-}
+
 
 @media (max-width: 480px) {
   .order-page {
