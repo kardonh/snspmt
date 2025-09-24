@@ -1309,7 +1309,13 @@ def get_my_codes():
         
         # 사용자의 추천인 코드 조회 (user_id 또는 user_email로 검색)
         print(f"🔍 추천인 코드 조회 - user_id: {user_id}")
+        
+        # 먼저 전체 코드 수 확인
         if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("SELECT COUNT(*) FROM referral_codes")
+            total_codes = cursor.fetchone()[0]
+            print(f"📊 전체 추천인 코드 수: {total_codes}")
+            
             cursor.execute("""
                 SELECT code, is_active, usage_count, total_commission, created_at
                 FROM referral_codes 
@@ -2587,18 +2593,39 @@ def smm_panel_proxy():
 @app.route('/api/admin/referral/activate-all', methods=['POST'])
 def activate_all_referral_codes():
     """모든 추천인 코드를 활성화하는 엔드포인트"""
+    print("🚀 추천인 코드 활성화 요청 시작")
+    
     try:
         conn = None
         cursor = None
         try:
+            print("🔗 데이터베이스 연결 시도")
             conn = get_db_connection()
             cursor = conn.cursor()
+            print("✅ 데이터베이스 연결 성공")
             
+            # 먼저 기존 코드 확인
             if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("SELECT COUNT(*) FROM referral_codes")
+                total_codes = cursor.fetchone()[0]
+                print(f"📊 기존 추천인 코드 수: {total_codes}")
+                
+                if total_codes == 0:
+                    print("⚠️ 활성화할 추천인 코드가 없습니다")
+                    return jsonify({'message': '활성화할 추천인 코드가 없습니다'}), 200
+                
                 # 모든 추천인 코드를 강제로 활성화
                 cursor.execute("UPDATE referral_codes SET is_active = true, updated_at = CURRENT_TIMESTAMP")
                 print(f"🔄 PostgreSQL: 모든 추천인 코드 활성화 실행")
             else:
+                cursor.execute("SELECT COUNT(*) FROM referral_codes")
+                total_codes = cursor.fetchone()[0]
+                print(f"📊 기존 추천인 코드 수: {total_codes}")
+                
+                if total_codes == 0:
+                    print("⚠️ 활성화할 추천인 코드가 없습니다")
+                    return jsonify({'message': '활성화할 추천인 코드가 없습니다'}), 200
+                
                 # SQLite - 모든 추천인 코드를 강제로 활성화
                 cursor.execute("UPDATE referral_codes SET is_active = 1, updated_at = CURRENT_TIMESTAMP")
                 print(f"🔄 SQLite: 모든 추천인 코드 활성화 실행")
@@ -2621,6 +2648,7 @@ def activate_all_referral_codes():
             return jsonify({'message': f'{affected_rows}개의 추천인 코드가 활성화되었습니다'}), 200
             
         except Exception as db_error:
+            print(f"❌ 데이터베이스 오류: {db_error}")
             if conn:
                 conn.rollback()
             raise db_error
@@ -2629,10 +2657,11 @@ def activate_all_referral_codes():
                 cursor.close()
             if conn:
                 conn.close()
+            print("🔒 데이터베이스 연결 종료")
             
     except Exception as e:
-        print(f"추천인 코드 활성화 오류: {e}")
-        return jsonify({'error': '서버 오류가 발생했습니다'}), 500
+        print(f"❌ 추천인 코드 활성화 오류: {e}")
+        return jsonify({'error': f'서버 오류가 발생했습니다: {str(e)}'}), 500
 
 # 추천인 커미션 포인트 조회
 @app.route('/api/referral/commission-points', methods=['GET'])
