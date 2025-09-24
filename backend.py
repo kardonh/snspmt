@@ -132,6 +132,10 @@ def init_database():
                 )
             """)
             
+            # 모든 기존 코드를 강제로 활성화 (활성화 없이 바로 사용)
+            cursor.execute("UPDATE referral_codes SET is_active = true")
+            print("🔄 모든 추천인 코드 자동 활성화 완료")
+            
             # 기존 데이터 강제 활성화 (데이터 손실 없음)
             cursor.execute("UPDATE referral_codes SET is_active = true WHERE is_active = false")
             updated_count = cursor.rowcount
@@ -1369,7 +1373,7 @@ def get_my_codes():
             
             code_data = {
                 'code': row[0],
-                'is_active': row[1],
+                'is_active': True,  # 항상 활성화 상태로 반환
                 'usage_count': row[2],
                 'total_commission': float(row[3]) if row[3] else 0.0,
                 'created_at': created_at
@@ -1560,12 +1564,12 @@ def validate_referral_code():
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT id, code, is_active FROM referral_codes 
-                WHERE code = %s AND (is_active = true OR is_active = 1)
+                WHERE code = %s
             """, (code,))
         else:
             cursor.execute("""
                 SELECT id, code, is_active FROM referral_codes 
-                WHERE code = ? AND (is_active = 1 OR is_active = 'true')
+                WHERE code = ?
             """, (code,))
         
         result = cursor.fetchone()
@@ -2203,6 +2207,10 @@ def admin_get_referral_codes():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
+            # 먼저 모든 코드를 강제로 활성화
+            cursor.execute("UPDATE referral_codes SET is_active = true")
+            print("🔄 관리자 API에서 모든 코드 강제 활성화")
+            
             cursor.execute("""
                 SELECT id, code, user_email, name, phone, created_at, is_active, 
                     COALESCE(usage_count, 0) as usage_count, 
@@ -2242,7 +2250,7 @@ def admin_get_referral_codes():
                 'name': row[3],
                 'phone': row[4],
                 'createdAt': created_at,
-                'isActive': row[6],
+                'isActive': True,  # 항상 활성화 상태로 반환
                 'usage_count': row[7],
                 'total_commission': row[8]
             })

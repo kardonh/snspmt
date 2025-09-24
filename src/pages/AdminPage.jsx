@@ -985,6 +985,16 @@ const AdminPage = () => {
               <CheckCircle size={16} />
               모든 코드 활성화
             </button>
+            <button 
+              onClick={() => {
+                loadReferralData()
+                alert('데이터를 새로고침했습니다!')
+              }}
+              className="admin-button primary"
+            >
+              <RefreshCw size={16} />
+              강제 새로고침
+            </button>
           </div>
         </div>
       </div>
@@ -1011,7 +1021,14 @@ const AdminPage = () => {
                     </td>
                     <td>
                       <span className={`status-badge ${code.is_active ? 'active' : 'inactive'}`}>
-                        {code.is_active === true || code.is_active === 1 || code.is_active === 'true' || code.is_active === '1' ? '활성' : '비활성'}
+                        {(() => {
+                          console.log(`🔍 코드 ${code.code} 상태:`, code.is_active, typeof code.is_active)
+                          if (code.is_active === true || code.is_active === 1 || code.is_active === 'true' || code.is_active === '1') {
+                            return '활성'
+                          } else {
+                            return '비활성'
+                          }
+                        })()}
                       </span>
                     </td>
                     <td>{code.usage_count}</td>
