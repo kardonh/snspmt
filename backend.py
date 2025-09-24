@@ -1936,19 +1936,15 @@ def get_referral_stats():
         print(f"🔍 추천인 통계 조회 - user_id: {user_id}, user_email: {user_email}")
         
         if DATABASE_URL.startswith('postgresql://'):
-            # 총 추천인 수
+            # 총 추천인 수 (user_referral_connections 테이블 사용)
             cursor.execute("""
-                SELECT COUNT(*) FROM referrals 
+                SELECT COUNT(*) FROM user_referral_connections 
                 WHERE referrer_email = %s
             """, (user_email,))
             total_referrals = cursor.fetchone()[0] or 0
             
-            # 활성 추천인 수
-            cursor.execute("""
-                SELECT COUNT(*) FROM referrals 
-                WHERE referrer_email = %s AND status = 'active'
-            """, (user_email,))
-            active_referrals = cursor.fetchone()[0] or 0
+            # 활성 추천인 수 (모든 피추천인은 활성으로 간주)
+            active_referrals = total_referrals
             
             # 총 커미션 (referrer_id로 조회)
             cursor.execute("""
@@ -1957,9 +1953,9 @@ def get_referral_stats():
             """, (user_id,))
             total_commission = cursor.fetchone()[0] or 0
             
-            # 이번 달 추천인 수
+            # 이번 달 추천인 수 (user_referral_connections 테이블 사용)
             cursor.execute("""
-                SELECT COUNT(*) FROM referrals 
+                SELECT COUNT(*) FROM user_referral_connections 
                 WHERE referrer_email = %s 
                 AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)
             """, (user_email,))
@@ -1973,18 +1969,15 @@ def get_referral_stats():
             """, (user_id,))
             this_month_commission = cursor.fetchone()[0] or 0
         else:
-            # SQLite 버전
+            # SQLite 버전 (user_referral_connections 테이블 사용)
             cursor.execute("""
-                SELECT COUNT(*) FROM referrals 
+                SELECT COUNT(*) FROM user_referral_connections 
                 WHERE referrer_email = ?
             """, (f"{user_id}@example.com",))
             total_referrals = cursor.fetchone()[0] or 0
             
-            cursor.execute("""
-                SELECT COUNT(*) FROM referrals 
-                WHERE referrer_email = ? AND status = 'active'
-            """, (f"{user_id}@example.com",))
-            active_referrals = cursor.fetchone()[0] or 0
+            # 활성 추천인 수 (모든 피추천인은 활성으로 간주)
+            active_referrals = total_referrals
             
             cursor.execute("""
                 SELECT COALESCE(SUM(commission_amount), 0) FROM commissions 
@@ -1993,7 +1986,7 @@ def get_referral_stats():
             total_commission = cursor.fetchone()[0] or 0
             
             cursor.execute("""
-                SELECT COUNT(*) FROM referrals 
+                SELECT COUNT(*) FROM user_referral_connections 
                 WHERE referrer_email = ? 
                 AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
             """, (f"{user_id}@example.com",))
@@ -2019,10 +2012,10 @@ def get_referral_stats():
     except Exception as e:
         return jsonify({'error': f'통계 조회 실패: {str(e)}'}), 500
 
-# 사용자용 추천인 목록 조회
+# 사용자용 추천인 목록 조회 (피추천인 목록)
 @app.route('/api/referral/referrals', methods=['GET'])
 def get_user_referrals():
-    """사용자용 추천인 목록 조회"""
+    """사용자용 추천인 목록 조회 (내가 추천한 사용자들)"""
     user_id = request.args.get('user_id')
     if not user_id:
         return jsonify({'error': 'user_id가 필요합니다.'}), 400
@@ -2033,25 +2026,32 @@ def get_user_referrals():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        print(f"🔍 피추천인 목록 조회 - user_id: {user_id}")
+        
+        # user_referral_connections 테이블에서 피추천인 목록 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT id, referrer_email, referral_code, name, phone, created_at, status
-                FROM referrals 
-                WHERE referrer_email = %s
-                ORDER BY created_at DESC
-            """, (f"{user_id}@example.com",))
+                SELECT urc.id, urc.user_id, urc.referral_code, urc.created_at,
+                       u.name, u.email
+                FROM user_referral_connections urc
+                LEFT JOIN users u ON urc.user_id = u.user_id
+                WHERE urc.referrer_email = %s
+                ORDER BY urc.created_at DESC
+            """, (user_id,))
         else:
             cursor.execute("""
-                SELECT id, referrer_email, referral_code, name, phone, created_at, status
-                FROM referrals 
-                WHERE referrer_email = ?
-                ORDER BY created_at DESC
-            """, (f"{user_id}@example.com",))
+                SELECT urc.id, urc.user_id, urc.referral_code, urc.created_at,
+                       u.name, u.email
+                FROM user_referral_connections urc
+                LEFT JOIN users u ON urc.user_id = u.user_id
+                WHERE urc.referrer_email = ?
+                ORDER BY urc.created_at DESC
+            """, (user_id,))
         
         referrals = []
         for row in cursor.fetchall():
             # 날짜 형식 처리
-            join_date = row[5]
+            join_date = row[3]
             if hasattr(join_date, 'strftime'):
                 join_date = join_date.strftime('%Y-%m-%d')
             elif hasattr(join_date, 'isoformat'):
@@ -2059,19 +2059,25 @@ def get_user_referrals():
             else:
                 join_date = str(join_date)[:10]
             
+            # 사용자 이름이 없으면 이메일 사용
+            user_name = row[4] if row[4] else (row[5] if row[5] else row[1])
+            
             referrals.append({
                 'id': row[0],
-                'user': row[1],
+                'user': user_name,
                 'joinDate': join_date,
-                'status': row[6],
+                'status': '활성',  # 피추천인은 기본적으로 활성
                 'commission': 0  # 개별 커미션은 별도 계산 필요
             })
+        
+        print(f"✅ 피추천인 목록 조회 완료: {len(referrals)}명")
         
         return jsonify({
             'referrals': referrals
         }), 200
         
     except Exception as e:
+        print(f"❌ 피추천인 목록 조회 실패: {e}")
         return jsonify({'error': f'추천인 목록 조회 실패: {str(e)}'}), 500
     finally:
         if cursor:
