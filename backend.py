@@ -203,8 +203,11 @@ def init_database():
                 )
             """)
             
+            # 기존 orders 테이블 삭제 후 재생성 (스키마 변경사항 반영)
+            cursor.execute("DROP TABLE IF EXISTS orders CASCADE")
+            
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS orders (
+                CREATE TABLE orders (
                     order_id SERIAL PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
                     user_email VARCHAR(255),

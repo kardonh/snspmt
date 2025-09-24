@@ -159,13 +159,15 @@
   line-height: 1.6;
 }
 
-/* 플랫폼 그리드 */
+/* 플랫폼 그리드 - 기본 설정 */
 .platform-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 20px;
   position: relative;
   z-index: 1;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .platform-item {
@@ -1788,12 +1790,49 @@
   left: 100%;
 }
 
-/* 플랫폼 그리드 고정 크기 - 크기 변동 없음 */
-.platform-grid {
-  grid-template-columns: repeat(6, 1fr);
-  gap: 20px;
-  max-width: 800px;
-  margin: 0 auto;
+/* 대형 화면 (1400px 이상) */
+@media (min-width: 1400px) {
+  .platform-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 24px;
+    max-width: 900px;
+  }
+}
+
+/* 데스크톱 (1200px - 1399px) */
+@media (max-width: 1399px) and (min-width: 1200px) {
+  .platform-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 20px;
+    max-width: 800px;
+  }
+}
+
+/* 중형 데스크톱 (1000px - 1199px) */
+@media (max-width: 1199px) and (min-width: 1000px) {
+  .platform-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 18px;
+    max-width: 700px;
+  }
+}
+
+/* 소형 데스크톱 (900px - 999px) */
+@media (max-width: 999px) and (min-width: 900px) {
+  .platform-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    max-width: 600px;
+  }
+}
+
+/* 태블릿 (768px - 899px) */
+@media (max-width: 899px) and (min-width: 768px) {
+  .platform-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    max-width: 500px;
+  }
 }
 
 /* 중복 제거 - 위에서 이미 처리됨 */
@@ -1880,22 +1919,6 @@
 }
 
 /* 중복 제거 - 위에서 이미 처리됨 */
-  
-  .service-list {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-  
-  .service-selection,
-  .service-type-selection,
-  .order-form {
- 
-  margin-bottom: 20px;
-}
-
-  .service-selection h2 {
-    font-size: 24px;
-  }
   
   .service-selection p {
     font-size: 14px;
@@ -2003,11 +2026,6 @@
 @media (max-width: 480px) {
   .order-page {
     padding: 12px;
-  }
-  
-  .platform-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
   }
   
   .service-list {
@@ -2142,10 +2160,6 @@
     padding: 20px;
   }
   
-  .platform-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-  }
 }
 
 /* 모바일 크기 (768px 이하) */
