@@ -78,6 +78,18 @@ export function AuthProvider({ children }) {
             }
           });
         });
+      })
+      .catch(error => {
+        console.error('회원가입 오류:', error);
+        if (error.code === 'auth/email-already-in-use') {
+          throw new Error('이미 사용 중인 이메일입니다.');
+        } else if (error.code === 'auth/weak-password') {
+          throw new Error('비밀번호가 너무 약합니다.');
+        } else if (error.code === 'auth/invalid-email') {
+          throw new Error('유효하지 않은 이메일입니다.');
+        } else {
+          throw new Error('회원가입 중 오류가 발생했습니다.');
+        }
       });
   }
 

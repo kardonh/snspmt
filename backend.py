@@ -518,6 +518,13 @@ def register():
             print(f"❌ 필수 필드 누락 - user_id: {user_id}, email: {email}, name: {name}")
             return jsonify({'error': '필수 필드가 누락되었습니다.'}), 400
         
+        # 이메일 형식 검증
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            print(f"❌ 유효하지 않은 이메일 형식: {email}")
+            return jsonify({'error': '유효하지 않은 이메일 형식입니다.'}), 400
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -1316,6 +1323,7 @@ def get_my_codes():
             total_codes = cursor.fetchone()[0]
             print(f"📊 전체 추천인 코드 수: {total_codes}")
             
+            # 사용자별 코드 조회 (user_id 또는 user_email로 검색)
             cursor.execute("""
                 SELECT code, is_active, usage_count, total_commission, created_at
                 FROM referral_codes 
@@ -1461,16 +1469,16 @@ def issue_referral_coupon():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 추천인 코드 유효성 확인
+        # 추천인 코드 유효성 확인 (다양한 활성화 상태 처리)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT id, user_email FROM referral_codes 
-                WHERE code = %s AND is_active = true
+                WHERE code = %s AND (is_active = true OR is_active = 1)
             """, (referral_code,))
         else:
             cursor.execute("""
                 SELECT id, user_email FROM referral_codes 
-                WHERE code = ? AND is_active = true
+                WHERE code = ? AND (is_active = 1 OR is_active = 'true')
             """, (referral_code,))
         
         referrer_data = cursor.fetchone()
@@ -1535,12 +1543,12 @@ def validate_referral_code():
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT id, code, is_active FROM referral_codes 
-                WHERE code = %s AND is_active = true
+                WHERE code = %s AND (is_active = true OR is_active = 1)
             """, (code,))
         else:
             cursor.execute("""
                 SELECT id, code, is_active FROM referral_codes 
-                WHERE code = ? AND is_active = true
+                WHERE code = ? AND (is_active = 1 OR is_active = 'true')
             """, (code,))
         
         result = cursor.fetchone()
@@ -2046,6 +2054,12 @@ def admin_register_referral():
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """, (email.split('@')[0], email, code, name, phone, datetime.now(), True))
                     print(f"✅ 새 추천인 코드 생성 및 활성화: {email} - {code}")
+                
+                # 활성화 상태 확인
+                cursor.execute("SELECT code, is_active FROM referral_codes WHERE user_email = %s", (email,))
+                verification = cursor.fetchone()
+                if verification:
+                    print(f"🔍 활성화 확인: {verification[0]} - {verification[1]}")
                 
                 # 추천인 등록
                 cursor.execute("""
@@ -2614,7 +2628,7 @@ def activate_all_referral_codes():
                     print("⚠️ 활성화할 추천인 코드가 없습니다")
                     return jsonify({'message': '활성화할 추천인 코드가 없습니다'}), 200
                 
-                # 모든 추천인 코드를 강제로 활성화
+                # 모든 추천인 코드를 강제로 활성화 (WHERE 조건 없이)
                 cursor.execute("UPDATE referral_codes SET is_active = true, updated_at = CURRENT_TIMESTAMP")
                 print(f"🔄 PostgreSQL: 모든 추천인 코드 활성화 실행")
             else:
@@ -2626,7 +2640,7 @@ def activate_all_referral_codes():
                     print("⚠️ 활성화할 추천인 코드가 없습니다")
                     return jsonify({'message': '활성화할 추천인 코드가 없습니다'}), 200
                 
-                # SQLite - 모든 추천인 코드를 강제로 활성화
+                # SQLite - 모든 추천인 코드를 강제로 활성화 (WHERE 조건 없이)
                 cursor.execute("UPDATE referral_codes SET is_active = 1, updated_at = CURRENT_TIMESTAMP")
                 print(f"🔄 SQLite: 모든 추천인 코드 활성화 실행")
             

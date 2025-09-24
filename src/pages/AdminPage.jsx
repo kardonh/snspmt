@@ -1007,7 +1007,7 @@ const AdminPage = () => {
                     </td>
                     <td>
                       <span className={`status-badge ${code.is_active ? 'active' : 'inactive'}`}>
-                        {code.is_active ? '활성' : '비활성'}
+                        {code.is_active === true || code.is_active === 1 || code.is_active === 'true' || code.is_active === '1' ? '활성' : '비활성'}
                       </span>
                     </td>
                     <td>{code.usage_count}</td>
