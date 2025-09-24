@@ -636,7 +636,7 @@ const Home = () => {
     { id: 'threads', name: '스레드', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/threads.svg', color: '#000000' },
     { id: 'twitter', name: '트위터', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/X.svg', color: '#1da1f2' },
     { id: 'kakao', name: '카카오', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/kakao.svg', color: '#fbbf24' },
-    { id: 'telegram', name: '텔레그램', icon: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_2019_Logo.svg', color: '#0088cc' },
+    { id: 'telegram', name: '텔레그램', icon: '/TelegramLogo.svg.png', color: '#0088cc' },
     { id: 'whatsapp', name: '왓츠앱', icon: 'https://i.namu.wiki/i/wjmczy8xH2kajvQEpf9LfYepq7oDncymQTAQweVhaMpoZi_2X0uctv3E9Z7BUMcaQpFzYFx6_1GGKs0QPnEuZWeRbO4zsyEc1W7vz0-sUHUkN3eqEQEKSqEbSFBNffi5BN54cix2E01Y2KNyma-4pg.svg', color: '#25d366' },
     // { id: 'news-media', name: '뉴스언론보도', icon: FileText, color: '#3b82f6' },
     // { id: 'experience-group', name: '체험단', icon: Users, color: '#10b981' },
