@@ -187,6 +187,10 @@
   box-shadow: 
     0 8px 25px rgba(135, 206, 235, 0.08),
     0 4px 10px rgba(0, 0, 0, 0.04);
+  width: 120px;
+  height: 120px;
+  min-width: 120px;
+  min-height: 120px;
 }
 
 .platform-item::before {
@@ -256,16 +260,17 @@
 
 
 .platform-icon {
-  font-size: 32px;
-  margin-bottom: 12px;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 8px;
   transition: all 0.3s ease;
   color: var(--platform-color, #87ceeb);
 }
 
 .platform-name {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   color: #2c3e50;
   transition: color 0.3s ease;
   letter-spacing: -0.2px;
@@ -1791,25 +1796,9 @@
   margin: 0 auto;
 }
 
-.platform-button {
-  width: 120px;
-  height: 120px;
-  padding: 16px;
-  font-size: 14px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
+/* 중복 제거 - 위에서 이미 처리됨 */
 
-.platform-button .platform-icon {
-  width: 40px;
-  height: 40px;
-  margin-bottom: 8px;
-}
-
-/* 모바일 모드 (768px 이하) - 플랫폼 그리드 숨김 */
+/* 모바일 모드 (768px 이하) - 플랫폼 그리드 숨김 및 모바일 최적화 */
 @media (max-width: 768px) {
   .platform-grid {
     display: none;
@@ -1817,21 +1806,76 @@
   
   .order-page {
     padding: 20px;
+    margin: 10px;
   }
   
   .order-header {
     flex-direction: column;
     gap: 20px;
     text-align: center;
+    margin-bottom: 30px;
   }
   
   .order-title {
     font-size: 28px;
+    margin-bottom: 10px;
   }
   
   .order-help-btn {
     padding: 12px 20px;
     font-size: 14px;
+    align-self: center;
+  }
+  
+  /* 모바일에서 서비스 선택 영역 최적화 */
+  .service-selection,
+  .service-type-selection {
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 16px;
+  }
+  
+  .service-selection h2 {
+    font-size: 24px;
+    margin-bottom: 15px;
+  }
+  
+  .service-selection p {
+    font-size: 16px;
+    margin-bottom: 20px;
+  }
+  
+  /* 모바일에서 상세 서비스 선택 최적화 */
+  .detailed-service-selection {
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 16px;
+  }
+  
+  .detailed-service-selection h3 {
+    font-size: 20px;
+    margin-bottom: 15px;
+  }
+  
+  .detailed-service-item {
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 12px;
+  }
+  
+  .detailed-service-item h4 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+  
+  .detailed-service-item p {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  
+  .detailed-service-item .price {
+    font-size: 18px;
+    font-weight: 700;
   }
 }
 
@@ -1845,7 +1889,7 @@
   .service-selection,
   .service-type-selection,
   .order-form {
-    padding: 0;
+ 
   margin-bottom: 20px;
 }
 

@@ -662,18 +662,18 @@ def create_order():
         # 주문 생성
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                INSERT INTO orders (user_id, service_id, link, quantity, price, total_price, 
+                INSERT INTO orders (user_id, service_id, link, quantity, price, 
                                   discount_amount, referral_code, status, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pending_payment', NOW(), NOW())
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending_payment', NOW(), NOW())
                 RETURNING order_id
-            """, (user_id, service_id, link, quantity, price, final_price, discount_amount, 
+            """, (user_id, service_id, link, quantity, final_price, discount_amount, 
                   referral_data[0] if referral_data else None))
         else:
             cursor.execute("""
-                INSERT INTO orders (user_id, service_id, link, quantity, price, total_price, 
+                INSERT INTO orders (user_id, service_id, link, quantity, price, 
                                   discount_amount, referral_code, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """, (user_id, service_id, link, quantity, price, final_price, discount_amount,
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_payment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, (user_id, service_id, link, quantity, final_price, discount_amount,
                   referral_data[0] if referral_data else None))
             cursor.execute("SELECT last_insert_rowid()")
         
@@ -687,13 +687,13 @@ def create_order():
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
-                                           commission_amount, commission_rate, payment_date)
+                                           commission_amount, commission_rate, created_at)
                     VALUES (%s, %s, %s, %s, %s, NOW())
                 """, (user_id, referrer_email, final_price, commission_amount, 0.1))
             else:
                 cursor.execute("""
                     INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
-                                           commission_amount, commission_rate, payment_date)
+                                           commission_amount, commission_rate, created_at)
                     VALUES (?, ?, ?, ?, ?, datetime('now'))
                 """, (user_id, referrer_email, final_price, commission_amount, 0.1))
         
@@ -1281,18 +1281,18 @@ def get_commissions():
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                 SELECT id, referred_user, purchase_amount, commission_amount, 
-                       commission_rate, payment_date
+                       commission_rate, created_at
                 FROM commissions 
                 WHERE referrer_id = %s
-                ORDER BY payment_date DESC
+                ORDER BY created_at DESC
                 """, (user_id,))
             else:
                 cursor.execute("""
                     SELECT id, referred_user, purchase_amount, commission_amount, 
-                           commission_rate, payment_date
+                           commission_rate, created_at
                     FROM commissions 
                     WHERE referrer_id = ?
-                    ORDER BY payment_date DESC
+                    ORDER BY created_at DESC
                 """, (user_id,))
             
             commissions = []
@@ -1918,7 +1918,7 @@ def admin_register_referral():
                     # 기존 코드 업데이트
                     cursor.execute("""
                         UPDATE referral_codes 
-                        SET user_id = %s, code = %s, name = %s, phone = %s, updated_at = CURRENT_TIMESTAMP
+                        SET user_id = %s, code = %s, name = %s, phone = %s, is_active = true, updated_at = CURRENT_TIMESTAMP
                         WHERE user_email = %s
                     """, (email.split('@')[0], code, name, phone, email))
                 else:
@@ -2454,6 +2454,40 @@ def smm_panel_proxy():
             'success': False,
             'error': f'프록시 오류: {str(e)}'
         }), 500
+
+@app.route('/api/admin/referral/activate-all', methods=['POST'])
+def activate_all_referral_codes():
+    """모든 추천인 코드를 활성화하는 엔드포인트"""
+    try:
+        conn = None
+        cursor = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("UPDATE referral_codes SET is_active = true WHERE is_active = false")
+            else:
+                cursor.execute("UPDATE referral_codes SET is_active = 1 WHERE is_active = 0")
+            
+            conn.commit()
+            affected_rows = cursor.rowcount
+            
+            return jsonify({'message': f'{affected_rows}개의 추천인 코드가 활성화되었습니다'}), 200
+            
+        except Exception as db_error:
+            if conn:
+                conn.rollback()
+            raise db_error
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+            
+    except Exception as e:
+        print(f"추천인 코드 활성화 오류: {e}")
+        return jsonify({'error': '서버 오류가 발생했습니다'}), 500
 
 # 앱 시작 시 자동 초기화
 initialize_app()
