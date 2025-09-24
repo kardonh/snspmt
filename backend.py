@@ -1546,33 +1546,72 @@ def issue_referral_coupon():
         referrer_id, referrer_email = referrer_data
         print(f"✅ 추천인 코드 유효 - ID: {referrer_id}, 이메일: {referrer_email}")
         
-        # 사용자-추천인 연결 저장
+        # 사용자-추천인 연결 저장 (중복 체크)
+        print(f"💾 사용자-추천인 연결 저장 시도 - user_id: {user_id}, referral_code: {referral_code}")
+        
+        # 먼저 중복 체크
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                INSERT INTO user_referral_connections (user_id, referral_code, referrer_email)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (user_id) DO NOTHING
-            """, (user_id, referral_code, referrer_email))
+                SELECT COUNT(*) FROM user_referral_connections 
+                WHERE user_id = %s AND referral_code = %s
+            """, (user_id, referral_code))
         else:
             cursor.execute("""
-                INSERT OR IGNORE INTO user_referral_connections (user_id, referral_code, referrer_email)
-                VALUES (?, ?, ?)
-            """, (user_id, referral_code, referrer_email))
+                SELECT COUNT(*) FROM user_referral_connections 
+                WHERE user_id = ? AND referral_code = ?
+            """, (user_id, referral_code))
         
-        # 5% 할인 쿠폰 발급
+        existing_connection = cursor.fetchone()[0]
+        
+        if existing_connection > 0:
+            print(f"⚠️ 이미 존재하는 연결 - user_id: {user_id}, referral_code: {referral_code}")
+        else:
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO user_referral_connections (user_id, referral_code, referrer_email)
+                    VALUES (%s, %s, %s)
+                """, (user_id, referral_code, referrer_email))
+            else:
+                cursor.execute("""
+                    INSERT INTO user_referral_connections (user_id, referral_code, referrer_email)
+                    VALUES (?, ?, ?)
+                """, (user_id, referral_code, referrer_email))
+            print(f"✅ 사용자-추천인 연결 저장 완료")
+        
+        # 5% 할인 쿠폰 발급 (중복 체크)
         from datetime import datetime, timedelta
         expires_at = datetime.now() + timedelta(days=30)  # 30일 유효
         
+        print(f"🎁 추천인 쿠폰 발급 시도 - user_id: {user_id}, referral_code: {referral_code}")
+        
+        # 쿠폰 중복 체크
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                INSERT INTO coupons (user_id, referral_code, discount_type, discount_value, expires_at)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (user_id, referral_code, 'percentage', 5.0, expires_at))
+                SELECT COUNT(*) FROM coupons 
+                WHERE user_id = %s AND referral_code = %s
+            """, (user_id, referral_code))
         else:
             cursor.execute("""
-                INSERT INTO coupons (user_id, referral_code, discount_type, discount_value, expires_at)
-                VALUES (?, ?, ?, ?, ?)
-            """, (user_id, referral_code, 'percentage', 5.0, expires_at))
+                SELECT COUNT(*) FROM coupons 
+                WHERE user_id = ? AND referral_code = ?
+            """, (user_id, referral_code))
+        
+        existing_coupon = cursor.fetchone()[0]
+        
+        if existing_coupon > 0:
+            print(f"⚠️ 이미 존재하는 쿠폰 - user_id: {user_id}, referral_code: {referral_code}")
+        else:
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO coupons (user_id, referral_code, discount_type, discount_value, expires_at)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (user_id, referral_code, 'percentage', 5.0, expires_at))
+            else:
+                cursor.execute("""
+                    INSERT INTO coupons (user_id, referral_code, discount_type, discount_value, expires_at)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (user_id, referral_code, 'percentage', 5.0, expires_at))
+            print(f"✅ 추천인 쿠폰 발급 완료")
         
         conn.commit()
         conn.close()
