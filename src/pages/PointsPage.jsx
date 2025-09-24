@@ -51,25 +51,37 @@ const PointsPage = () => {
 
   const loadUserPoints = async () => {
     try {
-      const response = await fetch(`/api/points?user_id=${currentUser.uid}`)
+      const userId = currentUser?.uid || localStorage.getItem('userId') || 'demo_user'
+      console.log('🔍 포인트 조회 - 사용자 ID:', userId)
+      
+      const response = await fetch(`/api/points?user_id=${userId}`)
       if (response.ok) {
         const data = await response.json()
         setUserPoints(data.points || 0)
+        console.log('✅ 포인트 조회 성공:', data.points)
+      } else {
+        console.error('❌ 포인트 조회 실패:', response.status)
       }
     } catch (error) {
-      console.error('포인트 조회 실패:', error)
+      console.error('❌ 포인트 조회 오류:', error)
     }
   }
 
   const loadPurchaseHistory = async () => {
     try {
-      const response = await fetch(`/api/points/purchase-history?user_id=${currentUser.uid}`)
+      const userId = currentUser?.uid || localStorage.getItem('userId') || 'demo_user'
+      console.log('🔍 구매 내역 조회 - 사용자 ID:', userId)
+      
+      const response = await fetch(`/api/points/purchase-history?user_id=${userId}`)
       if (response.ok) {
         const data = await response.json()
         setPurchaseHistory(data.purchases || [])
+        console.log('✅ 구매 내역 조회 성공:', data.purchases)
+      } else {
+        console.error('❌ 구매 내역 조회 실패:', response.status)
       }
     } catch (error) {
-      console.error('구매 내역 조회 실패:', error)
+      console.error('❌ 구매 내역 조회 오류:', error)
     }
   }
 

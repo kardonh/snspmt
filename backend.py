@@ -587,9 +587,15 @@ def register():
 @app.route('/api/points', methods=['GET'])
 def get_user_points():
     """사용자 포인트 조회"""
+    conn = None
+    cursor = None
+    
     try:
         user_id = request.args.get('user_id')
+        print(f"🔍 포인트 조회 요청 - user_id: {user_id}")
+        
         if not user_id:
+            print(f"❌ user_id 누락")
             return jsonify({'error': 'user_id가 필요합니다.'}), 400
         
         conn = get_db_connection()
@@ -601,12 +607,13 @@ def get_user_points():
             cursor.execute("SELECT points FROM points WHERE user_id = ?", (user_id,))
         
         result = cursor.fetchone()
-        conn.close()
         
         if result:
             points = result[0] if isinstance(result, tuple) else result['points']
+            print(f"✅ 포인트 조회 성공: {points}")
         else:
             points = 0
+            print(f"ℹ️ 포인트 데이터 없음, 기본값 0 설정")
         
         return jsonify({
             'user_id': user_id,
@@ -614,7 +621,13 @@ def get_user_points():
         }), 200
         
     except Exception as e:
+        print(f"❌ 포인트 조회 오류: {e}")
         return jsonify({'error': f'포인트 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 주문 생성
 @app.route('/api/orders', methods=['POST'])
