@@ -2487,9 +2487,11 @@ def activate_all_referral_codes():
             cursor = conn.cursor()
             
             if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("UPDATE referral_codes SET is_active = true WHERE is_active = false")
+                # 모든 추천인 코드를 강제로 활성화
+                cursor.execute("UPDATE referral_codes SET is_active = true, updated_at = CURRENT_TIMESTAMP")
             else:
-                cursor.execute("UPDATE referral_codes SET is_active = 1 WHERE is_active = 0")
+                # SQLite - 모든 추천인 코드를 강제로 활성화
+                cursor.execute("UPDATE referral_codes SET is_active = 1, updated_at = CURRENT_TIMESTAMP")
             
             conn.commit()
             affected_rows = cursor.rowcount
