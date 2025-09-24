@@ -55,11 +55,12 @@ def get_db_connection():
             print("✅ PostgreSQL 연결 성공")
             return conn
         else:
-            # SQLite fallback
-            db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
+            # SQLite fallback - 영구 데이터베이스 경로 사용
+            db_path = os.path.join(os.getcwd(), 'data', 'snspmt.db')
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)  # 디렉토리 생성
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row  # 딕셔너리 형태로 결과 반환
-            print("✅ SQLite 연결 성공")
+            print(f"✅ SQLite 연결 성공: {db_path}")
             return conn
     except psycopg2.Error as e:
         print(f"❌ PostgreSQL 연결 실패: {e}")
@@ -67,13 +68,14 @@ def get_db_connection():
         raise e
     except Exception as e:
         print(f"❌ 데이터베이스 연결 실패: {e}")
-        # SQLite fallback
+        # SQLite fallback - 영구 데이터베이스 경로 사용
         try:
             print("🔄 SQLite 폴백 시도...")
-            db_path = os.path.join(tempfile.gettempdir(), 'snspmt.db')
+            db_path = os.path.join(os.getcwd(), 'data', 'snspmt.db')
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)  # 디렉토리 생성
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
-            print("✅ SQLite 폴백 연결 성공")
+            print(f"✅ SQLite 폴백 연결 성공: {db_path}")
             return conn
         except Exception as fallback_error:
             print(f"❌ SQLite 폴백도 실패: {fallback_error}")
@@ -113,10 +115,9 @@ def init_database():
                 )
             """)
             
-            # 기존 테이블 삭제 후 재생성
-            cursor.execute("DROP TABLE IF EXISTS referral_codes CASCADE")
+            # 추천인 코드 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
-                CREATE TABLE referral_codes (
+                CREATE TABLE IF NOT EXISTS referral_codes (
                     id SERIAL PRIMARY KEY,
                     code VARCHAR(50) UNIQUE NOT NULL,
                     user_id VARCHAR(255),
@@ -131,10 +132,9 @@ def init_database():
                 )
             """)
             
-            # 기존 테이블 삭제 후 재생성
-            cursor.execute("DROP TABLE IF EXISTS referrals CASCADE")
+            # 추천인 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
-                CREATE TABLE referrals (
+                CREATE TABLE IF NOT EXISTS referrals (
                     id SERIAL PRIMARY KEY,
                     referrer_email VARCHAR(255) NOT NULL,
                     referral_code VARCHAR(50) NOT NULL,
@@ -145,10 +145,9 @@ def init_database():
                 )
             """)
             
-            # 기존 테이블 삭제 후 재생성
-            cursor.execute("DROP TABLE IF EXISTS commissions CASCADE")
+            # 커미션 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
-                CREATE TABLE commissions (
+                CREATE TABLE IF NOT EXISTS commissions (
                     id SERIAL PRIMARY KEY,
                     referred_user VARCHAR(255) NOT NULL,
                     referrer_id VARCHAR(255) NOT NULL,
@@ -162,10 +161,9 @@ def init_database():
                 )
             """)
             
-            # 쿠폰 테이블
-            cursor.execute("DROP TABLE IF EXISTS coupons CASCADE")
+            # 쿠폰 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
-                CREATE TABLE coupons (
+                CREATE TABLE IF NOT EXISTS coupons (
                     id SERIAL PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
                     referral_code VARCHAR(50),
@@ -178,10 +176,9 @@ def init_database():
                 )
             """)
             
-            # 사용자 추천인 코드 연결 테이블
-            cursor.execute("DROP TABLE IF EXISTS user_referral_connections CASCADE")
+            # 사용자 추천인 코드 연결 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
-                CREATE TABLE user_referral_connections (
+                CREATE TABLE IF NOT EXISTS user_referral_connections (
                     id SERIAL PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
                     referral_code VARCHAR(50) NOT NULL,
@@ -190,10 +187,9 @@ def init_database():
                 )
             """)
             
-            # 커미션 환급 내역 테이블
-            cursor.execute("DROP TABLE IF EXISTS commission_payments CASCADE")
+            # 커미션 환급 내역 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
-                CREATE TABLE commission_payments (
+                CREATE TABLE IF NOT EXISTS commission_payments (
                     id SERIAL PRIMARY KEY,
                     referrer_email VARCHAR(255) NOT NULL,
                     amount DECIMAL(10,2) NOT NULL,
@@ -203,11 +199,9 @@ def init_database():
                 )
             """)
             
-            # 기존 orders 테이블 삭제 후 재생성 (스키마 변경사항 반영)
-            cursor.execute("DROP TABLE IF EXISTS orders CASCADE")
-            
+            # 주문 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
-                CREATE TABLE orders (
+                CREATE TABLE IF NOT EXISTS orders (
                     order_id SERIAL PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
                     user_email VARCHAR(255),
@@ -276,10 +270,7 @@ def init_database():
             """)
             
             cursor.execute("""
-                DROP TABLE IF EXISTS orders
-            """)
-            cursor.execute("""
-                CREATE TABLE orders (
+                CREATE TABLE IF NOT EXISTS orders (
                     order_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
                     service_id TEXT NOT NULL,
@@ -300,10 +291,7 @@ def init_database():
             """)
             
             cursor.execute("""
-                DROP TABLE IF EXISTS point_purchases
-            """)
-            cursor.execute("""
-                CREATE TABLE point_purchases (
+                CREATE TABLE IF NOT EXISTS point_purchases (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL,
                     amount INTEGER NOT NULL,
@@ -666,40 +654,46 @@ def create_order():
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 INSERT INTO orders (user_id, service_id, link, quantity, price, 
-                                  discount_amount, referral_code, status, created_at, updated_at)
+                                discount_amount, referral_code, status, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending_payment', NOW(), NOW())
                 RETURNING order_id
             """, (user_id, service_id, link, quantity, final_price, discount_amount, 
-                  referral_data[0] if referral_data else None))
+                referral_data[0] if referral_data else None))
         else:
             cursor.execute("""
                 INSERT INTO orders (user_id, service_id, link, quantity, price, 
-                                  discount_amount, referral_code, status, created_at, updated_at)
+                                discount_amount, referral_code, status, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_payment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, (user_id, service_id, link, quantity, final_price, discount_amount,
-                  referral_data[0] if referral_data else None))
+                referral_data[0] if referral_data else None))
             cursor.execute("SELECT last_insert_rowid()")
         
         order_id = cursor.fetchone()[0]
         print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {user_id}, service_id: {service_id}, price: {final_price}")
         
         # 추천인이 있는 경우 10% 커미션 지급
+        commission_amount = 0
         if referral_data:
-            referrer_email = referral_data[1]
-            commission_amount = final_price * 0.1  # 10% 커미션
-            
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
-                                           commission_amount, commission_rate, created_at)
-                    VALUES (%s, %s, %s, %s, %s, NOW())
-                """, (user_id, referrer_email, final_price, commission_amount, 0.1))
-            else:
-                cursor.execute("""
-                    INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
-                                           commission_amount, commission_rate, created_at)
-                    VALUES (?, ?, ?, ?, ?, datetime('now'))
-                """, (user_id, referrer_email, final_price, commission_amount, 0.1))
+            try:
+                referrer_email = referral_data[1]
+                commission_amount = final_price * 0.1  # 10% 커미션
+                
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
+                                                commission_amount, commission_rate, created_at)
+                        VALUES (%s, %s, %s, %s, %s, NOW())
+                    """, (user_id, referrer_email, final_price, commission_amount, 0.1))
+                else:
+                    cursor.execute("""
+                        INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
+                                                commission_amount, commission_rate, created_at)
+                        VALUES (?, ?, ?, ?, ?, datetime('now'))
+                    """, (user_id, referrer_email, final_price, commission_amount, 0.1))
+                print(f"✅ 커미션 지급 완료: {commission_amount}원")
+            except Exception as commission_error:
+                print(f"⚠️ 커미션 지급 실패 (주문은 계속 진행): {commission_error}")
+                commission_amount = 0
         
         conn.commit()
         print(f"✅ 주문 생성 성공 - 주문 ID: {order_id}")
@@ -757,6 +751,8 @@ def get_orders():
         print(f"🔍 주문 조회 - user_id: {user_id}, 주문 개수: {len(orders)}")
         if orders:
             print(f"📋 주문 데이터: {orders}")
+        else:
+            print(f"⚠️ 주문 데이터 없음 - user_id: {user_id}")
         conn.close()
         
         order_list = []
@@ -932,10 +928,10 @@ def get_admin_purchases():
             if purchases_table_exists:
                 cursor.execute("""
                     SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, 
-                           pp.buyer_name, pp.bank_info, pp.created_at
-                FROM point_purchases pp
-                ORDER BY pp.created_at DESC
-            """)
+                        pp.buyer_name, pp.bank_info, pp.created_at
+                    FROM point_purchases pp
+                    ORDER BY pp.created_at DESC
+                """)
             else:
                 print("⚠️ point_purchases 테이블이 존재하지 않습니다. 빈 배열을 반환합니다.")
                 purchases = []
@@ -944,7 +940,7 @@ def get_admin_purchases():
         else:
             cursor.execute("""
                 SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, pp.created_at,
-                       pp.buyer_name, pp.bank_info, u.email
+                    pp.buyer_name, pp.bank_info, u.email
                 FROM point_purchases pp
                 LEFT JOIN users u ON pp.user_id = u.user_id
                 ORDER BY pp.created_at DESC
@@ -1209,21 +1205,21 @@ def get_my_codes():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 사용자의 추천인 코드 조회 (user_email로 검색)
+        # 사용자의 추천인 코드 조회 (user_id 또는 user_email로 검색)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT code, is_active, usage_count, total_commission, created_at
                 FROM referral_codes 
-                WHERE user_email = %s
+                WHERE user_id = %s OR user_email = %s
                 ORDER BY created_at DESC
-            """, (user_id,))
+            """, (user_id, user_id))
         else:
             cursor.execute("""
                 SELECT code, is_active, usage_count, total_commission, created_at
                 FROM referral_codes 
-                WHERE user_email = ?
+                WHERE user_id = ? OR user_email = ?
                 ORDER BY created_at DESC
-            """, (user_id,))
+            """, (user_id, user_id))
         
         codes = []
         for row in cursor.fetchall():
@@ -1288,7 +1284,7 @@ def get_commissions():
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                 SELECT id, referred_user, purchase_amount, commission_amount, 
-                       commission_rate, created_at
+                    commission_rate, created_at
                 FROM commissions 
                 WHERE referrer_id = %s
                 ORDER BY created_at DESC
@@ -1296,7 +1292,7 @@ def get_commissions():
             else:
                 cursor.execute("""
                     SELECT id, referred_user, purchase_amount, commission_amount, 
-                           commission_rate, created_at
+                        commission_rate, created_at
                     FROM commissions 
                     WHERE referrer_id = ?
                     ORDER BY created_at DESC
@@ -1459,7 +1455,7 @@ def get_user_coupons():
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT id, referral_code, discount_type, discount_value, is_used, 
-                       created_at, expires_at, used_at
+                    created_at, expires_at, used_at
                 FROM coupons 
                 WHERE user_id = %s
                 ORDER BY created_at DESC
@@ -1467,7 +1463,7 @@ def get_user_coupons():
         else:
             cursor.execute("""
                 SELECT id, referral_code, discount_type, discount_value, is_used, 
-                       created_at, expires_at, used_at
+                    created_at, expires_at, used_at
                 FROM coupons 
                 WHERE user_id = ?
                 ORDER BY created_at DESC
@@ -1969,10 +1965,12 @@ def admin_register_referral():
                 """, (email, code, name, phone, datetime.now(), 'active'))
             
             conn.commit()
+            print(f"✅ 추천인 등록 완료: {email} - {code}")
             
         except Exception as db_error:
             if conn:
                 conn.rollback()
+            print(f"❌ 추천인 등록 실패: {db_error}")
             raise db_error
         finally:
             if cursor:
@@ -2062,16 +2060,16 @@ def admin_get_referral_codes():
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT id, code, user_email, name, phone, created_at, is_active, 
-                       COALESCE(usage_count, 0) as usage_count, 
-                       COALESCE(total_commission, 0) as total_commission
+                    COALESCE(usage_count, 0) as usage_count, 
+                    COALESCE(total_commission, 0) as total_commission
                 FROM referral_codes 
                 ORDER BY created_at DESC
             """)
         else:
             cursor.execute("""
                 SELECT id, code, user_email, name, phone, created_at, is_active, 
-                       COALESCE(usage_count, 0) as usage_count, 
-                       COALESCE(total_commission, 0) as total_commission
+                    COALESCE(usage_count, 0) as usage_count, 
+                    COALESCE(total_commission, 0) as total_commission
                 FROM referral_codes 
                 ORDER BY created_at DESC
             """)
@@ -2123,14 +2121,14 @@ def admin_get_commissions():
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT id, referred_user, purchase_amount, commission_amount, 
-                       commission_rate, payment_date
+                    commission_rate, payment_date
                 FROM commissions 
                 ORDER BY payment_date DESC
             """)
         else:
             cursor.execute("""
                 SELECT id, referred_user, purchase_amount, commission_amount, 
-                       commission_rate, payment_date
+                    commission_rate, payment_date
                 FROM commissions 
                 ORDER BY payment_date DESC
             """)
@@ -2308,14 +2306,14 @@ def get_admin_transactions():
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT o.order_id, o.user_id, o.service_id, o.price, o.status, o.created_at,
-                       o.platform, o.service_name, o.quantity, o.link, o.comments
+                    o.platform, o.service_name, o.quantity, o.link, o.comments
                 FROM orders o
                 ORDER BY o.created_at DESC
             """)
         else:
             cursor.execute("""
                 SELECT o.order_id, o.user_id, o.service_id, o.price, o.status, o.created_at,
-                       o.platform, o.service_name, o.quantity, o.link, o.comments
+                    o.platform, o.service_name, o.quantity, o.link, o.comments
                 FROM orders o
                 ORDER BY o.created_at DESC
             """)

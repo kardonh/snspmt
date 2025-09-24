@@ -1839,10 +1839,15 @@
 
 /* 중복 제거 - 위에서 이미 처리됨 */
 
-/* 모바일 모드 (768px 이하) - 플랫폼 그리드 숨김 및 모바일 최적화 */
+/* 모바일 모드 (768px 이하) - 플랫폼 그리드 모바일 최적화 */
 @media (max-width: 768px) {
   .platform-grid {
-    display: none;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    max-width: 100%;
+    padding: 0 10px;
+    margin: 20px 0;
   }
   
   .order-page {
@@ -1927,17 +1932,19 @@
   }
   
   .platform-item {
-    padding: 16px 12px;
-    min-height: 100px;
+    padding: 12px 8px;
+    min-height: 80px;
+    width: 100%;
   }
   
   .platform-icon {
-    font-size: 24px;
-    margin-bottom: 8px;
+    font-size: 20px;
+    margin-bottom: 6px;
   }
 
   .platform-name {
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: 600;
   }
 
   .platform-description {
@@ -2028,6 +2035,26 @@
 @media (max-width: 480px) {
   .order-page {
     padding: 12px;
+  }
+  
+  .platform-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 0 5px;
+  }
+  
+  .platform-item {
+    padding: 10px 6px;
+    min-height: 70px;
+  }
+  
+  .platform-icon {
+    font-size: 18px;
+    margin-bottom: 4px;
+  }
+  
+  .platform-name {
+    font-size: 10px;
   }
   
   .service-list {
@@ -2231,7 +2258,7 @@
   }
   
   .platform-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 8px;
   }
   
@@ -2296,8 +2323,23 @@
   }
   
   .platform-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(4, 1fr);
     gap: 6px;
+    padding: 0 2px;
+  }
+  
+  .platform-item {
+    padding: 8px 4px;
+    min-height: 60px;
+  }
+  
+  .platform-icon {
+    font-size: 16px;
+    margin-bottom: 3px;
+  }
+  
+  .platform-name {
+    font-size: 9px;
   }
   
   .platform-button {
