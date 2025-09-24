@@ -371,7 +371,10 @@ const AdminPage = () => {
       
       if (codesResponse.ok) {
         const codesData = await codesResponse.json()
+        console.log('📋 API 응답 전체 데이터:', codesData)
+        console.log('📋 추천인 코드 배열:', codesData.codes)
         setReferralCodes(codesData.codes || [])
+        console.log('✅ 추천인 코드 데이터 로드 완료:', codesData.codes)
       }
       
       if (referralsResponse.ok) {
@@ -1023,6 +1026,11 @@ const AdminPage = () => {
                       <span className={`status-badge ${code.is_active ? 'active' : 'inactive'}`}>
                         {(() => {
                           console.log(`🔍 코드 ${code.code} 상태:`, code.is_active, typeof code.is_active)
+                          // is_active가 undefined이면 기본적으로 활성으로 처리
+                          if (code.is_active === undefined || code.is_active === null) {
+                            console.log(`⚠️ 코드 ${code.code}의 is_active가 undefined/null입니다. 기본값 true로 설정`)
+                            return '활성'
+                          }
                           if (code.is_active === true || code.is_active === 1 || code.is_active === 'true' || code.is_active === '1') {
                             return '활성'
                           } else {

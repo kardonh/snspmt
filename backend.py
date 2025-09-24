@@ -1337,24 +1337,32 @@ def get_my_codes():
             total_codes = cursor.fetchone()[0]
             print(f"📊 전체 추천인 코드 수: {total_codes}")
             
-            # 사용자별 코드 조회 (user_id 또는 user_email로 검색)
+            # 사용자별 코드 조회 (user_email 우선, user_id 보조)
             cursor.execute("""
                 SELECT code, is_active, usage_count, total_commission, created_at
                 FROM referral_codes 
-                WHERE user_id = %s OR user_email = %s
+                WHERE user_email = %s OR user_id = %s
                 ORDER BY created_at DESC
             """, (user_id, user_id))
         else:
             cursor.execute("""
                 SELECT code, is_active, usage_count, total_commission, created_at
                 FROM referral_codes 
-                WHERE user_id = ? OR user_email = ?
+                WHERE user_email = ? OR user_id = ?
                 ORDER BY created_at DESC
             """, (user_id, user_id))
         
         codes = []
         rows = cursor.fetchall()
         print(f"📊 조회된 추천인 코드 수: {len(rows)}")
+        print(f"🔍 검색 조건: user_id={user_id}")
+        
+        # 데이터베이스의 모든 추천인 코드 확인
+        cursor.execute("SELECT user_email, user_id, code FROM referral_codes")
+        all_codes = cursor.fetchall()
+        print(f"📋 데이터베이스의 모든 추천인 코드:")
+        for code in all_codes:
+            print(f"  - 이메일: {code[0]}, ID: {code[1]}, 코드: {code[2]}")
         
         for row in rows:
             # 날짜 형식 처리 강화
@@ -1378,6 +1386,7 @@ def get_my_codes():
                 'total_commission': float(row[3]) if row[3] else 0.0,
                 'created_at': created_at
             }
+            print(f"📋 API 응답 데이터: {code_data}")
             codes.append(code_data)
             print(f"📋 추천인 코드: {code_data['code']}, 활성화: {code_data['is_active']}")
         

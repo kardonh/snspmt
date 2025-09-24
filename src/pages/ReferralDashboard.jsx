@@ -44,10 +44,13 @@ const ReferralDashboard = () => {
       
       console.log('추천인 대시보드 접근 확인 - 사용자 ID:', userId)
       
-      // 사용자 이메일 가져오기
+      // 사용자 이메일 가져오기 (실제 이메일 우선)
       const userEmail = localStorage.getItem('userEmail') || 
                         localStorage.getItem('firebase_user_email') || 
-                        `${userId}@example.com`
+                        localStorage.getItem('userEmail') ||
+                        'tambleofficial@gmail.com'  // 실제 사용자 이메일
+      
+      console.log('🔍 사용자 이메일:', userEmail)
       
       // 사용자가 추천인 코드를 발급받았는지 확인
       const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userEmail}`)
