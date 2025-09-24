@@ -197,21 +197,54 @@ const ReferralDashboard = () => {
     }
   }
 
-  const copyReferralCode = () => {
-    navigator.clipboard.writeText(referralCode)
-    alert('추천인 코드가 복사되었습니다!')
+  const copyReferralCode = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(referralCode)
+        alert('추천인 코드가 복사되었습니다!')
+      } else {
+        // 폴백: 텍스트 선택 방식
+        const textArea = document.createElement('textarea')
+        textArea.value = referralCode
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+        alert('추천인 코드가 복사되었습니다!')
+      }
+    } catch (error) {
+      console.error('클립보드 복사 실패:', error)
+      alert('클립보드 복사에 실패했습니다. 수동으로 복사해주세요: ' + referralCode)
+    }
   }
 
-  const shareReferralCode = () => {
+  const shareReferralCode = async () => {
     const shareText = `추천인 코드: ${referralCode}\n이 코드로 가입하시면 혜택을 받으실 수 있습니다!`
-    if (navigator.share) {
-      navigator.share({
-        title: '추천인 코드',
-        text: shareText
-      })
-    } else {
-      navigator.clipboard.writeText(shareText)
-      alert('추천인 코드가 복사되었습니다!')
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: '추천인 코드',
+          text: shareText
+        })
+      } else {
+        // 클립보드 복사 폴백
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(shareText)
+          alert('추천인 코드가 복사되었습니다!')
+        } else {
+          // 텍스트 선택 방식
+          const textArea = document.createElement('textarea')
+          textArea.value = shareText
+          document.body.appendChild(textArea)
+          textArea.select()
+          document.execCommand('copy')
+          document.body.removeChild(textArea)
+          alert('추천인 코드가 복사되었습니다!')
+        }
+      }
+    } catch (error) {
+      console.error('공유 실패:', error)
+      alert('공유에 실패했습니다. 수동으로 복사해주세요: ' + shareText)
     }
   }
 
