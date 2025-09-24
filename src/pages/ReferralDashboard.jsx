@@ -44,8 +44,13 @@ const ReferralDashboard = () => {
       
       console.log('추천인 대시보드 접근 확인 - 사용자 ID:', userId)
       
+      // 사용자 이메일 가져오기
+      const userEmail = localStorage.getItem('userEmail') || 
+                        localStorage.getItem('firebase_user_email') || 
+                        `${userId}@example.com`
+      
       // 사용자가 추천인 코드를 발급받았는지 확인
-      const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userId}`)
+      const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userEmail}`)
       console.log('추천인 코드 조회 응답:', codeResponse.status)
       
       if (codeResponse.ok) {
@@ -53,9 +58,15 @@ const ReferralDashboard = () => {
         console.log('추천인 코드 데이터:', codeData)
         
         if (codeData.codes && codeData.codes.length > 0) {
-          setHasReferralCode(true)
-          loadReferralData()
-          loadCommissionPoints()
+          // 활성화된 코드가 있는지 확인
+          const hasActiveCode = codeData.codes.some(code => code.is_active === true || code.is_active === 1)
+          if (hasActiveCode) {
+            setHasReferralCode(true)
+            loadReferralData()
+            loadCommissionPoints()
+          } else {
+            setHasReferralCode(false)
+          }
         } else {
           setHasReferralCode(false)
         }
@@ -80,7 +91,9 @@ const ReferralDashboard = () => {
                     'demo_user'
       
       // 사용자 이메일 가져오기 (추천인 코드는 이메일로 저장됨)
-      const userEmail = currentUser?.email || `${userId}@example.com`
+      const userEmail = localStorage.getItem('userEmail') || 
+                        localStorage.getItem('firebase_user_email') || 
+                        `${userId}@example.com`
       
       // 추천인 코드 조회
       const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userEmail}`)

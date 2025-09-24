@@ -1308,6 +1308,7 @@ def get_my_codes():
         cursor = conn.cursor()
         
         # 사용자의 추천인 코드 조회 (user_id 또는 user_email로 검색)
+        print(f"🔍 추천인 코드 조회 - user_id: {user_id}")
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT code, is_active, usage_count, total_commission, created_at
@@ -1324,7 +1325,10 @@ def get_my_codes():
             """, (user_id, user_id))
         
         codes = []
-        for row in cursor.fetchall():
+        rows = cursor.fetchall()
+        print(f"📊 조회된 추천인 코드 수: {len(rows)}")
+        
+        for row in rows:
             # 날짜 형식 처리
             created_at = row[4]
             if hasattr(created_at, 'isoformat'):
@@ -1332,13 +1336,15 @@ def get_my_codes():
             else:
                 created_at = str(created_at)
             
-            codes.append({
+            code_data = {
                 'code': row[0],
                 'is_active': row[1],
                 'usage_count': row[2],
                 'total_commission': float(row[3]) if row[3] else 0.0,
                 'created_at': created_at
-            })
+            }
+            codes.append(code_data)
+            print(f"📋 추천인 코드: {code_data['code']}, 활성화: {code_data['is_active']}")
         
         conn.close()
         return jsonify({'codes': codes}), 200
