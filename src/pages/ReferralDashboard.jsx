@@ -113,25 +113,17 @@ const ReferralDashboard = () => {
       const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userEmail}`)
       if (codeResponse.ok) {
         const codeData = await codeResponse.json()
+        console.log('📋 추천인 코드 조회 결과:', codeData)
         if (codeData.codes && codeData.codes.length > 0) {
           setReferralCode(codeData.codes[0].code)
+          console.log('✅ 추천인 코드 설정:', codeData.codes[0].code)
         } else {
-          // 코드가 없으면 관리자 API로 생성
-          const generateResponse = await fetch('/api/admin/referral/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              user_id: userId, 
-              user_email: userEmail, 
-              name: 'New Referrer', 
-              phone: 'N/A' 
-            })
-          })
-          if (generateResponse.ok) {
-            const generateData = await generateResponse.json()
-            setReferralCode(generateData.code)
-          }
+          console.log('❌ 추천인 코드가 없습니다. 관리자에게 문의하세요.')
+          // 코드가 없으면 사용자에게 알림
+          alert('추천인 코드가 없습니다. 관리자에게 문의하세요.')
         }
+      } else {
+        console.error('❌ 추천인 코드 조회 실패:', codeResponse.status)
       }
 
       // 추천인 통계 조회

@@ -2052,11 +2052,17 @@ def admin_register_referral():
     """관리자용 추천인 등록"""
     try:
         data = request.get_json()
-        email = data.get('email')
+        print(f"🔍 관리자 추천인 등록 요청 데이터: {data}")
+        
+        # 다양한 필드명 지원
+        email = data.get('email') or data.get('user_email')
         name = data.get('name')
         phone = data.get('phone')
         
+        print(f"🔍 파싱된 필드 - email: {email}, name: {name}, phone: {phone}")
+        
         if not email:
+            print(f"❌ 이메일 필수 필드 누락: {email}")
             return jsonify({'error': '이메일은 필수입니다.'}), 400
         
         conn = None
