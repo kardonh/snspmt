@@ -26,6 +26,8 @@ const Sidebar = ({ onClose }) => {
   const [businessInfoOpen, setBusinessInfoOpen] = useState(false)
   const [userPoints, setUserPoints] = useState(0)
   const [pointsLoading, setPointsLoading] = useState(false)
+  const [hasReferralCode, setHasReferralCode] = useState(false)
+  const [referralCodeLoading, setReferralCodeLoading] = useState(false)
 
   // 사용자 포인트 조회 함수
   const fetchUserPoints = async () => {
@@ -52,24 +54,57 @@ const Sidebar = ({ onClose }) => {
     }
   }
 
-  // 사용자가 로그인했을 때 포인트 조회
+  // 추천인 코드 확인 함수
+  const checkReferralCode = async () => {
+    if (!currentUser) return
+    
+    setReferralCodeLoading(true)
+    try {
+      const userId = currentUser.uid || localStorage.getItem('firebase_user_id') || localStorage.getItem('userId') || 'demo_user'
+      const response = await fetch(`/api/referral/my-codes?user_id=${userId}`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        setHasReferralCode(data.codes && data.codes.length > 0)
+      } else {
+        setHasReferralCode(false)
+      }
+    } catch (error) {
+      console.error('추천인 코드 확인 실패:', error)
+      setHasReferralCode(false)
+    } finally {
+      setReferralCodeLoading(false)
+    }
+  }
+
+  // 사용자가 로그인했을 때 포인트 조회 및 추천인 코드 확인
   useEffect(() => {
     if (currentUser) {
       fetchUserPoints()
+      checkReferralCode()
     } else {
       setUserPoints(0)
+      setHasReferralCode(false)
     }
   }, [currentUser])
 
-  const menuItems = [
+  // 기본 메뉴 아이템
+  const baseMenuItems = [
     { id: 'order', name: '주문하기', icon: Star, path: '/', color: '#3b82f6' },
     { id: 'orders', name: '주문내역', icon: FileText, path: '/orders', color: '#8b5cf6' },
     { id: 'points', name: '포인트 구매', icon: CreditCard, path: '/points', color: '#f59e0b' },
-    { id: 'referral', name: '추천인 대시보드', icon: Users, path: '/referral', color: '#8b5cf6' },
     { id: 'info', name: '상품안내 및 주문방법', icon: Info, path: '/info', color: '#10b981' },
     { id: 'faq', name: '자주 묻는 질문', icon: HelpCircle, path: '/faq', color: '#f59e0b' },
     { id: 'service', name: '서비스 소개서', icon: FileText, path: '/service', color: '#6b7280' }
   ]
+
+  // 추천인 대시보드 메뉴 (추천인 코드가 있는 사용자만)
+  const referralMenuItem = { id: 'referral', name: '추천인 대시보드', icon: Users, path: '/referral', color: '#8b5cf6' }
+
+  // 최종 메뉴 아이템 구성
+  const menuItems = hasReferralCode 
+    ? [...baseMenuItems.slice(0, 3), referralMenuItem, ...baseMenuItems.slice(3)]
+    : baseMenuItems
 
   // 관리자 메뉴 아이템 (관리자 계정일 때만 표시)
   const adminMenuItems = [
