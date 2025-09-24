@@ -529,9 +529,18 @@ def register():
         print(f"🔍 파싱된 데이터 - user_id: {user_id}, email: {email}, name: {name}")
         print(f"🔍 데이터 타입 - user_id: {type(user_id)}, email: {type(email)}, name: {type(name)}")
         
-        if not all([user_id, email, name]):
-            print(f"❌ 필수 필드 누락 - user_id: {user_id}, email: {email}, name: {name}")
-            return jsonify({'error': '필수 필드가 누락되었습니다.'}), 400
+        # 필수 필드 검증 (None, 빈 문자열, 공백만 있는 문자열 체크)
+        if not user_id or not user_id.strip():
+            print(f"❌ user_id 누락 또는 빈 값: {user_id}")
+            return jsonify({'error': '사용자 ID가 필요합니다.'}), 400
+        
+        if not email or not email.strip():
+            print(f"❌ email 누락 또는 빈 값: {email}")
+            return jsonify({'error': '이메일이 필요합니다.'}), 400
+        
+        if not name or not name.strip():
+            print(f"❌ name 누락 또는 빈 값: {name}")
+            return jsonify({'error': '이름이 필요합니다.'}), 400
         
         # 이메일 형식 검증
         import re
@@ -544,6 +553,8 @@ def register():
         cursor = conn.cursor()
         
         # 사용자 정보 저장
+        print(f"💾 사용자 정보 저장 시도 - user_id: {user_id}, email: {email}, name: {name}")
+        
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 INSERT INTO users (user_id, email, name, created_at, updated_at)
@@ -553,6 +564,7 @@ def register():
                     name = EXCLUDED.name,
                     updated_at = NOW()
             """, (user_id, email, name))
+            print(f"✅ PostgreSQL 사용자 정보 저장 완료")
             
             # 포인트 초기화
             cursor.execute("""
@@ -1512,11 +1524,11 @@ def issue_referral_coupon():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 추천인 코드 유효성 확인 (다양한 활성화 상태 처리)
+        # 추천인 코드 유효성 확인 (PostgreSQL 타입 안전성)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT id, user_email FROM referral_codes 
-                WHERE code = %s AND (is_active = true OR is_active = 1)
+                WHERE code = %s AND is_active = true
             """, (referral_code,))
         else:
             cursor.execute("""
@@ -1525,10 +1537,14 @@ def issue_referral_coupon():
             """, (referral_code,))
         
         referrer_data = cursor.fetchone()
+        print(f"🔍 추천인 코드 조회 결과: {referrer_data}")
+        
         if not referrer_data:
+            print(f"❌ 유효하지 않은 추천인 코드: {referral_code}")
             return jsonify({'error': '유효하지 않은 추천인 코드입니다.'}), 400
         
         referrer_id, referrer_email = referrer_data
+        print(f"✅ 추천인 코드 유효 - ID: {referrer_id}, 이메일: {referrer_email}")
         
         # 사용자-추천인 연결 저장
         if DATABASE_URL.startswith('postgresql://'):
