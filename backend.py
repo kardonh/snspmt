@@ -1295,27 +1295,7 @@ def get_user(user_id):
         return jsonify({'error': f'사용자 정보 조회 실패: {str(e)}'}), 500
 
 # 추천인 코드 생성
-@app.route('/api/referral/generate-code', methods=['POST'])
-def generate_referral_code():
-    """추천인 코드 생성"""
-    try:
-        data = request.get_json()
-        user_id = data.get('user_id')
-        
-        if not user_id:
-            return jsonify({'error': 'user_id가 필요합니다.'}), 400
-        
-        # 간단한 추천인 코드 생성 (사용자 ID + 타임스탬프)
-        import time
-        code = f"REF_{user_id}_{int(time.time())}"
-        
-        return jsonify({
-            'code': code,
-            'message': '추천인 코드가 생성되었습니다.'
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': f'추천인 코드 생성 실패: {str(e)}'}), 500
+# 사용하지 않는 엔드포인트 제거됨 - 관리자 API 사용
 
 # 추천인 코드 조회
 @app.route('/api/referral/my-codes', methods=['GET'])
@@ -1453,7 +1433,7 @@ def get_commissions():
             
             commissions = []
             for row in cursor.fetchall():
-                # 날짜 형식 처리
+                # 날짜 형식 처리 (created_at는 5번째 인덱스)
                 payment_date = row[5]
                 if hasattr(payment_date, 'strftime'):
                     payment_date = payment_date.strftime('%Y-%m-%d')
@@ -1468,7 +1448,8 @@ def get_commissions():
                     'purchaseAmount': row[2],
                     'commissionAmount': row[3],
                     'commissionRate': f"{row[4] * 100}%" if row[4] else "0%",
-                    'paymentDate': payment_date
+                    'paymentDate': payment_date,
+                    'isPaid': True  # 기본값으로 지급 완료 처리
                 })
             
             return jsonify({
@@ -1902,26 +1883,36 @@ def get_referral_stats():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # user_id가 이메일인지 확인하고 적절히 처리
+        if '@' in user_id:
+            # 이미 이메일인 경우
+            user_email = user_id
+        else:
+            # user_id인 경우 이메일로 변환
+            user_email = f"{user_id}@example.com"
+        
+        print(f"🔍 추천인 통계 조회 - user_id: {user_id}, user_email: {user_email}")
+        
         if DATABASE_URL.startswith('postgresql://'):
             # 총 추천인 수
             cursor.execute("""
                 SELECT COUNT(*) FROM referrals 
                 WHERE referrer_email = %s
-            """, (f"{user_id}@example.com",))
+            """, (user_email,))
             total_referrals = cursor.fetchone()[0] or 0
             
             # 활성 추천인 수
             cursor.execute("""
                 SELECT COUNT(*) FROM referrals 
                 WHERE referrer_email = %s AND status = 'active'
-            """, (f"{user_id}@example.com",))
+            """, (user_email,))
             active_referrals = cursor.fetchone()[0] or 0
             
-            # 총 커미션
+            # 총 커미션 (이메일로 조회)
             cursor.execute("""
                 SELECT COALESCE(SUM(commission_amount), 0) FROM commissions 
-                WHERE referrer_id = %s
-            """, (user_id,))
+                WHERE referrer_email = %s
+            """, (user_email,))
             total_commission = cursor.fetchone()[0] or 0
             
             # 이번 달 추천인 수
@@ -1929,15 +1920,15 @@ def get_referral_stats():
                 SELECT COUNT(*) FROM referrals 
                 WHERE referrer_email = %s 
                 AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)
-            """, (f"{user_id}@example.com",))
+            """, (user_email,))
             this_month_referrals = cursor.fetchone()[0] or 0
             
             # 이번 달 커미션
             cursor.execute("""
                 SELECT COALESCE(SUM(commission_amount), 0) FROM commissions 
-                WHERE referrer_id = %s 
-                AND DATE_TRUNC('month', payment_date) = DATE_TRUNC('month', CURRENT_DATE)
-            """, (user_id,))
+                WHERE referrer_email = %s 
+                AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)
+            """, (user_email,))
             this_month_commission = cursor.fetchone()[0] or 0
         else:
             # SQLite 버전

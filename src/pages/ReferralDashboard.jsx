@@ -126,12 +126,14 @@ const ReferralDashboard = () => {
         console.error('❌ 추천인 코드 조회 실패:', codeResponse.status)
       }
 
-      // 추천인 통계 조회
-      const statsResponse = await fetch(`/api/referral/stats?user_id=${userId}`)
+      // 추천인 통계 조회 (이메일 사용)
+      const statsResponse = await fetch(`/api/referral/stats?user_id=${userEmail}`)
       if (statsResponse.ok) {
         const statsData = await statsResponse.json()
         setReferralStats(statsData)
+        console.log('📊 추천인 통계:', statsData)
       } else {
+        console.error('❌ 추천인 통계 조회 실패:', statsResponse.status)
         // 폴백 데이터
         setReferralStats({
           totalReferrals: 0,
@@ -142,18 +144,24 @@ const ReferralDashboard = () => {
         })
       }
 
-      // 추천인 목록 조회
-      const referralsResponse = await fetch(`/api/referral/referrals?user_id=${userId}`)
+      // 추천인 목록 조회 (이메일 사용)
+      const referralsResponse = await fetch(`/api/referral/referrals?user_id=${userEmail}`)
       if (referralsResponse.ok) {
         const referralsData = await referralsResponse.json()
         setReferralHistory(referralsData.referrals || [])
+        console.log('👥 추천인 목록:', referralsData.referrals)
+      } else {
+        console.error('❌ 추천인 목록 조회 실패:', referralsResponse.status)
       }
 
-      // 커미션 내역 조회
-      const commissionsResponse = await fetch(`/api/referral/commissions?user_id=${userId}`)
+      // 커미션 내역 조회 (이메일 사용)
+      const commissionsResponse = await fetch(`/api/referral/commissions?user_id=${userEmail}`)
       if (commissionsResponse.ok) {
         const commissionsData = await commissionsResponse.json()
         setCommissionHistory(commissionsData.commissions || [])
+        console.log('💰 커미션 내역:', commissionsData.commissions)
+      } else {
+        console.error('❌ 커미션 내역 조회 실패:', commissionsResponse.status)
       }
     } catch (error) {
       console.error('추천인 데이터 로드 실패:', error)

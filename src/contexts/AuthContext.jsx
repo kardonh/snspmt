@@ -57,6 +57,7 @@ export function AuthProvider({ children }) {
           return smmpanelApi.registerUser(userData).then(() => {
             // 추천인 코드가 있으면 5% 할인 쿠폰 발급
             if (businessInfo && businessInfo.referralCode) {
+              console.log('🎁 추천인 쿠폰 발급 시도:', businessInfo.referralCode);
               return fetch('/api/referral/issue-coupon', {
                 method: 'POST',
                 headers: {
@@ -68,12 +69,19 @@ export function AuthProvider({ children }) {
                 })
               }).then(response => {
                 if (response.ok) {
-                  console.log('추천인 쿠폰이 발급되었습니다!');
+                  console.log('✅ 추천인 쿠폰이 발급되었습니다!');
+                  return response.json();
                 } else {
-                  console.log('추천인 쿠폰 발급에 실패했습니다.');
+                  console.error('❌ 추천인 쿠폰 발급 실패:', response.status);
+                  return response.json().then(errorData => {
+                    console.error('❌ 쿠폰 발급 오류 상세:', errorData);
+                    throw new Error(`쿠폰 발급 실패: ${errorData.error || '알 수 없는 오류'}`);
+                  });
                 }
               }).catch(error => {
-                console.error('추천인 쿠폰 발급 오류:', error);
+                console.error('❌ 추천인 쿠폰 발급 오류:', error);
+                // 쿠폰 발급 실패해도 회원가입은 계속 진행
+                return Promise.resolve();
               });
             }
           });
