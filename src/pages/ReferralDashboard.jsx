@@ -71,15 +71,18 @@ const ReferralDashboard = () => {
           console.log('🔍 추천인 코드 상태 확인:', codeData.codes)
           console.log('✅ 활성화된 코드 존재:', hasActiveCode)
           
-          if (hasActiveCode) {
-            setHasReferralCode(true)
-            loadReferralData()
-            loadCommissionPoints()
-            console.log('✅ 추천인 대시보드 접근 허용')
-          } else {
-            setHasReferralCode(false)
-            console.log('❌ 활성화된 추천인 코드가 없습니다')
-          }
+                  if (hasActiveCode) {
+                    setHasReferralCode(true)
+                    // 추천인 코드 설정
+                    setReferralCode(codeData.codes[0].code)
+                    console.log('✅ 추천인 대시보드 접근 허용')
+                    // 데이터 로드
+                    loadReferralData()
+                    loadCommissionPoints()
+                  } else {
+                    setHasReferralCode(false)
+                    console.log('❌ 활성화된 추천인 코드가 없습니다')
+                  }
         } else {
           setHasReferralCode(false)
           console.log('❌ 추천인 코드가 없습니다')

@@ -863,9 +863,15 @@ def create_order():
 @app.route('/api/orders', methods=['GET'])
 def get_orders():
     """주문 목록 조회"""
+    conn = None
+    cursor = None
+    
     try:
         user_id = request.args.get('user_id')
+        print(f"🔍 주문 조회 요청 - user_id: {user_id}")
+        
         if not user_id:
+            print(f"❌ user_id 누락")
             return jsonify({'error': 'user_id가 필요합니다.'}), 400
         
         conn = get_db_connection()
@@ -890,7 +896,6 @@ def get_orders():
             print(f"📋 주문 데이터: {orders}")
         else:
             print(f"⚠️ 주문 데이터 없음 - user_id: {user_id}")
-        conn.close()
         
         order_list = []
         for order in orders:
@@ -904,12 +909,20 @@ def get_orders():
                 'created_at': order[6].isoformat() if hasattr(order[6], 'isoformat') else str(order[6])
             })
         
+        print(f"✅ 주문 조회 성공: {len(order_list)}개")
         return jsonify({
             'orders': order_list
         }), 200
         
     except Exception as e:
+        print(f"❌ 주문 조회 오류: {e}")
         return jsonify({'error': f'주문 목록 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        print("✅ 데이터베이스 연결 종료")
 
 # 포인트 구매 신청
 @app.route('/api/points/purchase', methods=['POST'])
@@ -1921,11 +1934,11 @@ def get_referral_stats():
             """, (user_email,))
             active_referrals = cursor.fetchone()[0] or 0
             
-            # 총 커미션 (이메일로 조회)
+            # 총 커미션 (referrer_id로 조회)
             cursor.execute("""
                 SELECT COALESCE(SUM(commission_amount), 0) FROM commissions 
-                WHERE referrer_email = %s
-            """, (user_email,))
+                WHERE referrer_id = %s
+            """, (user_id,))
             total_commission = cursor.fetchone()[0] or 0
             
             # 이번 달 추천인 수
@@ -1939,9 +1952,9 @@ def get_referral_stats():
             # 이번 달 커미션
             cursor.execute("""
                 SELECT COALESCE(SUM(commission_amount), 0) FROM commissions 
-                WHERE referrer_email = %s 
+                WHERE referrer_id = %s 
                 AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)
-            """, (user_email,))
+            """, (user_id,))
             this_month_commission = cursor.fetchone()[0] or 0
         else:
             # SQLite 버전
@@ -2268,6 +2281,15 @@ def admin_get_referral_codes():
                 from datetime import datetime
                 created_at = datetime.now().isoformat()
             
+            # is_active 값 처리
+            is_active = row[6]
+            if is_active is None:
+                is_active = True  # None이면 True로 설정
+            elif isinstance(is_active, str):
+                is_active = is_active.lower() in ['true', '1', 'yes']
+            else:
+                is_active = bool(is_active)
+            
             codes.append({
                 'id': row[0],
                 'code': row[1],
@@ -2275,7 +2297,7 @@ def admin_get_referral_codes():
                 'name': row[3],
                 'phone': row[4],
                 'createdAt': created_at,
-                'isActive': True,  # 항상 활성화 상태로 반환
+                'isActive': is_active,
                 'usage_count': row[7],
                 'total_commission': row[8]
             })

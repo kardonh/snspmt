@@ -32,20 +32,32 @@ const OrdersPage = () => {
       setLoading(true)
       setError(null)
       
-      const userId = currentUser.uid || currentUser.email
+      const userId = currentUser?.uid || localStorage.getItem('userId') || 'demo_user'
+      console.log('🔍 주문내역 조회 - 사용자 ID:', userId)
       
       // 올바른 API 호출
       const response = await fetch(`/api/orders?user_id=${userId}`)
-      const data = await response.json()
+      console.log('📦 주문내역 API 응답:', response.status, response.statusText)
       
-      if (response.ok && data.orders) {
-        setOrders(data.orders)
+      if (response.ok) {
+        const data = await response.json()
+        console.log('📦 주문내역 데이터:', data)
+        if (data.orders) {
+          setOrders(data.orders)
+          console.log('✅ 주문내역 로드 성공:', data.orders.length, '개')
+        } else {
+          setOrders([])
+          console.log('ℹ️ 주문내역 없음')
+        }
       } else {
+        console.error('❌ 주문내역 API 오류:', response.status)
         setOrders([])
+        setError('주문 목록을 불러오는데 실패했습니다.')
       }
     } catch (err) {
-      console.error('주문 목록 로드 실패:', err)
+      console.error('❌ 주문 목록 로드 실패:', err)
       setError('주문 목록을 불러오는데 실패했습니다.')
+      setOrders([])
     } finally {
       setLoading(false)
     }
