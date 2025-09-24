@@ -462,6 +462,30 @@ const AdminPage = () => {
     setShowPaymentModal(true)
   }
 
+  // 모든 추천인 코드 활성화
+  const handleActivateAllCodes = async () => {
+    try {
+      const response = await fetch('/api/admin/referral/activate-all', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        alert(result.message)
+        loadReferralData() // 데이터 새로고침
+      } else {
+        const errorData = await response.json()
+        alert(`활성화 실패: ${errorData.error}`)
+      }
+    } catch (error) {
+      console.error('코드 활성화 오류:', error)
+      alert('코드 활성화 중 오류가 발생했습니다.')
+    }
+  }
+
   // 추천인 등록 성공 핸들러
   const handleReferralRegistrationSuccess = async (result) => {
     try {
@@ -944,6 +968,13 @@ const AdminPage = () => {
             >
               <UserPlus size={16} />
               이메일로 추천인 등록
+            </button>
+            <button 
+              onClick={handleActivateAllCodes}
+              className="admin-button warning"
+            >
+              <CheckCircle size={16} />
+              모든 코드 활성화
             </button>
           </div>
         </div>

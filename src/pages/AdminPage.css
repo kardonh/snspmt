@@ -1146,6 +1146,17 @@
   box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
 }
 
+.admin-button.warning {
+  background: linear-gradient(45deg, #f59e0b, #d97706);
+  color: white;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+}
+
+.admin-button.warning:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+}
+
 .referral-input {
   flex: 1;
   padding: 15px 20px;
