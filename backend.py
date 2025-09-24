@@ -1343,12 +1343,19 @@ def get_my_codes():
         print(f"📊 조회된 추천인 코드 수: {len(rows)}")
         
         for row in rows:
-            # 날짜 형식 처리
+            # 날짜 형식 처리 강화
             created_at = row[4]
             if hasattr(created_at, 'isoformat'):
                 created_at = created_at.isoformat()
+            elif hasattr(created_at, 'strftime'):
+                created_at = created_at.strftime('%Y-%m-%dT%H:%M:%S')
             else:
                 created_at = str(created_at)
+            
+            # Invalid Date 방지
+            if created_at == 'None' or created_at == 'null' or not created_at:
+                from datetime import datetime
+                created_at = datetime.now().isoformat()
             
             code_data = {
                 'code': row[0],
@@ -2204,7 +2211,7 @@ def admin_get_referral_codes():
         
         codes = []
         for row in cursor.fetchall():
-            # 날짜 형식 처리
+            # 날짜 형식 처리 강화
             created_at = row[5]
             if hasattr(created_at, 'isoformat'):
                 created_at = created_at.isoformat()
@@ -2212,6 +2219,11 @@ def admin_get_referral_codes():
                 created_at = created_at.strftime('%Y-%m-%dT%H:%M:%S')
             else:
                 created_at = str(created_at)
+            
+            # Invalid Date 방지
+            if created_at == 'None' or created_at == 'null' or not created_at:
+                from datetime import datetime
+                created_at = datetime.now().isoformat()
             
             codes.append({
                 'id': row[0],
@@ -2650,14 +2662,14 @@ def activate_all_referral_codes():
             
             # 활성화 후 상태 확인
             if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("SELECT code, is_active FROM referral_codes")
+                cursor.execute("SELECT code, is_active, created_at FROM referral_codes")
             else:
-                cursor.execute("SELECT code, is_active FROM referral_codes")
+                cursor.execute("SELECT code, is_active, created_at FROM referral_codes")
             
             active_codes = cursor.fetchall()
             print(f"📊 활성화 후 상태 확인:")
-            for code, is_active in active_codes:
-                print(f"  - {code}: {is_active}")
+            for code, is_active, created_at in active_codes:
+                print(f"  - {code}: 활성화={is_active}, 생성일={created_at}")
             
             return jsonify({'message': f'{affected_rows}개의 추천인 코드가 활성화되었습니다'}), 200
             

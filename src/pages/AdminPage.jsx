@@ -1014,7 +1014,7 @@ const AdminPage = () => {
                     <td className="commission-amount">
                       {code.total_commission.toLocaleString()}원
                     </td>
-                    <td>{new Date(code.created_at).toLocaleDateString()}</td>
+                    <td>{code.created_at ? new Date(code.created_at).toLocaleDateString() : '날짜 없음'}</td>
                   </tr>
                 ))}
               </tbody>
