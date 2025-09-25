@@ -279,7 +279,7 @@ const PointsPage = () => {
               </div>
               <div className="account-item">
                 <span className="account-label">예금주</span>
-                <span className="account-value">(주)스마트소셜미디어</span>
+                <span className="account-value">서동현((템블)tamble)</span>
               </div>
             </div>
             <div className="account-note">
