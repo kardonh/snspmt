@@ -530,15 +530,15 @@ def register():
         print(f"🔍 데이터 타입 - user_id: {type(user_id)}, email: {type(email)}, name: {type(name)}")
         
         # 필수 필드 검증 (None, 빈 문자열, 공백만 있는 문자열 체크)
-        if not user_id or not user_id.strip():
+        if not user_id or not str(user_id).strip():
             print(f"❌ user_id 누락 또는 빈 값: {user_id}")
             return jsonify({'error': '사용자 ID가 필요합니다.'}), 400
         
-        if not email or not email.strip():
+        if not email or not str(email).strip():
             print(f"❌ email 누락 또는 빈 값: {email}")
             return jsonify({'error': '이메일이 필요합니다.'}), 400
         
-        if not name or not name.strip():
+        if not name or not str(name).strip():
             print(f"❌ name 누락 또는 빈 값: {name}")
             return jsonify({'error': '이름이 필요합니다.'}), 400
         
@@ -770,6 +770,8 @@ def create_order():
                 referrer_email = referral_data[1]
                 commission_amount = final_price * 0.1  # 10% 커미션
                 
+                print(f"💰 커미션 계산 - 추천인: {referrer_email}, 구매금액: {final_price}, 커미션: {commission_amount}")
+                
                 # 기존 커미션 테이블에 기록
                 if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
@@ -783,6 +785,8 @@ def create_order():
                                                 commission_amount, commission_rate, created_at)
                         VALUES (?, ?, ?, ?, ?, datetime('now'))
                     """, (user_id, referrer_email, final_price, commission_amount, 0.1))
+                
+                print(f"✅ 커미션 기록 완료 - 추천인: {referrer_email}, 커미션: {commission_amount}")
                 
                 # 커미션 포인트 적립 처리
                 if DATABASE_URL.startswith('postgresql://'):

@@ -92,11 +92,15 @@ export function AuthProvider({ children }) {
         if (error.code === 'auth/email-already-in-use') {
           throw new Error('이미 사용 중인 이메일입니다.');
         } else if (error.code === 'auth/weak-password') {
-          throw new Error('비밀번호가 너무 약합니다.');
+          throw new Error('비밀번호가 너무 약합니다. 6자 이상 입력해주세요.');
         } else if (error.code === 'auth/invalid-email') {
           throw new Error('유효하지 않은 이메일입니다.');
+        } else if (error.code === 'auth/too-many-requests') {
+          throw new Error('너무 많은 요청으로 인해 일시적으로 차단되었습니다.');
+        } else if (error.code === 'auth/network-request-failed') {
+          throw new Error('네트워크 연결을 확인해주세요.');
         } else {
-          throw new Error('회원가입 중 오류가 발생했습니다.');
+          throw new Error('회원가입 중 오류가 발생했습니다: ' + error.message);
         }
       });
   }
