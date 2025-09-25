@@ -220,7 +220,7 @@ const Sidebar = ({ onClose }) => {
         {businessInfoOpen && (
           <div className="business-info-content">
             <div className="info-item">
-              <strong>상호명:</strong> tamble
+              <strong>상호명:</strong> 탬블(tamble)
             </div>
             <div className="info-item">
               <strong>대표:</strong> 서동현
@@ -232,13 +232,10 @@ const Sidebar = ({ onClose }) => {
               <strong>사업자번호:</strong> 869-02-02736
             </div>
             <div className="info-item">
-              <strong>통신판매:</strong> 신고예정
+              <strong>통신판매:</strong> 2023-충북청주-3089호
             </div>
             <div className="info-item">
-              <strong>연락처:</strong> 준비중
-            </div>
-            <div className="info-item">
-              <strong>이메일:</strong> 준비중
+              <strong>이메일:</strong> tambleofficial@gmail.com
             </div>
             <div className="info-links">
               <a href="/terms">이용약관</a>
