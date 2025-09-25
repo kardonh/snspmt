@@ -1035,12 +1035,14 @@ const Home = () => {
     if (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp' || selectedPlatform === 'top-exposure') {
       basePrice = (selectedDetailedService.price / 1000) * quantity // 1000개 가격을 1개 가격으로 변환
     } else {
-      // 기존 SMM KINGS 가격 사용
-      basePrice = selectedDetailedService.price * quantity
+      // 기존 SMM KINGS 가격 사용 (1000으로 나누기)
+      basePrice = (selectedDetailedService.price / 1000) * quantity
     }
     
     // 할인 적용
     let discount = 0
+    
+    // 수량 기반 할인
     if (quantity >= 5000) {
       discount = 20
     } else if (quantity >= 1000) {
@@ -1049,7 +1051,11 @@ const Home = () => {
       discount = 10
     }
     
-    const finalPrice = basePrice * (1 - discount / 100)
+    // 추천인 할인 (5% 추가)
+    const referralDiscount = 5
+    const totalDiscount = discount + referralDiscount
+    
+    const finalPrice = basePrice * (1 - totalDiscount / 100)
     setTotalPrice(Math.round(finalPrice))
   }, [selectedDetailedService, quantity, selectedPlatform])
 

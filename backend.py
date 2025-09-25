@@ -2067,6 +2067,14 @@ def get_user_referrals():
         
         print(f"🔍 피추천인 목록 조회 - user_id: {user_id}")
         
+        # user_id가 이메일인지 확인하고 적절히 처리
+        if '@' in user_id:
+            user_email = user_id
+        else:
+            user_email = f"{user_id}@example.com"
+        
+        print(f"🔍 검색할 이메일: {user_email}")
+        
         # user_referral_connections 테이블에서 피추천인 목록 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
@@ -2076,7 +2084,7 @@ def get_user_referrals():
                 LEFT JOIN users u ON urc.user_id = u.user_id
                 WHERE urc.referrer_email = %s
                 ORDER BY urc.created_at DESC
-            """, (user_id,))
+            """, (user_email,))
         else:
             cursor.execute("""
                 SELECT urc.id, urc.user_id, urc.referral_code, urc.created_at,
@@ -2085,7 +2093,7 @@ def get_user_referrals():
                 LEFT JOIN users u ON urc.user_id = u.user_id
                 WHERE urc.referrer_email = ?
                 ORDER BY urc.created_at DESC
-            """, (user_id,))
+            """, (user_email,))
         
         referrals = []
         for row in cursor.fetchall():
