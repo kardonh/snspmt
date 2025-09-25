@@ -130,6 +130,12 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
       return false;
     }
     
+    // 회원가입 시 이름 검증
+    if (!isLogin && !displayName.trim()) {
+      setError('이름을 입력해주세요.');
+      return false;
+    }
+    
     return true;
   };
 

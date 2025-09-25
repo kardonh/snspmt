@@ -538,14 +538,9 @@ def register():
             print(f"❌ email 누락 또는 빈 값: {email}")
             return jsonify({'error': '이메일이 필요합니다.'}), 400
         
-        # 이름이 빈 값이면 이메일에서 추출하거나 기본값 사용
         if not name or (isinstance(name, str) and not name.strip()):
-            print(f"⚠️ name이 빈 값이므로 기본값 설정: {name}")
-            if email and '@' in email:
-                name = email.split('@')[0]  # 이메일의 @ 앞부분을 이름으로 사용
-            else:
-                name = 'User'  # 기본값
-            print(f"✅ name 기본값 설정: {name}")
+            print(f"❌ name 누락 또는 빈 값: {name}")
+            return jsonify({'error': '이름을 입력해주세요.'}), 400
         
         # 이메일 형식 검증
         import re

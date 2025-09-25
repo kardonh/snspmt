@@ -47,7 +47,6 @@ const ReferralDashboard = () => {
       // 사용자 이메일 가져오기 (실제 이메일 우선)
       const userEmail = localStorage.getItem('userEmail') || 
                         localStorage.getItem('firebase_user_email') || 
-                        localStorage.getItem('userEmail') ||
                         'tambleofficial@gmail.com'  // 실제 사용자 이메일
       
       console.log('🔍 사용자 이메일:', userEmail)
@@ -71,18 +70,18 @@ const ReferralDashboard = () => {
           console.log('🔍 추천인 코드 상태 확인:', codeData.codes)
           console.log('✅ 활성화된 코드 존재:', hasActiveCode)
           
-                  if (hasActiveCode) {
-                    setHasReferralCode(true)
-                    // 추천인 코드 설정
-                    setReferralCode(codeData.codes[0].code)
-                    console.log('✅ 추천인 대시보드 접근 허용')
-                    // 데이터 로드
-                    loadReferralData()
-                    loadCommissionPoints()
-                  } else {
-                    setHasReferralCode(false)
-                    console.log('❌ 활성화된 추천인 코드가 없습니다')
-                  }
+          if (hasActiveCode) {
+            setHasReferralCode(true)
+            // 추천인 코드 설정
+            setReferralCode(codeData.codes[0].code)
+            console.log('✅ 추천인 대시보드 접근 허용')
+            // 데이터 로드 (중복 호출 방지)
+            loadReferralData(userEmail)
+            loadCommissionPoints(userEmail)
+          } else {
+            setHasReferralCode(false)
+            console.log('❌ 활성화된 추천인 코드가 없습니다')
+          }
         } else {
           setHasReferralCode(false)
           console.log('❌ 추천인 코드가 없습니다')
@@ -100,37 +99,17 @@ const ReferralDashboard = () => {
     }
   }
 
-  const loadReferralData = async () => {
+  const loadReferralData = async (userEmail) => {
     try {
-      // Firebase 사용자 ID 가져오기
-      const userId = localStorage.getItem('userId') || 
-                    localStorage.getItem('firebase_user_id') || 
-                    'demo_user'
+      // 매개변수로 받은 이메일 사용, 없으면 기본값
+      const email = userEmail || localStorage.getItem('userEmail') || 
+                    localStorage.getItem('firebase_user_email') || 
+                    'tambleofficial@gmail.com'
       
-      // 사용자 이메일 가져오기 (추천인 코드는 이메일로 저장됨)
-      const userEmail = localStorage.getItem('userEmail') || 
-                        localStorage.getItem('firebase_user_email') || 
-                        `${userId}@example.com`
-      
-      // 추천인 코드 조회
-      const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userEmail}`)
-      if (codeResponse.ok) {
-        const codeData = await codeResponse.json()
-        console.log('📋 추천인 코드 조회 결과:', codeData)
-        if (codeData.codes && codeData.codes.length > 0) {
-          setReferralCode(codeData.codes[0].code)
-          console.log('✅ 추천인 코드 설정:', codeData.codes[0].code)
-        } else {
-          console.log('❌ 추천인 코드가 없습니다. 관리자에게 문의하세요.')
-          // 코드가 없으면 사용자에게 알림
-          alert('추천인 코드가 없습니다. 관리자에게 문의하세요.')
-        }
-      } else {
-        console.error('❌ 추천인 코드 조회 실패:', codeResponse.status)
-      }
+      console.log('📊 추천인 데이터 로드 시작 - 이메일:', email)
 
       // 추천인 통계 조회 (이메일 사용)
-      const statsResponse = await fetch(`/api/referral/stats?user_id=${userEmail}`)
+      const statsResponse = await fetch(`/api/referral/stats?user_id=${email}`)
       if (statsResponse.ok) {
         const statsData = await statsResponse.json()
         setReferralStats(statsData)
@@ -148,7 +127,7 @@ const ReferralDashboard = () => {
       }
 
       // 추천인 목록 조회 (이메일 사용)
-      const referralsResponse = await fetch(`/api/referral/referrals?user_id=${userEmail}`)
+      const referralsResponse = await fetch(`/api/referral/referrals?user_id=${email}`)
       if (referralsResponse.ok) {
         const referralsData = await referralsResponse.json()
         setReferralHistory(referralsData.referrals || [])
@@ -158,7 +137,7 @@ const ReferralDashboard = () => {
       }
 
       // 커미션 내역 조회 (이메일 사용)
-      const commissionsResponse = await fetch(`/api/referral/commissions?user_id=${userEmail}`)
+      const commissionsResponse = await fetch(`/api/referral/commissions?user_id=${email}`)
       if (commissionsResponse.ok) {
         const commissionsData = await commissionsResponse.json()
         setCommissionHistory(commissionsData.commissions || [])
@@ -180,24 +159,33 @@ const ReferralDashboard = () => {
   }
 
   // 커미션 포인트 데이터 로드
-  const loadCommissionPoints = async () => {
+  const loadCommissionPoints = async (userEmail) => {
     try {
-      const userEmail = localStorage.getItem('userEmail') || 
-                       localStorage.getItem('firebase_user_email') || 
-                       'demo@example.com'
+      // 매개변수로 받은 이메일 사용, 없으면 기본값
+      const email = userEmail || localStorage.getItem('userEmail') || 
+                    localStorage.getItem('firebase_user_email') || 
+                    'tambleofficial@gmail.com'
+      
+      console.log('💰 커미션 포인트 데이터 로드 시작 - 이메일:', email)
       
       // 커미션 포인트 조회
-      const pointsResponse = await fetch(`/api/referral/commission-points?referrer_email=${userEmail}`)
+      const pointsResponse = await fetch(`/api/referral/commission-points?referrer_email=${email}`)
       if (pointsResponse.ok) {
         const pointsData = await pointsResponse.json()
         setCommissionPoints(pointsData)
+        console.log('💰 커미션 포인트:', pointsData)
+      } else {
+        console.error('❌ 커미션 포인트 조회 실패:', pointsResponse.status)
       }
       
       // 커미션 포인트 거래 내역 조회
-      const transactionsResponse = await fetch(`/api/referral/commission-transactions?referrer_email=${userEmail}`)
+      const transactionsResponse = await fetch(`/api/referral/commission-transactions?referrer_email=${email}`)
       if (transactionsResponse.ok) {
         const transactionsData = await transactionsResponse.json()
         setCommissionTransactions(transactionsData.transactions || [])
+        console.log('💰 커미션 거래 내역:', transactionsData.transactions)
+      } else {
+        console.error('❌ 커미션 거래 내역 조회 실패:', transactionsResponse.status)
       }
       
     } catch (error) {
