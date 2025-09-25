@@ -530,15 +530,15 @@ def register():
         print(f"🔍 데이터 타입 - user_id: {type(user_id)}, email: {type(email)}, name: {type(name)}")
         
         # 필수 필드 검증 (None, 빈 문자열, 공백만 있는 문자열 체크)
-        if not user_id or not str(user_id).strip():
+        if not user_id or (isinstance(user_id, str) and not user_id.strip()):
             print(f"❌ user_id 누락 또는 빈 값: {user_id}")
             return jsonify({'error': '사용자 ID가 필요합니다.'}), 400
         
-        if not email or not str(email).strip():
+        if not email or (isinstance(email, str) and not email.strip()):
             print(f"❌ email 누락 또는 빈 값: {email}")
             return jsonify({'error': '이메일이 필요합니다.'}), 400
         
-        if not name or not str(name).strip():
+        if not name or (isinstance(name, str) and not name.strip()):
             print(f"❌ name 누락 또는 빈 값: {name}")
             return jsonify({'error': '이름이 필요합니다.'}), 400
         
@@ -586,6 +586,8 @@ def register():
         conn.commit()
         conn.close()
         
+        print(f"✅ 사용자 등록 완료 - user_id: {user_id}, email: {email}, name: {name}")
+        
         return jsonify({
             'success': True,
             'message': '사용자 등록이 완료되었습니다.',
@@ -593,6 +595,9 @@ def register():
         }), 200
         
     except Exception as e:
+        print(f"❌ 사용자 등록 오류: {e}")
+        print(f"❌ 오류 타입: {type(e)}")
+        print(f"❌ 오류 상세: {str(e)}")
         return jsonify({'error': f'사용자 등록 실패: {str(e)}'}), 500
 
 # 사용자 포인트 조회
