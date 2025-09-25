@@ -155,7 +155,18 @@ export const smmpanelApi = {
   
   // 사용자 관련 API
   // 사용자 등록
-  registerUser: (userData) => apiClient.post('/register', userData),
+  registerUser: (userData) => {
+    console.log('🔍 사용자 등록 요청 데이터:', userData)
+    return apiClient.post('/register', userData)
+      .then(response => {
+        console.log('✅ 사용자 등록 성공:', response)
+        return response
+      })
+      .catch(error => {
+        console.error('❌ 사용자 등록 실패:', error)
+        throw error
+      })
+  },
   
   
   // 사용자 활동 업데이트 (현재 백엔드에서 지원하지 않음)
