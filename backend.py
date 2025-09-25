@@ -141,6 +141,20 @@ def init_database():
             updated_count = cursor.rowcount
             print(f"🔄 기존 추천인 코드 강제 활성화 완료: {updated_count}개 업데이트")
             
+            # 기존 추천인 코드의 user_id를 고유하게 업데이트
+            cursor.execute("SELECT id, user_email FROM referral_codes WHERE user_id IS NULL OR user_id = ''")
+            existing_codes = cursor.fetchall()
+            
+            for code_id, user_email in existing_codes:
+                if user_email:
+                    import hashlib
+                    user_unique_id = hashlib.md5(user_email.encode()).hexdigest()[:8].upper()
+                    cursor.execute("UPDATE referral_codes SET user_id = %s WHERE id = %s", (user_unique_id, code_id))
+                    print(f"🔄 추천인 코드 user_id 업데이트: {user_email} -> {user_unique_id}")
+            
+            if existing_codes:
+                print(f"🔄 총 {len(existing_codes)}개 추천인 코드 user_id 업데이트 완료")
+            
             # 데이터 보존 확인
             cursor.execute("SELECT COUNT(*) FROM referral_codes")
             total_count = cursor.fetchone()[0]
@@ -2166,14 +2180,18 @@ def admin_register_referral():
             conn = get_db_connection()
             cursor = conn.cursor()
             
-            # 추천인 코드 생성
+            # 추천인 코드 생성 - 고유한 UUID 기반
             import uuid
             import time
-            code = f"REF{str(uuid.uuid4())[:8].upper()}"
+            import hashlib
+            
+            # 사용자별 고유 ID 생성 (이메일 기반 해시)
+            user_unique_id = hashlib.md5(email.encode()).hexdigest()[:8].upper()
+            code = f"REF{user_unique_id}"
             
             if DATABASE_URL.startswith('postgresql://'):
                 # PostgreSQL - 먼저 기존 코드가 있는지 확인
-                cursor.execute("SELECT id FROM referral_codes WHERE user_email = %s", (email,))
+                cursor.execute("SELECT id, code FROM referral_codes WHERE user_email = %s", (email,))
                 existing_code = cursor.fetchone()
                 
                 if existing_code:
@@ -2182,14 +2200,14 @@ def admin_register_referral():
                         UPDATE referral_codes 
                         SET user_id = %s, name = %s, phone = %s, is_active = true, updated_at = CURRENT_TIMESTAMP
                         WHERE user_email = %s
-                    """, (email.split('@')[0], name, phone, email))
-                    print(f"✅ 기존 추천인 코드 활성화: {email}")
+                    """, (user_unique_id, name, phone, email))
+                    print(f"✅ 기존 추천인 코드 활성화: {email} - {existing_code[1]}")
                 else:
                     # 새 코드 생성 - 바로 활성화
                     cursor.execute("""
                         INSERT INTO referral_codes (user_id, user_email, code, name, phone, created_at, is_active)
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """, (email.split('@')[0], email, code, name, phone, datetime.now(), True))
+                    """, (user_unique_id, email, code, name, phone, datetime.now(), True))
                     print(f"✅ 새 추천인 코드 생성 및 활성화: {email} - {code}")
                 
                 # 활성화 상태 확인
@@ -2214,14 +2232,14 @@ def admin_register_referral():
                         UPDATE referral_codes 
                         SET user_id = ?, name = ?, phone = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
                         WHERE user_email = ?
-                    """, (email.split('@')[0], name, phone, email))
+                    """, (user_unique_id, name, phone, email))
                     print(f"✅ 기존 추천인 코드 활성화 (SQLite): {email}")
                 else:
                     # 새 코드 생성 - 바로 활성화
                     cursor.execute("""
                         INSERT INTO referral_codes (user_id, user_email, code, name, phone, created_at, is_active)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (email.split('@')[0], email, code, name, phone, datetime.now(), True))
+                    """, (user_unique_id, email, code, name, phone, datetime.now(), True))
                     print(f"✅ 새 추천인 코드 생성 및 활성화 (SQLite): {email} - {code}")
                 
                 cursor.execute("""
@@ -3075,6 +3093,28 @@ def process_withdrawal():
         referrer_email, amount = request_data
         
         if action == 'approve':
+            # 현재 잔액 조회
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    SELECT current_balance FROM referral_commission_points 
+                    WHERE referrer_email = %s
+                """, (referrer_email,))
+            else:
+                cursor.execute("""
+                    SELECT current_balance FROM referral_commission_points 
+                    WHERE referrer_email = ?
+                """, (referrer_email,))
+            
+            current_balance_result = cursor.fetchone()
+            if not current_balance_result:
+                return jsonify({'error': '추천인 포인트 계정을 찾을 수 없습니다.'}), 400
+            
+            current_balance = float(current_balance_result[0])
+            new_balance = current_balance - float(amount)
+            
+            if new_balance < 0:
+                return jsonify({'error': '잔액이 부족합니다.'}), 400
+            
             # 포인트 차감
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
@@ -3085,12 +3125,12 @@ def process_withdrawal():
                     WHERE referrer_email = %s
                 """, (amount, amount, referrer_email))
                 
-                # 거래 내역 기록
+                # 거래 내역 기록 (실제 잔액 반영)
                 cursor.execute("""
                     INSERT INTO commission_point_transactions 
                     (referrer_email, transaction_type, amount, balance_after, description, created_at)
                     VALUES (%s, %s, %s, %s, %s, NOW())
-                """, (referrer_email, 'withdrawal', -float(amount), 0, f'환급 처리 - 신청 ID: {request_id}'))
+                """, (referrer_email, 'withdrawal', -float(amount), new_balance, f'환급 처리 - 신청 ID: {request_id}'))
                 
                 # 환급 신청 상태 업데이트
                 cursor.execute("""
@@ -3112,7 +3152,7 @@ def process_withdrawal():
                     INSERT INTO commission_point_transactions 
                     (referrer_email, transaction_type, amount, balance_after, description, created_at)
                     VALUES (?, ?, ?, ?, ?, datetime('now'))
-                """, (referrer_email, 'withdrawal', -float(amount), 0, f'환급 처리 - 신청 ID: {request_id}'))
+                """, (referrer_email, 'withdrawal', -float(amount), new_balance, f'환급 처리 - 신청 ID: {request_id}'))
                 
                 cursor.execute("""
                     UPDATE commission_withdrawal_requests 

@@ -166,6 +166,23 @@ export function AuthProvider({ children }) {
       setCurrentUser(user);
       
       if (user) {
+        // 사용자 정보를 localStorage에 저장
+        localStorage.setItem('userId', user.uid);
+        localStorage.setItem('userEmail', user.email);
+        localStorage.setItem('firebase_user_id', user.uid);
+        localStorage.setItem('firebase_user_email', user.email);
+        localStorage.setItem('currentUser', JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName
+        }));
+        
+        console.log('✅ 사용자 정보 localStorage 저장:', {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName
+        });
+        
         try {
           // 사용자 정보 저장 (기본 정보만)
           await smmpanelApi.registerUser({
@@ -183,6 +200,14 @@ export function AuthProvider({ children }) {
             console.log('오프라인 모드 - 백엔드 API 호출 건너뜀');
           }
         }
+      } else {
+        // 로그아웃 시 localStorage 정리
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('firebase_user_id');
+        localStorage.removeItem('firebase_user_email');
+        localStorage.removeItem('currentUser');
+        console.log('✅ 로그아웃 - localStorage 정리 완료');
       }
       
       setLoading(false);

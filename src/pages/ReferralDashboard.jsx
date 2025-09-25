@@ -44,12 +44,42 @@ const ReferralDashboard = () => {
       
       console.log('추천인 대시보드 접근 확인 - 사용자 ID:', userId)
       
-      // 사용자 이메일 가져오기 (실제 이메일 우선)
-      const userEmail = localStorage.getItem('userEmail') || 
-                        localStorage.getItem('firebase_user_email') || 
-                        'tambleofficial@gmail.com'  // 실제 사용자 이메일
+      // 실제 로그인한 사용자의 이메일 가져오기
+      let userEmail = null
       
-      console.log('🔍 사용자 이메일:', userEmail)
+      // 1. localStorage에서 이메일 찾기
+      userEmail = localStorage.getItem('userEmail') || 
+                  localStorage.getItem('firebase_user_email') ||
+                  localStorage.getItem('userEmail')
+      
+      // 2. Firebase 사용자 정보에서 이메일 가져오기
+      if (!userEmail && window.firebase && window.firebase.auth) {
+        const currentUser = window.firebase.auth().currentUser
+        if (currentUser && currentUser.email) {
+          userEmail = currentUser.email
+          localStorage.setItem('userEmail', userEmail)
+          console.log('✅ Firebase에서 이메일 가져옴:', userEmail)
+        }
+      }
+      
+      // 3. AuthContext에서 이메일 가져오기
+      if (!userEmail) {
+        // AuthContext의 currentUser에서 이메일 가져오기
+        const authUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
+        if (authUser.email) {
+          userEmail = authUser.email
+          localStorage.setItem('userEmail', userEmail)
+          console.log('✅ AuthContext에서 이메일 가져옴:', userEmail)
+        }
+      }
+      
+      // 4. 마지막 폴백 (개발/테스트용)
+      if (!userEmail) {
+        userEmail = 'demo_user@example.com'
+        console.log('⚠️ 폴백 이메일 사용:', userEmail)
+      }
+      
+      console.log('🔍 최종 사용자 이메일:', userEmail)
       
       // 사용자가 추천인 코드를 발급받았는지 확인
       const codeResponse = await fetch(`/api/referral/my-codes?user_id=${userEmail}`)
@@ -101,10 +131,28 @@ const ReferralDashboard = () => {
 
   const loadReferralData = async (userEmail) => {
     try {
-      // 매개변수로 받은 이메일 사용, 없으면 기본값
-      const email = userEmail || localStorage.getItem('userEmail') || 
-                    localStorage.getItem('firebase_user_email') || 
-                    'tambleofficial@gmail.com'
+      // 매개변수로 받은 이메일 사용, 없으면 실제 로그인한 사용자 이메일 사용
+      let email = userEmail
+      
+      if (!email) {
+        // 실제 로그인한 사용자의 이메일 가져오기
+        email = localStorage.getItem('userEmail') || 
+                localStorage.getItem('firebase_user_email') ||
+                localStorage.getItem('userEmail')
+        
+        // AuthContext에서 이메일 가져오기
+        if (!email) {
+          const authUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
+          if (authUser.email) {
+            email = authUser.email
+          }
+        }
+        
+        // 마지막 폴백
+        if (!email) {
+          email = 'demo_user@example.com'
+        }
+      }
       
       console.log('📊 추천인 데이터 로드 시작 - 이메일:', email)
 
@@ -161,10 +209,28 @@ const ReferralDashboard = () => {
   // 커미션 포인트 데이터 로드
   const loadCommissionPoints = async (userEmail) => {
     try {
-      // 매개변수로 받은 이메일 사용, 없으면 기본값
-      const email = userEmail || localStorage.getItem('userEmail') || 
-                    localStorage.getItem('firebase_user_email') || 
-                    'tambleofficial@gmail.com'
+      // 매개변수로 받은 이메일 사용, 없으면 실제 로그인한 사용자 이메일 사용
+      let email = userEmail
+      
+      if (!email) {
+        // 실제 로그인한 사용자의 이메일 가져오기
+        email = localStorage.getItem('userEmail') || 
+                localStorage.getItem('firebase_user_email') ||
+                localStorage.getItem('userEmail')
+        
+        // AuthContext에서 이메일 가져오기
+        if (!email) {
+          const authUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
+          if (authUser.email) {
+            email = authUser.email
+          }
+        }
+        
+        // 마지막 폴백
+        if (!email) {
+          email = 'demo_user@example.com'
+        }
+      }
       
       console.log('💰 커미션 포인트 데이터 로드 시작 - 이메일:', email)
       
