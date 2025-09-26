@@ -76,7 +76,7 @@ def get_db_connection():
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
             print(f"✅ SQLite 폴백 연결 성공: {db_path}")
-            return conn
+        return conn
         except Exception as fallback_error:
             print(f"❌ SQLite 폴백도 실패: {fallback_error}")
             raise fallback_error
@@ -1114,9 +1114,9 @@ def get_admin_purchases():
                 cursor.execute("""
                     SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, 
                         pp.buyer_name, pp.bank_info, pp.created_at
-                    FROM point_purchases pp
-                    ORDER BY pp.created_at DESC
-                """)
+                FROM point_purchases pp
+                ORDER BY pp.created_at DESC
+            """)
             else:
                 print("⚠️ point_purchases 테이블이 존재하지 않습니다. 빈 배열을 반환합니다.")
                 purchases = []
@@ -1125,7 +1125,7 @@ def get_admin_purchases():
         else:
             cursor.execute("""
                 SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, pp.created_at,
-                    pp.buyer_name, pp.bank_info, u.email
+                       pp.buyer_name, pp.bank_info, u.email
                 FROM point_purchases pp
                 LEFT JOIN users u ON pp.user_id = u.user_id
                 ORDER BY pp.created_at DESC
@@ -1513,9 +1513,9 @@ def get_commissions():
                     'isPaid': True  # 기본값으로 지급 완료 처리
                 })
             
-            return jsonify({
+        return jsonify({
                 'commissions': commissions
-            }), 200
+        }), 200
         
         except Exception as e:
             return jsonify({'error': f'수수료 조회 실패: {str(e)}'}), 500
@@ -2516,7 +2516,7 @@ def get_admin_users():
         
         # 테이블 목록 확인
         print("📊 테이블 목록 조회 중...")
-        cursor.execute("""
+            cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public'
@@ -2537,16 +2537,16 @@ def get_admin_users():
                 
                 if user_count > 0:
                     # 기본 컬럼만 조회
-                    cursor.execute("""
+            cursor.execute("""
                         SELECT user_id, email, name, created_at
                         FROM users
                         ORDER BY created_at DESC
                         LIMIT 50
                     """)
-                    users = cursor.fetchall()
-                    
-                    for user in users:
-                        user_list.append({
+        users = cursor.fetchall()
+        
+        for user in users:
+            user_list.append({
                             'user_id': user[0] if user[0] else 'N/A',
                             'email': user[1] if user[1] else 'N/A',
                             'name': user[2] if user[2] else 'N/A',
@@ -2576,8 +2576,8 @@ def get_admin_users():
         
         conn.close()
         print(f"✅ 사용자 목록 반환: {len(user_list)}명")
-        
-        return jsonify({
+            
+            return jsonify({
             'users': user_list,
             'debug_info': {
                 'tables': tables,
@@ -2607,14 +2607,14 @@ def get_admin_transactions():
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT o.order_id, o.user_id, o.service_id, o.price, o.status, o.created_at,
-                    o.platform, o.service_name, o.quantity, o.link, o.comments
+                       o.platform, o.service_name, o.quantity, o.link, o.comments
                 FROM orders o
                 ORDER BY o.created_at DESC
             """)
         else:
             cursor.execute("""
                 SELECT o.order_id, o.user_id, o.service_id, o.price, o.status, o.created_at,
-                    o.platform, o.service_name, o.quantity, o.link, o.comments
+                       o.platform, o.service_name, o.quantity, o.link, o.comments
                 FROM orders o
                 ORDER BY o.created_at DESC
             """)
