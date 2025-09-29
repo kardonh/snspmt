@@ -13,6 +13,23 @@ import sqlite3
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
 
+# 전역 오류 처리
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Not Found', 'message': '요청한 리소스를 찾을 수 없습니다.'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Internal Server Error', 'message': '서버 내부 오류가 발생했습니다.'}), 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # 프로덕션 환경에서는 상세 오류 정보 숨김
+    if os.environ.get('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Internal Server Error', 'message': '서버 오류가 발생했습니다.'}), 500
+    else:
+        return jsonify({'error': str(e), 'message': '개발 환경 오류'}), 500
+
 # 데이터베이스 연결 설정 (AWS Secrets Manager 우선, 환경 변수 폴백)
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-cluste.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
 SMMPANEL_API_KEY = os.environ.get('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
@@ -33,13 +50,17 @@ except ImportError as e:
 except Exception as e:
     print(f"⚠️ AWS Secrets Manager 오류: {e}")
 
-print(f"🔗 데이터베이스 URL: {DATABASE_URL[:50]}...")
-print(f"🔑 API 키: {SMMPANEL_API_KEY[:20]}...")
+# 프로덕션 환경에서는 로그 최소화
+if os.environ.get('FLASK_ENV') != 'production':
+    print(f"🔗 데이터베이스 URL: {DATABASE_URL[:50]}...")
+    print(f"🔑 API 키: {SMMPANEL_API_KEY[:20]}...")
 
 def get_db_connection():
     """데이터베이스 연결을 가져옵니다."""
     try:
-        print(f"🔗 데이터베이스 연결 시도: {DATABASE_URL[:50]}...")
+        # 프로덕션 환경에서는 로그 최소화
+        if os.environ.get('FLASK_ENV') != 'production':
+            print(f"🔗 데이터베이스 연결 시도: {DATABASE_URL[:50]}...")
         
         if DATABASE_URL.startswith('postgresql://'):
             # PostgreSQL 연결 설정 최적화
@@ -76,7 +97,7 @@ def get_db_connection():
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
             print(f"✅ SQLite 폴백 연결 성공: {db_path}")
-            return conn
+        return conn
         except Exception as fallback_error:
             print(f"❌ SQLite 폴백도 실패: {fallback_error}")
             raise fallback_error
@@ -971,8 +992,27 @@ def purchase_points():
         buyer_name = data.get('buyer_name', '')
         bank_info = data.get('bank_info', '')
         
+        # 입력 검증 강화
         if not all([user_id, amount, price]):
             return jsonify({'error': '필수 필드가 누락되었습니다.'}), 400
+        
+        # 금액 검증
+        try:
+            amount = float(amount)
+            price = float(price)
+        except (ValueError, TypeError):
+            return jsonify({'error': '잘못된 금액 형식입니다.'}), 400
+        
+        # 금액 범위 검증
+        if amount <= 0 or amount > 1000000:  # 최대 100만 포인트
+            return jsonify({'error': '포인트 금액이 범위를 벗어났습니다.'}), 400
+        
+        if price <= 0 or price > 10000000:  # 최대 1천만원
+            return jsonify({'error': '결제 금액이 범위를 벗어났습니다.'}), 400
+        
+        # 사용자 ID 검증 (SQL 인젝션 방지)
+        if not user_id.replace('_', '').replace('-', '').isalnum():
+            return jsonify({'error': '잘못된 사용자 ID 형식입니다.'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -1513,10 +1553,10 @@ def get_commissions():
                     'isPaid': True  # 기본값으로 지급 완료 처리
                 })
             
-            return jsonify({
+        return jsonify({
                 'commissions': commissions
-            }), 200
-            
+        }), 200
+        
         except Exception as e:
             return jsonify({'error': f'수수료 조회 실패: {str(e)}'}), 500
         finally:
@@ -2516,7 +2556,7 @@ def get_admin_users():
         
         # 테이블 목록 확인
         print("📊 테이블 목록 조회 중...")
-        cursor.execute("""
+            cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public'
@@ -2537,16 +2577,16 @@ def get_admin_users():
                 
                 if user_count > 0:
                     # 기본 컬럼만 조회
-                    cursor.execute("""
+            cursor.execute("""
                         SELECT user_id, email, name, created_at
                         FROM users
                         ORDER BY created_at DESC
                         LIMIT 50
                     """)
-                    users = cursor.fetchall()
-                    
-                    for user in users:
-                        user_list.append({
+        users = cursor.fetchall()
+        
+        for user in users:
+            user_list.append({
                             'user_id': user[0] if user[0] else 'N/A',
                             'email': user[1] if user[1] else 'N/A',
                             'name': user[2] if user[2] else 'N/A',
@@ -2576,8 +2616,8 @@ def get_admin_users():
         
         conn.close()
         print(f"✅ 사용자 목록 반환: {len(user_list)}명")
-        
-        return jsonify({
+            
+            return jsonify({
             'users': user_list,
             'debug_info': {
                 'tables': tables,

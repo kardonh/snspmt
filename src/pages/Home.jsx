@@ -41,6 +41,10 @@ const Home = () => {
   const [explanation, setExplanation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showOrderMethodModal, setShowOrderMethodModal] = useState(false)
+  
+  // 할인 쿠폰 관련 상태
+  const [selectedDiscountCoupon, setSelectedDiscountCoupon] = useState(null)
+  const [availableDiscountCoupons, setAvailableDiscountCoupons] = useState([])
 
   // 컴포넌트 마운트 시 기본 서비스 자동 선택
   useEffect(() => {
@@ -52,6 +56,22 @@ const Home = () => {
       }
     }
   }, [selectedPlatform, selectedService, selectedDetailedService])
+
+  // 할인 쿠폰 초기화
+  useEffect(() => {
+    // 추천인 코드가 있는 경우 할인 쿠폰 옵션 제공
+    const referralCode = localStorage.getItem('referralCode')
+    if (referralCode) {
+      setAvailableDiscountCoupons([
+        { id: 'referral_5', name: '추천인 5% 할인', discount: 5, type: 'percentage' },
+        { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
+      ])
+    } else {
+      setAvailableDiscountCoupons([
+        { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
+      ])
+    }
+  }, [])
 
   // 인스타그램 세부 서비스 데이터
   const instagramDetailedServices = {
@@ -637,7 +657,7 @@ const Home = () => {
     { id: 'twitter', name: '트위터', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/X.svg', color: '#1da1f2' },
     { id: 'kakao', name: '카카오', icon: 'https://assets.snsshop.kr/assets/img2/new-order/platform/kakao.svg', color: '#fbbf24' },
     { id: 'telegram', name: '텔레그램', icon: '/TelegramLogo.svg.png', color: '#0088cc' },
-    { id: 'whatsapp', name: '왓츠앱', icon: 'https://i.namu.wiki/i/wjmczy8xH2kajvQEpf9LfYepq7oDncymQTAQweVhaMpoZi_2X0uctv3E9Z7BUMcaQpFzYFx6_1GGKs0QPnEuZWeRbO4zsyEc1W7vz0-sUHUkN3eqEQEKSqEbSFBNffi5BN54cix2E01Y2KNyma-4pg.svg', color: '#25d366' },
+    { id: 'whatsapp', name: '왓츠앱', icon: '/whatsapp-logo.png', color: '#25d366' },
     // { id: 'news-media', name: '뉴스언론보도', icon: FileText, color: '#3b82f6' },
     // { id: 'experience-group', name: '체험단', icon: Users, color: '#10b981' },
    
@@ -1010,17 +1030,6 @@ const Home = () => {
 
   const quantityOptions = getQuantityOptions(selectedPlatform, selectedService)
 
-  // 할인 정보
-  const discountTiers = [
-    { min: 500, max: 999, discount: 10 },
-    { min: 1000, max: 4999, discount: 15 },
-    { min: 5000, max: 10000, discount: 20 }
-  ]
-
-  const getDiscount = (qty) => {
-    const tier = discountTiers.find(t => qty >= t.min && qty <= t.max)
-    return tier ? tier.discount : 0
-  }
 
   // 가격 계산 (SMM KINGS 가격 사용)
   useEffect(() => {
@@ -1042,18 +1051,12 @@ const Home = () => {
     // 할인 적용
     let discount = 0
     
-    // 수량 기반 할인
-    if (quantity >= 5000) {
-      discount = 20
-    } else if (quantity >= 1000) {
-      discount = 15
-    } else if (quantity >= 500) {
-      discount = 10
+    // 선택된 할인 쿠폰만 적용
+    if (selectedDiscountCoupon && selectedDiscountCoupon.discount > 0) {
+      discount = selectedDiscountCoupon.discount
     }
     
-    // 추천인 할인 (5% 추가)
-    const referralDiscount = 5
-    const totalDiscount = discount + referralDiscount
+    const totalDiscount = discount
     
     const finalPrice = basePrice * (1 - totalDiscount / 100)
     setTotalPrice(Math.round(finalPrice))
@@ -1575,6 +1578,38 @@ const Home = () => {
               최소 {selectedDetailedService.min.toLocaleString()} : 최대 {selectedDetailedService.max.toLocaleString()}
             </div>
           </div>
+
+          {/* 할인 쿠폰 선택 */}
+          {availableDiscountCoupons.length > 1 && (
+            <div className="form-group">
+              <label>할인 쿠폰 선택</label>
+              <div className="discount-coupon-selection">
+                {availableDiscountCoupons.map((coupon) => (
+                  <div 
+                    key={coupon.id}
+                    className={`discount-coupon-option ${selectedDiscountCoupon?.id === coupon.id ? 'selected' : ''}`}
+                    onClick={() => setSelectedDiscountCoupon(coupon)}
+                  >
+                    <div className="coupon-info">
+                      <span className="coupon-name">{coupon.name}</span>
+                      {coupon.discount > 0 && (
+                        <span className="coupon-discount">{coupon.discount}% 할인</span>
+                      )}
+                    </div>
+                    <div className="coupon-radio">
+                      <input 
+                        type="radio" 
+                        name="discountCoupon" 
+                        value={coupon.id}
+                        checked={selectedDiscountCoupon?.id === coupon.id}
+                        onChange={() => setSelectedDiscountCoupon(coupon)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="form-group">
             <label>링크 입력</label>

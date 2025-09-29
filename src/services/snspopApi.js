@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 // SMM Panel API 기본 설정
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : 'http://snspmt-alb-new-404094515.ap-northeast-2.elb.amazonaws.com/api')
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : 'https://sociality.co.kr/api')
 
 // SMM Panel API 키
 const DEFAULT_API_KEY = import.meta.env.VITE_SMMPANEL_API_KEY || '35246b890345d819e1110d5cea9d5565'

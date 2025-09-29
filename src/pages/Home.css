@@ -16,6 +16,69 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+/* 할인 쿠폰 선택 스타일 */
+.discount-coupon-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.discount-coupon-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border: 2px solid #e1e8ed;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.discount-coupon-option:hover {
+  border-color: #87ceeb;
+  background: #f8faff;
+}
+
+.discount-coupon-option.selected {
+  border-color: #87ceeb;
+  background: linear-gradient(135deg, #87ceeb 0%, #4682b4 100%);
+  color: white;
+}
+
+.coupon-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.coupon-name {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.coupon-discount {
+  font-size: 14px;
+  color: #27ae60;
+  font-weight: 500;
+}
+
+.discount-coupon-option.selected .coupon-discount {
+  color: #ffffff;
+}
+
+.coupon-radio {
+  display: flex;
+  align-items: center;
+}
+
+.coupon-radio input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #87ceeb;
+}
+
 /* Header */
 .order-header {
   display: flex;
