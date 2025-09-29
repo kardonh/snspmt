@@ -86,7 +86,18 @@ def get_db_connection():
     except psycopg2.Error as e:
         print(f"❌ PostgreSQL 연결 실패: {e}")
         print(f"   데이터베이스 URL: {DATABASE_URL[:50]}...")
-        raise e
+        # SQLite 폴백 시도
+        try:
+            print("🔄 SQLite 폴백 시도...")
+            db_path = os.path.join(os.getcwd(), 'data', 'snspmt.db')
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)  # 디렉토리 생성
+            conn = sqlite3.connect(db_path, timeout=30)
+            conn.row_factory = sqlite3.Row
+            print(f"✅ SQLite 폴백 연결 성공: {db_path}")
+            return conn
+        except Exception as fallback_error:
+            print(f"❌ SQLite 폴백도 실패: {fallback_error}")
+            raise fallback_error
     except Exception as e:
         print(f"❌ 데이터베이스 연결 실패: {e}")
         # SQLite fallback - 영구 데이터베이스 경로 사용
@@ -97,7 +108,7 @@ def get_db_connection():
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
             print(f"✅ SQLite 폴백 연결 성공: {db_path}")
-        return conn
+            return conn
         except Exception as fallback_error:
             print(f"❌ SQLite 폴백도 실패: {fallback_error}")
             raise fallback_error
@@ -1511,59 +1522,50 @@ def get_commissions():
         conn = None
         cursor = None
         
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+            SELECT id, referred_user, purchase_amount, commission_amount, 
+                commission_rate, created_at
+            FROM commissions 
+            WHERE referrer_id = %s
+            ORDER BY created_at DESC
+            """, (user_id,))
+        else:
+            cursor.execute("""
                 SELECT id, referred_user, purchase_amount, commission_amount, 
                     commission_rate, created_at
                 FROM commissions 
-                WHERE referrer_id = %s
+                WHERE referrer_id = ?
                 ORDER BY created_at DESC
-                """, (user_id,))
-            else:
-                cursor.execute("""
-                    SELECT id, referred_user, purchase_amount, commission_amount, 
-                        commission_rate, created_at
-                    FROM commissions 
-                    WHERE referrer_id = ?
-                    ORDER BY created_at DESC
-                """, (user_id,))
-            
-            commissions = []
-            for row in cursor.fetchall():
-                # 날짜 형식 처리 (created_at는 5번째 인덱스)
-                payment_date = row[5]
-                if hasattr(payment_date, 'strftime'):
-                    payment_date = payment_date.strftime('%Y-%m-%d')
-                elif hasattr(payment_date, 'isoformat'):
-                    payment_date = payment_date.isoformat()[:10]
-                else:
-                    payment_date = str(payment_date)[:10]
-                
-                commissions.append({
-                    'id': row[0],
-                    'referredUser': row[1],
-                    'purchaseAmount': row[2],
-                    'commissionAmount': row[3],
-                    'commissionRate': f"{row[4] * 100}%" if row[4] else "0%",
-                    'paymentDate': payment_date,
-                    'isPaid': True  # 기본값으로 지급 완료 처리
-                })
-            
-        return jsonify({
-                'commissions': commissions
-        }), 200
+            """, (user_id,))
         
-        except Exception as e:
-            return jsonify({'error': f'수수료 조회 실패: {str(e)}'}), 500
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
+        commissions = []
+        for row in cursor.fetchall():
+            # 날짜 형식 처리 (created_at는 5번째 인덱스)
+            payment_date = row[5]
+            if hasattr(payment_date, 'strftime'):
+                payment_date = payment_date.strftime('%Y-%m-%d')
+            elif hasattr(payment_date, 'isoformat'):
+                payment_date = payment_date.isoformat()[:10]
+            else:
+                payment_date = str(payment_date)[:10]
+            
+            commissions.append({
+                'id': row[0],
+                'referredUser': row[1],
+                'purchaseAmount': row[2],
+                'commissionAmount': row[3],
+                'commissionRate': f"{row[4] * 100}%" if row[4] else "0%",
+                'paymentDate': payment_date,
+                'isPaid': True  # 기본값으로 지급 완료 처리
+            })
+        
+        return jsonify({
+            'commissions': commissions
+        }), 200
     except Exception as e:
         return jsonify({'error': f'수수료 조회 실패: {str(e)}'}), 500
 
@@ -2556,7 +2558,7 @@ def get_admin_users():
         
         # 테이블 목록 확인
         print("📊 테이블 목록 조회 중...")
-            cursor.execute("""
+        cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public'
@@ -2577,16 +2579,16 @@ def get_admin_users():
                 
                 if user_count > 0:
                     # 기본 컬럼만 조회
-            cursor.execute("""
+                    cursor.execute("""
                         SELECT user_id, email, name, created_at
                         FROM users
                         ORDER BY created_at DESC
                         LIMIT 50
                     """)
-        users = cursor.fetchall()
-        
-        for user in users:
-            user_list.append({
+                    users = cursor.fetchall()
+                    
+                    for user in users:
+                        user_list.append({
                             'user_id': user[0] if user[0] else 'N/A',
                             'email': user[1] if user[1] else 'N/A',
                             'name': user[2] if user[2] else 'N/A',
@@ -2616,14 +2618,14 @@ def get_admin_users():
         
         conn.close()
         print(f"✅ 사용자 목록 반환: {len(user_list)}명")
-            
-            return jsonify({
+        
+        return jsonify({
             'users': user_list,
             'debug_info': {
                 'tables': tables,
                 'user_count': len(user_list)
             }
-            }), 200
+        }), 200
         
     except Exception as e:
         print(f"❌ 사용자 목록 조회 실패: {str(e)}")
