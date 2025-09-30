@@ -159,10 +159,6 @@ const Home = () => {
       { id: 282, name: 'KR 인스타그램 리얼 한국인 [30대여자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
       { id: 281, name: 'KR 인스타그램 리얼 한국인 [30대남자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' }
      ],
-    likes_foreign: [
-      { id: 105, name: '인스타그램 외국인 좋아요', price: 4000, min: 50, max: 10000, time: '데이터 부족' },
-      { id: 116, name: '인스타그램 리얼 외국인 좋아요', price: 6000, min: 50, max: 10000, time: '데이터 부족' }
-    ],
     followers_korean: [
       { id: 514, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [일반]', price: 150000, min: 30, max: 3000, time: '2시간 16분', description: '상세정보' },
       { id: 491, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [디럭스]', price: 210000, min: 10, max: 1000, time: '데이터 부족', description: '상세정보' },
@@ -191,11 +187,6 @@ const Home = () => {
       { id: 339, name: 'KR 인스타그램 한국인 커스텀 댓글', price: 400000, min: 5, max: 500, time: '6분', description: '상세정보' },
       { id: 340, name: 'KR 인스타그램 한국인 커스텀 댓글 [여자]', price: 500000, min: 5, max: 500, time: '데이터 부족', description: '상세정보' },
       { id: 341, name: 'KR 인스타그램 한국인 커스텀 댓글 [남자]', price: 500000, min: 5, max: 500, time: '6분', description: '상세정보' }
-    ],
-    comments_foreign: [
-      { id: 480, name: '인스타그램 외국인 랜덤 댓글', price: 50000, min: 20, max: 1000, time: '데이터 부족' },
-      { id: 481, name: '인스타그램 외국인 커스텀 댓글', price: 60000, min: 20, max: 1000, time: '데이터 부족' },
-      { id: 358, name: '인스타그램 외국인 랜덤 이모지 댓글', price: 50000, min: 20, max: 1000, time: '데이터 부족' }
     ],
     regram_korean: [
       { id: 305, name: '🇰🇷 인스타그램 한국인 리그램🎯', price: 375000, min: 3, max: 3000, time: '7 시간 21 분' }
@@ -1722,7 +1713,7 @@ const Home = () => {
           )}
 
           {/* 예약 발송 체크박스 */}
-          <div className="form-group">
+          <div className="scheduled-order-section">
             <div className="scheduled-order-checkbox">
               <input
                 type="checkbox"
@@ -1732,39 +1723,36 @@ const Home = () => {
                 className="scheduled-checkbox"
               />
               <label htmlFor="scheduledOrder" className="scheduled-label">
-                📅 예약 발송 (나중에 자동으로 주문하기)
+                📅 예약 발송
               </label>
             </div>
-          </div>
 
-          {/* 예약 발송 날짜/시간 선택 */}
-          {isScheduledOrder && (
-            <div className="scheduled-order-details">
-              <div className="form-group">
-                <label>예약 날짜</label>
-                <input
-                  type="date"
-                  value={scheduledDate}
-                  onChange={(e) => setScheduledDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="form-control scheduled-date-input"
-                />
+            {/* 예약 발송 날짜/시간 선택 */}
+            {isScheduledOrder && (
+              <div className="scheduled-order-details">
+                <div className="scheduled-inputs">
+                  <input
+                    type="date"
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="scheduled-date-input"
+                    placeholder="날짜"
+                  />
+                  <input
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    className="scheduled-time-input"
+                    placeholder="시간"
+                  />
+                </div>
+                <div className="scheduled-info">
+                  <span>⏰ {scheduledDate && scheduledTime ? `${scheduledDate} ${scheduledTime}` : '날짜와 시간을 선택해주세요'}</span>
+                </div>
               </div>
-              <div className="form-group">
-                <label>예약 시간</label>
-                <input
-                  type="time"
-                  value={scheduledTime}
-                  onChange={(e) => setScheduledTime(e.target.value)}
-                  className="form-control scheduled-time-input"
-                />
-              </div>
-              <div className="scheduled-info">
-                <p>📌 예약된 시간에 자동으로 주문이 발송됩니다.</p>
-                <p>⏰ 예약 시간: {scheduledDate && scheduledTime ? `${scheduledDate} ${scheduledTime}` : '날짜와 시간을 선택해주세요'}</p>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Total Price */}
           <div className="price-display">
