@@ -230,8 +230,49 @@ const OrdersPage = () => {
     return date.toLocaleString('ko-KR')
   }
 
+  const formatScheduledTime = (scheduledDatetime) => {
+    if (!scheduledDatetime) return 'N/A'
+    
+    // scheduled_datetime이 "YYYY-MM-DD HH:MM" 형식인 경우
+    if (typeof scheduledDatetime === 'string' && scheduledDatetime.includes(' ')) {
+      const [date, time] = scheduledDatetime.split(' ')
+      const [year, month, day] = date.split('-')
+      const [hour, minute] = time.split(':')
+      
+      const scheduledDate = new Date(year, month - 1, day, hour, minute)
+      return scheduledDate.toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })
+    }
+    
+    // 일반 Date 객체인 경우
+    const date = new Date(scheduledDatetime)
+    return date.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })
+  }
+
   const handleViewDetail = async (order) => {
     try {
+      // 디버깅: 주문 데이터 구조 확인
+      console.log('주문 데이터 구조:', order)
+      console.log('서비스 필드들:', {
+        service_name: order.service_name,
+        service: order.service,
+        platform: order.platform,
+        service_type: order.service_type
+      })
+      
       // 주문 상세 정보는 이미 orders 배열에 있으므로 직접 사용
       setSelectedOrder(order)
       setShowOrderDetail(true)
@@ -345,11 +386,9 @@ const OrdersPage = () => {
                     <div className="order-info">
                       <div className="info-row">
                         <span className="label">서비스:</span>
-                        <span className="value">{order.service || 'N/A'}</span>
-                      </div>
-                      <div className="info-row">
-                        <span className="label">링크:</span>
-                        <span className="value link">{order.link || 'N/A'}</span>
+                        <span className="value">
+                          {order.service_name || order.service || order.platform || 'N/A'}
+                        </span>
                       </div>
                       <div className="info-row">
                         <span className="label">수량:</span>
@@ -359,7 +398,24 @@ const OrdersPage = () => {
                         <span className="label">주문일:</span>
                         <span className="value">{formatDate(order.created_at)}</span>
                       </div>
+                      {/* 예약 발송 주문인 경우 예약 시간 표시 */}
+                      {order.scheduled && order.scheduled_datetime && (
+                        <div className="info-row scheduled-time-row">
+                          <span className="label">예약 시간:</span>
+                          <span className="value scheduled-time">{formatScheduledTime(order.scheduled_datetime)}</span>
+                        </div>
+                      )}
                     </div>
+                    
+                    {/* 링크 섹션을 별도로 분리하여 아래에 배치 */}
+                    {order.link && (
+                      <div className="order-link-section">
+                        <div className="link-container">
+                          <span className="link-label">링크:</span>
+                          <span className="link-value">{order.link}</span>
+                        </div>
+                      </div>
+                    )}
                     
                     <div className="order-actions">
                       <button 

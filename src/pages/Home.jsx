@@ -371,7 +371,7 @@ const Home = () => {
     // 카카오/네이버 세부 서비스 데이터
     kakao_naver: {
       kakao_services: [
-        { id: 271, name: 'K사 카카오 채널 친구 추가', price: 250000, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' }
+        { id: 271, name: 'K사 카카오 채널 친구 추가', price: 300000, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' }
       ],
  
     },
@@ -389,7 +389,7 @@ const Home = () => {
     // 왓츠앱 세부 서비스 데이터
     whatsapp: {
       followers: [
-        { id: 442, name: '왓츠앱 채널 팔로워', price: 15, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' }
+        { id: 442, name: '왓츠앱 채널 팔로워', price: 30000, min: 100, max: 10000, time: '데이터 부족', description: '상세정보' }
       ]
     },
 
