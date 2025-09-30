@@ -130,6 +130,12 @@ const OrdersPage = () => {
         return <RefreshCw size={20} className="status-icon processing" />
       case 'pending_payment':
         return <AlertCircle size={20} className="status-icon pending" />
+      case 'scheduled':
+        return <Clock size={20} className="status-icon scheduled" />
+      case 'received':
+        return <AlertCircle size={20} className="status-icon received" />
+      case 'in_progress':
+        return <RefreshCw size={20} className="status-icon in-progress" />
       default:
         return <AlertCircle size={20} className="status-icon unknown" />
     }
@@ -147,6 +153,12 @@ const OrdersPage = () => {
         return '주문 준비 및 가동 중'
       case 'pending_payment':
         return '주문 접수'
+      case 'scheduled':
+        return '예약됨'
+      case 'received':
+        return '접수됨'
+      case 'in_progress':
+        return '실행중'
       default:
         return '알 수 없음'
     }
