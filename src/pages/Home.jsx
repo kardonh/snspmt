@@ -50,6 +50,65 @@ const Home = () => {
   const [isScheduledOrder, setIsScheduledOrder] = useState(false)
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
+  
+  // 분할 발송 관련 상태
+  const [isSplitDelivery, setIsSplitDelivery] = useState(false)
+  const [splitDays, setSplitDays] = useState(1)
+  
+  // 예약 발송과 분할 발송 상호 배타적 선택
+  const handleScheduledOrderChange = (checked) => {
+    setIsScheduledOrder(checked)
+    if (checked && isSplitDelivery) {
+      setIsSplitDelivery(false)
+    }
+  }
+  
+  const handleSplitDeliveryChange = (checked) => {
+    setIsSplitDelivery(checked)
+    if (checked && isScheduledOrder) {
+      setIsScheduledOrder(false)
+    }
+  }
+  
+  // 일일 수량 자동 계산
+  const getDailyQuantity = () => {
+    if (!isSplitDelivery || !quantity || !splitDays) return 0
+    return Math.ceil(quantity / splitDays)
+  }
+  
+  // 분할 발송 가능 여부 확인
+  const isSplitDeliveryValid = () => {
+    if (!isSplitDelivery || !quantity || !splitDays || splitDays === 0 || !selectedDetailedService) return true
+    
+    const dailyQty = getDailyQuantity()
+    const minQuantity = selectedDetailedService.min || 1
+    const totalSplitQuantity = dailyQty * splitDays
+    
+    // 최소 수량 미달 또는 총 수량 초과 시 유효하지 않음
+    return dailyQty >= minQuantity && totalSplitQuantity <= quantity
+  }
+  
+  // 분할 발송 정보 표시
+  const getSplitInfo = () => {
+    if (!isSplitDelivery || !quantity || !splitDays) return ''
+    const dailyQty = getDailyQuantity()
+    const totalDays = Math.ceil(quantity / dailyQty)
+    const minQuantity = selectedDetailedService?.min || 1
+    const totalSplitQuantity = dailyQty * splitDays
+    const isValid = isSplitDeliveryValid()
+    
+    let info = `총 ${quantity}개를 ${totalDays}일 동안 하루 ${dailyQty}개씩 분할 발송`
+    
+    if (!isValid) {
+      if (dailyQty < minQuantity) {
+        info += ` ⚠️ (최소 수량 ${minQuantity}개/일 미달)`
+      } else if (totalSplitQuantity > quantity) {
+        info += ` ⚠️ (총 수량 ${totalSplitQuantity}개 초과)`
+      }
+    }
+    
+    return info
+  }
 
   // 컴포넌트 마운트 시 기본 서비스 자동 선택
   useEffect(() => {
@@ -1158,6 +1217,49 @@ const Home = () => {
         return
       }
 
+      // 예약 발송과 분할 발송 상호 배타적 검증
+      if (isScheduledOrder && isSplitDelivery) {
+        alert('예약 발송과 분할 발송은 동시에 선택할 수 없습니다.')
+        return
+      }
+
+      // 분할 발송 검증
+      if (isSplitDelivery) {
+        if (splitDays < 0 || splitDays > 30) {
+          alert('분할 기간은 0일에서 30일 사이여야 합니다.')
+          return
+        }
+        if (splitDays === 0) {
+          alert('분할 기간을 1일 이상으로 설정해주세요.')
+          return
+        }
+        const dailyQty = getDailyQuantity()
+        const minQuantity = selectedDetailedService?.min || 1
+        const totalSplitQuantity = dailyQty * splitDays
+        
+        if (dailyQty < 1) {
+          alert('일일 수량이 1개 미만입니다. 기간을 조정해주세요.')
+          return
+        }
+        
+        // 일일 수량이 상품의 최소 수량을 만족하는지 검증
+        if (dailyQty < minQuantity) {
+          alert(`일일 수량이 상품의 최소 수량(${minQuantity}개)보다 적습니다. 기간을 줄이거나 총 수량을 늘려주세요.`)
+          return
+        }
+        
+        // 일일 수량 × 기간이 총 수량을 초과하는지 검증
+        if (totalSplitQuantity > quantity) {
+          alert(`분할 발송 수량(${totalSplitQuantity}개)이 선택한 총 수량(${quantity}개)을 초과합니다. 기간을 변경해주세요.`)
+          return
+        }
+        
+        if (dailyQty > 1000) {
+          alert('일일 수량이 너무 많습니다. 기간을 늘리거나 총 수량을 줄여주세요.')
+          return
+        }
+      }
+
       // selectedDetailedService가 undefined인 경우 강제로 기본값 설정
       if (!selectedDetailedService || (!selectedDetailedService.id && !selectedDetailedService.smmkings_id)) {
         console.error('⚠️ selectedDetailedService가 undefined입니다:', selectedDetailedService)
@@ -1193,6 +1295,10 @@ const Home = () => {
         comments: safeComments,
         username: '',
         min: 0,
+        // 분할 발송 정보
+        is_split_delivery: isSplitDelivery,
+        split_days: isSplitDelivery ? splitDays : null,
+        split_quantity: isSplitDelivery ? getDailyQuantity() : null,
         max: 0,
         posts: 0,
         delay: 0,
@@ -1719,7 +1825,7 @@ const Home = () => {
                 type="checkbox"
                 id="scheduledOrder"
                 checked={isScheduledOrder}
-                onChange={(e) => setIsScheduledOrder(e.target.checked)}
+                onChange={(e) => handleScheduledOrderChange(e.target.checked)}
                 className="scheduled-checkbox"
               />
               <label htmlFor="scheduledOrder" className="scheduled-label">
@@ -1749,6 +1855,71 @@ const Home = () => {
                 </div>
                 <div className="scheduled-info">
                   <span>⏰ {scheduledDate && scheduledTime ? `${scheduledDate} ${scheduledTime}` : '날짜와 시간을 선택해주세요'}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 분할 발송 체크박스 */}
+          <div className="split-delivery-section">
+            <div className="split-delivery-checkbox">
+              <input
+                type="checkbox"
+                id="splitDelivery"
+                checked={isSplitDelivery}
+                onChange={(e) => handleSplitDeliveryChange(e.target.checked)}
+                className="split-checkbox"
+              />
+              <label htmlFor="splitDelivery" className="split-label">
+                📦 분할 발송
+              </label>
+            </div>
+
+            {/* 분할 발송 설정 */}
+            {isSplitDelivery && (
+              <div className="split-delivery-details">
+                <div className="split-inputs">
+                  <div className="split-input-group">
+                    <label className="split-input-label">분할 기간 (일)</label>
+                    <input
+                      type="number"
+                      value={splitDays}
+                      onChange={(e) => setSplitDays(Math.max(0, parseInt(e.target.value) || 0))}
+                      min="0"
+                      max="30"
+                      className="split-days-input"
+                      placeholder="예: 7"
+                    />
+                    <div className="split-input-help">
+                      총 수량을 몇 일에 나누어 발송할지 입력하세요
+                      <br />
+                      <span className="min-quantity-info">
+                        (최소 수량: {selectedDetailedService?.min || 1}개/일)
+                      </span>
+                      {isSplitDelivery && !isSplitDeliveryValid() && (
+                        <>
+                          <br />
+                          <span className="warning-text">
+                            ⚠️ 기간을 조정하여 총 수량을 초과하지 않도록 해주세요
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="split-input-group">
+                    <label className="split-input-label">일일 수량 (자동계산)</label>
+                    <input
+                      type="number"
+                      value={getDailyQuantity()}
+                      disabled
+                      className="split-quantity-input disabled"
+                      placeholder="자동계산"
+                    />
+                    <div className="split-input-help">총 수량 ÷ 기간 = 일일 수량</div>
+                  </div>
+                </div>
+                <div className={`split-info ${!isSplitDeliveryValid() ? 'warning' : ''}`}>
+                  <span>📊 {getSplitInfo()}</span>
                 </div>
               </div>
             )}

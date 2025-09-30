@@ -100,6 +100,17 @@ const OrdersPage = () => {
         if (data.orders) {
           setOrders(data.orders)
           console.log('✅ 주문내역 로드 성공:', data.orders.length, '개')
+          
+          // 첫 번째 주문의 데이터 구조 확인
+          if (data.orders.length > 0) {
+            console.log('🔍 첫 번째 주문 데이터 구조:', data.orders[0])
+            console.log('🔍 주문번호 필드들:', {
+              id: data.orders[0].id,
+              order_id: data.orders[0].order_id,
+              order_number: data.orders[0].order_number,
+              orderId: data.orders[0].orderId
+            })
+          }
         } else {
           setOrders([])
           console.log('ℹ️ 주문내역 없음')
@@ -262,6 +273,37 @@ const OrdersPage = () => {
     })
   }
 
+  const getSplitDeliveryProgress = (order) => {
+    if (!order.is_split_delivery || !order.split_days || !order.split_quantity) {
+      return '분할 발송 정보 없음'
+    }
+
+    const orderDate = new Date(order.created_at)
+    const today = new Date()
+    const daysPassed = Math.floor((today - orderDate) / (1000 * 60 * 60 * 24))
+    
+    const totalDays = order.split_days
+    const dailyQuantity = order.split_quantity
+    const totalQuantity = order.quantity || 0
+    
+    // 진행률 계산
+    const progressDays = Math.min(daysPassed, totalDays)
+    const completedQuantity = Math.min(progressDays * dailyQuantity, totalQuantity)
+    const remainingQuantity = Math.max(0, totalQuantity - completedQuantity)
+    
+    // 상태 결정
+    let status = ''
+    if (daysPassed >= totalDays) {
+      status = '완료'
+    } else if (daysPassed > 0) {
+      status = '진행중'
+    } else {
+      status = '대기중'
+    }
+
+    return `${status} (${completedQuantity}/${totalQuantity}개 완료, ${remainingQuantity}개 남음)`
+  }
+
   const handleViewDetail = async (order) => {
     try {
       // 디버깅: 주문 데이터 구조 확인
@@ -271,6 +313,12 @@ const OrdersPage = () => {
         service: order.service,
         platform: order.platform,
         service_type: order.service_type
+      })
+      console.log('주문번호 필드들:', {
+        id: order.id,
+        order_id: order.order_id,
+        order_number: order.order_number,
+        orderId: order.orderId
       })
       
       // 주문 상세 정보는 이미 orders 배열에 있으므로 직접 사용
@@ -368,7 +416,9 @@ const OrdersPage = () => {
                   <div className="order-header">
                     <div className="order-id">
                       <span className="label">주문번호:</span>
-                      <span className="value">{order.id}</span>
+                      <span className="value">
+                        {order.id || order.order_id || order.order_number || 'N/A'}
+                      </span>
                     </div>
                     <div className="order-status-section">
                       <div className={`order-status ${getStatusClass(order.status)}`}>
@@ -378,6 +428,10 @@ const OrdersPage = () => {
                       {/* 예약 발송 주문인 경우 주문 현황 배지 표시 */}
                       {order.scheduled && (
                         <OrderStatusBadge status={ORDER_STATUS.SCHEDULED} />
+                      )}
+                      {/* 분할 발송 주문인 경우 분할 발송 배지 표시 */}
+                      {order.is_split_delivery && (
+                        <OrderStatusBadge status={ORDER_STATUS.IN_PROGRESS} />
                       )}
                     </div>
                   </div>
@@ -403,6 +457,16 @@ const OrdersPage = () => {
                         <div className="info-row scheduled-time-row">
                           <span className="label">예약 시간:</span>
                           <span className="value scheduled-time">{formatScheduledTime(order.scheduled_datetime)}</span>
+                        </div>
+                      )}
+                      
+                      {/* 분할 발송 주문인 경우 진행 상황 표시 */}
+                      {order.is_split_delivery && (
+                        <div className="info-row split-delivery-row">
+                          <span className="label">분할 발송:</span>
+                          <span className="value split-delivery-info">
+                            {getSplitDeliveryProgress(order)}
+                          </span>
                         </div>
                       )}
                     </div>

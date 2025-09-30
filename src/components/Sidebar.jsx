@@ -238,7 +238,7 @@ const Sidebar = ({ onClose }) => {
               <strong>이메일:</strong> tambleofficial@gmail.com
             </div>
             <div className="info-links">
-              <a href="/terms">이용약관</a>
+              <a href="https://docs.google.com/document/d/1AkgWndVOffH8y7Q-vTlDzgg4SgcC1DPCTYrZ9K9HT6Q/edit?usp=sharing" target="_blank">이용약관</a>
               <a href="/privacy">개인정보취급방침</a>
             </div>
           </div>

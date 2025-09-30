@@ -348,3 +348,8 @@ backend.py
 backend.py
 [33m2664ad4[m Fix database name from snspmt to postgres for RDS connection
 backend.py
+[33m887ec7c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: 할인 쿠폰 시스템 구현 및 수량 기반 할인 제거
+[33m09b554b[m Revert to cluster endpoint for database connection
+[33m33217ff[m Fix database connection: use RDS instance endpoint instead of cluster endpoint
+[33mc34ce30[m Fix all Python syntax and indentation errors
+[33med2eb55[m Fix Python syntax error in try-except block
