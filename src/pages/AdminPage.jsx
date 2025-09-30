@@ -102,7 +102,6 @@ const AdminPage = () => {
                email.toLowerCase().includes(searchLower) ||
                buyerName.toLowerCase().includes(searchLower)
       } catch (error) {
-        console.error('구매 필터링 오류:', error, purchase)
         return false
       }
     })
@@ -131,7 +130,6 @@ const AdminPage = () => {
         minute: '2-digit'
       })
     } catch (error) {
-      console.error('날짜 포맷팅 오류:', error, dateString)
       return dateString
     }
   }
@@ -156,7 +154,6 @@ const AdminPage = () => {
       
       setLastUpdate(new Date().toLocaleString())
     } catch (error) {
-      console.error('관리자 데이터 로드 실패:', error)
       setError('데이터를 불러오는 중 오류가 발생했습니다.')
     } finally {
       setIsLoading(false)
@@ -166,13 +163,10 @@ const AdminPage = () => {
   // 대시보드 통계 로드
   const loadDashboardStats = async () => {
     try {
-      console.log('🔍 대시보드 통계 로드 시작...')
       const response = await fetch('/api/admin/stats')
-      console.log('📊 대시보드 API 응답:', response.status, response.statusText)
       
       if (response.ok) {
         const data = await response.json()
-        console.log('📊 대시보드 데이터:', data)
         setDashboardData({
           totalUsers: data.total_users || 0,
           totalOrders: data.total_orders || 0,
@@ -181,24 +175,19 @@ const AdminPage = () => {
           todayOrders: data.today_orders || 0,
           todayRevenue: data.today_revenue || 0
         })
-      } else {
-        console.error('❌ 대시보드 API 오류:', response.status, response.statusText)
       }
     } catch (error) {
-      console.error('❌ 대시보드 통계 로드 실패:', error)
+      // 대시보드 통계 로드 실패
     }
   }
 
   // 사용자 데이터 로드
   const loadUsers = async () => {
     try {
-      console.log('🔍 사용자 데이터 로드 시작...')
       const response = await fetch('/api/admin/users')
-      console.log('👥 사용자 API 응답:', response.status, response.statusText)
       
       if (response.ok) {
       const data = await response.json()
-        console.log('👥 사용자 데이터:', data)
         // API 응답을 프론트엔드 형식으로 변환
         const transformedUsers = Array.isArray(data.users) ? 
           data.users.map(user => ({
@@ -210,13 +199,9 @@ const AdminPage = () => {
             lastActivity: user.last_activity || user.lastActivity || user.last_login || 'N/A'
           })) : []
         
-        console.log('👥 변환된 사용자 데이터:', transformedUsers)
         setUsers(transformedUsers)
-      } else {
-        console.error('❌ 사용자 API 오류:', response.status, response.statusText)
       }
     } catch (error) {
-      console.error('❌ 사용자 데이터 로드 실패:', error)
       setUsers([])
     }
   }
@@ -224,14 +209,10 @@ const AdminPage = () => {
   // 주문 데이터 로드
   const loadOrders = async () => {
     try {
-      console.log('🔍 주문 데이터 로드 시작...')
       const response = await fetch('/api/admin/transactions')
-      console.log('📦 주문 API 응답:', response.status, response.statusText)
       
       if (response.ok) {
         const data = await response.json()
-        console.log('📦 주문 원본 데이터:', data)
-        
         // API 응답을 프론트엔드 형식으로 변환
         const transformedOrders = Array.isArray(data.transactions || data.orders) ? 
           (data.transactions || data.orders).map(order => ({
@@ -247,13 +228,9 @@ const AdminPage = () => {
             comments: order.comments || order.remarks || 'N/A'
           })) : []
         
-        console.log('📦 변환된 주문 데이터:', transformedOrders)
         setOrders(transformedOrders)
-      } else {
-        console.error('❌ 주문 API 오류:', response.status, response.statusText)
       }
     } catch (error) {
-      console.error('❌ 주문 데이터 로드 실패:', error)
       setOrders([])
     }
   }
@@ -261,13 +238,10 @@ const AdminPage = () => {
   // 포인트 구매 신청 로드
   const loadPendingPurchases = async () => {
     try {
-      console.log('🔍 포인트 구매 신청 로드 시작...')
       const response = await fetch('/api/admin/purchases')
-      console.log('💰 포인트 구매 API 응답:', response.status, response.statusText)
       
       if (response.ok) {
         const data = await response.json()
-        console.log('💰 포인트 구매 데이터:', data)
         // API 응답을 프론트엔드 형식으로 변환
         const transformedPurchases = Array.isArray(data.purchases) ? 
           data.purchases.map(purchase => ({
@@ -282,14 +256,10 @@ const AdminPage = () => {
             bankInfo: purchase.bank_info || 'N/A'
           })) : []
         
-        console.log('💰 변환된 포인트 구매 데이터:', transformedPurchases)
         setPendingPurchases(transformedPurchases)
         setFilteredPurchases(transformedPurchases)
-      } else {
-        console.error('❌ 포인트 구매 API 오류:', response.status, response.statusText)
       }
     } catch (error) {
-      console.error('❌ 포인트 구매 신청 로드 실패:', error)
       setPendingPurchases([])
     }
   }
@@ -321,7 +291,6 @@ const AdminPage = () => {
         alert('승인 처리 중 오류가 발생했습니다.')
       }
     } catch (error) {
-      console.error('승인 처리 실패:', error)
       alert('승인 처리 중 오류가 발생했습니다.')
     }
   }
@@ -353,7 +322,6 @@ const AdminPage = () => {
         alert('거절 처리 중 오류가 발생했습니다.')
       }
     } catch (error) {
-      console.error('거절 처리 실패:', error)
       alert('거절 처리 중 오류가 발생했습니다.')
     }
   }

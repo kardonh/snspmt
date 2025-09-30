@@ -34,6 +34,52 @@ def handle_exception(e):
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-cluste.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
 SMMPANEL_API_KEY = os.environ.get('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
 
+# SMM Panel API 호출 함수
+def call_smm_panel_api(order_data):
+    """SMM Panel API 호출"""
+    try:
+        smm_panel_url = 'https://smmpanel.kr/api/v2'
+        
+        payload = {
+            'key': SMMPANEL_API_KEY,
+            'action': 'add',
+            'service': order_data.get('service'),
+            'link': order_data.get('link'),
+            'quantity': order_data.get('quantity'),
+            'runs': 1,
+            'interval': 0,
+            'comments': order_data.get('comments', ''),
+            'username': '',
+            'min': 0,
+            'max': 0,
+            'posts': 0,
+            'delay': 0,
+            'expiry': '',
+            'oldPosts': 0
+        }
+        
+        response = requests.post(smm_panel_url, json=payload, timeout=30)
+        result = response.json()
+        
+        if result.get('status') == 'success':
+            return {
+                'status': 'success',
+                'order': result.get('order'),
+                'charge': result.get('charge'),
+                'start_count': result.get('start_count', 0),
+                'remains': result.get('remains', order_data.get('quantity'))
+            }
+        else:
+            return {
+                'status': 'error',
+                'message': result.get('message', 'Unknown error')
+            }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': str(e)
+        }
+
 # AWS Secrets Manager 시도 (선택사항)
 try:
     from aws_secrets_manager import get_database_url, get_smmpanel_api_key
@@ -328,10 +374,26 @@ def init_database():
                     external_order_id VARCHAR(255),
                     remarks TEXT,
                     comments TEXT,
+                    is_scheduled BOOLEAN DEFAULT FALSE,
+                    scheduled_datetime TIMESTAMP,
+                    is_split_delivery BOOLEAN DEFAULT FALSE,
+                    split_days INTEGER DEFAULT 0,
+                    split_quantity INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
+            
+            # 기존 테이블에 예약/분할 필드 추가 (이미 존재하는 경우 무시)
+            try:
+                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_scheduled BOOLEAN DEFAULT FALSE")
+                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS scheduled_datetime TIMESTAMP")
+                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_split_delivery BOOLEAN DEFAULT FALSE")
+                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS split_days INTEGER DEFAULT 0")
+                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS split_quantity INTEGER DEFAULT 0")
+                print("✅ 예약/분할 필드 추가 완료")
+            except Exception as e:
+                print(f"⚠️ 예약/분할 필드 추가 실패 (이미 존재할 수 있음): {e}")
             
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
@@ -793,22 +855,35 @@ def create_order():
                         WHERE id = ?
                     """, (coupon_id,))
         
+        # 예약/분할 주문 정보 추출
+        is_scheduled = data.get('is_scheduled', False)
+        scheduled_datetime = data.get('scheduled_datetime')
+        is_split_delivery = data.get('is_split_delivery', False)
+        split_days = data.get('split_days', 0)
+        split_quantity = data.get('split_quantity', 0)
+        
         # 주문 생성
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 INSERT INTO orders (user_id, service_id, link, quantity, price, 
-                                discount_amount, referral_code, status, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending_payment', NOW(), NOW())
+                                discount_amount, referral_code, status, created_at, updated_at,
+                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending_payment', NOW(), NOW(),
+                        %s, %s, %s, %s, %s)
                 RETURNING order_id
             """, (user_id, service_id, link, quantity, final_price, discount_amount, 
-                referral_data[0] if referral_data else None))
+                referral_data[0] if referral_data else None, is_scheduled, scheduled_datetime,
+                is_split_delivery, split_days, split_quantity))
         else:
             cursor.execute("""
                 INSERT INTO orders (user_id, service_id, link, quantity, price, 
-                                discount_amount, referral_code, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_payment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                                discount_amount, referral_code, status, created_at, updated_at,
+                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_payment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+                        ?, ?, ?, ?, ?)
             """, (user_id, service_id, link, quantity, final_price, discount_amount,
-                referral_data[0] if referral_data else None))
+                referral_data[0] if referral_data else None, is_scheduled, scheduled_datetime,
+                is_split_delivery, split_days, split_quantity))
             cursor.execute("SELECT last_insert_rowid()")
         
         order_id = cursor.fetchone()[0]
@@ -902,16 +977,63 @@ def create_order():
         conn.commit()
         print(f"✅ 주문 생성 성공 - 주문 ID: {order_id}")
         
+        # 예약/분할 주문 처리
+        if is_scheduled or is_split_delivery:
+            # 예약/분할 주문은 나중에 처리하도록 스케줄링
+            print(f"📅 예약/분할 주문 - 즉시 처리하지 않음")
+            status = 'scheduled' if is_scheduled else 'split_scheduled'
+            message = '예약 주문이 생성되었습니다.' if is_scheduled else '분할 주문이 생성되었습니다.'
+        else:
+            # 일반 주문은 즉시 SMM Panel API 호출
+            print(f"🚀 일반 주문 - 즉시 SMM Panel API 호출")
+            try:
+                # SMM Panel API 호출 로직 (기존 코드에서 가져와야 함)
+                smm_result = call_smm_panel_api({
+                    'service': service_id,
+                    'link': link,
+                    'quantity': quantity,
+                    'comments': data.get('comments', '')
+                })
+                
+                if smm_result.get('status') == 'success':
+                    # SMM Panel 주문 ID 저장
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
+                            UPDATE orders SET smm_panel_order_id = %s, status = 'completed', updated_at = NOW()
+                            WHERE order_id = %s
+                        """, (smm_result.get('order'), order_id))
+                    else:
+                        cursor.execute("""
+                            UPDATE orders SET smm_panel_order_id = ?, status = 'completed', updated_at = CURRENT_TIMESTAMP
+                            WHERE order_id = ?
+                        """, (smm_result.get('order'), order_id))
+                    
+                    conn.commit()
+                    status = 'completed'
+                    message = '주문이 즉시 처리되었습니다.'
+                else:
+                    status = 'failed'
+                    message = 'SMM Panel API 호출 실패'
+            except Exception as e:
+                print(f"❌ SMM Panel API 호출 실패: {e}")
+                status = 'failed'
+                message = '주문 처리 중 오류가 발생했습니다.'
+        
         return jsonify({
             'success': True,
             'order_id': order_id,
-            'status': 'pending_payment',
+            'status': status,
             'original_price': price,
             'discount_amount': discount_amount,
             'final_price': final_price,
             'referral_discount': discount_amount > 0,
             'commission_earned': commission_amount if referral_data else 0,
-            'message': '주문이 생성되었습니다.'
+            'message': message,
+            'is_scheduled': is_scheduled,
+            'is_split_delivery': is_split_delivery,
+            'scheduled_datetime': scheduled_datetime,
+            'split_days': split_days,
+            'split_quantity': split_quantity
         }), 200
         
     except Exception as e:

@@ -586,7 +586,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
                 <span className="checkmark"></span>
                 <span className="terms-text">
                   <a href="https://docs.google.com/document/d/1AkgWndVOffH8y7Q-vTlDzgg4SgcC1DPCTYrZ9K9HT6Q/edit?usp=sharing" target="_blank" className="terms-link">이용약관</a> 및 
-                  <a href="/privacy" target="_blank" className="terms-link">개인정보처리방침</a>에 동의합니다
+                  <a href="https://docs.google.com/document/d/1yPv8pknCIKc0yjyn7LIJ8oIQux_wL7LU-63doJ5njCA/edit?tab=t.0" target="_blank" className="terms-link">개인정보처리방침</a>에 동의합니다
                 </span>
               </label>
             </div>

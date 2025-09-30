@@ -57,7 +57,6 @@ export function AuthProvider({ children }) {
           return smmpanelApi.registerUser(userData).then(() => {
             // 추천인 코드가 있으면 5% 할인 쿠폰 발급
             if (businessInfo && businessInfo.referralCode) {
-              console.log('🎁 추천인 쿠폰 발급 시도:', businessInfo.referralCode);
               return fetch('/api/referral/issue-coupon', {
                 method: 'POST',
                 headers: {
@@ -69,17 +68,13 @@ export function AuthProvider({ children }) {
                 })
               }).then(response => {
                 if (response.ok) {
-                  console.log('✅ 추천인 쿠폰이 발급되었습니다!');
                   return response.json();
                 } else {
-                  console.error('❌ 추천인 쿠폰 발급 실패:', response.status);
                   return response.json().then(errorData => {
-                    console.error('❌ 쿠폰 발급 오류 상세:', errorData);
                     throw new Error(`쿠폰 발급 실패: ${errorData.error || '알 수 없는 오류'}`);
                   });
                 }
               }).catch(error => {
-                console.error('❌ 추천인 쿠폰 발급 오류:', error);
                 // 쿠폰 발급 실패해도 회원가입은 계속 진행
                 return Promise.resolve();
               });
@@ -88,7 +83,6 @@ export function AuthProvider({ children }) {
         });
       })
       .catch(error => {
-        console.error('회원가입 오류:', error);
         if (error.code === 'auth/email-already-in-use') {
           throw new Error('이미 사용 중인 이메일입니다.');
         } else if (error.code === 'auth/weak-password') {
@@ -106,18 +100,14 @@ export function AuthProvider({ children }) {
   }
 
   function login(email, password) {
-    console.log('🔐 로그인 시도:', email);
     return signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
-        console.log('✅ 로그인 성공:', userCredential.user.email);
         return userCredential;
       })
       .catch(error => {
-        console.error('❌ 로그인 실패:', error.code, error.message);
         
         // 오프라인 모드에서 네트워크 오류 처리
         if (error.code === 'auth/network-request-failed') {
-          console.log('네트워크 연결 실패 - 오프라인 모드로 전환');
           // 로컬에서 테스트용 더미 사용자 생성
           const dummyUser = {
             uid: 'dummy-user-id',
@@ -177,11 +167,7 @@ export function AuthProvider({ children }) {
           displayName: user.displayName
         }));
         
-        console.log('✅ 사용자 정보 localStorage 저장:', {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName
-        });
+        // 사용자 정보 localStorage 저장
         
         try {
           // 사용자 정보 저장 (기본 정보만)
@@ -194,11 +180,7 @@ export function AuthProvider({ children }) {
           // 활동 업데이트는 현재 백엔드에서 지원하지 않으므로 제거
           // 필요시 나중에 구현 예정
         } catch (error) {
-          console.error('사용자 정보 저장 실패:', error);
           // 오프라인 모드에서는 에러를 무시하고 계속 진행
-          if (error.message.includes('Network Error') || error.message.includes('ERR_NAME_NOT_RESOLVED')) {
-            console.log('오프라인 모드 - 백엔드 API 호출 건너뜀');
-          }
         }
       } else {
         // 로그아웃 시 localStorage 정리
@@ -207,7 +189,6 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('firebase_user_id');
         localStorage.removeItem('firebase_user_email');
         localStorage.removeItem('currentUser');
-        console.log('✅ 로그아웃 - localStorage 정리 완료');
       }
       
       setLoading(false);

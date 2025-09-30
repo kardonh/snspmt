@@ -44,7 +44,6 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    console.error('SMM Panel API Error:', error)
     return Promise.reject(error)
   }
 )
@@ -59,8 +58,6 @@ export const smmpanelApi = {
   
   // 주문 생성
   createOrder: (orderData, userId) => {
-    console.log("SMM Panel 주문 생성 시작:", orderData)
-
     const config = {
       headers: {
         'X-User-ID': userId
@@ -70,13 +67,7 @@ export const smmpanelApi = {
     return smmPanelClient.post('/smm-panel', { 
       action: 'add',
       ...orderData 
-    }, config).then(response => {
-      console.log("SMM Panel API 응답:", response)
-      return response
-    }).catch(error => {
-      console.error("SMM Panel API 오류:", error)
-      throw error
-    })
+    }, config)
   },
   
   // 주문 상태 조회
@@ -156,16 +147,7 @@ export const smmpanelApi = {
   // 사용자 관련 API
   // 사용자 등록
   registerUser: (userData) => {
-    console.log('🔍 사용자 등록 요청 데이터:', userData)
     return apiClient.post('/register', userData)
-      .then(response => {
-        console.log('✅ 사용자 등록 성공:', response)
-        return response
-      })
-      .catch(error => {
-        console.error('❌ 사용자 등록 실패:', error)
-        throw error
-      })
   },
   
   
@@ -212,18 +194,14 @@ export const handleApiError = (error) => {
 
 // 주문 데이터 변환 헬퍼 함수 (SMM Panel API 구조)
 export const transformOrderData = (orderData) => {
-  console.log('transformOrderData input:', orderData)
-  
   // orderData가 undefined인 경우 기본값 사용
   const safeOrderData = orderData || {}
   
   // serviceId가 없거나 undefined인 경우 기본값 사용
   let serviceId = safeOrderData.service_id || safeOrderData.serviceId
   if (!serviceId || serviceId === 'undefined' || serviceId === undefined) {
-    console.warn('⚠️ 서비스 ID가 누락되었습니다, 기본값 사용:', orderData)
     // 기본 서비스 ID 설정 (Instagram 한국인 팔로워)
     serviceId = 'followers_korean'
-    console.log('🔧 기본 서비스 ID 설정:', serviceId)
   }
   
   // 안전한 값 변환을 위한 헬퍼 함수
@@ -233,7 +211,6 @@ export const transformOrderData = (orderData) => {
       const str = String(value)
       return str ? str.trim() : ''
     } catch (error) {
-      console.warn('safeString error:', error, 'value:', value)
       return ''
     }
   }
@@ -244,7 +221,6 @@ export const transformOrderData = (orderData) => {
       const num = Number(value)
       return isNaN(num) ? 0 : num
     } catch (error) {
-      console.warn('safeNumber error:', error, 'value:', value)
       return 0
     }
   }
@@ -270,7 +246,6 @@ export const transformOrderData = (orderData) => {
     key: '35246b890345d819e1110d5cea9d5565' // SMM Panel API 키
   }
   
-  console.log('transformOrderData output:', transformed)
   return transformed
 }
 
