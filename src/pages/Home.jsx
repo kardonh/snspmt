@@ -45,6 +45,11 @@ const Home = () => {
   // 할인 쿠폰 관련 상태
   const [selectedDiscountCoupon, setSelectedDiscountCoupon] = useState(null)
   const [availableDiscountCoupons, setAvailableDiscountCoupons] = useState([])
+  
+  // 예약 발송 관련 상태
+  const [isScheduledOrder, setIsScheduledOrder] = useState(false)
+  const [scheduledDate, setScheduledDate] = useState('')
+  const [scheduledTime, setScheduledTime] = useState('')
 
   // 컴포넌트 마운트 시 기본 서비스 자동 선택
   useEffect(() => {
@@ -1229,8 +1234,48 @@ const Home = () => {
         throw new Error('가격이 올바르지 않습니다.')
       }
 
+      // 예약 발송 검증
+      if (isScheduledOrder) {
+        if (!scheduledDate || !scheduledTime) {
+          throw new Error('예약 날짜와 시간을 모두 선택해주세요.')
+        }
+        
+        const scheduledDateTime = new Date(`${scheduledDate} ${scheduledTime}`)
+        const now = new Date()
+        
+        if (scheduledDateTime <= now) {
+          throw new Error('예약 시간은 현재 시간보다 늦어야 합니다.')
+        }
+        
+        // 예약 시간이 24시간 이내인지 확인
+        const timeDiff = scheduledDateTime.getTime() - now.getTime()
+        const hoursDiff = timeDiff / (1000 * 60 * 60)
+        
+        if (hoursDiff < 1) {
+          throw new Error('예약 시간은 최소 1시간 후여야 합니다.')
+        }
+        
+        if (hoursDiff > 168) { // 7일
+          throw new Error('예약 시간은 최대 7일 이내여야 합니다.')
+        }
+      }
+
       console.log('✅ 주문 데이터 검증 통과')
       console.log('Order Data for Backend API:', orderData)
+      
+      // 예약 발송 데이터 추가
+      if (isScheduledOrder) {
+        orderData.scheduled = true
+        orderData.scheduled_date = scheduledDate
+        orderData.scheduled_time = scheduledTime
+        orderData.scheduled_datetime = `${scheduledDate} ${scheduledTime}`
+        console.log('📅 예약 발송 데이터:', {
+          scheduled: orderData.scheduled,
+          scheduled_date: orderData.scheduled_date,
+          scheduled_time: orderData.scheduled_time,
+          scheduled_datetime: orderData.scheduled_datetime
+        })
+      }
       
       // 백엔드 API 호출 (SMM Panel 변환 없이 직접 전송)
       const response = await fetch('/api/orders', {
@@ -1257,6 +1302,15 @@ const Home = () => {
       } else {
         // 주문 생성 성공 후 포인트 결제 페이지로 이동
         console.log('✅ 주문 생성 성공, 포인트 결제 페이지로 이동:', result)
+        
+        // 예약 발송 성공 메시지
+        if (isScheduledOrder) {
+          console.log('📅 예약 발송 주문이 생성되었습니다:', {
+            scheduled_date: scheduledDate,
+            scheduled_time: scheduledTime,
+            scheduled_datetime: `${scheduledDate} ${scheduledTime}`
+          })
+        }
         
         // 사용자 포인트 조회
         let userPoints = null
@@ -1667,7 +1721,50 @@ const Home = () => {
             </div>
           )}
 
+          {/* 예약 발송 체크박스 */}
+          <div className="form-group">
+            <div className="scheduled-order-checkbox">
+              <input
+                type="checkbox"
+                id="scheduledOrder"
+                checked={isScheduledOrder}
+                onChange={(e) => setIsScheduledOrder(e.target.checked)}
+                className="scheduled-checkbox"
+              />
+              <label htmlFor="scheduledOrder" className="scheduled-label">
+                📅 예약 발송 (나중에 자동으로 주문하기)
+              </label>
+            </div>
+          </div>
 
+          {/* 예약 발송 날짜/시간 선택 */}
+          {isScheduledOrder && (
+            <div className="scheduled-order-details">
+              <div className="form-group">
+                <label>예약 날짜</label>
+                <input
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="form-control scheduled-date-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>예약 시간</label>
+                <input
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  className="form-control scheduled-time-input"
+                />
+              </div>
+              <div className="scheduled-info">
+                <p>📌 예약된 시간에 자동으로 주문이 발송됩니다.</p>
+                <p>⏰ 예약 시간: {scheduledDate && scheduledTime ? `${scheduledDate} ${scheduledTime}` : '날짜와 시간을 선택해주세요'}</p>
+              </div>
+            </div>
+          )}
 
           {/* Total Price */}
           <div className="price-display">

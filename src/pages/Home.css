@@ -79,6 +79,82 @@
   accent-color: #87ceeb;
 }
 
+/* 예약 발송 스타일 */
+.scheduled-order-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border: 2px solid #e1e8ed;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.scheduled-order-checkbox:hover {
+  border-color: #87ceeb;
+  background: #f8faff;
+}
+
+.scheduled-checkbox {
+  width: 20px;
+  height: 20px;
+  accent-color: #87ceeb;
+}
+
+.scheduled-label {
+  font-weight: 600;
+  font-size: 16px;
+  color: #2c3e50;
+  cursor: pointer;
+  margin: 0;
+}
+
+.scheduled-order-details {
+  margin-top: 16px;
+  padding: 20px;
+  border: 2px solid #87ceeb;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8faff 0%, #e8f4fd 100%);
+}
+
+.scheduled-date-input,
+.scheduled-time-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e1e8ed;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+.scheduled-date-input:focus,
+.scheduled-time-input:focus {
+  outline: none;
+  border-color: #87ceeb;
+  box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.1);
+}
+
+.scheduled-info {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(135, 206, 235, 0.1);
+  border-radius: 8px;
+  border-left: 4px solid #87ceeb;
+}
+
+.scheduled-info p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #2c3e50;
+}
+
+.scheduled-info p:first-child {
+  font-weight: 600;
+  color: #87ceeb;
+}
+
 /* Header */
 .order-header {
   display: flex;
