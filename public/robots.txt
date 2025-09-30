@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://sociality.co.kr/sitemap.xml
+
+# Disallow admin pages
+Disallow: /admin
+Disallow: /api/
+Disallow: /_next/
+Disallow: /static/
+
+# Allow main pages
+Allow: /
+Allow: /orders
+Allow: /points
+Allow: /referral
+Allow: /faq

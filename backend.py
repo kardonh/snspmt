@@ -13,6 +13,16 @@ import sqlite3
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
 
+# sitemap.xml 서빙
+@app.route('/sitemap.xml')
+def sitemap():
+    return app.send_static_file('sitemap.xml')
+
+# robots.txt 서빙
+@app.route('/robots.txt')
+def robots():
+    return app.send_static_file('robots.txt')
+
 # 전역 오류 처리
 @app.errorhandler(404)
 def not_found(error):
