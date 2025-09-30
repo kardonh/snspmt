@@ -80,6 +80,226 @@ def call_smm_panel_api(order_data):
             'message': str(e)
         }
 
+# 분할 발송 처리 함수
+def process_split_delivery(order_id, day_number):
+    """분할 발송 일일 처리"""
+    conn = None
+    cursor = None
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 분할 주문 정보 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT user_id, service_id, link, split_quantity, comments, split_days
+                FROM orders 
+                WHERE order_id = %s AND is_split_delivery = TRUE
+            """, (order_id,))
+        else:
+            cursor.execute("""
+                SELECT user_id, service_id, link, split_quantity, comments, split_days
+                FROM orders 
+                WHERE order_id = ? AND is_split_delivery = TRUE
+            """, (order_id,))
+        
+        order = cursor.fetchone()
+        if not order:
+            print(f"❌ 분할 주문을 찾을 수 없습니다: {order_id}")
+            return False
+        
+        user_id, service_id, link, split_quantity, comments, total_days = order
+        
+        # 해당 일차 진행 상황 확인
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id FROM split_delivery_progress 
+                WHERE order_id = %s AND day_number = %s
+            """, (order_id, day_number))
+        else:
+            cursor.execute("""
+                SELECT id FROM split_delivery_progress 
+                WHERE order_id = ? AND day_number = ?
+            """, (order_id, day_number))
+        
+        existing_progress = cursor.fetchone()
+        
+        if not existing_progress:
+            # 새로운 일차 진행 상황 생성
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO split_delivery_progress 
+                    (order_id, day_number, scheduled_date, status, created_at)
+                    VALUES (%s, %s, %s, 'pending', NOW())
+                """, (order_id, day_number, datetime.now().date()))
+            else:
+                cursor.execute("""
+                    INSERT INTO split_delivery_progress 
+                    (order_id, day_number, scheduled_date, status, created_at)
+                    VALUES (?, ?, ?, 'pending', datetime('now'))
+                """, (order_id, day_number, datetime.now().date()))
+        
+        # SMM Panel API 호출
+        smm_result = call_smm_panel_api({
+            'service': service_id,
+            'link': link,
+            'quantity': split_quantity,
+            'comments': f"{comments} (분할 {day_number}/{total_days}일차)"
+        })
+        
+        if smm_result.get('status') == 'success':
+            # 성공 시 진행 상황 업데이트
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE split_delivery_progress 
+                    SET status = 'completed', quantity_delivered = %s, 
+                        smm_panel_order_id = %s, completed_at = NOW()
+                    WHERE order_id = %s AND day_number = %s
+                """, (split_quantity, smm_result.get('order'), order_id, day_number))
+            else:
+                cursor.execute("""
+                    UPDATE split_delivery_progress 
+                    SET status = 'completed', quantity_delivered = ?, 
+                        smm_panel_order_id = ?, completed_at = datetime('now')
+                    WHERE order_id = ? AND day_number = ?
+                """, (split_quantity, smm_result.get('order'), order_id, day_number))
+            
+            print(f"✅ 분할 발송 {day_number}일차 완료: {split_quantity}개")
+            
+            # 마지막 날이면 주문 상태를 완료로 변경
+            if day_number >= total_days:
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        UPDATE orders SET status = 'completed', updated_at = NOW()
+                        WHERE order_id = %s
+                    """, (order_id,))
+                else:
+                    cursor.execute("""
+                        UPDATE orders SET status = 'completed', updated_at = datetime('now')
+                        WHERE order_id = ?
+                    """, (order_id,))
+                print(f"🎉 분할 발송 완료: {order_id}")
+            
+            conn.commit()
+            return True
+        else:
+            # 실패 시 상태 업데이트
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE split_delivery_progress 
+                    SET status = 'failed', error_message = %s, failed_at = NOW()
+                    WHERE order_id = %s AND day_number = %s
+                """, (smm_result.get('message', 'Unknown error'), order_id, day_number))
+            else:
+                cursor.execute("""
+                    UPDATE split_delivery_progress 
+                    SET status = 'failed', error_message = ?, failed_at = datetime('now')
+                    WHERE order_id = ? AND day_number = ?
+                """, (smm_result.get('message', 'Unknown error'), order_id, day_number))
+            
+            print(f"❌ 분할 발송 {day_number}일차 실패: {smm_result.get('message')}")
+            conn.commit()
+            return False
+            
+    except Exception as e:
+        print(f"❌ 분할 발송 처리 실패: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+# 예약 주문 처리 함수
+def process_scheduled_order(order_id):
+    """예약 주문 처리"""
+    conn = None
+    cursor = None
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 예약 주문 정보 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT user_id, service_id, link, quantity, comments
+                FROM orders 
+                WHERE order_id = %s AND is_scheduled = TRUE
+            """, (order_id,))
+        else:
+            cursor.execute("""
+                SELECT user_id, service_id, link, quantity, comments
+                FROM orders 
+                WHERE order_id = ? AND is_scheduled = TRUE
+            """, (order_id,))
+        
+        order = cursor.fetchone()
+        if not order:
+            print(f"❌ 예약 주문을 찾을 수 없습니다: {order_id}")
+            return False
+        
+        user_id, service_id, link, quantity, comments = order
+        
+        # SMM Panel API 호출
+        smm_result = call_smm_panel_api({
+            'service': service_id,
+            'link': link,
+            'quantity': quantity,
+            'comments': comments
+        })
+        
+        if smm_result.get('status') == 'success':
+            # 성공 시 주문 상태 업데이트
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE orders 
+                    SET status = 'completed', smm_panel_order_id = %s, updated_at = NOW()
+                    WHERE order_id = %s
+                """, (smm_result.get('order'), order_id))
+            else:
+                cursor.execute("""
+                    UPDATE orders 
+                    SET status = 'completed', smm_panel_order_id = ?, updated_at = datetime('now')
+                    WHERE order_id = ?
+                """, (smm_result.get('order'), order_id))
+            
+            print(f"✅ 예약 주문 완료: {order_id}")
+            conn.commit()
+            return True
+        else:
+            # 실패 시 상태 업데이트
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE orders 
+                    SET status = 'failed', updated_at = NOW()
+                    WHERE order_id = %s
+                """, (order_id,))
+            else:
+                cursor.execute("""
+                    UPDATE orders 
+                    SET status = 'failed', updated_at = datetime('now')
+                    WHERE order_id = ?
+                """, (order_id,))
+            
+            print(f"❌ 예약 주문 실패: {smm_result.get('message')}")
+            conn.commit()
+            return False
+            
+    except Exception as e:
+        print(f"❌ 예약 주문 처리 실패: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 # AWS Secrets Manager 시도 (선택사항)
 try:
     from aws_secrets_manager import get_database_url, get_smmpanel_api_key
@@ -394,6 +614,25 @@ def init_database():
                 print("✅ 예약/분할 필드 추가 완료")
             except Exception as e:
                 print(f"⚠️ 예약/분할 필드 추가 실패 (이미 존재할 수 있음): {e}")
+            
+            # 분할 발송 진행 상황 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS split_delivery_progress (
+                    id SERIAL PRIMARY KEY,
+                    order_id INTEGER NOT NULL,
+                    day_number INTEGER NOT NULL,
+                    scheduled_date DATE,
+                    quantity_delivered INTEGER DEFAULT 0,
+                    status VARCHAR(50) DEFAULT 'pending',
+                    smm_panel_order_id VARCHAR(255),
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    completed_at TIMESTAMP,
+                    failed_at TIMESTAMP,
+                    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+                )
+            """)
+            print("✅ 분할 발송 진행 상황 테이블 생성 완료")
             
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
