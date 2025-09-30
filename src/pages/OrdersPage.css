@@ -50,11 +50,10 @@
   border-radius: 8px;
   background: white;
   color: #374151;
-  font-size: 14px;
+  font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
 }
 
 .filter-btn:hover {
@@ -63,141 +62,59 @@
 }
 
 .filter-btn.active {
-  background: #827edc;
+  background: #3b82f6;
+  border-color: #3b82f6;
   color: white;
-  border-color: #000000;
 }
 
-.search-container {
-  position: relative;
+.search-box {
   display: flex;
   align-items: center;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  color: #9ca3af;
-  z-index: 1;
-}
-
-.search-input {
-  padding: 8px 12px 8px 36px;
+  gap: 8px;
+  padding: 8px 12px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   background: white;
-  color: #374151;
-  font-size: 14px;
-  width: 200px;
-  transition: border-color 0.2s ease;
+  min-width: 250px;
 }
 
-.search-input:focus {
+.search-box input {
+  border: none;
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  font-size: 0.9rem;
+  width: 100%;
 }
 
-.search-input::placeholder {
-  color: #9ca3af;
+.search-box svg {
+  color: #6b7280;
+  width: 16px;
+  height: 16px;
 }
 
-.loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  text-align: center;
-}
-
-.loading-simple {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 40px 20px;
-  color: #667eea;
-  font-size: 1rem;
-  font-weight: 500;
-}
-
-.loading-icon {
-  animation: spin 1s linear infinite;
-  color: #667eea;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.loading p {
-  font-size: 1.2rem;
-  color: #666;
-  margin: 0;
-}
-
-.error-message {
-  margin: 20px;
-  padding: 20px;
-  background: #fee;
-  border: 1px solid #fcc;
-  border-radius: 12px;
-  color: #c33;
-  text-align: center;
-  font-size: 1.1rem;
-}
-
-.no-orders {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  text-align: center;
-  color: #666;
-}
-
-.no-orders svg {
-  margin-bottom: 20px;
-  color: #ccc;
-}
-
-.no-orders h3 {
-  margin: 0 0 10px 0;
-  font-size: 1.5rem;
-  color: #333;
-}
-
-.no-orders p {
-  margin: 0;
-  font-size: 1.1rem;
-}
-
+/* 주문 목록 */
 .orders-list {
-  padding: 20px;
+  padding: 20px 30px;
 }
 
 .order-card {
   background: white;
   border: 1px solid #e1e5e9;
-  border-radius: 8px;
+  border-radius: 12px;
   margin-bottom: 16px;
+  transition: all 0.3s ease;
   overflow: hidden;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .order-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }
 
 .order-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 20px;
   background: #f8f9fa;
   border-bottom: 1px solid #e1e5e9;
 }
@@ -210,142 +127,180 @@
 
 .order-id .label {
   font-weight: 600;
-  color: #666;
+  color: #6b7280;
 }
 
 .order-id .value {
-  font-family: 'Courier New', monospace;
   font-weight: 700;
-  color: #333;
-  background: #e9ecef;
-  padding: 4px 8px;
-  border-radius: 6px;
+  color: #1a1a1a;
+  font-family: 'Courier New', monospace;
 }
 
 .order-status {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: 20px;
-  font-weight: 600;
   font-size: 0.9rem;
-}
-
-.status-completed {
-  background: #d4edda;
-  color: #155724;
-}
-
-.status-canceled {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.status-pending {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.status-processing {
-  background: #cce5ff;
-  color: #004085;
-}
-
-.status-unknown {
-  background: #e2e3e5;
-  color: #383d41;
-}
-
-.status-icon {
-  flex-shrink: 0;
+  font-weight: 600;
 }
 
 .order-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
   padding: 20px;
 }
 
 .order-info {
-  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .info-row {
   display: flex;
-  margin-bottom: 12px;
-  align-items: center;
-}
-
-.info-row:last-child {
-  margin-bottom: 0;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .info-row .label {
-  min-width: 80px;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: #666;
-  margin-right: 12px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .info-row .value {
-  color: #333;
-  word-break: break-all;
+  font-size: 0.9rem;
+  color: #1a1a1a;
+  font-weight: 500;
 }
 
 .info-row .value.link {
-  color: #667eea;
-  text-decoration: none;
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .order-actions {
-  margin-left: 20px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
 }
 
 .detail-btn {
+  padding: 8px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: #667eea;
-  border: none;
-  border-radius: 8px;
-  color: white;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  gap: 6px;
 }
 
 .detail-btn:hover {
-  background: #5a6fd8;
-  transform: translateY(-2px);
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+/* 주문 현황 섹션 */
+.order-status-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 주문 상태 클래스 */
+.order-status.completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.order-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.order-status.processing {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.order-status.canceled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.order-status.unknown {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* 주문 현황 배지 */
+.order-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.order-status-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.order-status-badge svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* 페이지네이션 */
 .pagination {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 20px;
-  background: white;
+  padding: 20px 30px;
+  background: #f8f9fa;
   border-top: 1px solid #e1e5e9;
 }
 
-.pagination-btn {
+.pagination-info {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.pagination-controls {
   display: flex;
+  gap: 8px;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
+}
+
+.pagination-btn {
+  padding: 8px 12px;
   border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border-radius: 8px;
   background: white;
   color: #374151;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .pagination-btn:hover:not(:disabled) {
@@ -358,136 +313,57 @@
   cursor: not-allowed;
 }
 
-.pagination-info {
+/* 로딩 및 에러 상태 */
+.loading {
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 4px;
-  padding: 8px 12px;
-  background: #f8f9fa;
-  border: 1px solid #e1e5e9;
-  border-radius: 6px;
-  font-size: 14px;
+  padding: 60px;
   color: #6b7280;
-  font-weight: 500;
 }
 
-/* 모달 스타일 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 20px;
-  max-width: 600px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 25px 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 20px 20px 0 0;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.8rem;
-  font-weight: 700;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 2rem;
-  cursor: pointer;
-  padding: 0;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background 0.3s ease;
-}
-
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.modal-body {
-  padding: 30px;
-}
-
-.detail-section {
-  margin-bottom: 30px;
-}
-
-.detail-section:last-child {
-  margin-bottom: 0;
-}
-
-.detail-section h3 {
-  margin: 0 0 20px 0;
-  font-size: 1.3rem;
-  color: #333;
-  border-bottom: 2px solid #e1e5e9;
-  padding-bottom: 10px;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-.detail-item {
+.error {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  padding: 60px;
+  color: #ef4444;
+  text-align: center;
 }
 
-.detail-item .label {
+.no-orders {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.no-orders svg {
+  margin-bottom: 16px;
+  color: #d1d5db;
+}
+
+.no-orders h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.2rem;
   font-weight: 600;
-  color: #666;
+}
+
+.no-orders p {
+  margin: 0;
   font-size: 0.9rem;
-}
-
-.detail-item .value {
-  color: #333;
-  font-size: 1rem;
-  padding: 8px 12px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e1e5e9;
-}
-
-.detail-item .value.link {
-  color: #667eea;
-  word-break: break-all;
 }
 
 /* 반응형 디자인 */
 @media (max-width: 768px) {
   .orders-page {
     padding: 10px;
+  }
+  
+  .orders-container {
+    border-radius: 8px;
   }
   
   .orders-header {
@@ -500,53 +376,54 @@
   
   .orders-controls {
     flex-direction: column;
-    gap: 16px;
-    padding: 16px 20px;
+    gap: 15px;
+    padding: 15px 20px;
   }
   
   .filter-buttons {
-    justify-content: flex-start;
+    justify-content: center;
   }
   
   .filter-btn {
-    font-size: 12px;
+    font-size: 0.8rem;
     padding: 6px 12px;
   }
   
-  .search-input {
+  .search-box {
     width: 100%;
+  }
+  
+  .order-card {
+    margin-bottom: 12px;
+  }
+  
+  .order-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px;
   }
   
   .order-content {
-    flex-direction: column;
-    gap: 16px;
+    padding: 15px;
+  }
+  
+  .order-info {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
   
   .order-actions {
-    margin-left: 0;
-    align-self: stretch;
-  }
-  
-  .detail-btn {
-    justify-content: center;
-    width: 100%;
-  }
-  
-  .detail-grid {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    gap: 8px;
   }
   
   .pagination {
-    padding: 16px;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px 20px;
   }
   
-  .modal-content {
-    margin: 10px;
-    max-height: 95vh;
-  }
-  
-  .modal-header,
-  .modal-body {
-    padding: 20px;
+  .pagination-info {
+    text-align: center;
   }
 }

@@ -4,6 +4,61 @@ import smmpanelApi from '../services/snspopApi'
 import { Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, Eye, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import './OrdersPage.css'
 
+// 주문 현황 상태 상수
+const ORDER_STATUS = {
+  SCHEDULED: 'scheduled',     // 예약됨
+  RECEIVED: 'received',       // 접수됨
+  IN_PROGRESS: 'in_progress', // 실행중
+  COMPLETED: 'completed'      // 완료
+}
+
+// 주문 현황 상태 한글 매핑
+const ORDER_STATUS_LABELS = {
+  [ORDER_STATUS.SCHEDULED]: '예약됨',
+  [ORDER_STATUS.RECEIVED]: '접수됨',
+  [ORDER_STATUS.IN_PROGRESS]: '실행중',
+  [ORDER_STATUS.COMPLETED]: '완료'
+}
+
+// 주문 현황 상태 색상 매핑
+const ORDER_STATUS_COLORS = {
+  [ORDER_STATUS.SCHEDULED]: '#f59e0b',    // 주황색
+  [ORDER_STATUS.RECEIVED]: '#3b82f6',     // 파란색
+  [ORDER_STATUS.IN_PROGRESS]: '#8b5cf6',  // 보라색
+  [ORDER_STATUS.COMPLETED]: '#10b981'     // 초록색
+}
+
+// 주문 현황 배지 컴포넌트
+const OrderStatusBadge = ({ status }) => {
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case ORDER_STATUS.SCHEDULED:
+        return <Clock size={14} />
+      case ORDER_STATUS.RECEIVED:
+        return <AlertCircle size={14} />
+      case ORDER_STATUS.IN_PROGRESS:
+        return <RefreshCw size={14} />
+      case ORDER_STATUS.COMPLETED:
+        return <CheckCircle size={14} />
+      default:
+        return <Clock size={14} />
+    }
+  }
+
+  return (
+    <div 
+      className="order-status-badge"
+      style={{ 
+        backgroundColor: ORDER_STATUS_COLORS[status] || '#6b7280',
+        color: 'white'
+      }}
+    >
+      {getStatusIcon(status)}
+      <span>{ORDER_STATUS_LABELS[status] || '알 수 없음'}</span>
+    </div>
+  )
+}
+
 const OrdersPage = () => {
   const { currentUser } = useAuth()
   const [orders, setOrders] = useState([])
@@ -197,9 +252,12 @@ const OrdersPage = () => {
 
   const filterOptions = [
     '전체',
+    '예약됨',
+    '접수됨', 
+    '실행중',
+    '완료',
     '주문 접수',
     '주문 준비 및 가동 중',
-    '완료',
     '부분 완료 (작업 안된 만큼 환불)',
     '주문 대기 중',
     '주문 취소 및 전액 환불'
@@ -259,9 +317,15 @@ const OrdersPage = () => {
                       <span className="label">주문번호:</span>
                       <span className="value">{order.id}</span>
                     </div>
-                    <div className={`order-status ${getStatusClass(order.status)}`}>
-                      {getStatusIcon(order.status)}
-                      <span>{getStatusText(order.status)}</span>
+                    <div className="order-status-section">
+                      <div className={`order-status ${getStatusClass(order.status)}`}>
+                        {getStatusIcon(order.status)}
+                        <span>{getStatusText(order.status)}</span>
+                      </div>
+                      {/* 예약 발송 주문인 경우 주문 현황 배지 표시 */}
+                      {order.scheduled && (
+                        <OrderStatusBadge status={ORDER_STATUS.SCHEDULED} />
+                      )}
                     </div>
                   </div>
                   
