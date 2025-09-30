@@ -25,6 +25,73 @@ import { useAuth } from '../contexts/AuthContext'
 import { smmpanelApi, transformOrderData } from '../services/snspopApi'
 import './Home.css'
 
+// 주문 현황 상태 상수
+const ORDER_STATUS = {
+  SCHEDULED: 'scheduled',     // 예약됨
+  RECEIVED: 'received',       // 접수됨
+  IN_PROGRESS: 'in_progress', // 실행중
+  COMPLETED: 'completed'      // 완료
+}
+
+// 주문 현황 상태 한글 매핑
+const ORDER_STATUS_LABELS = {
+  [ORDER_STATUS.SCHEDULED]: '예약됨',
+  [ORDER_STATUS.RECEIVED]: '접수됨',
+  [ORDER_STATUS.IN_PROGRESS]: '실행중',
+  [ORDER_STATUS.COMPLETED]: '완료'
+}
+
+// 주문 현황 상태 색상 매핑
+const ORDER_STATUS_COLORS = {
+  [ORDER_STATUS.SCHEDULED]: '#f59e0b',    // 주황색
+  [ORDER_STATUS.RECEIVED]: '#3b82f6',     // 파란색
+  [ORDER_STATUS.IN_PROGRESS]: '#8b5cf6',  // 보라색
+  [ORDER_STATUS.COMPLETED]: '#10b981'     // 초록색
+}
+
+// 주문 현황 상태 컴포넌트
+const OrderStatusBadge = ({ status, scheduled = false }) => {
+  const getStatusInfo = () => {
+    if (scheduled) {
+      return {
+        label: '예약됨',
+        color: ORDER_STATUS_COLORS[ORDER_STATUS.SCHEDULED],
+        icon: '⏰'
+      }
+    }
+    
+    return {
+      label: ORDER_STATUS_LABELS[status] || '알 수 없음',
+      color: ORDER_STATUS_COLORS[status] || '#6b7280',
+      icon: status === ORDER_STATUS.COMPLETED ? '✅' : 
+            status === ORDER_STATUS.IN_PROGRESS ? '🔄' :
+            status === ORDER_STATUS.RECEIVED ? '📋' : '⏰'
+    }
+  }
+
+  const statusInfo = getStatusInfo()
+
+  return (
+    <span 
+      className="order-status-badge"
+      style={{ 
+        backgroundColor: statusInfo.color,
+        color: 'white',
+        padding: '4px 8px',
+        borderRadius: '12px',
+        fontSize: '12px',
+        fontWeight: '600',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px'
+      }}
+    >
+      <span>{statusInfo.icon}</span>
+      <span>{statusInfo.label}</span>
+    </span>
+  )
+}
+
 const Home = () => {
   const { currentUser } = useAuth()
   const navigate = useNavigate()
@@ -50,6 +117,10 @@ const Home = () => {
   const [isScheduledOrder, setIsScheduledOrder] = useState(false)
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
+  
+  // 주문 내역 상태
+  const [orderHistory, setOrderHistory] = useState([])
+  const [showOrderHistory, setShowOrderHistory] = useState(false)
 
   // 컴포넌트 마운트 시 기본 서비스 자동 선택
   useEffect(() => {
@@ -1382,12 +1453,45 @@ const Home = () => {
     }
   }
 
+  // 주문 내역 조회 함수
+  const fetchOrderHistory = async () => {
+    if (!currentUser) return
+
+    try {
+      const response = await fetch(`/api/orders?user_id=${currentUser.uid}`)
+      if (response.ok) {
+        const data = await response.json()
+        setOrderHistory(data.orders || [])
+      }
+    } catch (error) {
+      console.error('주문 내역 조회 실패:', error)
+    }
+  }
+
+  // 주문 내역 토글
+  const toggleOrderHistory = () => {
+    setShowOrderHistory(!showOrderHistory)
+    if (!showOrderHistory) {
+      fetchOrderHistory()
+    }
+  }
+
   return (
     <div className="order-page">
       {/* Service Selection */}
       <div className="service-selection">
-        <h2>주문하기</h2>
-        <p>원하는 서비스를 선택하고 주문해보세요!</p>
+        <div className="service-header">
+          <div>
+            <h2>주문하기</h2>
+            <p>원하는 서비스를 선택하고 주문해보세요!</p>
+          </div>
+          <button 
+            className="order-history-btn"
+            onClick={toggleOrderHistory}
+          >
+            📋 주문 내역
+          </button>
+        </div>
         
         <div className="platform-grid">
           {platforms.map(({ id, name, icon, color, description }) => (
@@ -1840,6 +1944,60 @@ const Home = () => {
               >
                 확인
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 주문 내역 모달 */}
+      {showOrderHistory && (
+        <div className="order-history-modal-overlay">
+          <div className="order-history-modal">
+            <div className="order-history-header">
+              <h3>📋 주문 내역</h3>
+              <button 
+                className="close-btn"
+                onClick={() => setShowOrderHistory(false)}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="order-history-content">
+              {orderHistory.length === 0 ? (
+                <div className="no-orders">
+                  <p>주문 내역이 없습니다.</p>
+                </div>
+              ) : (
+                <div className="order-list">
+                  {orderHistory.map((order, index) => (
+                    <div key={order.id || index} className="order-item">
+                      <div className="order-info">
+                        <div className="order-service">
+                          <strong>{order.service_name || order.service}</strong>
+                          <span className="order-platform">{order.platform}</span>
+                        </div>
+                        <div className="order-details">
+                          <span>수량: {order.quantity?.toLocaleString()}개</span>
+                          <span>가격: {order.total_price?.toLocaleString()}원</span>
+                        </div>
+                        <div className="order-meta">
+                          <span>주문일: {new Date(order.created_at || order.timestamp).toLocaleDateString()}</span>
+                          {order.scheduled && (
+                            <span>예약: {order.scheduled_date} {order.scheduled_time}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="order-status">
+                        <OrderStatusBadge 
+                          status={order.status || ORDER_STATUS.RECEIVED}
+                          scheduled={order.scheduled}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
