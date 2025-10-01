@@ -35,7 +35,7 @@ export function AuthProvider({ children }) {
           const userData = {
             user_id: userCredential.user.uid,
             email: userCredential.user.email,
-            name: username
+            name: username || userCredential.user.email.split('@')[0] || '사용자'
           };
           
           if (businessInfo && businessInfo.accountType === 'business') {
@@ -174,7 +174,7 @@ export function AuthProvider({ children }) {
           await smmpanelApi.registerUser({
             user_id: user.uid,
             email: user.email,
-            name: user.displayName || ''
+            name: user.displayName || user.email.split('@')[0] || '사용자'
           });
           
           // 활동 업데이트는 현재 백엔드에서 지원하지 않으므로 제거

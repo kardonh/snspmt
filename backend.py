@@ -871,6 +871,47 @@ def health_check():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+# 추천인 연결 확인 API (디버깅용)
+@app.route('/api/debug/referral-connection/<user_id>', methods=['GET'])
+def check_referral_connection(user_id):
+    """사용자의 추천인 연결 상태 확인"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT referral_code, referrer_email, created_at 
+                FROM user_referral_connections 
+                WHERE user_id = %s
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT referral_code, referrer_email, created_at 
+                FROM user_referral_connections 
+                WHERE user_id = ?
+            """, (user_id,))
+        
+        connection = cursor.fetchone()
+        conn.close()
+        
+        if connection:
+            return jsonify({
+                'connected': True,
+                'referral_code': connection[0],
+                'referrer_email': connection[1],
+                'created_at': str(connection[2]) if connection[2] else None
+            }), 200
+        else:
+            return jsonify({
+                'connected': False,
+                'message': '추천인 연결 정보가 없습니다.'
+            }), 200
+            
+    except Exception as e:
+        print(f"❌ 추천인 연결 확인 오류: {e}")
+        return jsonify({'error': str(e)}), 500
+
 # 사용자 등록
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -1221,7 +1262,12 @@ def create_order():
                 print(f"✅ 커미션 포인트 적립 완료: {commission_amount}원")
             except Exception as commission_error:
                 print(f"⚠️ 커미션 포인트 적립 실패 (주문은 계속 진행): {commission_error}")
+                print(f"⚠️ 커미션 오류 상세: {type(commission_error).__name__}: {str(commission_error)}")
+                import traceback
+                print(f"⚠️ 커미션 오류 스택: {traceback.format_exc()}")
                 commission_amount = 0
+        else:
+            print(f"ℹ️ 추천인 연결 없음 - 커미션 적립 건너뜀")
         
         conn.commit()
         print(f"✅ 주문 생성 성공 - 주문 ID: {order_id}")

@@ -1299,6 +1299,9 @@ const Home = () => {
         is_split_delivery: isSplitDelivery,
         split_days: isSplitDelivery ? splitDays : null,
         split_quantity: isSplitDelivery ? getDailyQuantity() : null,
+        // 선택된 할인 쿠폰 정보
+        use_coupon: selectedDiscountCoupon && selectedDiscountCoupon.discount > 0,
+        coupon_discount: selectedDiscountCoupon ? selectedDiscountCoupon.discount : 0,
         max: 0,
         posts: 0,
         delay: 0,
