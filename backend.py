@@ -505,18 +505,7 @@ def get_db_connection():
             raise fallback_error
     except Exception as e:
         print(f"❌ 데이터베이스 연결 실패: {e}")
-        # SQLite fallback - 영구 데이터베이스 경로 사용
-        try:
-            print("🔄 SQLite 폴백 시도...")
-            db_path = os.path.join(os.getcwd(), 'data', 'snspmt.db')
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)  # 디렉토리 생성
-            conn = sqlite3.connect(db_path, timeout=30)
-            conn.row_factory = sqlite3.Row
-            print(f"✅ SQLite 폴백 연결 성공: {db_path}")
-            return conn
-        except Exception as fallback_error:
-            print(f"❌ SQLite 폴백도 실패: {fallback_error}")
-            raise fallback_error
+        raise e
 
 def init_database():
     """데이터베이스 테이블을 초기화합니다."""
