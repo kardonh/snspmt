@@ -1365,14 +1365,10 @@ const Home = () => {
       
       // 예약 발송 데이터 추가
       if (isScheduledOrder) {
-        orderData.scheduled = true
-        orderData.scheduled_date = scheduledDate
-        orderData.scheduled_time = scheduledTime
+        orderData.is_scheduled = true
         orderData.scheduled_datetime = `${scheduledDate} ${scheduledTime}`
         console.log('📅 예약 발송 데이터:', {
-          scheduled: orderData.scheduled,
-          scheduled_date: orderData.scheduled_date,
-          scheduled_time: orderData.scheduled_time,
+          is_scheduled: orderData.is_scheduled,
           scheduled_datetime: orderData.scheduled_datetime
         })
       }

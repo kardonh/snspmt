@@ -3571,10 +3571,14 @@ def process_withdrawal():
             current_balance = float(current_balance_result[0])
             new_balance = current_balance - float(amount)
             
+            print(f"💰 환급 처리 - 추천인: {referrer_email}, 현재잔액: {current_balance}, 환급금액: {amount}, 새잔액: {new_balance}")
+            
             if new_balance < 0:
+                print(f"❌ 잔액 부족 - 현재: {current_balance}, 요청: {amount}")
                 return jsonify({'error': '잔액이 부족합니다.'}), 400
             
             # 포인트 차감
+            print(f"💰 환급 처리 시작 - 추천인: {referrer_email}, 금액: {amount}, 현재 잔액: {current_balance}, 차감 후: {new_balance}")
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     UPDATE referral_commission_points 
@@ -3583,6 +3587,7 @@ def process_withdrawal():
                         updated_at = NOW()
                     WHERE referrer_email = %s
                 """, (amount, amount, referrer_email))
+                print(f"✅ PostgreSQL 커미션 차감 완료")
                 
                 # 거래 내역 기록 (실제 잔액 반영)
                 cursor.execute("""
@@ -3637,6 +3642,7 @@ def process_withdrawal():
             message = '환급 신청이 거절되었습니다.'
         
         conn.commit()
+        print(f"✅ 환급 처리 커밋 완료 - 신청 ID: {request_id}, 액션: {action}")
         conn.close()
         
         return jsonify({'message': message}), 200
