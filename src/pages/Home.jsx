@@ -116,42 +116,77 @@ const Home = () => {
       const detailedServices = getDetailedServices(selectedPlatform, selectedService)
       if (detailedServices && detailedServices.length > 0) {
         setSelectedDetailedService(detailedServices[0])
-        setQuantity(detailedServices[0].min)
+        // 패키지 상품은 수량을 1로 고정
+        if (detailedServices[0].package) {
+          setQuantity(1)
+        } else {
+          setQuantity(detailedServices[0].min)
+        }
       }
     }
   }, [selectedPlatform, selectedService, selectedDetailedService])
 
-  // 할인 쿠폰 초기화
+  // 할인 쿠폰 초기화 - 백엔드에서 실제 쿠폰 조회
   useEffect(() => {
-    // 추천인 코드가 있는 경우 할인 쿠폰 옵션 제공
-    const referralCode = localStorage.getItem('referralCode')
-    if (referralCode) {
-      setAvailableDiscountCoupons([
-        { id: 'referral_5', name: '추천인 5% 할인', discount: 5, type: 'percentage' },
-        { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
-      ])
-    } else {
-      setAvailableDiscountCoupons([
-        { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
-      ])
+    const loadUserCoupons = async () => {
+      if (!currentUser?.uid) {
+        // 로그인하지 않은 경우 기본 쿠폰만 표시
+        setAvailableDiscountCoupons([
+          { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
+        ])
+        return
+      }
+      
+      try {
+        // 백엔드에서 사용자의 사용 가능한 쿠폰 조회
+        const response = await fetch(`/api/user/coupons?user_id=${currentUser.uid}`)
+        if (response.ok) {
+          const data = await response.json()
+          const usableCoupons = data.coupons.filter(coupon => 
+            !coupon.is_used && new Date(coupon.expires_at) > new Date()
+          )
+          
+          if (usableCoupons.length > 0) {
+            // 백엔드에서 가져온 쿠폰 + 할인 없음 옵션
+            const couponOptions = [
+              ...usableCoupons.map(coupon => ({
+                id: coupon.id,
+                name: `추천인 ${coupon.discount_value}% 할인 쿠폰`,
+                discount: coupon.discount_value,
+                type: coupon.discount_type,
+                referralCode: coupon.referral_code
+              })),
+              { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
+            ]
+            setAvailableDiscountCoupons(couponOptions)
+            // 기본으로 첫 번째 쿠폰 선택
+            setSelectedDiscountCoupon(couponOptions[0])
+          } else {
+            // 사용 가능한 쿠폰이 없는 경우
+            setAvailableDiscountCoupons([
+              { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
+            ])
+          }
+        } else {
+          // API 오류 시 기본 쿠폰만 표시
+          setAvailableDiscountCoupons([
+            { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
+          ])
+        }
+      } catch (error) {
+        // 오류 발생 시 기본 쿠폰만 표시
+        setAvailableDiscountCoupons([
+          { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
+        ])
+      }
     }
-  }, [])
+    
+    loadUserCoupons()
+  }, [currentUser])
 
   // 인스타그램 세부 서비스 데이터
   const instagramDetailedServices = {
     popular_posts: [
-      // 🎯 새로운 묶음 서비스 - 추천탭 상위노출 (셀프) - 진입단계
-      { id: 1001, name: '🎯 추천탭 상위노출 (셀프) - 진입단계 [4단계 패키지]', price: 6610000, min: 1, max: 1, time: '24-48시간', description: '진입단계 4단계 완전 패키지', package: true, steps: [
-        { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', price: 1800000, quantity: 300, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
-        { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', price: 3000000, quantity: 10000, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
-        { id: 328, name: '3단계: 파워 게시물 저장 유입', price: 210000, quantity: 1000, description: '4️⃣[등록단계]파워 게시물 저장 유입' },
-        { id: 326, name: '4단계: 리얼 한국인 댓글 유입', price: 1600000, quantity: 10, description: '2️⃣[상승단계] 리얼 한국인 댓글 유입' }
-      ]},
-      // 🎯 새로운 묶음 서비스 - 추천탭 상위노출 (셀프) - 유지단계  
-      { id: 1002, name: '🎯 추천탭 상위노출 (셀프) - 유지단계 [2단계 패키지]', price: 3250000, min: 1, max: 1, time: '12-24시간', description: '유지단계 2단계 완전 패키지', package: true, steps: [
-        { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', price: 3250000, quantity: 250, description: '[상승단계]:리얼 한국인 좋아요' },
-        { id: 331, name: '2단계: 게시물 노출+도달+홈 [✔연속 유입]', price: 0, quantity: 0, description: '게시물 노출+도달+홈 [✔연속 유입] 작업' }
-      ]},
       // 기존 서비스들
       { id: 361, name: '🥇인기게시물 상위 노출[🎨사진] TI1', price: 3000000, min: 1, max: 10, time: '6 시간 10 분' },
       { id: 444, name: '🥇인기게시물 상위 노출 유지[🎨사진] TI1-1', price: 90000, min: 100, max: 3000, time: '데이터가 충분하지 않습니다' },
@@ -170,15 +205,18 @@ const Home = () => {
     
     // 한국인 패키지 서비스
     korean_package: [
-      { id: 1001, name: '🎯 추천탭 상위노출 (셀프) - 진입단계 [4단계 패키지]', price: 6610000, min: 1, max: 1, time: '24-48시간', description: '진입단계 4단계 완전 패키지', package: true, steps: [
-        { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', price: 1800000, quantity: 300, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
-        { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', price: 3000000, quantity: 10000, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
-        { id: 328, name: '3단계: 파워 게시물 저장 유입', price: 210000, quantity: 1000, description: '4️⃣[등록단계]파워 게시물 저장 유입' },
-        { id: 326, name: '4단계: 리얼 한국인 댓글 유입', price: 1600000, quantity: 10, description: '2️⃣[상승단계] 리얼 한국인 댓글 유입' }
+      // 🎯 추천탭 상위노출 (내계정) - 진입단계
+      { id: 1003, name: '🎯 추천탭 상위노출 (내계정) - 진입단계 [4단계 패키지]', price: 20000000, min: 1, max: 1, time: '24-48시간', description: '진입단계 4단계 완전 패키지', package: true, steps: [
+        { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 300, delay: 0, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
+        { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', quantity: 3000, delay: 10, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
+        { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' },
+        { id: 326, name: '4단계: 리얼 한국인 댓글 유입', quantity: 10, delay: 10, description: '2️⃣[상승단계] 리얼 한국인 댓글 유입' }
       ]},
-      { id: 1002, name: '🎯 추천탭 상위노출 (셀프) - 유지단계 [2단계 패키지]', price: 3250000, min: 1, max: 1, time: '12-24시간', description: '유지단계 2단계 완전 패키지', package: true, steps: [
-        { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', price: 3250000, quantity: 250, description: '[상승단계]:리얼 한국인 좋아요' },
-        { id: 331, name: '2단계: 게시물 노출+도달+홈 [✔연속 유입]', price: 0, quantity: 0, description: '게시물 노출+도달+홈 [✔연속 유입] 작업' }
+      
+      // 🎯 추천탭 상위노출 (내계정) - 유지단계
+      { id: 1004, name: '🎯 추천탭 상위노출 (내계정) - 유지단계 [2단계 패키지]', price: 15000000, min: 1, max: 1, time: '12-24시간', description: '유지단계 2단계 완전 패키지', package: true, steps: [
+        { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 250, delay: 0, description: '[상승단계]:리얼 한국인 좋아요' },
+        { id: 331, name: '2단계: 게시물 노출+도달+홈 [✔연속 유입]', quantity: 3000, delay: 10, description: '[유지단계]:게시물 노출+도달+홈 [✔연속 유입] 작업' }
       ]}
     ],
     
@@ -1095,11 +1133,14 @@ const Home = () => {
     
     let basePrice = 0
     
-    // 인스타그램, 스레드, 유튜브, 페이스북, 네이버, 틱톡, 트위터, 텔레그램, 왓츠앱, 상위노출의 경우 새로운 가격 계산 로직 사용
-    if (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp' || selectedPlatform === 'top-exposure') {
-      basePrice = (selectedDetailedService.price / 1000) * quantity // 1000개 가격을 1개 가격으로 변환
+    // 패키지 상품인 경우 수량과 상관없이 고정 가격
+    if (selectedDetailedService.package) {
+      basePrice = selectedDetailedService.price / 1000  // 패키지 전체 가격
+    } else if (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp' || selectedPlatform === 'top-exposure') {
+      // 일반 상품의 경우 수량에 따라 가격 계산
+      basePrice = (selectedDetailedService.price / 1000) * quantity
     } else {
-      // 기존 SMM KINGS 가격 사용 (1000으로 나누기)
+      // 기존 SMM KINGS 가격 사용
       basePrice = (selectedDetailedService.price / 1000) * quantity
     }
     
@@ -1301,7 +1342,10 @@ const Home = () => {
         split_quantity: isSplitDelivery ? getDailyQuantity() : null,
         // 선택된 할인 쿠폰 정보
         use_coupon: selectedDiscountCoupon && selectedDiscountCoupon.discount > 0,
+        coupon_id: selectedDiscountCoupon && selectedDiscountCoupon.id !== 'no_discount' ? selectedDiscountCoupon.id : null,
         coupon_discount: selectedDiscountCoupon ? selectedDiscountCoupon.discount : 0,
+        // 패키지 상품 정보
+        package_steps: selectedDetailedService?.package && selectedDetailedService?.steps ? selectedDetailedService.steps : [],
         max: 0,
         posts: 0,
         delay: 0,
@@ -1702,32 +1746,34 @@ const Home = () => {
           </div>
           
           
-          {/* Quantity Selection */}
-          <div className="form-group">
-            <label className="quantity-label">수량 선택</label>
-            <input
-              type="number"
-              value={quantity === 0 ? '' : quantity}
-              onChange={(e) => {
-                const inputValue = e.target.value
-                if (inputValue === '') {
-                  handleQuantityChange(0)
-                } else {
-                  const newQuantity = parseInt(inputValue)
-                  if (!isNaN(newQuantity)) {
-                  handleQuantityChange(newQuantity)
+          {/* Quantity Selection - 패키지 상품이 아닐 때만 표시 */}
+          {!selectedDetailedService.package && (
+            <div className="form-group">
+              <label className="quantity-label">수량 선택</label>
+              <input
+                type="number"
+                value={quantity === 0 ? '' : quantity}
+                onChange={(e) => {
+                  const inputValue = e.target.value
+                  if (inputValue === '') {
+                    handleQuantityChange(0)
+                  } else {
+                    const newQuantity = parseInt(inputValue)
+                    if (!isNaN(newQuantity)) {
+                    handleQuantityChange(newQuantity)
+                    }
                   }
-                }
-              }}
-              min="0"
-              max={selectedDetailedService.max}
-              className={`quantity-input-field ${quantity > 0 && quantity < selectedDetailedService.min ? 'quantity-input-invalid' : ''}`}
-              placeholder="수량을 입력하세요 (0부터 시작)"
-            />
-            <div className="quantity-hint-left">
-              최소 {selectedDetailedService.min.toLocaleString()} : 최대 {selectedDetailedService.max.toLocaleString()}
+                }}
+                min="0"
+                max={selectedDetailedService.max}
+                className={`quantity-input-field ${quantity > 0 && quantity < selectedDetailedService.min ? 'quantity-input-invalid' : ''}`}
+                placeholder="수량을 입력하세요 (0부터 시작)"
+              />
+              <div className="quantity-hint-left">
+                최소 {selectedDetailedService.min.toLocaleString()} : 최대 {selectedDetailedService.max.toLocaleString()}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 할인 쿠폰 선택 */}
           {availableDiscountCoupons.length > 1 && (
@@ -1781,7 +1827,6 @@ const Home = () => {
                     <div className="step-header">
                       <span className="step-number">{index + 1}</span>
                       <span className="step-name">{step.name}</span>
-                      <span className="step-price">{(step.price / 1000).toLocaleString()}원</span>
                     </div>
                     <div className="step-details">
                       <p className="step-description">{step.description}</p>

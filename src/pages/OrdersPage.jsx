@@ -273,6 +273,24 @@ const OrdersPage = () => {
     })
   }
 
+  const getPackageProgress = (order) => {
+    if (!order.package_steps || order.package_steps.length === 0) {
+      return '패키지 정보 없음'
+    }
+
+    // 패키지 진행 상황 계산
+    const totalSteps = order.package_steps.length
+    const completedSteps = order.package_progress ? order.package_progress.filter(p => p.status === 'completed').length : 0
+    
+    if (completedSteps === totalSteps) {
+      return `✅ 모든 단계 완료 (${completedSteps}/${totalSteps})`
+    } else if (completedSteps === 0) {
+      return `⏳ 대기 중 (0/${totalSteps})`
+    } else {
+      return `🔄 진행 중 (${completedSteps}/${totalSteps} 단계 완료)`
+    }
+  }
+
   const getSplitDeliveryProgress = (order) => {
     if (!order.is_split_delivery || !order.split_days || !order.split_quantity) {
       return '분할 발송 정보 없음'
@@ -429,6 +447,10 @@ const OrdersPage = () => {
                       {order.scheduled && (
                         <OrderStatusBadge status={ORDER_STATUS.SCHEDULED} />
                       )}
+                      {/* 패키지 주문인 경우 패키지 배지 표시 */}
+                      {order.package_steps && order.package_steps.length > 0 && (
+                        <OrderStatusBadge status={ORDER_STATUS.IN_PROGRESS} />
+                      )}
                       {/* 분할 발송 주문인 경우 분할 발송 배지 표시 */}
                       {order.is_split_delivery && (
                         <OrderStatusBadge status={ORDER_STATUS.IN_PROGRESS} />
@@ -457,6 +479,16 @@ const OrdersPage = () => {
                         <div className="info-row scheduled-time-row">
                           <span className="label">예약 시간:</span>
                           <span className="value scheduled-time">{formatScheduledTime(order.scheduled_datetime)}</span>
+                        </div>
+                      )}
+                      
+                      {/* 패키지 주문인 경우 진행 상황 표시 */}
+                      {order.package_steps && order.package_steps.length > 0 && (
+                        <div className="info-row package-delivery-row">
+                          <span className="label">패키지 진행:</span>
+                          <span className="value package-delivery-info">
+                            {getPackageProgress(order)}
+                          </span>
                         </div>
                       )}
                       

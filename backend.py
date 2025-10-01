@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 import requests
 import tempfile
 import sqlite3
+import threading
+import time
 
 # Flask 앱 초기화
 app = Flask(__name__, static_folder='dist', static_url_path='')
@@ -223,6 +225,133 @@ def process_split_delivery(order_id, day_number):
         if conn:
             conn.close()
 
+# 패키지 상품 단계별 처리 함수
+def process_package_step(order_id, step_index):
+    """패키지 상품의 각 단계 처리"""
+    conn = None
+    cursor = None
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 주문 정보 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT user_id, link, package_steps, comments
+                FROM orders 
+                WHERE order_id = %s
+            """, (order_id,))
+        else:
+            cursor.execute("""
+                SELECT user_id, link, package_steps, comments
+                FROM orders 
+                WHERE order_id = ?
+            """, (order_id,))
+        
+        order = cursor.fetchone()
+        if not order:
+            print(f"❌ 패키지 주문을 찾을 수 없습니다: {order_id}")
+            return False
+        
+        user_id, link, package_steps_json, comments = order
+        package_steps = json.loads(package_steps_json)
+        
+        if step_index >= len(package_steps):
+            print(f"✅ 패키지 주문 모든 단계 완료: {order_id}")
+            # 모든 단계 완료 시 주문 상태 업데이트
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE orders SET status = 'completed', updated_at = NOW()
+                    WHERE order_id = %s
+                """, (order_id,))
+            else:
+                cursor.execute("""
+                    UPDATE orders SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+                    WHERE order_id = ?
+                """, (order_id,))
+            conn.commit()
+            conn.close()
+            return True
+        
+        current_step = package_steps[step_index]
+        step_service_id = current_step.get('id')
+        step_quantity = current_step.get('quantity')
+        step_name = current_step.get('name')
+        step_delay = current_step.get('delay', 0)
+        
+        print(f"📦 패키지 단계 {step_index + 1}/{len(package_steps)} 처리 시작: {step_name}")
+        print(f"   서비스 ID: {step_service_id}, 수량: {step_quantity}, 지연: {step_delay}분")
+        
+        # SMM Panel API 호출
+        smm_result = call_smm_panel_api({
+            'service': step_service_id,
+            'link': link,
+            'quantity': step_quantity,
+            'comments': f"{comments} - {step_name}" if comments else step_name
+        })
+        
+        if smm_result.get('status') == 'success':
+            print(f"✅ 패키지 단계 {step_index + 1} 완료: {step_name} - SMM Order ID: {smm_result.get('order')}")
+            
+            # 패키지 진행 상황 기록
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'completed', NOW())
+                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, smm_result.get('order')))
+            else:
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, 'completed', datetime('now'))
+                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, smm_result.get('order')))
+            
+            conn.commit()
+            
+            # 다음 단계가 있으면 지연 후 실행
+            if step_index + 1 < len(package_steps):
+                next_step = package_steps[step_index + 1]
+                next_delay = next_step.get('delay', 10)  # 기본 10분
+                print(f"⏰ 다음 단계는 {next_delay}분 후에 실행됩니다.")
+                
+                # 스레드로 지연 실행
+                def delayed_next_step():
+                    time.sleep(next_delay * 60)  # 분을 초로 변환
+                    process_package_step(order_id, step_index + 1)
+                
+                thread = threading.Thread(target=delayed_next_step, daemon=True)
+                thread.start()
+            else:
+                # 마지막 단계 완료
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        UPDATE orders SET status = 'completed', updated_at = NOW()
+                        WHERE order_id = %s
+                    """, (order_id,))
+                else:
+                    cursor.execute("""
+                        UPDATE orders SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+                        WHERE order_id = ?
+                    """, (order_id,))
+                conn.commit()
+                print(f"🎉 패키지 주문 완료: {order_id}")
+            
+            conn.close()
+            return True
+        else:
+            print(f"❌ 패키지 단계 {step_index + 1} 실패: {smm_result.get('message')}")
+            conn.close()
+            return False
+            
+    except Exception as e:
+        print(f"❌ 패키지 단계 처리 실패: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return False
+
 # 예약 주문 처리 함수
 def process_scheduled_order(order_id):
     """예약 주문 처리"""
@@ -384,7 +513,7 @@ def get_db_connection():
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
             print(f"✅ SQLite 폴백 연결 성공: {db_path}")
-            return conn
+        return conn
         except Exception as fallback_error:
             print(f"❌ SQLite 폴백도 실패: {fallback_error}")
             raise fallback_error
@@ -643,6 +772,32 @@ def init_database():
                 )
             """)
             print("✅ 분할 발송 진행 상황 테이블 생성 완료")
+            
+            # 패키지 진행 상황 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS package_progress (
+                    id SERIAL PRIMARY KEY,
+                    order_id INTEGER NOT NULL,
+                    step_number INTEGER NOT NULL,
+                    step_name VARCHAR(255) NOT NULL,
+                    service_id VARCHAR(255) NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    smm_panel_order_id VARCHAR(255),
+                    status VARCHAR(50) DEFAULT 'pending',
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    completed_at TIMESTAMP,
+                    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+                )
+            """)
+            print("✅ 패키지 진행 상황 테이블 생성 완료")
+            
+            # orders 테이블에 package_steps 컬럼 추가
+            try:
+                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS package_steps JSONB")
+                print("✅ package_steps 필드 추가 완료")
+            except Exception as e:
+                print(f"⚠️ package_steps 필드 추가 실패 (이미 존재할 수 있음): {e}")
             
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
@@ -1107,31 +1262,34 @@ def create_order():
         discount_amount = 0
         final_price = price
         
-        # 추천인 코드가 있는 경우 5% 할인 적용
-        if referral_data:
-            referral_code, referrer_email = referral_data
+        # 프론트엔드에서 전달받은 쿠폰 ID 확인
+        coupon_id_from_request = data.get('coupon_id')
+        
+        # 쿠폰 사용 여부 확인
+        if coupon_id_from_request:
+            print(f"🎫 쿠폰 사용 요청 - 쿠폰 ID: {coupon_id_from_request}")
             
-            # 사용 가능한 쿠폰 확인
+            # 쿠폰 유효성 확인
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    SELECT id, discount_value FROM coupons 
-                    WHERE user_id = %s AND referral_code = %s AND is_used = false 
+                    SELECT id, discount_value, referral_code FROM coupons 
+                    WHERE id = %s AND user_id = %s AND is_used = false 
                     AND expires_at > NOW()
-                    ORDER BY created_at DESC LIMIT 1
-                """, (user_id, referral_code))
+                """, (coupon_id_from_request, user_id))
             else:
                 cursor.execute("""
-                    SELECT id, discount_value FROM coupons 
-                    WHERE user_id = ? AND referral_code = ? AND is_used = false 
+                    SELECT id, discount_value, referral_code FROM coupons 
+                    WHERE id = ? AND user_id = ? AND is_used = false 
                     AND expires_at > datetime('now')
-                    ORDER BY created_at DESC LIMIT 1
-                """, (user_id, referral_code))
+                """, (coupon_id_from_request, user_id))
             
             coupon_data = cursor.fetchone()
             if coupon_data:
-                coupon_id, discount_value = coupon_data
+                coupon_id, discount_value, referral_code = coupon_data
                 discount_amount = price * (discount_value / 100)
                 final_price = price - discount_amount
+                
+                print(f"✅ 쿠폰 적용 - 할인율: {discount_value}%, 할인액: {discount_amount}원, 최종가격: {final_price}원")
                 
                 # 쿠폰 사용 처리
                 if DATABASE_URL.startswith('postgresql://'):
@@ -1144,6 +1302,38 @@ def create_order():
                         UPDATE coupons SET is_used = true, used_at = datetime('now') 
                         WHERE id = ?
                     """, (coupon_id,))
+                
+                print(f"✅ 쿠폰 사용 처리 완료 - 쿠폰 ID: {coupon_id}")
+                
+                # 사용자의 추천인 연결 정보 조회 (커미션 적립용)
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        SELECT referral_code, referrer_email FROM user_referral_connections 
+                        WHERE user_id = %s
+                    """, (user_id,))
+                else:
+                    cursor.execute("""
+                        SELECT referral_code, referrer_email FROM user_referral_connections 
+                        WHERE user_id = ?
+                    """, (user_id,))
+                
+                referral_data = cursor.fetchone()
+            else:
+                print(f"⚠️ 유효한 쿠폰을 찾을 수 없음 - 쿠폰 ID: {coupon_id_from_request}")
+        else:
+            # 쿠폰 미사용 시 추천인 연결 확인
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    SELECT referral_code, referrer_email FROM user_referral_connections 
+                    WHERE user_id = %s
+                """, (user_id,))
+            else:
+                cursor.execute("""
+                    SELECT referral_code, referrer_email FROM user_referral_connections 
+                    WHERE user_id = ?
+                """, (user_id,))
+            
+            referral_data = cursor.fetchone()
         
         # 예약/분할 주문 정보 추출
         is_scheduled = data.get('is_scheduled', False)
@@ -1272,17 +1462,44 @@ def create_order():
         conn.commit()
         print(f"✅ 주문 생성 성공 - 주문 ID: {order_id}")
         
-        # 예약/분할 주문 처리
+        # 패키지 상품 여부 확인
+        package_steps = data.get('package_steps', [])
+        is_package = len(package_steps) > 0
+        
+        # 예약/분할/패키지 주문 처리
         if is_scheduled or is_split_delivery:
             # 예약/분할 주문은 나중에 처리하도록 스케줄링
             print(f"📅 예약/분할 주문 - 즉시 처리하지 않음")
             status = 'scheduled' if is_scheduled else 'split_scheduled'
             message = '예약 주문이 생성되었습니다.' if is_scheduled else '분할 주문이 생성되었습니다.'
+        elif is_package:
+            # 패키지 상품은 각 단계를 순차적으로 처리하도록 저장
+            print(f"📦 패키지 주문 - {len(package_steps)}단계 순차 처리 예정")
+            
+            # 패키지 단계 정보를 JSON으로 저장
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE orders SET package_steps = %s, status = 'package_processing', updated_at = NOW()
+                    WHERE order_id = %s
+                """, (json.dumps(package_steps), order_id))
+            else:
+                cursor.execute("""
+                    UPDATE orders SET package_steps = ?, status = 'package_processing', updated_at = CURRENT_TIMESTAMP
+                    WHERE order_id = ?
+                """, (json.dumps(package_steps), order_id))
+            
+            conn.commit()
+            
+            # 첫 번째 단계 즉시 실행
+            process_package_step(order_id, 0)
+            
+            status = 'package_processing'
+            message = f'패키지 주문이 생성되었습니다. ({len(package_steps)}단계 순차 처리)'
         else:
             # 일반 주문은 즉시 SMM Panel API 호출
             print(f"🚀 일반 주문 - 즉시 SMM Panel API 호출")
             try:
-                # SMM Panel API 호출 로직 (기존 코드에서 가져와야 함)
+                # SMM Panel API 호출 로직
                 smm_result = call_smm_panel_api({
                     'service': service_id,
                     'link': link,
@@ -2975,7 +3192,7 @@ def get_admin_users():
         
         # 테이블 목록 확인
         print("📊 테이블 목록 조회 중...")
-        cursor.execute("""
+            cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public'
@@ -2996,16 +3213,16 @@ def get_admin_users():
                 
                 if user_count > 0:
                     # 기본 컬럼만 조회
-                    cursor.execute("""
+            cursor.execute("""
                         SELECT user_id, email, name, created_at
                         FROM users
                         ORDER BY created_at DESC
                         LIMIT 50
                     """)
-                    users = cursor.fetchall()
-                    
-                    for user in users:
-                        user_list.append({
+        users = cursor.fetchall()
+        
+        for user in users:
+            user_list.append({
                             'user_id': user[0] if user[0] else 'N/A',
                             'email': user[1] if user[1] else 'N/A',
                             'name': user[2] if user[2] else 'N/A',
@@ -3035,14 +3252,14 @@ def get_admin_users():
         
         conn.close()
         print(f"✅ 사용자 목록 반환: {len(user_list)}명")
-        
-        return jsonify({
+            
+            return jsonify({
             'users': user_list,
             'debug_info': {
                 'tables': tables,
                 'user_count': len(user_list)
             }
-        }), 200
+            }), 200
         
     except Exception as e:
         print(f"❌ 사용자 목록 조회 실패: {str(e)}")
@@ -3650,8 +3867,158 @@ def process_withdrawal():
     except Exception as e:
         return jsonify({'error': f'환급 신청 처리 실패: {str(e)}'}), 500
 
+# 스케줄러 작업: 예약/분할 주문 처리
+@app.route('/api/cron/process-scheduled-orders', methods=['POST'])
+def cron_process_scheduled_orders():
+    """예약 주문 처리 크론잡"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 현재 시간이 지난 예약 주문 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT order_id, user_id, service_id, link, quantity, comments
+                FROM orders 
+                WHERE is_scheduled = TRUE 
+                AND status = 'scheduled'
+                AND scheduled_datetime <= NOW()
+            """)
+        else:
+            cursor.execute("""
+                SELECT order_id, user_id, service_id, link, quantity, comments
+                FROM orders 
+                WHERE is_scheduled = TRUE 
+                AND status = 'scheduled'
+                AND scheduled_datetime <= datetime('now')
+            """)
+        
+        scheduled_orders = cursor.fetchall()
+        processed_count = 0
+        
+        for order in scheduled_orders:
+            order_id = order[0]
+            success = process_scheduled_order(order_id)
+            if success:
+                processed_count += 1
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'processed': processed_count,
+            'message': f'{processed_count}개의 예약 주문을 처리했습니다.'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 예약 주문 처리 크론잡 실패: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cron/process-split-deliveries', methods=['POST'])
+def cron_process_split_deliveries():
+    """분할 발송 처리 크론잡"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 처리해야 할 분할 주문 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT o.order_id, o.split_days, o.created_at
+                FROM orders o
+                WHERE o.is_split_delivery = TRUE 
+                AND o.status IN ('split_scheduled', 'in_progress')
+            """)
+        else:
+            cursor.execute("""
+                SELECT o.order_id, o.split_days, o.created_at
+                FROM orders o
+                WHERE o.is_split_delivery = 1
+                AND o.status IN ('split_scheduled', 'in_progress')
+            """)
+        
+        split_orders = cursor.fetchall()
+        processed_count = 0
+        
+        for order in split_orders:
+            order_id = order[0]
+            total_days = order[1]
+            created_at = order[2]
+            
+            # 경과 일수 계산
+            if isinstance(created_at, str):
+                created_date = datetime.strptime(created_at.split()[0], '%Y-%m-%d').date()
+            else:
+                created_date = created_at.date()
+            
+            today = datetime.now().date()
+            days_passed = (today - created_date).days + 1  # 1일차부터 시작
+            
+            # 처리해야 할 일차인지 확인
+            if days_passed <= total_days:
+                # 해당 일차가 이미 처리되었는지 확인
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        SELECT id FROM split_delivery_progress 
+                        WHERE order_id = %s AND day_number = %s AND status = 'completed'
+                    """, (order_id, days_passed))
+                else:
+                    cursor.execute("""
+                        SELECT id FROM split_delivery_progress 
+                        WHERE order_id = ? AND day_number = ? AND status = 'completed'
+                    """, (order_id, days_passed))
+                
+                already_processed = cursor.fetchone()
+                
+                if not already_processed:
+                    # 아직 처리되지 않은 일차라면 처리
+                    success = process_split_delivery(order_id, days_passed)
+                    if success:
+                        processed_count += 1
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'processed': processed_count,
+            'message': f'{processed_count}개의 분할 발송을 처리했습니다.'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 분할 발송 처리 크론잡 실패: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# 백그라운드 스케줄러 스레드
+def background_scheduler():
+    """백그라운드에서 예약/분할 주문 처리"""
+    while True:
+        try:
+            # 1시간마다 예약 주문 처리
+            print("🔄 스케줄러: 예약 주문 처리 중...")
+            with app.app_context():
+                cron_process_scheduled_orders()
+            
+            # 분할 발송 처리 (매일 자정에 한 번만 실행하도록 시간 체크)
+            current_hour = datetime.now().hour
+            if current_hour == 0:  # 자정
+                print("🔄 스케줄러: 분할 발송 처리 중...")
+                with app.app_context():
+                    cron_process_split_deliveries()
+            
+        except Exception as e:
+            print(f"⚠️ 스케줄러 오류: {e}")
+        
+        # 1시간 대기
+        time.sleep(3600)
+
 # 앱 시작 시 자동 초기화
 initialize_app()
+
+# 스케줄러 시작 (프로덕션 환경에서만)
+if os.environ.get('FLASK_ENV') == 'production':
+    scheduler_thread = threading.Thread(target=background_scheduler, daemon=True)
+    scheduler_thread.start()
+    print("✅ 백그라운드 스케줄러 시작됨")
 
 if __name__ == '__main__':
     # 개발 서버 실행

@@ -313,6 +313,27 @@
   border: 1px solid #f59e0b;
 }
 
+/* 패키지 진행 스타일 */
+.package-delivery-row {
+  background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%) !important;
+  border-color: #8b5cf6 !important;
+  border-width: 2px !important;
+}
+
+.package-delivery-row .label {
+  color: #5b21b6 !important;
+  font-weight: 800 !important;
+}
+
+.package-delivery-info {
+  color: #5b21b6 !important;
+  font-weight: 700 !important;
+  font-size: 0.9rem !important;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
 /* 분할 발송 스타일 */
 .split-delivery-row {
   background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%) !important;

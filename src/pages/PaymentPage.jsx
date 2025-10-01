@@ -215,7 +215,7 @@ const PaymentPage = () => {
           <h2>가격 정보</h2>
           <div className="price-content">
             <div className="price-row">
-              <span>단가:</span>
+              <span>1000개 단가:</span>
               <span>{orderData.unitPrice}원</span>
             </div>
             <div className="price-row">
