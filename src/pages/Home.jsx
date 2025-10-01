@@ -1188,13 +1188,23 @@ const Home = () => {
     const detailedServices = getDetailedServices(selectedPlatform, serviceId)
     if (detailedServices && detailedServices.length > 0) {
       setSelectedDetailedService(detailedServices[0])
-      setQuantity(0)
+      // 패키지 상품은 수량을 1로 고정
+      if (detailedServices[0].package) {
+        setQuantity(1)
+      } else {
+        setQuantity(0)
+      }
     }
   }
 
   const handleDetailedServiceSelect = (detailedService) => {
     setSelectedDetailedService(detailedService)
-    setQuantity(0)
+    // 패키지 상품은 수량을 1로 고정, 일반 상품은 0으로 초기화
+    if (detailedService.package) {
+      setQuantity(1)
+    } else {
+      setQuantity(0)
+    }
   }
 
   const handleQuantityChange = (newQuantity) => {
