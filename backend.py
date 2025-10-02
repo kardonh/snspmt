@@ -25,6 +25,87 @@ def sitemap():
 def rss():
     return app.send_static_file('rss.xml')
 
+# 예약 발송 주문 처리
+@app.route('/api/scheduled-orders', methods=['POST'])
+def create_scheduled_order():
+    """예약 발송 주문 생성"""
+    conn = None
+    cursor = None
+    
+    try:
+        data = request.get_json()
+        print(f"=== 예약 발송 주문 생성 요청 ===")
+        print(f"요청 데이터: {data}")
+        
+        user_id = data.get('user_id')
+        service_id = data.get('service_id')
+        link = data.get('link')
+        quantity = data.get('quantity')
+        price = data.get('price') or data.get('total_price')
+        scheduled_datetime = data.get('scheduled_datetime')
+        
+        # 필수 필드 검증
+        if not all([user_id, service_id, link, quantity, price, scheduled_datetime]):
+            return jsonify({'error': '필수 필드가 누락되었습니다.'}), 400
+        
+        # 예약 시간 검증
+        try:
+            scheduled_dt = datetime.strptime(scheduled_datetime, '%Y-%m-%d %H:%M')
+            now = datetime.now()
+            
+            if scheduled_dt <= now:
+                return jsonify({'error': '예약 시간은 현재 시간보다 늦어야 합니다.'}), 400
+                
+            # 1시간 ~ 7일 이내
+            time_diff = (scheduled_dt - now).total_seconds() / 3600
+            if time_diff < 1 or time_diff > 168:
+                return jsonify({'error': '예약 시간은 1시간 후부터 7일 이내여야 합니다.'}), 400
+                
+        except ValueError:
+            return jsonify({'error': '예약 시간 형식이 올바르지 않습니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 예약 주문 저장
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                INSERT INTO scheduled_orders 
+                (user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, package_steps)
+                VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), %s)
+            """, (
+                user_id, service_id, link, quantity, price, scheduled_datetime,
+                json.dumps(data.get('package_steps', []))
+            ))
+        else:
+            cursor.execute("""
+                INSERT INTO scheduled_orders 
+                (user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, package_steps)
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), ?)
+            """, (
+                user_id, service_id, link, quantity, price, scheduled_datetime,
+                json.dumps(data.get('package_steps', []))
+            ))
+        
+        conn.commit()
+        
+        print(f"✅ 예약 발송 주문 생성 완료: {scheduled_datetime}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'예약 발송이 설정되었습니다. ({scheduled_datetime}에 처리됩니다)',
+            'scheduled_datetime': scheduled_datetime
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 예약 발송 주문 생성 오류: {str(e)}")
+        return jsonify({'error': f'예약 발송 주문 생성 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 # robots.txt 서빙
 @app.route('/robots.txt')
 def robots():
@@ -342,8 +423,11 @@ def process_package_step(order_id, step_index):
                 next_step = package_steps[step_index + 1]
                 next_delay = next_step.get('delay', 10)  # 기본 10분
                 
+                print(f"⏰ 다음 단계 {step_index + 2} 예약: {next_delay}분 후 실행")
+                
                 # 스레드로 지연 실행
                 def delayed_next_step():
+                    print(f"⏰ {next_delay}분 대기 후 다음 단계 실행...")
                     time.sleep(next_delay * 60)  # 분을 초로 변환
                     process_package_step(order_id, step_index + 1)
                 
@@ -351,6 +435,7 @@ def process_package_step(order_id, step_index):
                 thread.start()
             else:
                 # 마지막 단계 완료
+                print(f"🎉 패키지 주문 {order_id} 모든 단계 완료!")
                 if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
                         UPDATE orders SET status = 'completed', updated_at = NOW()
@@ -788,6 +873,24 @@ def init_database():
             """)
             print("✅ 패키지 진행 상황 테이블 생성 완료")
             
+            # 예약 주문 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS scheduled_orders (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    service_id VARCHAR(255) NOT NULL,
+                    link TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    price DECIMAL(10,2) NOT NULL,
+                    scheduled_datetime TIMESTAMP NOT NULL,
+                    status VARCHAR(50) DEFAULT 'pending',
+                    package_steps TEXT,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    processed_at TIMESTAMP
+                )
+            """)
+            print("✅ 예약 주문 테이블 생성 완료")
+            
             # orders 테이블에 package_steps 컬럼 추가
             try:
                 cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS package_steps JSONB")
@@ -870,6 +973,24 @@ def init_database():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """)
+            
+            # 예약 주문 테이블 생성 (SQLite)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS scheduled_orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    service_id TEXT NOT NULL,
+                    link TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    price REAL NOT NULL,
+                    scheduled_datetime TEXT NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    package_steps TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    processed_at TIMESTAMP
+                )
+            """)
+            print("✅ 예약 주문 테이블 생성 완료 (SQLite)")
         
         conn.commit()
         print("✅ 데이터베이스 테이블 초기화 완료")
@@ -1464,11 +1585,16 @@ def create_order():
         is_package = len(package_steps) > 0
         
         # 예약/분할/패키지 주문 처리
-        if is_scheduled or is_split_delivery:
-            # 예약/분할 주문은 나중에 처리하도록 스케줄링
-            print(f"📅 예약/분할 주문 - 즉시 처리하지 않음")
-            status = 'scheduled' if is_scheduled else 'split_scheduled'
-            message = '예약 주문이 생성되었습니다.' if is_scheduled else '분할 주문이 생성되었습니다.'
+        if is_scheduled and not is_package:
+            # 예약 주문 (패키지가 아닌 경우)은 나중에 처리하도록 스케줄링
+            print(f"📅 예약 주문 - 즉시 처리하지 않음")
+            status = 'scheduled'
+            message = '예약 주문이 생성되었습니다.'
+        elif is_split_delivery:
+            # 분할 주문은 나중에 처리하도록 스케줄링
+            print(f"📅 분할 주문 - 즉시 처리하지 않음")
+            status = 'split_scheduled'
+            message = '분할 주문이 생성되었습니다.'
         elif is_package:
             # 패키지 상품은 각 단계를 순차적으로 처리하도록 저장
             print(f"📦 패키지 주문 - {len(package_steps)}단계 순차 처리 예정")
@@ -1487,11 +1613,16 @@ def create_order():
             
             conn.commit()
             
-            # 첫 번째 단계 즉시 실행
-            process_package_step(order_id, 0)
-            
-            status = 'package_processing'
-            message = f'패키지 주문이 생성되었습니다. ({len(package_steps)}단계 순차 처리)'
+            # 예약 발송이 아닌 경우에만 즉시 실행
+            if not is_scheduled:
+                print(f"🚀 패키지 주문 즉시 실행 - 첫 번째 단계 시작")
+                process_package_step(order_id, 0)
+                status = 'package_processing'
+                message = f'패키지 주문이 생성되었습니다. ({len(package_steps)}단계 순차 처리)'
+            else:
+                print(f"📅 예약 패키지 주문 - 예약 시간에 처리 예정")
+                status = 'scheduled'
+                message = f'예약 패키지 주문이 생성되었습니다. ({len(package_steps)}단계 순차 처리)'
         else:
             # 일반 주문은 즉시 SMM Panel API 호출
             print(f"🚀 일반 주문 - 즉시 SMM Panel API 호출")
@@ -2456,53 +2587,6 @@ def validate_referral_code():
         return jsonify({'valid': False, 'error': f'코드 검증 실패: {str(e)}'}), 500
 
 # 사용자 쿠폰 조회
-@app.route('/api/coupons', methods=['GET'])
-def get_coupons():
-    """사용 가능한 쿠폰 목록 조회"""
-    try:
-        # 하드코딩된 쿠폰 목록 (임시)
-        coupons = [
-            {
-                'id': 'welcome10',
-                'name': '신규 회원 10% 할인',
-                'type': 'percentage',
-                'discount': 10,
-                'min_order_amount': 10000,
-                'max_discount_amount': 50000,
-                'is_active': True,
-                'created_at': '2025-10-02T00:00:00+09:00',
-                'expires_at': '2025-12-31T23:59:59+09:00'
-            },
-            {
-                'id': 'first5000',
-                'name': '첫 주문 5,000원 할인',
-                'type': 'fixed',
-                'discount': 5000,
-                'min_order_amount': 20000,
-                'max_discount_amount': 5000,
-                'is_active': True,
-                'created_at': '2025-10-02T00:00:00+09:00',
-                'expires_at': '2025-12-31T23:59:59+09:00'
-            },
-            {
-                'id': 'vip20',
-                'name': 'VIP 회원 20% 할인',
-                'type': 'percentage',
-                'discount': 20,
-                'min_order_amount': 50000,
-                'max_discount_amount': 100000,
-                'is_active': True,
-                'created_at': '2025-10-02T00:00:00+09:00',
-                'expires_at': '2025-12-31T23:59:59+09:00'
-            }
-        ]
-        
-        return jsonify({'coupons': coupons}), 200
-        
-    except Exception as e:
-        print(f"❌ 쿠폰 목록 조회 오류: {str(e)}")
-        return jsonify({'error': f'쿠폰 목록 조회 실패: {str(e)}'}), 500
-
 @app.route('/api/user/coupons', methods=['GET'])
 def get_user_coupons():
     """사용자의 쿠폰 목록 조회"""

@@ -118,45 +118,85 @@ const PaymentPage = () => {
 
       const deductResult = await deductResponse.json()
 
-      // 2. SMM Panel API 호출 (백엔드 프록시 사용)
-      try {
-        // SMM Panel API용 데이터 변환 (새로운 API 형식)
-        const smmOrderData = {
-          action: 'add',
-          service: orderData.service_id || orderData.detailedService?.id,
-          link: orderData.link,
-          quantity: orderData.quantity,
-          runs: 1,
-          interval: 0,
-          key: '35246b890345d819e1110d5cea9d5565'
-        }
-        
-        
-        const smmResponse = await fetch('/api/smm-panel', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(smmOrderData)
-        })
-
-        if (smmResponse.ok) {
-          const smmResult = await smmResponse.json()
+      // 2. SMM Panel API 호출 (백엔드 프록시 사용) - 예약 발송이 아닐 때만
+      if (!orderData.isScheduledOrder) {
+        try {
+          // SMM Panel API용 데이터 변환 (새로운 API 형식)
+          const smmOrderData = {
+            action: 'add',
+            service: orderData.service_id || orderData.detailedService?.id,
+            link: orderData.link,
+            quantity: orderData.quantity,
+            runs: 1,
+            interval: 0,
+            key: '35246b890345d819e1110d5cea9d5565'
+          }
           
-          if (smmResult.success && smmResult.data) {
-            // 새로운 API 형식: {"order": 23501}
-            if (smmResult.data.order) {
+          
+          const smmResponse = await fetch('/api/smm-panel', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(smmOrderData)
+          })
+
+          if (smmResponse.ok) {
+            const smmResult = await smmResponse.json()
+            
+            if (smmResult.success && smmResult.data) {
+              // 새로운 API 형식: {"order": 23501}
+              if (smmResult.data.order) {
+              }
+            } else {
             }
           } else {
+            const errorData = await smmResponse.json().catch(() => ({ error: 'Unknown error' }))
           }
-        } else {
-          const errorData = await smmResponse.json().catch(() => ({ error: 'Unknown error' }))
+        } catch (smmError) {
+          // SMM Panel API 실패해도 주문은 완료된 것으로 처리
         }
-      } catch (smmError) {
-        // SMM Panel API 실패해도 주문은 완료된 것으로 처리
+      } else {
+        console.log('📅 예약 발송 주문 - SMM Panel API 호출 건너뛰기')
       }
 
       // 3. 주문 생성 (결제 완료 후)
+      // 예약 발송인 경우 별도 API 호출
+      if (orderData.isScheduledOrder) {
+        console.log('📅 예약 발송 주문 - 예약 주문 API 호출')
+        console.log('📅 예약 시간:', `${orderData.scheduledDate} ${orderData.scheduledTime}`)
+        
+        const scheduledOrderResponse = await fetch('/api/scheduled-orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-ID': orderData.userId || orderData.user_id
+          },
+          body: JSON.stringify({
+            user_id: orderData.userId || orderData.user_id,
+            service_id: orderData.detailedService?.id || orderData.detailedService?.smmkings_id,
+            link: orderData.link,
+            quantity: orderData.quantity,
+            total_price: finalPrice,
+            scheduled_datetime: `${orderData.scheduledDate} ${orderData.scheduledTime}`,
+            package_steps: orderData.detailedService?.package && orderData.detailedService?.steps ? orderData.detailedService.steps.map(step => ({
+              ...step,
+              quantity: step.quantity || 0
+            })) : []
+          })
+        })
+        
+        if (!scheduledOrderResponse.ok) {
+          const scheduledError = await scheduledOrderResponse.json()
+          throw new Error(scheduledError.error || '예약 발송 주문 생성 실패')
+        }
+        
+        const scheduledResult = await scheduledOrderResponse.json()
+        alert(scheduledResult.message)
+        navigate('/orders')
+        return
+      }
+
       const orderResponse = await fetch('/api/orders', {
         method: 'POST',
         headers: {
