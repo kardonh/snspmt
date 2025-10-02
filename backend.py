@@ -269,12 +269,43 @@ def process_package_step(order_id, step_index):
         
         current_step = package_steps[step_index]
         step_service_id = current_step.get('id')
-        step_quantity = current_step.get('quantity')
+        step_quantity = current_step.get('quantity', 0)
         step_name = current_step.get('name')
         step_delay = current_step.get('delay', 0)
         
+        # 수량이 0이면 건너뛰기
+        if step_quantity <= 0:
+            print(f"⚠️ 패키지 단계 {step_index + 1} 건너뛰기 - 수량이 0: {step_name}")
+            # 건너뛴 단계도 진행 상황에 기록
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'skipped', NOW())
+                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
+            else:
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, 'skipped', datetime('now'))
+                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
+            conn.commit()
+            
+            # 다음 단계로 진행
+            if step_index + 1 < len(package_steps):
+                next_step = package_steps[step_index + 1]
+                next_delay = next_step.get('delay', 10)
+                
+                def delayed_next_step():
+                    time.sleep(next_delay * 60)
+                    process_package_step(order_id, step_index + 1)
+                
+                thread = threading.Thread(target=delayed_next_step, daemon=True)
+                thread.start()
+            return True
         
         # SMM Panel API 호출
+        print(f"🚀 패키지 단계 {step_index + 1} 실행: {step_name} (수량: {step_quantity})")
         smm_result = call_smm_panel_api({
             'service': step_service_id,
             'link': link,
@@ -283,6 +314,7 @@ def process_package_step(order_id, step_index):
         })
         
         if smm_result.get('status') == 'success':
+            print(f"✅ 패키지 단계 {step_index + 1} 완료: {step_name} (SMM 주문 ID: {smm_result.get('order')})")
             
             # 패키지 진행 상황 기록
             if DATABASE_URL.startswith('postgresql://'):
@@ -329,6 +361,7 @@ def process_package_step(order_id, step_index):
             conn.close()
             return True
         else:
+            print(f"❌ 패키지 단계 {step_index + 1} 실패: {step_name} - {smm_result.get('error', '알 수 없는 오류')}")
             conn.close()
             return False
             
@@ -1518,6 +1551,94 @@ def create_order():
             conn.close()
         print("✅ 데이터베이스 연결 종료")
 
+# 패키지 상품 진행 상황 조회
+@app.route('/api/orders/<int:order_id>/package-progress', methods=['GET'])
+def get_package_progress(order_id):
+    """패키지 상품 진행 상황 조회"""
+    conn = None
+    cursor = None
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at
+                FROM package_progress 
+                WHERE order_id = %s
+                ORDER BY step_number ASC
+            """, (order_id,))
+        else:
+            cursor.execute("""
+                SELECT step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at
+                FROM package_progress 
+                WHERE order_id = ?
+                ORDER BY step_number ASC
+            """, (order_id,))
+        
+        progress_data = cursor.fetchall()
+        
+        # 주문 정보도 함께 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT order_id, status, package_steps, created_at
+                FROM orders 
+                WHERE order_id = %s
+            """, (order_id,))
+        else:
+            cursor.execute("""
+                SELECT order_id, status, package_steps, created_at
+                FROM orders 
+                WHERE order_id = ?
+            """, (order_id,))
+        
+        order_data = cursor.fetchone()
+        
+        if not order_data:
+            return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
+        
+        # 패키지 단계 정보 파싱
+        package_steps = []
+        if order_data[2]:  # package_steps 컬럼
+            try:
+                package_steps = json.loads(order_data[2])
+            except:
+                package_steps = []
+        
+        # 진행 상황 데이터 포맷팅
+        progress_list = []
+        for row in progress_data:
+            progress_list.append({
+                'step_number': row[0],
+                'step_name': row[1],
+                'service_id': row[2],
+                'quantity': row[3],
+                'smm_panel_order_id': row[4],
+                'status': row[5],
+                'created_at': row[6].isoformat() if row[6] else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'order_id': order_id,
+            'order_status': order_data[1],
+            'package_steps': package_steps,
+            'progress': progress_list,
+            'total_steps': len(package_steps),
+            'completed_steps': len([p for p in progress_list if p['status'] == 'completed']),
+            'skipped_steps': len([p for p in progress_list if p['status'] == 'skipped'])
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 패키지 진행 상황 조회 실패: {str(e)}")
+        return jsonify({'error': f'패키지 진행 상황 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 # 주문 목록 조회
 @app.route('/api/orders', methods=['GET'])
 def get_orders():
@@ -1538,13 +1659,13 @@ def get_orders():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT order_id, service_id, link, quantity, price, status, created_at
+                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps
                 FROM orders WHERE user_id = %s
                 ORDER BY created_at DESC
             """, (user_id,))
         else:
             cursor.execute("""
-                SELECT order_id, service_id, link, quantity, price, status, created_at
+                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps
                 FROM orders WHERE user_id = ?
                 ORDER BY created_at DESC
             """, (user_id,))
@@ -1558,6 +1679,14 @@ def get_orders():
         
         order_list = []
         for order in orders:
+            # 패키지 상품 정보 파싱
+            package_steps = []
+            if order[7]:  # package_steps 컬럼
+                try:
+                    package_steps = json.loads(order[7])
+                except:
+                    package_steps = []
+            
             order_list.append({
                 'order_id': order[0],
                 'service_id': order[1],
@@ -1565,7 +1694,10 @@ def get_orders():
                 'quantity': order[3],
                 'price': float(order[4]),
                 'status': order[5],
-                'created_at': order[6].isoformat() if hasattr(order[6], 'isoformat') else str(order[6])
+                'created_at': order[6].isoformat() if hasattr(order[6], 'isoformat') else str(order[6]),
+                'is_package': len(package_steps) > 0,
+                'package_steps': package_steps,
+                'total_steps': len(package_steps)
             })
         
         print(f"✅ 주문 조회 성공: {len(order_list)}개")

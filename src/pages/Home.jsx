@@ -1348,7 +1348,10 @@ const Home = () => {
         coupon_id: selectedDiscountCoupon && selectedDiscountCoupon.id !== 'no_discount' ? selectedDiscountCoupon.id : null,
         coupon_discount: selectedDiscountCoupon ? selectedDiscountCoupon.discount : 0,
         // 패키지 상품 정보
-        package_steps: selectedDetailedService?.package && selectedDetailedService?.steps ? selectedDetailedService.steps : [],
+        package_steps: selectedDetailedService?.package && selectedDetailedService?.steps ? selectedDetailedService.steps.map(step => ({
+          ...step,
+          quantity: step.quantity || 0  // 각 단계별 수량 보장
+        })) : [],
         max: 0,
         posts: 0,
         delay: 0,

@@ -180,7 +180,10 @@ const PaymentPage = () => {
           is_split_delivery: orderData.isSplitDelivery || false,
           split_days: orderData.splitDays || null,
           split_quantity: orderData.dailyQuantity || null,
-          package_steps: orderData.detailedService?.package && orderData.detailedService?.steps ? orderData.detailedService.steps : [],
+          package_steps: orderData.detailedService?.package && orderData.detailedService?.steps ? orderData.detailedService.steps.map(step => ({
+            ...step,
+            quantity: step.quantity || 0  // 각 단계별 수량 보장
+          })) : [],
           use_coupon: orderData.discount > 0,
           coupon_id: orderData.discount > 0 ? 'manual_discount' : null,
           coupon_discount: orderData.discount || 0
@@ -289,10 +292,6 @@ const PaymentPage = () => {
         <div className="price-summary">
           <h2>가격 정보</h2>
           <div className="price-content">
-            <div className="price-row">
-              <span>1000개 단가:</span>
-              <span>{orderData.unitPrice}원</span>
-            </div>
             <div className="price-row">
               <span>수량:</span>
               <span>{orderData.quantity.toLocaleString()}개</span>
