@@ -2661,6 +2661,24 @@ def pay_commission():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # 환급 전 잔액 확인
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT current_balance FROM commission_points WHERE referrer_email = %s
+            """, (referrer_email,))
+        else:
+            cursor.execute("""
+                SELECT current_balance FROM commission_points WHERE referrer_email = ?
+            """, (referrer_email,))
+        
+        balance_result = cursor.fetchone()
+        if not balance_result:
+            return jsonify({'error': '추천인을 찾을 수 없습니다.'}), 404
+        
+        current_balance = float(balance_result[0])
+        if current_balance < float(amount):
+            return jsonify({'error': f'잔액이 부족합니다. 현재 잔액: {current_balance}원'}), 400
+        
         # 해당 추천인의 미지급 커미션을 지급 처리
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
@@ -2686,6 +2704,47 @@ def pay_commission():
                 INSERT INTO commission_payments (referrer_email, amount, payment_method, notes, paid_at)
                 VALUES (?, ?, ?, ?, datetime('now'))
             """, (referrer_email, amount, payment_method, notes))
+        
+        # current_balance와 total_paid 업데이트 (환급 처리)
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                UPDATE commission_points 
+                SET current_balance = current_balance - %s, total_paid = total_paid + %s, updated_at = NOW()
+                WHERE referrer_email = %s
+            """, (amount, amount, referrer_email))
+        else:
+            cursor.execute("""
+                UPDATE commission_points 
+                SET current_balance = current_balance - ?, total_paid = total_paid + ?, updated_at = CURRENT_TIMESTAMP
+                WHERE referrer_email = ?
+            """, (amount, amount, referrer_email))
+        
+        # 환급 후 잔액 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT current_balance FROM commission_points WHERE referrer_email = %s
+            """, (referrer_email,))
+        else:
+            cursor.execute("""
+                SELECT current_balance FROM commission_points WHERE referrer_email = ?
+            """, (referrer_email,))
+        
+        balance_result = cursor.fetchone()
+        balance_after = balance_result[0] if balance_result else 0
+        
+        # 환급 거래 내역 기록
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                INSERT INTO commission_point_transactions 
+                (referrer_email, transaction_type, amount, balance_after, description, created_at)
+                VALUES (%s, %s, %s, %s, %s, NOW())
+            """, (referrer_email, 'withdrawal', -float(amount), balance_after, f'관리자 환급 처리 - {amount}원'))
+        else:
+            cursor.execute("""
+                INSERT INTO commission_point_transactions 
+                (referrer_email, transaction_type, amount, balance_after, description, created_at)
+                VALUES (?, ?, ?, ?, ?, datetime('now'))
+            """, (referrer_email, 'withdrawal', -float(amount), balance_after, f'관리자 환급 처리 - {amount}원'))
         
         conn.commit()
         conn.close()
