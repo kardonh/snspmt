@@ -332,6 +332,7 @@ def process_package_step(order_id, step_index):
         
         order = cursor.fetchone()
         if not order:
+            print(f"❌ 패키지 주문 {order_id}을 찾을 수 없습니다.")
             return False
         
         user_id, link, package_steps_json, comments = order
@@ -339,6 +340,7 @@ def process_package_step(order_id, step_index):
         
         if step_index >= len(package_steps):
             # 모든 단계 완료 시 주문 상태 업데이트
+            print(f"🎉 패키지 주문 {order_id} 모든 단계 완료!")
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     UPDATE orders SET status = 'completed', updated_at = NOW()
@@ -359,6 +361,8 @@ def process_package_step(order_id, step_index):
         step_name = current_step.get('name')
         step_delay = current_step.get('delay', 0)
         
+        print(f"🚀 패키지 단계 {step_index + 1}/{len(package_steps)} 실행: {step_name} (수량: {step_quantity})")
+        
         # 수량이 0이면 건너뛰기
         if step_quantity <= 0:
             print(f"⚠️ 패키지 단계 {step_index + 1} 건너뛰기 - 수량이 0: {step_name}")
@@ -378,20 +382,11 @@ def process_package_step(order_id, step_index):
             conn.commit()
             
             # 다음 단계로 진행
-            if step_index + 1 < len(package_steps):
-                next_step = package_steps[step_index + 1]
-                next_delay = next_step.get('delay', 10)
-                
-                def delayed_next_step():
-                    time.sleep(next_delay * 60)
-                    process_package_step(order_id, step_index + 1)
-                
-                thread = threading.Thread(target=delayed_next_step, daemon=True)
-                thread.start()
+            schedule_next_package_step(order_id, step_index + 1, package_steps)
+            conn.close()
             return True
         
         # SMM Panel API 호출
-        print(f"🚀 패키지 단계 {step_index + 1} 실행: {step_name} (수량: {step_quantity})")
         smm_result = call_smm_panel_api({
             'service': step_service_id,
             'link': link,
@@ -418,48 +413,60 @@ def process_package_step(order_id, step_index):
             
             conn.commit()
             
-            # 다음 단계가 있으면 지연 후 실행
-            if step_index + 1 < len(package_steps):
-                next_step = package_steps[step_index + 1]
-                next_delay = next_step.get('delay', 10)  # 기본 10분
-                
-                print(f"⏰ 다음 단계 {step_index + 2} 예약: {next_delay}분 후 실행")
-                
-                # 스레드로 지연 실행
-                def delayed_next_step():
-                    print(f"⏰ {next_delay}분 대기 후 다음 단계 실행...")
-                    time.sleep(next_delay * 60)  # 분을 초로 변환
-                    process_package_step(order_id, step_index + 1)
-                
-                thread = threading.Thread(target=delayed_next_step, daemon=True)
-                thread.start()
-            else:
-                # 마지막 단계 완료
-                print(f"🎉 패키지 주문 {order_id} 모든 단계 완료!")
-                if DATABASE_URL.startswith('postgresql://'):
-                    cursor.execute("""
-                        UPDATE orders SET status = 'completed', updated_at = NOW()
-                        WHERE order_id = %s
-                    """, (order_id,))
-                else:
-                    cursor.execute("""
-                        UPDATE orders SET status = 'completed', updated_at = CURRENT_TIMESTAMP
-                        WHERE order_id = ?
-                    """, (order_id,))
-                conn.commit()
+            # 다음 단계가 있으면 스케줄링
+            schedule_next_package_step(order_id, step_index + 1, package_steps)
             
             conn.close()
             return True
         else:
             print(f"❌ 패키지 단계 {step_index + 1} 실패: {step_name} - {smm_result.get('error', '알 수 없는 오류')}")
+            
+            # 실패한 단계도 진행 상황에 기록
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'failed', NOW())
+                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
+            else:
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, 'failed', datetime('now'))
+                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
+            
+            conn.commit()
             conn.close()
             return False
             
     except Exception as e:
+        print(f"❌ 패키지 단계 {step_index + 1} 처리 오류: {str(e)}")
         if conn:
             conn.rollback()
             conn.close()
         return False
+
+def schedule_next_package_step(order_id, next_step_index, package_steps):
+    """다음 패키지 단계를 스케줄링"""
+    if next_step_index >= len(package_steps):
+        print(f"🎉 패키지 주문 {order_id} 모든 단계 완료!")
+        return
+    
+    next_step = package_steps[next_step_index]
+    next_delay = next_step.get('delay', 10)  # 기본 10분
+    next_step_name = next_step.get('name', f'단계 {next_step_index + 1}')
+    
+    print(f"⏰ 다음 단계 {next_step_index + 1} 스케줄링: {next_step_name} ({next_delay}분 후)")
+    
+    # 스레드로 지연 실행
+    def delayed_next_step():
+        print(f"⏰ {next_delay}분 대기 후 다음 단계 실행: {next_step_name}")
+        time.sleep(next_delay * 60)  # 분을 초로 변환
+        process_package_step(order_id, next_step_index)
+    
+    thread = threading.Thread(target=delayed_next_step, daemon=True)
+    thread.start()
+    print(f"✅ 패키지 단계 {next_step_index + 1} 스케줄링 완료")
 
 # 예약 주문 처리 함수
 def process_scheduled_order(order_id):
@@ -1616,7 +1623,15 @@ def create_order():
             # 예약 발송이 아닌 경우에만 즉시 실행
             if not is_scheduled:
                 print(f"🚀 패키지 주문 즉시 실행 - 첫 번째 단계 시작")
-                process_package_step(order_id, 0)
+                # 첫 번째 단계 즉시 실행
+                def start_package_processing():
+                    print(f"📦 패키지 주문 {order_id} 처리 시작")
+                    process_package_step(order_id, 0)
+                
+                # 별도 스레드에서 실행
+                thread = threading.Thread(target=start_package_processing, daemon=True)
+                thread.start()
+                
                 status = 'package_processing'
                 message = f'패키지 주문이 생성되었습니다. ({len(package_steps)}단계 순차 처리)'
             else:
