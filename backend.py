@@ -118,7 +118,7 @@ def process_split_delivery(order_id, day_number):
         
         order = cursor.fetchone()
         if not order:
-        return False
+            return False
         
         user_id, service_id, link, split_quantity, comments, total_days = order
         
