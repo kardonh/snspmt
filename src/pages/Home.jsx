@@ -1434,33 +1434,11 @@ const Home = () => {
         // 포인트 조회 실패해도 계속 진행
       }
 
-      // 주문 생성 후 결제 페이지로 이동
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-ID': userId
-        },
-        body: JSON.stringify(orderData)
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || `서버 오류 (${response.status}): 주문 생성에 실패했습니다.`)
-      }
-
-      if (result.error) {
-        alert(`주문 생성 실패: ${result.error}`)
-        return
-      }
-
-      // 주문 생성 성공 후 결제 페이지로 이동
+      // 결제 페이지로 이동 (주문 생성 없이)
       navigate(`/payment/${selectedPlatform}`, { 
         state: { 
           orderData: {
             ...orderDataWithService,
-            orderId: result.order_id || result.order,
             userId: userId,
             platform: selectedPlatform,
             service: selectedService,

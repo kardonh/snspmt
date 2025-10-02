@@ -12,6 +12,10 @@ const PaymentPage = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
+  const [availableCoupons, setAvailableCoupons] = useState([])
+  const [selectedCoupon, setSelectedCoupon] = useState(null)
+  const [showCouponModal, setShowCouponModal] = useState(false)
+  const [finalPrice, setFinalPrice] = useState(orderData?.totalPrice || 0)
 
   // 주문 데이터가 없으면 홈으로 리다이렉트
   useEffect(() => {
@@ -20,6 +24,48 @@ const PaymentPage = () => {
       return
     }
   }, [orderData, navigate])
+
+  // 쿠폰 데이터 로드
+  useEffect(() => {
+    const loadCoupons = async () => {
+      try {
+        const response = await fetch('/api/coupons')
+        if (response.ok) {
+          const coupons = await response.json()
+          setAvailableCoupons(coupons)
+        }
+      } catch (error) {
+        console.error('쿠폰 로드 실패:', error)
+      }
+    }
+    loadCoupons()
+  }, [])
+
+  // 최종 가격 계산
+  useEffect(() => {
+    if (orderData) {
+      let price = orderData.totalPrice || 0
+      if (selectedCoupon) {
+        if (selectedCoupon.type === 'percentage') {
+          price = price * (1 - selectedCoupon.discount / 100)
+        } else {
+          price = Math.max(0, price - selectedCoupon.discount)
+        }
+      }
+      setFinalPrice(Math.round(price))
+    }
+  }, [orderData, selectedCoupon])
+
+  // 쿠폰 선택
+  const handleCouponSelect = (coupon) => {
+    setSelectedCoupon(coupon)
+    setShowCouponModal(false)
+  }
+
+  // 쿠폰 선택 해제
+  const handleCouponRemove = () => {
+    setSelectedCoupon(null)
+  }
 
   const paymentMethods = [
     {
@@ -61,7 +107,7 @@ const PaymentPage = () => {
         },
         body: JSON.stringify({
           user_id: orderData.userId || orderData.user_id,
-          amount: orderData.totalPrice
+          amount: finalPrice
         })
       })
 
@@ -110,7 +156,45 @@ const PaymentPage = () => {
         // SMM Panel API 실패해도 주문은 완료된 것으로 처리
       }
 
-      // 3. 결제 성공 처리
+      // 3. 주문 생성 (결제 완료 후)
+      const orderResponse = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': orderData.userId || orderData.user_id
+        },
+        body: JSON.stringify({
+          user_id: orderData.userId || orderData.user_id,
+          platform: orderData.platform,
+          service: orderData.service,
+          detailed_service: orderData.detailedService?.name || orderData.service_name,
+          service_id: orderData.detailedService?.id || orderData.detailedService?.smmkings_id,
+          link: orderData.link,
+          quantity: orderData.quantity,
+          comments: orderData.comments || '',
+          explanation: orderData.explanation || '',
+          total_price: finalPrice,
+          discount: selectedCoupon ? (selectedCoupon.type === 'percentage' ? selectedCoupon.discount : (orderData.totalPrice - finalPrice)) : (orderData.discount || 0),
+          is_scheduled: orderData.isScheduledOrder || false,
+          scheduled_datetime: orderData.isScheduledOrder ? `${orderData.scheduledDate} ${orderData.scheduledTime}` : null,
+          is_split_delivery: orderData.isSplitDelivery || false,
+          split_days: orderData.splitDays || null,
+          split_quantity: orderData.dailyQuantity || null,
+          package_steps: orderData.detailedService?.package && orderData.detailedService?.steps ? orderData.detailedService.steps : [],
+          use_coupon: orderData.discount > 0,
+          coupon_id: orderData.discount > 0 ? 'manual_discount' : null,
+          coupon_discount: orderData.discount || 0
+        })
+      })
+
+      if (!orderResponse.ok) {
+        const orderError = await orderResponse.json()
+        throw new Error(orderError.error || '주문 생성 실패')
+      }
+
+      const orderResult = await orderResponse.json()
+
+      // 4. 결제 성공 처리
       setIsProcessing(false)
       setPaymentSuccess(true)
       
@@ -118,7 +202,7 @@ const PaymentPage = () => {
       setTimeout(() => {
         navigate('/order-complete', { 
           state: { 
-            orderId: orderData.orderId,
+            orderId: orderResult.order_id || orderResult.order,
             orderData: orderData,
             paymentMethod: getPaymentMethodName(selectedPaymentMethod)
           }
@@ -213,15 +297,39 @@ const PaymentPage = () => {
               <span>수량:</span>
               <span>{orderData.quantity.toLocaleString()}개</span>
             </div>
-            {orderData.discount > 0 && (
+            {/* 쿠폰 선택 */}
+            <div className="coupon-section">
+              <div className="coupon-header">
+                <span>할인 쿠폰:</span>
+                <button 
+                  className="coupon-select-btn"
+                  onClick={() => setShowCouponModal(true)}
+                >
+                  {selectedCoupon ? selectedCoupon.name : '쿠폰 선택'}
+                </button>
+              </div>
+              {selectedCoupon && (
+                <div className="selected-coupon">
+                  <span className="coupon-name">{selectedCoupon.name}</span>
+                  <button 
+                    className="coupon-remove-btn"
+                    onClick={handleCouponRemove}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            {selectedCoupon && (
               <div className="price-row discount">
-                <span>할인 ({orderData.discount}%):</span>
-                <span>-{Math.round(orderData.quantity * orderData.unitPrice * orderData.discount / 100).toLocaleString()}원</span>
+                <span>할인 ({selectedCoupon.type === 'percentage' ? selectedCoupon.discount + '%' : selectedCoupon.discount + '원'}):</span>
+                <span>-{(orderData.totalPrice - finalPrice).toLocaleString()}원</span>
               </div>
             )}
             <div className="price-row total">
               <span>총 결제금액:</span>
-              <span>{orderData.totalPrice.toLocaleString()}원</span>
+              <span>{finalPrice.toLocaleString()}원</span>
             </div>
           </div>
         </div>
@@ -273,8 +381,8 @@ const PaymentPage = () => {
           >
             {isProcessing ? '포인트 결제 처리 중...' : 
              selectedPaymentMethod ? 
-             `${orderData.totalPrice.toLocaleString()}포인트로 결제하기` :
-             `${orderData.totalPrice.toLocaleString()}포인트 결제하기`}
+             `${finalPrice.toLocaleString()}포인트로 결제하기` :
+             `${finalPrice.toLocaleString()}포인트 결제하기`}
           </button>
         </div>
 
@@ -291,6 +399,60 @@ const PaymentPage = () => {
           </ul>
         </div>
       </div>
+
+      {/* 쿠폰 선택 모달 */}
+      {showCouponModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>할인 쿠폰 선택</h2>
+              <button 
+                className="close-btn"
+                onClick={() => setShowCouponModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {availableCoupons.length === 0 ? (
+                <p>사용 가능한 쿠폰이 없습니다.</p>
+              ) : (
+                <div className="coupon-list">
+                  {availableCoupons.map((coupon) => (
+                    <div 
+                      key={coupon.id}
+                      className={`coupon-item ${selectedCoupon?.id === coupon.id ? 'selected' : ''}`}
+                      onClick={() => handleCouponSelect(coupon)}
+                    >
+                      <div className="coupon-info">
+                        <h3>{coupon.name}</h3>
+                        <p>{coupon.description}</p>
+                        <div className="coupon-discount">
+                          {coupon.type === 'percentage' 
+                            ? `${coupon.discount}% 할인`
+                            : `${coupon.discount.toLocaleString()}원 할인`
+                          }
+                        </div>
+                      </div>
+                      <div className="coupon-select">
+                        {selectedCoupon?.id === coupon.id ? '✓' : ''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="cancel-btn"
+                onClick={() => setShowCouponModal(false)}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

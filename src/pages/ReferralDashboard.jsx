@@ -324,7 +324,11 @@ const ReferralDashboard = () => {
         },
         body: JSON.stringify({
           referrer_email: userEmail,
-          ...withdrawalData
+          referrer_name: withdrawalData.referrer_name,
+          bank_name: withdrawalData.bank_name,
+          account_number: withdrawalData.account_number,
+          account_holder: withdrawalData.account_holder,
+          amount: withdrawalData.amount
         })
       })
 
