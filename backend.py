@@ -431,16 +431,20 @@ try:
     if aws_api_key and aws_api_key != SMMPANEL_API_KEY:
         SMMPANEL_API_KEY = aws_api_key
 except ImportError as e:
+    pass
 except Exception as e:
+    pass
 
 # 프로덕션 환경에서는 로그 최소화
 if os.environ.get('FLASK_ENV') != 'production':
+    pass
 
 def get_db_connection():
     """데이터베이스 연결을 가져옵니다."""
     try:
         # 프로덕션 환경에서는 로그 최소화
         if os.environ.get('FLASK_ENV') != 'production':
+            pass
         
         if DATABASE_URL.startswith('postgresql://'):
             # PostgreSQL 연결 설정 최적화
@@ -3146,7 +3150,7 @@ def get_admin_users():
         
         # 테이블 목록 확인
         print("📊 테이블 목록 조회 중...")
-            cursor.execute("""
+        cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public'
@@ -3167,16 +3171,16 @@ def get_admin_users():
                 
                 if user_count > 0:
                     # 기본 컬럼만 조회
-            cursor.execute("""
+                    cursor.execute("""
                         SELECT user_id, email, name, created_at
                         FROM users
                         ORDER BY created_at DESC
                         LIMIT 50
                     """)
-        users = cursor.fetchall()
-        
-        for user in users:
-            user_list.append({
+                    users = cursor.fetchall()
+                    
+                    for user in users:
+                        user_list.append({
                             'user_id': user[0] if user[0] else 'N/A',
                             'email': user[1] if user[1] else 'N/A',
                             'name': user[2] if user[2] else 'N/A',
@@ -3206,14 +3210,14 @@ def get_admin_users():
         
         conn.close()
         print(f"✅ 사용자 목록 반환: {len(user_list)}명")
-            
-            return jsonify({
+        
+        return jsonify({
             'users': user_list,
             'debug_info': {
                 'tables': tables,
                 'user_count': len(user_list)
             }
-            }), 200
+        }), 200
         
     except Exception as e:
         print(f"❌ 사용자 목록 조회 실패: {str(e)}")
