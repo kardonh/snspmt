@@ -2456,6 +2456,53 @@ def validate_referral_code():
         return jsonify({'valid': False, 'error': f'코드 검증 실패: {str(e)}'}), 500
 
 # 사용자 쿠폰 조회
+@app.route('/api/coupons', methods=['GET'])
+def get_coupons():
+    """사용 가능한 쿠폰 목록 조회"""
+    try:
+        # 하드코딩된 쿠폰 목록 (임시)
+        coupons = [
+            {
+                'id': 'welcome10',
+                'name': '신규 회원 10% 할인',
+                'type': 'percentage',
+                'discount': 10,
+                'min_order_amount': 10000,
+                'max_discount_amount': 50000,
+                'is_active': True,
+                'created_at': '2025-10-02T00:00:00+09:00',
+                'expires_at': '2025-12-31T23:59:59+09:00'
+            },
+            {
+                'id': 'first5000',
+                'name': '첫 주문 5,000원 할인',
+                'type': 'fixed',
+                'discount': 5000,
+                'min_order_amount': 20000,
+                'max_discount_amount': 5000,
+                'is_active': True,
+                'created_at': '2025-10-02T00:00:00+09:00',
+                'expires_at': '2025-12-31T23:59:59+09:00'
+            },
+            {
+                'id': 'vip20',
+                'name': 'VIP 회원 20% 할인',
+                'type': 'percentage',
+                'discount': 20,
+                'min_order_amount': 50000,
+                'max_discount_amount': 100000,
+                'is_active': True,
+                'created_at': '2025-10-02T00:00:00+09:00',
+                'expires_at': '2025-12-31T23:59:59+09:00'
+            }
+        ]
+        
+        return jsonify({'coupons': coupons}), 200
+        
+    except Exception as e:
+        print(f"❌ 쿠폰 목록 조회 오류: {str(e)}")
+        return jsonify({'error': f'쿠폰 목록 조회 실패: {str(e)}'}), 500
+
 @app.route('/api/user/coupons', methods=['GET'])
 def get_user_coupons():
     """사용자의 쿠폰 목록 조회"""
