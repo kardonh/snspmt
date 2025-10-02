@@ -468,6 +468,48 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
     thread.start()
     print(f"✅ 패키지 단계 {next_step_index + 1} 스케줄링 완료")
 
+# 예약 주문에서 실제 주문 생성 함수
+def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, quantity, price, package_steps, conn, cursor):
+    """예약 주문에서 실제 주문 생성"""
+    try:
+        # 새로운 주문 ID 생성
+        new_order_id = f"ORD_{int(time.time() * 1000)}_{scheduled_id}"
+        
+        # 실제 주문 생성
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                INSERT INTO orders 
+                (order_id, user_id, platform, service, detailed_service, service_id, link, quantity, 
+                 price, status, created_at, updated_at, is_scheduled, package_steps)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(), FALSE, %s)
+            """, (
+                new_order_id, user_id, 'Instagram', 'Package Service', 'Scheduled Package',
+                service_id, link, quantity, price, 'pending', json.dumps(package_steps)
+            ))
+        else:
+            cursor.execute("""
+                INSERT INTO orders 
+                (order_id, user_id, platform, service, detailed_service, service_id, link, quantity, 
+                 price, status, created_at, updated_at, is_scheduled, package_steps)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 0, ?)
+            """, (
+                new_order_id, user_id, 'Instagram', 'Package Service', 'Scheduled Package',
+                service_id, link, quantity, price, 'pending', json.dumps(package_steps)
+            ))
+        
+        print(f"✅ 예약 주문에서 실제 주문 생성: {new_order_id}")
+        
+        # 패키지 상품인 경우 첫 번째 단계 처리
+        if package_steps and len(package_steps) > 0:
+            print(f"📦 패키지 주문 처리 시작: {len(package_steps)}단계")
+            process_package_step(new_order_id, 0)
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ 예약 주문에서 실제 주문 생성 실패: {e}")
+        return False
+
 # 예약 주문 처리 함수
 def process_scheduled_order(order_id):
     """예약 주문 처리"""
@@ -602,7 +644,7 @@ def get_db_connection():
             os.makedirs(os.path.dirname(db_path), exist_ok=True)  # 디렉토리 생성
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
-            return conn
+        return conn
         except Exception as fallback_error:
             raise fallback_error
     except Exception as e:
@@ -883,7 +925,7 @@ def init_database():
             # 예약 주문 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS scheduled_orders (
-                    id SERIAL PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
                     service_id VARCHAR(255) NOT NULL,
                     link TEXT NOT NULL,
@@ -3507,7 +3549,7 @@ def get_admin_users():
         
         # 테이블 목록 확인
         print("📊 테이블 목록 조회 중...")
-        cursor.execute("""
+            cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public'
@@ -3528,16 +3570,16 @@ def get_admin_users():
                 
                 if user_count > 0:
                     # 기본 컬럼만 조회
-                    cursor.execute("""
+            cursor.execute("""
                         SELECT user_id, email, name, created_at
                         FROM users
                         ORDER BY created_at DESC
                         LIMIT 50
                     """)
-                    users = cursor.fetchall()
-                    
-                    for user in users:
-                        user_list.append({
+        users = cursor.fetchall()
+        
+        for user in users:
+            user_list.append({
                             'user_id': user[0] if user[0] else 'N/A',
                             'email': user[1] if user[1] else 'N/A',
                             'name': user[2] if user[2] else 'N/A',
@@ -3567,14 +3609,14 @@ def get_admin_users():
         
         conn.close()
         print(f"✅ 사용자 목록 반환: {len(user_list)}명")
-        
-        return jsonify({
+            
+            return jsonify({
             'users': user_list,
             'debug_info': {
                 'tables': tables,
                 'user_count': len(user_list)
             }
-        }), 200
+            }), 200
         
     except Exception as e:
         print(f"❌ 사용자 목록 조회 실패: {str(e)}")
@@ -4208,21 +4250,19 @@ def cron_process_scheduled_orders():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 현재 시간이 지난 예약 주문 조회
+        # 현재 시간이 지난 예약 주문 조회 (scheduled_orders 테이블에서)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT order_id, user_id, service_id, link, quantity, comments
-                FROM orders 
-                WHERE is_scheduled = TRUE 
-                AND status = 'scheduled'
+                SELECT id, user_id, service_id, link, quantity, price, package_steps
+                FROM scheduled_orders 
+                WHERE status = 'pending'
                 AND scheduled_datetime <= NOW()
             """)
         else:
             cursor.execute("""
-                SELECT order_id, user_id, service_id, link, quantity, comments
-                FROM orders 
-                WHERE is_scheduled = TRUE 
-                AND status = 'scheduled'
+                SELECT id, user_id, service_id, link, quantity, price, package_steps
+                FROM scheduled_orders 
+                WHERE status = 'pending'
                 AND scheduled_datetime <= datetime('now')
             """)
         
@@ -4231,9 +4271,40 @@ def cron_process_scheduled_orders():
         
         for order in scheduled_orders:
             order_id = order[0]
-            success = process_scheduled_order(order_id)
+            user_id = order[1]
+            service_id = order[2]
+            link = order[3]
+            quantity = order[4]
+            price = order[5]
+            package_steps = json.loads(order[6]) if order[6] else []
+            
+            print(f"🔄 예약 주문 처리 중: ID {order_id}, 사용자 {user_id}")
+            
+            # 실제 주문 생성
+            success = create_actual_order_from_scheduled(
+                order_id, user_id, service_id, link, quantity, price, package_steps, conn, cursor
+            )
+            
             if success:
+                # 예약 주문 상태를 처리 완료로 변경
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        UPDATE scheduled_orders 
+                        SET status = 'completed', processed_at = NOW()
+                        WHERE id = %s
+                    """, (order_id,))
+                else:
+                    cursor.execute("""
+                        UPDATE scheduled_orders 
+                        SET status = 'completed', processed_at = datetime('now')
+                        WHERE id = ?
+                    """, (order_id,))
+                
+                conn.commit()
                 processed_count += 1
+                print(f"✅ 예약 주문 {order_id} 처리 완료")
+            else:
+                print(f"❌ 예약 주문 {order_id} 처리 실패")
         
         conn.close()
         
@@ -4326,7 +4397,7 @@ def background_scheduler():
     """백그라운드에서 예약/분할 주문 처리"""
     while True:
         try:
-            # 1시간마다 예약 주문 처리
+            # 5분마다 예약 주문 처리
             print("🔄 스케줄러: 예약 주문 처리 중...")
             with app.app_context():
                 cron_process_scheduled_orders()
@@ -4341,8 +4412,8 @@ def background_scheduler():
         except Exception as e:
             print(f"⚠️ 스케줄러 오류: {e}")
         
-        # 1시간 대기
-        time.sleep(3600)
+        # 5분 대기 (예약 주문을 더 자주 체크)
+        time.sleep(300)
 
 # 앱 시작 시 자동 초기화
 initialize_app()

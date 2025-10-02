@@ -120,7 +120,7 @@ const Home = () => {
         if (detailedServices[0].package) {
           setQuantity(1)
         } else {
-          setQuantity(detailedServices[0].min)
+        setQuantity(detailedServices[0].min)
         }
       }
     }
@@ -254,7 +254,7 @@ const Home = () => {
       { id: 278, name: 'KR 인스타그램 리얼 한국인 [30대] 좋아요', price: 29000, min: 30, max: 5000, time: '데이터 부족', description: '상세정보' },
       { id: 282, name: 'KR 인스타그램 리얼 한국인 [30대여자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
       { id: 281, name: 'KR 인스타그램 리얼 한국인 [30대남자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' }
-     ],
+    ],
     followers_korean: [
       { id: 514, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [일반]', price: 150000, min: 30, max: 3000, time: '2시간 16분', description: '상세정보' },
       { id: 491, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [디럭스]', price: 210000, min: 10, max: 1000, time: '데이터 부족', description: '상세정보' },
@@ -1415,15 +1415,15 @@ const Home = () => {
           is_scheduled: orderData.is_scheduled,
           scheduled_datetime: orderData.scheduled_datetime
         })
-      }
-      
-      // 주문 데이터에 서비스 이름 추가
-      const orderDataWithService = {
-        ...orderData,
-        service_name: selectedDetailedService?.name || '선택된 서비스',
-        unit_price: selectedDetailedService?.price || 0,
-        total_price: safeTotalPrice
-      }
+        }
+
+        // 주문 데이터에 서비스 이름 추가
+        const orderDataWithService = {
+          ...orderData,
+          service_name: selectedDetailedService?.name || '선택된 서비스',
+          unit_price: selectedDetailedService?.price || 0,
+          total_price: safeTotalPrice
+        }
 
       // 사용자 포인트 조회
       let userPoints = null
@@ -1437,19 +1437,19 @@ const Home = () => {
       }
 
       // 결제 페이지로 이동 (주문 생성 없이)
-      navigate(`/payment/${selectedPlatform}`, { 
-        state: { 
-          orderData: {
-            ...orderDataWithService,
-            userId: userId,
-            platform: selectedPlatform,
-            service: selectedService,
-            detailedService: selectedDetailedService,
-            quantity: safeQuantity,
-            unitPrice: selectedDetailedService?.price || 0,
-            totalPrice: safeTotalPrice,
-            link: safeLink,
-            comments: safeComments,
+        navigate(`/payment/${selectedPlatform}`, { 
+          state: { 
+            orderData: {
+              ...orderDataWithService,
+              userId: userId,
+              platform: selectedPlatform,
+              service: selectedService,
+              detailedService: selectedDetailedService,
+              quantity: safeQuantity,
+              unitPrice: selectedDetailedService?.price || 0,
+              totalPrice: safeTotalPrice,
+              link: safeLink,
+              comments: safeComments,
             explanation: explanation || '',
             discount: selectedDiscountCoupon ? selectedDiscountCoupon.discount : 0,
             userPoints: userPoints,
@@ -1714,31 +1714,31 @@ const Home = () => {
           
           {/* Quantity Selection - 패키지 상품이 아닐 때만 표시 */}
           {selectedDetailedService && !selectedDetailedService.package && (
-            <div className="form-group">
+          <div className="form-group">
               <label className="quantity-label">수량 선택</label>
-              <input
-                type="number"
+            <input
+              type="number"
                 value={quantity === 0 ? '' : quantity}
-                onChange={(e) => {
+              onChange={(e) => {
                   const inputValue = e.target.value
                   if (inputValue === '') {
                     handleQuantityChange(0)
                   } else {
                     const newQuantity = parseInt(inputValue)
                     if (!isNaN(newQuantity)) {
-                    handleQuantityChange(newQuantity)
+                  handleQuantityChange(newQuantity)
                     }
-                  }
-                }}
+                }
+              }}
                 min="0"
-                max={selectedDetailedService.max}
+              max={selectedDetailedService.max}
                 className={`quantity-input-field ${quantity > 0 && quantity < selectedDetailedService.min ? 'quantity-input-invalid' : ''}`}
                 placeholder="수량을 입력하세요 (0부터 시작)"
-              />
+            />
               <div className="quantity-hint-left">
                 최소 {(selectedDetailedService.min || 0).toLocaleString()} : 최대 {(selectedDetailedService.max || 0).toLocaleString()}
-              </div>
             </div>
+          </div>
           )}
 
           {/* 할인 쿠폰 선택 */}
@@ -1756,8 +1756,8 @@ const Home = () => {
                       <span className="coupon-name">{coupon.name}</span>
                       {coupon.discount > 0 && (
                         <span className="coupon-discount">{coupon.discount}% 할인</span>
-                      )}
-                    </div>
+              )}
+            </div>
                     <div className="coupon-radio">
                       <input 
                         type="radio" 
@@ -1766,7 +1766,7 @@ const Home = () => {
                         checked={selectedDiscountCoupon?.id === coupon.id}
                         onChange={() => setSelectedDiscountCoupon(coupon)}
                       />
-                    </div>
+          </div>
                   </div>
                 ))}
               </div>
