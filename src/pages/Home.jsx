@@ -1393,15 +1393,15 @@ const Home = () => {
           throw new Error('예약 시간은 현재 시간보다 늦어야 합니다.')
         }
         
-        // 예약 시간이 24시간 이내인지 확인
+        // 예약 시간이 5분~7일 이내인지 확인
         const timeDiff = scheduledDateTime.getTime() - now.getTime()
-        const hoursDiff = timeDiff / (1000 * 60 * 60)
+        const minutesDiff = timeDiff / (1000 * 60) // 분 단위로 계산
         
-        if (hoursDiff < 1) {
-          throw new Error('예약 시간은 최소 1시간 후여야 합니다.')
+        if (minutesDiff < 5) {
+          throw new Error('예약 시간은 최소 5분 후여야 합니다.')
         }
         
-        if (hoursDiff > 168) { // 7일
+        if (minutesDiff > 10080) { // 7일 = 7 * 24 * 60 = 10080분
           throw new Error('예약 시간은 최대 7일 이내여야 합니다.')
         }
       }

@@ -56,10 +56,10 @@ def create_scheduled_order():
             if scheduled_dt <= now:
                 return jsonify({'error': '예약 시간은 현재 시간보다 늦어야 합니다.'}), 400
                 
-            # 1시간 ~ 7일 이내
-            time_diff = (scheduled_dt - now).total_seconds() / 3600
-            if time_diff < 1 or time_diff > 168:
-                return jsonify({'error': '예약 시간은 1시간 후부터 7일 이내여야 합니다.'}), 400
+            # 5분 ~ 7일 이내
+            time_diff_minutes = (scheduled_dt - now).total_seconds() / 60
+            if time_diff_minutes < 5 or time_diff_minutes > 10080:  # 7일 = 7 * 24 * 60 = 10080분
+                return jsonify({'error': '예약 시간은 5분 후부터 7일 이내여야 합니다.'}), 400
                 
         except ValueError:
             return jsonify({'error': '예약 시간 형식이 올바르지 않습니다.'}), 400
