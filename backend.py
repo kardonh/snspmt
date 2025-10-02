@@ -499,7 +499,7 @@ def get_db_connection():
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
             print(f"✅ SQLite 폴백 연결 성공: {db_path}")
-            return conn
+        return conn
         except Exception as fallback_error:
             print(f"❌ SQLite 폴백도 실패: {fallback_error}")
             raise fallback_error
@@ -765,7 +765,7 @@ def init_database():
             # 패키지 진행 상황 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS package_progress (
-                    id SERIAL PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                     order_id INTEGER NOT NULL,
                     step_number INTEGER NOT NULL,
                     step_name VARCHAR(255) NOT NULL,
@@ -3181,7 +3181,7 @@ def get_admin_users():
         
         # 테이블 목록 확인
         print("📊 테이블 목록 조회 중...")
-        cursor.execute("""
+            cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public'
@@ -3202,16 +3202,16 @@ def get_admin_users():
                 
                 if user_count > 0:
                     # 기본 컬럼만 조회
-                    cursor.execute("""
+            cursor.execute("""
                         SELECT user_id, email, name, created_at
                         FROM users
                         ORDER BY created_at DESC
                         LIMIT 50
                     """)
-                    users = cursor.fetchall()
-                    
-                    for user in users:
-                        user_list.append({
+        users = cursor.fetchall()
+        
+        for user in users:
+            user_list.append({
                             'user_id': user[0] if user[0] else 'N/A',
                             'email': user[1] if user[1] else 'N/A',
                             'name': user[2] if user[2] else 'N/A',
@@ -3241,14 +3241,14 @@ def get_admin_users():
         
         conn.close()
         print(f"✅ 사용자 목록 반환: {len(user_list)}명")
-        
-        return jsonify({
+            
+            return jsonify({
             'users': user_list,
             'debug_info': {
                 'tables': tables,
                 'user_count': len(user_list)
             }
-        }), 200
+            }), 200
         
     except Exception as e:
         print(f"❌ 사용자 목록 조회 실패: {str(e)}")
@@ -3785,11 +3785,29 @@ def process_withdrawal():
             
             # 포인트 차감
             print(f"💰 환급 처리 시작 - 추천인: {referrer_email}, 금액: {amount}, 현재 잔액: {current_balance}, 차감 후: {new_balance}")
+            
+            # 차감 전 현재 total_paid 조회
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    SELECT total_paid FROM referral_commission_points 
+                    WHERE referrer_email = %s
+                """, (referrer_email,))
+            else:
+                cursor.execute("""
+                    SELECT total_paid FROM referral_commission_points 
+                    WHERE referrer_email = ?
+                """, (referrer_email,))
+            
+            current_total_paid_result = cursor.fetchone()
+            current_total_paid = float(current_total_paid_result[0]) if current_total_paid_result else 0
+            new_total_paid = current_total_paid - float(amount)
+            
+            print(f"💰 total_paid 업데이트 - 현재: {current_total_paid}, 차감 후: {new_total_paid}")
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     UPDATE referral_commission_points 
                     SET current_balance = current_balance - %s, 
-                        total_paid = total_paid + %s,
+                        total_paid = total_paid - %s,
                         updated_at = NOW()
                     WHERE referrer_email = %s
                 """, (amount, amount, referrer_email))
@@ -3813,7 +3831,7 @@ def process_withdrawal():
                 cursor.execute("""
                     UPDATE referral_commission_points 
                     SET current_balance = current_balance - ?, 
-                        total_paid = total_paid + ?,
+                        total_paid = total_paid - ?,
                         updated_at = datetime('now')
                     WHERE referrer_email = ?
                 """, (amount, amount, referrer_email))
