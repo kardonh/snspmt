@@ -186,7 +186,7 @@ const Sidebar = ({ onClose }) => {
         ))}
         
         {/* 관리자 메뉴 (관리자 계정일 때만 표시) */}
-        {currentUser && currentUser.email === 'tambleofficial@gmail.com' && (
+        {currentUser && (currentUser.email === 'tambleofficial@gmail.com' || currentUser.email === 'tambleofficial01@gmail.com') && (
           console.log('Rendering admin menu for:', currentUser.email),
           <>
             <div className="admin-separator"></div>

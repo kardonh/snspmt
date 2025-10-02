@@ -1258,7 +1258,7 @@ const Home = () => {
       }
       
       if (quantity < selectedDetailedService.min) {
-        alert(`수량은 최소 ${selectedDetailedService.min.toLocaleString()}개 이상이어야 합니다.`)
+        alert(`수량은 최소 ${(selectedDetailedService.min || 0).toLocaleString()}개 이상이어야 합니다.`)
         return
       }
 
@@ -1721,7 +1721,7 @@ const Home = () => {
                   <div className="detailed-service-info">
                     <div className="detailed-service-name">{service.name}</div>
                     <div className="detailed-service-range">
-                      최소: {service.min.toLocaleString()} ~ 최대: {service.max.toLocaleString()}
+                      최소: {(service.min || 0).toLocaleString()} ~ 최대: {(service.max || 0).toLocaleString()}
                     </div>
                   </div>
                   <div className="detailed-service-price">
@@ -1780,7 +1780,7 @@ const Home = () => {
                 placeholder="수량을 입력하세요 (0부터 시작)"
               />
               <div className="quantity-hint-left">
-                최소 {selectedDetailedService.min.toLocaleString()} : 최대 {selectedDetailedService.max.toLocaleString()}
+                최소 {(selectedDetailedService.min || 0).toLocaleString()} : 최대 {(selectedDetailedService.max || 0).toLocaleString()}
               </div>
             </div>
           )}
@@ -1840,7 +1840,7 @@ const Home = () => {
                     </div>
                     <div className="step-details">
                       <p className="step-description">{step.description}</p>
-                      <p className="step-quantity">수량: {step.quantity.toLocaleString()}개</p>
+                      <p className="step-quantity">수량: {(step.quantity || 0).toLocaleString()}개</p>
                     </div>
                   </div>
                 ))}

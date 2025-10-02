@@ -42,7 +42,7 @@ const BottomTabBar = () => {
       ))}
       
       {/* 관리자 탭 (관리자 계정일 때만 표시) */}
-      {currentUser && currentUser.email === 'tambleofficial@gmail.com' && (
+      {currentUser && (currentUser.email === 'tambleofficial@gmail.com' || currentUser.email === 'tambleofficial01@gmail.com') && (
         <Link
           to={adminTab.path}
           className={`tab-item admin-tab ${location.pathname === adminTab.path ? 'active' : ''}`}
