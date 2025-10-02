@@ -184,9 +184,9 @@ const PaymentPage = () => {
             ...step,
             quantity: step.quantity || 0  // 각 단계별 수량 보장
           })) : [],
-          use_coupon: orderData.discount > 0,
-          coupon_id: orderData.discount > 0 ? 'manual_discount' : null,
-          coupon_discount: orderData.discount || 0
+          use_coupon: selectedCoupon ? true : (orderData.discount > 0),
+          coupon_id: selectedCoupon?.id || (orderData.discount > 0 ? 'manual_discount' : null),
+          coupon_discount: selectedCoupon ? (selectedCoupon.type === 'percentage' ? selectedCoupon.discount : (orderData.totalPrice - finalPrice)) : (orderData.discount || 0)
         })
       })
 

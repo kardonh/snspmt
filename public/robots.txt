@@ -4,6 +4,9 @@ Allow: /
 # Sitemap
 Sitemap: https://sociality.co.kr/sitemap.xml
 
+# RSS Feed
+RSS: https://sociality.co.kr/rss.xml
+
 # Disallow admin pages
 Disallow: /admin
 Disallow: /api/

@@ -206,11 +206,10 @@ const Home = () => {
     // 한국인 패키지 서비스
     korean_package: [
       // 🎯 추천탭 상위노출 (내계정) - 진입단계
-      { id: 1003, name: '🎯 추천탭 상위노출 (내계정) - 진입단계 [4단계 패키지]', price: 20000000, min: 1, max: 1, time: '24-48시간', description: '진입단계 4단계 완전 패키지', package: true, steps: [
+      { id: 1003, name: '🎯 추천탭 상위노출 (내계정) - 진입단계 [3단계 패키지]', price: 15000000, min: 1, max: 1, time: '24-48시간', description: '진입단계 3단계 완전 패키지', package: true, steps: [
         { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 300, delay: 0, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
         { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', quantity: 3000, delay: 10, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
-        { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' },
-        { id: 326, name: '4단계: 리얼 한국인 댓글 유입', quantity: 10, delay: 10, description: '2️⃣[상승단계] 리얼 한국인 댓글 유입' }
+        { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' }
       ]},
       
       // 🎯 추천탭 상위노출 (내계정) - 유지단계

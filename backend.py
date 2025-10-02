@@ -20,6 +20,11 @@ CORS(app)
 def sitemap():
     return app.send_static_file('sitemap.xml')
 
+# rss.xml 서빙
+@app.route('/rss.xml')
+def rss():
+    return app.send_static_file('rss.xml')
+
 # robots.txt 서빙
 @app.route('/robots.txt')
 def robots():
@@ -1206,7 +1211,7 @@ def create_order():
         service_id = data.get('service_id')
         link = data.get('link')
         quantity = data.get('quantity')
-        price = data.get('price')
+        price = data.get('price') or data.get('total_price')  # total_price도 허용
         
         # 필수 필드 검증 및 로깅
         missing_fields = []
@@ -1224,6 +1229,7 @@ def create_order():
         if missing_fields:
             error_msg = f'필수 필드가 누락되었습니다: {", ".join(missing_fields)}'
             print(f"❌ {error_msg}")
+            print(f"❌ 받은 데이터: user_id={user_id}, service_id={service_id}, link={link}, quantity={quantity}, price={price}")
             return jsonify({'error': error_msg}), 400
         
         print(f"✅ 필수 필드 검증 통과")
