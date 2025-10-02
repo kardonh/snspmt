@@ -2650,18 +2650,26 @@ def pay_commission():
     """관리자용 커미션 환급 처리"""
     try:
         data = request.get_json()
+        print(f"🔍 커미션 환급 요청 데이터: {data}")
+        
         referrer_email = data.get('referrer_email')
         amount = data.get('amount')
         payment_method = data.get('payment_method', 'bank_transfer')
         notes = data.get('notes', '')
         
+        print(f"🔍 파싱된 데이터 - referrer_email: {referrer_email}, amount: {amount}")
+        
         if not referrer_email or not amount:
+            print(f"❌ 필수 필드 누락 - referrer_email: {referrer_email}, amount: {amount}")
             return jsonify({'error': 'referrer_email과 amount가 필요합니다.'}), 400
         
+        print(f"🔗 데이터베이스 연결 시도...")
         conn = get_db_connection()
         cursor = conn.cursor()
+        print(f"✅ 데이터베이스 연결 성공")
         
         # 환급 전 잔액 확인
+        print(f"🔍 추천인 잔액 조회: {referrer_email}")
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT current_balance FROM commission_points WHERE referrer_email = %s
@@ -2672,7 +2680,9 @@ def pay_commission():
             """, (referrer_email,))
         
         balance_result = cursor.fetchone()
+        print(f"🔍 잔액 조회 결과: {balance_result}")
         if not balance_result:
+            print(f"❌ 추천인을 찾을 수 없음: {referrer_email}")
             return jsonify({'error': '추천인을 찾을 수 없습니다.'}), 404
         
         current_balance = float(balance_result[0])
@@ -2755,6 +2765,10 @@ def pay_commission():
         }), 200
         
     except Exception as e:
+        print(f"❌ 커미션 환급 처리 오류: {str(e)}")
+        print(f"❌ 오류 타입: {type(e).__name__}")
+        import traceback
+        print(f"❌ 스택 트레이스: {traceback.format_exc()}")
         return jsonify({'error': f'커미션 환급 실패: {str(e)}'}), 500
 
 # 관리자용 환급 내역 조회
