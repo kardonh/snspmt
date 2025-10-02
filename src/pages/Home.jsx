@@ -1231,11 +1231,6 @@ const Home = () => {
 
   const handlePurchase = async () => {
     try {
-      console.log('🚀 주문 생성 시작')
-      console.log('Current User:', currentUser)
-      console.log('Selected Detailed Service:', selectedDetailedService)
-      console.log('Quantity:', quantity)
-      console.log('Total Price:', totalPrice)
       
       if (!currentUser) {
         alert('로그인이 필요합니다.')
@@ -1313,12 +1308,10 @@ const Home = () => {
 
       // selectedDetailedService가 undefined인 경우 강제로 기본값 설정
       if (!selectedDetailedService || (!selectedDetailedService.id && !selectedDetailedService.smmkings_id)) {
-        console.error('⚠️ selectedDetailedService가 undefined입니다:', selectedDetailedService)
         alert('서비스 선택에 문제가 있습니다. 페이지를 새로고침하고 다시 시도해주세요.')
         return
       }
     } catch (error) {
-      console.error('❌ 주문 생성 초기 검증 오류:', error)
       alert('주문 생성 중 오류가 발생했습니다. 다시 시도해주세요.')
       return
     }
@@ -1363,9 +1356,6 @@ const Home = () => {
         oldPosts: 0
       }
 
-      console.log('=== 주문 데이터 생성 ===')
-      console.log('Order Data:', orderData)
-      console.log('Selected Detailed Service:', selectedDetailedService)
 
       // 주문 데이터 검증
       if (!orderData.user_id || orderData.user_id === 'anonymous') {
@@ -1414,8 +1404,6 @@ const Home = () => {
         }
       }
 
-      console.log('✅ 주문 데이터 검증 통과')
-      console.log('Order Data for Backend API:', orderData)
       
       // 예약 발송 데이터 추가
       if (isScheduledOrder) {
@@ -1438,20 +1426,16 @@ const Home = () => {
       })
 
       const result = await response.json()
-      console.log('API Response:', result)
 
       if (!response.ok) {
-        console.error('❌ API 응답 오류:', response.status, result)
         throw new Error(result.error || `서버 오류 (${response.status}): 주문 생성에 실패했습니다.`)
       }
 
       if (result.error) {
-        console.error('❌ 주문 생성 실패:', result.error)
         alert(`주문 생성 실패: ${result.error}`)
         return
       } else {
         // 주문 생성 성공 후 포인트 결제 페이지로 이동
-        console.log('✅ 주문 생성 성공, 포인트 결제 페이지로 이동:', result)
         
         // 예약 발송 성공 메시지
         if (isScheduledOrder) {
@@ -1468,10 +1452,8 @@ const Home = () => {
           const pointsResponse = await fetch(`/api/points?user_id=${userId}`)
           if (pointsResponse.ok) {
             userPoints = await pointsResponse.json()
-            console.log('사용자 포인트:', userPoints)
           }
         } catch (error) {
-          console.error('포인트 조회 오류:', error)
         }
 
         // 주문 데이터에 서비스 이름 추가
@@ -1505,7 +1487,6 @@ const Home = () => {
         return
       }
     } catch (error) {
-      console.error('Order creation error:', error)
       alert(`주문 생성 실패: ${error.message}`)
     } finally {
       setIsLoading(false)
@@ -1536,7 +1517,6 @@ const Home = () => {
 
       alert('장바구니에 추가되었습니다!')
     } catch (error) {
-      console.error('Add to cart failed:', error)
       alert('장바구니 추가 실패')
     }
   }

@@ -182,10 +182,6 @@ const FAQPage = () => {
     ? faqs 
     : faqs.filter(faq => faq.category === selectedCategory)
 
-  // 디버깅: FAQ 데이터 확인
-  console.log('FAQ 데이터:', faqs.length, '개')
-  console.log('필터링된 FAQ:', filteredFAQs.length, '개')
-  console.log('선택된 카테고리:', selectedCategory)
 
   return (
     <div className="faq-page">

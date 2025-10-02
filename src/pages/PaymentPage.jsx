@@ -71,7 +71,6 @@ const PaymentPage = () => {
       }
 
       const deductResult = await deductResponse.json()
-      console.log('포인트 차감 성공:', deductResult)
 
       // 2. SMM Panel API 호출 (백엔드 프록시 사용)
       try {
@@ -86,7 +85,6 @@ const PaymentPage = () => {
           key: '35246b890345d819e1110d5cea9d5565'
         }
         
-        console.log('🔄 SMM Panel API 전송 데이터:', smmOrderData)
         
         const smmResponse = await fetch('/api/smm-panel', {
           method: 'POST',
@@ -98,23 +96,17 @@ const PaymentPage = () => {
 
         if (smmResponse.ok) {
           const smmResult = await smmResponse.json()
-          console.log('✅ SMM Panel API 성공:', smmResult)
           
           if (smmResult.success && smmResult.data) {
-            console.log('🎉 외부 SMM Panel 주문 생성 성공:', smmResult.data)
             // 새로운 API 형식: {"order": 23501}
             if (smmResult.data.order) {
-              console.log('📝 SMM Panel 주문 ID:', smmResult.data.order)
             }
           } else {
-            console.warn('⚠️ SMM Panel API 응답이 성공이지만 데이터가 없음:', smmResult)
           }
         } else {
           const errorData = await smmResponse.json().catch(() => ({ error: 'Unknown error' }))
-          console.warn('❌ SMM Panel API 실패:', errorData)
         }
       } catch (smmError) {
-        console.warn('SMM Panel API 오류:', smmError)
         // SMM Panel API 실패해도 주문은 완료된 것으로 처리
       }
 
@@ -134,7 +126,6 @@ const PaymentPage = () => {
       }, 2000)
 
     } catch (error) {
-      console.error('결제 오류:', error)
       alert(`결제 실패: ${error.message}`)
       setIsProcessing(false)
     }

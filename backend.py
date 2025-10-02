@@ -118,8 +118,7 @@ def process_split_delivery(order_id, day_number):
         
         order = cursor.fetchone()
         if not order:
-            print(f"❌ 분할 주문을 찾을 수 없습니다: {order_id}")
-            return False
+        return False
         
         user_id, service_id, link, split_quantity, comments, total_days = order
         
@@ -177,7 +176,6 @@ def process_split_delivery(order_id, day_number):
                     WHERE order_id = ? AND day_number = ?
                 """, (split_quantity, smm_result.get('order'), order_id, day_number))
             
-            print(f"✅ 분할 발송 {day_number}일차 완료: {split_quantity}개")
             
             # 마지막 날이면 주문 상태를 완료로 변경
             if day_number >= total_days:
@@ -191,7 +189,6 @@ def process_split_delivery(order_id, day_number):
                         UPDATE orders SET status = 'completed', updated_at = datetime('now')
                         WHERE order_id = ?
                     """, (order_id,))
-                print(f"🎉 분할 발송 완료: {order_id}")
             
             conn.commit()
             return True
@@ -210,12 +207,10 @@ def process_split_delivery(order_id, day_number):
                     WHERE order_id = ? AND day_number = ?
                 """, (smm_result.get('message', 'Unknown error'), order_id, day_number))
             
-            print(f"❌ 분할 발송 {day_number}일차 실패: {smm_result.get('message')}")
             conn.commit()
             return False
             
     except Exception as e:
-        print(f"❌ 분할 발송 처리 실패: {e}")
         if conn:
             conn.rollback()
         return False
@@ -251,14 +246,12 @@ def process_package_step(order_id, step_index):
         
         order = cursor.fetchone()
         if not order:
-            print(f"❌ 패키지 주문을 찾을 수 없습니다: {order_id}")
             return False
         
         user_id, link, package_steps_json, comments = order
         package_steps = json.loads(package_steps_json)
         
         if step_index >= len(package_steps):
-            print(f"✅ 패키지 주문 모든 단계 완료: {order_id}")
             # 모든 단계 완료 시 주문 상태 업데이트
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
@@ -280,8 +273,6 @@ def process_package_step(order_id, step_index):
         step_name = current_step.get('name')
         step_delay = current_step.get('delay', 0)
         
-        print(f"📦 패키지 단계 {step_index + 1}/{len(package_steps)} 처리 시작: {step_name}")
-        print(f"   서비스 ID: {step_service_id}, 수량: {step_quantity}, 지연: {step_delay}분")
         
         # SMM Panel API 호출
         smm_result = call_smm_panel_api({
@@ -292,7 +283,6 @@ def process_package_step(order_id, step_index):
         })
         
         if smm_result.get('status') == 'success':
-            print(f"✅ 패키지 단계 {step_index + 1} 완료: {step_name} - SMM Order ID: {smm_result.get('order')}")
             
             # 패키지 진행 상황 기록
             if DATABASE_URL.startswith('postgresql://'):
@@ -314,7 +304,6 @@ def process_package_step(order_id, step_index):
             if step_index + 1 < len(package_steps):
                 next_step = package_steps[step_index + 1]
                 next_delay = next_step.get('delay', 10)  # 기본 10분
-                print(f"⏰ 다음 단계는 {next_delay}분 후에 실행됩니다.")
                 
                 # 스레드로 지연 실행
                 def delayed_next_step():
@@ -336,17 +325,14 @@ def process_package_step(order_id, step_index):
                         WHERE order_id = ?
                     """, (order_id,))
                 conn.commit()
-                print(f"🎉 패키지 주문 완료: {order_id}")
             
             conn.close()
             return True
         else:
-            print(f"❌ 패키지 단계 {step_index + 1} 실패: {smm_result.get('message')}")
             conn.close()
             return False
             
     except Exception as e:
-        print(f"❌ 패키지 단계 처리 실패: {e}")
         if conn:
             conn.rollback()
             conn.close()
@@ -378,7 +364,6 @@ def process_scheduled_order(order_id):
         
         order = cursor.fetchone()
         if not order:
-            print(f"❌ 예약 주문을 찾을 수 없습니다: {order_id}")
             return False
         
         user_id, service_id, link, quantity, comments = order
@@ -406,7 +391,6 @@ def process_scheduled_order(order_id):
                     WHERE order_id = ?
                 """, (smm_result.get('order'), order_id))
             
-            print(f"✅ 예약 주문 완료: {order_id}")
             conn.commit()
             return True
         else:
@@ -424,12 +408,10 @@ def process_scheduled_order(order_id):
                     WHERE order_id = ?
                 """, (order_id,))
             
-            print(f"❌ 예약 주문 실패: {smm_result.get('message')}")
             conn.commit()
             return False
             
     except Exception as e:
-        print(f"❌ 예약 주문 처리 실패: {e}")
         if conn:
             conn.rollback()
         return False
@@ -446,26 +428,19 @@ try:
     aws_api_key = get_smmpanel_api_key()
     if aws_db_url and aws_db_url != DATABASE_URL:
         DATABASE_URL = aws_db_url
-        print("✅ AWS Secrets Manager에서 데이터베이스 URL 로드")
     if aws_api_key and aws_api_key != SMMPANEL_API_KEY:
         SMMPANEL_API_KEY = aws_api_key
-        print("✅ AWS Secrets Manager에서 API 키 로드")
 except ImportError as e:
-    print(f"⚠️ AWS Secrets Manager 사용 불가: {e}")
 except Exception as e:
-    print(f"⚠️ AWS Secrets Manager 오류: {e}")
 
 # 프로덕션 환경에서는 로그 최소화
 if os.environ.get('FLASK_ENV') != 'production':
-    print(f"🔗 데이터베이스 URL: {DATABASE_URL[:50]}...")
-    print(f"🔑 API 키: {SMMPANEL_API_KEY[:20]}...")
 
 def get_db_connection():
     """데이터베이스 연결을 가져옵니다."""
     try:
         # 프로덕션 환경에서는 로그 최소화
         if os.environ.get('FLASK_ENV') != 'production':
-            print(f"🔗 데이터베이스 연결 시도: {DATABASE_URL[:50]}...")
         
         if DATABASE_URL.startswith('postgresql://'):
             # PostgreSQL 연결 설정 최적화
@@ -478,7 +453,6 @@ def get_db_connection():
             )
             # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
             conn.autocommit = False
-            print("✅ PostgreSQL 연결 성공")
             return conn
         else:
             # SQLite fallback - 영구 데이터베이스 경로 사용
@@ -486,37 +460,28 @@ def get_db_connection():
             os.makedirs(os.path.dirname(db_path), exist_ok=True)  # 디렉토리 생성
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row  # 딕셔너리 형태로 결과 반환
-            print(f"✅ SQLite 연결 성공: {db_path}")
             return conn
     except psycopg2.Error as e:
-        print(f"❌ PostgreSQL 연결 실패: {e}")
-        print(f"   데이터베이스 URL: {DATABASE_URL[:50]}...")
         # SQLite 폴백 시도
         try:
-            print("🔄 SQLite 폴백 시도...")
             db_path = os.path.join(os.getcwd(), 'data', 'snspmt.db')
             os.makedirs(os.path.dirname(db_path), exist_ok=True)  # 디렉토리 생성
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
-            print(f"✅ SQLite 폴백 연결 성공: {db_path}")
-        return conn
+            return conn
         except Exception as fallback_error:
-            print(f"❌ SQLite 폴백도 실패: {fallback_error}")
             raise fallback_error
     except Exception as e:
-        print(f"❌ 데이터베이스 연결 실패: {e}")
         raise e
 
 def init_database():
     """데이터베이스 테이블을 초기화합니다."""
     try:
-        print("🔧 데이터베이스 초기화 시작")
         conn = get_db_connection()
         cursor = conn.cursor()
         
         # PostgreSQL인지 SQLite인지 확인
         is_postgresql = DATABASE_URL.startswith('postgresql://')
-        print(f"📊 데이터베이스 타입: {'PostgreSQL' if is_postgresql else 'SQLite'}")
         
         if is_postgresql:
             # PostgreSQL 테이블 생성
