@@ -362,6 +362,7 @@ def process_package_step(order_id, step_index):
         step_delay = current_step.get('delay', 0)
         
         print(f"🚀 패키지 단계 {step_index + 1}/{len(package_steps)} 실행: {step_name} (수량: {step_quantity})")
+        print(f"🚀 서비스 ID: {step_service_id}, 링크: {link}")
         
         # 수량이 0이면 건너뛰기
         if step_quantity <= 0:
@@ -387,12 +388,14 @@ def process_package_step(order_id, step_index):
             return True
         
         # SMM Panel API 호출
+        print(f"📞 SMM Panel API 호출 시작: 서비스 {step_service_id}, 수량 {step_quantity}")
         smm_result = call_smm_panel_api({
             'service': step_service_id,
             'link': link,
             'quantity': step_quantity,
             'comments': f"{comments} - {step_name}" if comments else step_name
         })
+        print(f"📞 SMM Panel API 응답: {smm_result}")
         
         if smm_result.get('status') == 'success':
             print(f"✅ 패키지 단계 {step_index + 1} 완료: {step_name} (SMM 주문 ID: {smm_result.get('order')})")
@@ -1647,6 +1650,7 @@ def create_order():
         elif is_package:
             # 패키지 상품은 각 단계를 순차적으로 처리하도록 저장
             print(f"📦 패키지 주문 - {len(package_steps)}단계 순차 처리 예정")
+            print(f"📦 패키지 단계 상세: {json.dumps(package_steps, indent=2, ensure_ascii=False)}")
             
             # 패키지 단계 정보를 JSON으로 저장
             if DATABASE_URL.startswith('postgresql://'):
@@ -1665,9 +1669,13 @@ def create_order():
             # 예약 발송이 아닌 경우에만 즉시 실행
             if not is_scheduled:
                 print(f"🚀 패키지 주문 즉시 실행 - 첫 번째 단계 시작")
+                print(f"🚀 주문 ID: {order_id}, 사용자: {user_id}, 링크: {link}")
+                print(f"🚀 첫 번째 단계: {package_steps[0] if package_steps else 'None'}")
+                
                 # 첫 번째 단계 즉시 실행
                 def start_package_processing():
                     print(f"📦 패키지 주문 {order_id} 처리 시작")
+                    print(f"📦 첫 번째 단계 실행: {package_steps[0] if package_steps else 'None'}")
                     process_package_step(order_id, 0)
                 
                 # 별도 스레드에서 실행
