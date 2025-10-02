@@ -1134,7 +1134,7 @@ const Home = () => {
     let basePrice = 0
     
     // 패키지 상품인 경우 수량과 상관없이 고정 가격
-    if (selectedDetailedService.package) {
+    if (selectedDetailedService && selectedDetailedService.package) {
       basePrice = selectedDetailedService.price / 1000  // 패키지 전체 가격
     } else if (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp' || selectedPlatform === 'top-exposure') {
       // 일반 상품의 경우 수량에 따라 가격 계산
@@ -1415,7 +1415,26 @@ const Home = () => {
         })
       }
       
-      // 백엔드 API 호출 (SMM Panel 변환 없이 직접 전송)
+      // 주문 데이터에 서비스 이름 추가
+      const orderDataWithService = {
+        ...orderData,
+        service_name: selectedDetailedService?.name || '선택된 서비스',
+        unit_price: selectedDetailedService?.price || 0,
+        total_price: safeTotalPrice
+      }
+
+      // 사용자 포인트 조회
+      let userPoints = null
+      try {
+        const pointsResponse = await fetch(`/api/points?user_id=${userId}`)
+        if (pointsResponse.ok) {
+          userPoints = await pointsResponse.json()
+        }
+      } catch (error) {
+        // 포인트 조회 실패해도 계속 진행
+      }
+
+      // 주문 생성 후 결제 페이지로 이동
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
@@ -1434,60 +1453,37 @@ const Home = () => {
       if (result.error) {
         alert(`주문 생성 실패: ${result.error}`)
         return
-      } else {
-        // 주문 생성 성공 후 포인트 결제 페이지로 이동
-        
-        // 예약 발송 성공 메시지
-        if (isScheduledOrder) {
-          console.log('📅 예약 발송 주문이 생성되었습니다:', {
-            scheduled_date: scheduledDate,
-            scheduled_time: scheduledTime,
-            scheduled_datetime: `${scheduledDate} ${scheduledTime}`
-          })
-        }
-        
-        // 사용자 포인트 조회
-        let userPoints = null
-        try {
-          const pointsResponse = await fetch(`/api/points?user_id=${userId}`)
-          if (pointsResponse.ok) {
-            userPoints = await pointsResponse.json()
-          }
-        } catch (error) {
-        }
-
-        // 주문 데이터에 서비스 이름 추가
-        const orderDataWithService = {
-          ...orderData,
-          service_name: selectedDetailedService?.name || '선택된 서비스',
-          unit_price: selectedDetailedService?.price || 0,
-          total_price: safeTotalPrice
-        }
-
-        // 기존 결제 페이지로 이동
-        navigate(`/payment/${selectedPlatform}`, { 
-          state: { 
-            orderData: {
-              ...orderDataWithService,
-              orderId: result.order_id || result.order,
-              userId: userId,
-              platform: selectedPlatform,
-              service: selectedService,
-              detailedService: selectedDetailedService,
-              quantity: safeQuantity,
-              unitPrice: selectedDetailedService?.price || 0,
-              totalPrice: safeTotalPrice,
-              link: safeLink,
-              comments: safeComments,
-              explanation: explanation || ''
-            },
-            userPoints: userPoints
-          }
-        })
-        return
       }
+
+      // 주문 생성 성공 후 결제 페이지로 이동
+      navigate(`/payment/${selectedPlatform}`, { 
+        state: { 
+          orderData: {
+            ...orderDataWithService,
+            orderId: result.order_id || result.order,
+            userId: userId,
+            platform: selectedPlatform,
+            service: selectedService,
+            detailedService: selectedDetailedService,
+            quantity: safeQuantity,
+            unitPrice: selectedDetailedService?.price || 0,
+            totalPrice: safeTotalPrice,
+            link: safeLink,
+            comments: safeComments,
+            explanation: explanation || '',
+            discount: selectedDiscountCoupon ? selectedDiscountCoupon.discount : 0,
+            userPoints: userPoints,
+            isScheduledOrder: isScheduledOrder,
+            scheduledDate: scheduledDate,
+            scheduledTime: scheduledTime,
+            isSplitDelivery: isSplitDelivery,
+            splitDays: splitDays,
+            dailyQuantity: isSplitDelivery ? getDailyQuantity() : null
+          }
+        }
+      })
     } catch (error) {
-      alert(`주문 생성 실패: ${error.message}`)
+      alert(`주문 데이터 준비 실패: ${error.message}`)
     } finally {
       setIsLoading(false)
     }
@@ -1737,7 +1733,7 @@ const Home = () => {
           
           
           {/* Quantity Selection - 패키지 상품이 아닐 때만 표시 */}
-          {!selectedDetailedService.package && (
+          {selectedDetailedService && !selectedDetailedService.package && (
             <div className="form-group">
               <label className="quantity-label">수량 선택</label>
               <input

@@ -285,7 +285,9 @@
 
 /* 대시보드 액션 */
 .dashboard-actions {
-  
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
 
 .action-buttons {
