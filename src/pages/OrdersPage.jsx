@@ -442,12 +442,20 @@ const OrdersPage = () => {
                       <div className="info-row">
                         <span className="label">서비스:</span>
                         <span className="value">
-                          {order.service_name || order.service || order.platform || 'N/A'}
+                          {order.detailed_service || order.service_name || order.service || order.platform || 'N/A'}
                         </span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">서비스 ID:</span>
+                        <span className="value">{order.service_id || 'N/A'}</span>
                       </div>
                       <div className="info-row">
                         <span className="label">수량:</span>
                         <span className="value">{order.quantity?.toLocaleString() || 'N/A'}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">가격:</span>
+                        <span className="value">{order.price ? `${order.price.toLocaleString()}원` : 'N/A'}</span>
                       </div>
                       <div className="info-row">
                         <span className="label">주문일:</span>
@@ -463,11 +471,31 @@ const OrdersPage = () => {
                       
                       {/* 패키지 주문인 경우 진행 상황 표시 */}
                       {order.package_steps && order.package_steps.length > 0 && (
-                        <div className="info-row package-delivery-row">
-                          <span className="label">패키지 진행:</span>
-                          <span className="value package-delivery-info">
-                            {getPackageProgress(order)}
-                          </span>
+                        <div className="package-progress-section">
+                          <div className="info-row package-delivery-row">
+                            <span className="label">패키지 진행:</span>
+                            <span className="value package-delivery-info">
+                              {getPackageProgress(order)}
+                            </span>
+                          </div>
+                          {/* 패키지 단계별 상세 정보 */}
+                          <div className="package-steps-detail">
+                            {order.package_steps.map((step, index) => (
+                              <div key={step.id || index} className="package-step-item">
+                                <div className="step-header">
+                                  <span className="step-number">{index + 1}</span>
+                                  <span className="step-name">{step.name}</span>
+                                  <span className="step-quantity">({step.quantity?.toLocaleString() || 0}개)</span>
+                                </div>
+                                {step.description && (
+                                  <div className="step-description">{step.description}</div>
+                                )}
+                                {step.delay && step.delay > 0 && (
+                                  <div className="step-delay">⏰ {step.delay}분 후 실행</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                       

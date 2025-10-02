@@ -690,3 +690,101 @@
     text-align: center;
   }
 }
+
+/* 패키지 단계별 진행 상황 스타일 */
+.package-progress-section {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e1e5e9;
+}
+
+.package-steps-detail {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.package-step-item {
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e1e5e9;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #3b82f6;
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.step-name {
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+}
+
+.step-quantity {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.step-description {
+  color: #6b7280;
+  font-size: 13px;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.step-delay {
+  color: #f59e0b;
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* 모바일에서 패키지 단계별 스타일 */
+@media (max-width: 768px) {
+  .package-progress-section {
+    padding: 12px;
+  }
+  
+  .package-step-item {
+    padding: 10px;
+  }
+  
+  .step-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .step-name {
+    font-size: 14px;
+  }
+  
+  .step-quantity {
+    font-size: 12px;
+  }
+  
+  .step-description {
+    font-size: 12px;
+  }
+}

@@ -330,6 +330,8 @@ const AdminPage = () => {
   // 추천인 데이터 로드
   const loadReferralData = async () => {
     try {
+      console.log('🔄 추천인 데이터 로드 시작...')
+      
       // 서버에서 데이터 로드
       const [codesResponse, referralsResponse, commissionsResponse] = await Promise.all([
         fetch('/api/admin/referral/codes'),
@@ -337,23 +339,43 @@ const AdminPage = () => {
         fetch('/api/admin/referral/commissions')
       ])
       
+      console.log('📡 API 응답 상태:', {
+        codes: codesResponse.status,
+        referrals: referralsResponse.status,
+        commissions: commissionsResponse.status
+      })
+      
       if (codesResponse.ok) {
         const codesData = await codesResponse.json()
-        console.log('📋 API 응답 전체 데이터:', codesData)
-        console.log('📋 추천인 코드 배열:', codesData.codes)
+        console.log('📋 추천인 코드 API 응답:', codesData)
         setReferralCodes(codesData.codes || [])
-        console.log('✅ 추천인 코드 데이터 로드 완료:', codesData.codes)
+        console.log('✅ 추천인 코드 데이터 로드 완료:', codesData.codes?.length || 0, '개')
+      } else {
+        console.error('❌ 추천인 코드 로드 실패:', codesResponse.status)
+        setReferralCodes([])
       }
       
       if (referralsResponse.ok) {
         const referralsData = await referralsResponse.json()
+        console.log('📋 추천인 목록 API 응답:', referralsData)
         setReferrals(referralsData.referrals || [])
+        console.log('✅ 추천인 목록 데이터 로드 완료:', referralsData.referrals?.length || 0, '개')
+      } else {
+        console.error('❌ 추천인 목록 로드 실패:', referralsResponse.status)
+        setReferrals([])
       }
       
       if (commissionsResponse.ok) {
         const commissionsData = await commissionsResponse.json()
+        console.log('📋 커미션 내역 API 응답:', commissionsData)
         setReferralCommissions(commissionsData.commissions || [])
+        console.log('✅ 커미션 내역 데이터 로드 완료:', commissionsData.commissions?.length || 0, '개')
+      } else {
+        console.error('❌ 커미션 내역 로드 실패:', commissionsResponse.status)
+        setReferralCommissions([])
       }
+      
+      console.log('🎉 추천인 데이터 로드 완료!')
     } catch (error) {
       console.error('추천인 데이터 로드 실패:', error)
       // 폴백으로 로컬 스토리지 사용
