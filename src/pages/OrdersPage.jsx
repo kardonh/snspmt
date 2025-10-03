@@ -183,7 +183,7 @@ const OrdersPage = () => {
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase()
       filtered = filtered.filter(order => 
-        order.id?.toLowerCase().includes(searchLower) ||
+        (order.id || order.order_id)?.toString().toLowerCase().includes(searchLower) ||
         order.service?.toLowerCase().includes(searchLower) ||
         order.link?.toLowerCase().includes(searchLower)
       )
@@ -409,12 +409,12 @@ const OrdersPage = () => {
           <>
             <div className="orders-list">
               {currentOrders.map((order) => (
-                <div key={order.id} className="order-card">
+                <div key={order.order_id || order.id} className="order-card">
                   <div className="order-header">
                     <div className="order-id">
                       <span className="label">주문번호:</span>
                       <span className="value">
-                        {order.id || order.order_id || order.order_number || 'N/A'}
+                        {order.order_id || order.id || order.order_number || 'N/A'}
                       </span>
                     </div>
                     <div className="order-status-section">

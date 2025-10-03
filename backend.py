@@ -1935,6 +1935,7 @@ def get_orders():
                     package_steps = []
             
             order_list.append({
+                'id': order[0],  # 프론트엔드 호환성을 위해 id 필드 추가
                 'order_id': order[0],
                 'service_id': order[1],
                 'link': order[2],
