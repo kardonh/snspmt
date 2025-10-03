@@ -493,8 +493,8 @@ def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, 
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 새로운 주문 ID 생성
-        new_order_id = f"ORD_{int(time.time() * 1000)}_{scheduled_id}"
+        # 새로운 주문 ID 생성 (숫자 ID 사용)
+        new_order_id = int(time.time() * 1000)
         
         # 실제 주문 생성
         if DATABASE_URL.startswith('postgresql://'):
@@ -897,7 +897,7 @@ def init_database():
             # 주문 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
-                    order_id SERIAL PRIMARY KEY,
+                    order_id VARCHAR(255) PRIMARY KEY,
                     user_id VARCHAR(255) NOT NULL,
                     user_email VARCHAR(255),
                     service_id VARCHAR(255) NOT NULL,
