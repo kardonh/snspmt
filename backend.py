@@ -29,18 +29,49 @@ def rss():
 @app.route('/api/admin/reprocess-package-orders', methods=['POST'])
 def reprocess_package_orders():
     """멈춰있는 패키지 주문들을 재처리"""
+    conn = None
+    cursor = None
+    
     try:
         print("🔄 관리자 요청: 멈춰있는 패키지 주문 재처리")
-        reprocess_stuck_package_orders()
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # package_processing 상태인 주문들을 pending으로 변경
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                UPDATE orders SET status = 'pending' 
+                WHERE status = 'package_processing' AND package_steps IS NOT NULL
+            """)
+        else:
+            cursor.execute("""
+                UPDATE orders SET status = 'pending' 
+                WHERE status = 'package_processing' AND package_steps IS NOT NULL
+            """)
+        
+        updated_count = cursor.rowcount
+        conn.commit()
+        
+        print(f"✅ {updated_count}개의 패키지 주문 상태를 pending으로 변경")
+        
         return jsonify({
             'success': True,
-            'message': '멈춰있는 패키지 주문 재처리가 시작되었습니다.'
+            'message': f'{updated_count}개의 패키지 주문 상태를 pending으로 변경했습니다.'
         }), 200
+        
     except Exception as e:
         print(f"❌ 패키지 주문 재처리 오류: {e}")
+        if conn:
+            conn.rollback()
         return jsonify({
             'error': f'패키지 주문 재처리 실패: {str(e)}'
         }), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 예약 발송 주문 처리
 @app.route('/api/scheduled-orders', methods=['POST'])
