@@ -647,7 +647,7 @@ def get_db_connection():
             os.makedirs(os.path.dirname(db_path), exist_ok=True)  # 디렉토리 생성
             conn = sqlite3.connect(db_path, timeout=30)
             conn.row_factory = sqlite3.Row
-        return conn
+            return conn
         except Exception as fallback_error:
             raise fallback_error
     except Exception as e:
@@ -3557,7 +3557,7 @@ def get_admin_users():
         
         # 테이블 목록 확인
         print("📊 테이블 목록 조회 중...")
-            cursor.execute("""
+        cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public'
@@ -3578,16 +3578,16 @@ def get_admin_users():
                 
                 if user_count > 0:
                     # 기본 컬럼만 조회
-            cursor.execute("""
+                    cursor.execute("""
                         SELECT user_id, email, name, created_at
                         FROM users
                         ORDER BY created_at DESC
                         LIMIT 50
                     """)
-        users = cursor.fetchall()
-        
-        for user in users:
-            user_list.append({
+                    users = cursor.fetchall()
+                    
+                    for user in users:
+                        user_list.append({
                             'user_id': user[0] if user[0] else 'N/A',
                             'email': user[1] if user[1] else 'N/A',
                             'name': user[2] if user[2] else 'N/A',
@@ -3595,30 +3595,19 @@ def get_admin_users():
                             'points': 0,  # 기본값
                             'last_activity': 'N/A'  # 기본값
                         })
+                    
+                    print(f"📊 총 {len(users)}명의 사용자 데이터를 조회했습니다.")
                 else:
                     print("📊 users 테이블이 비어있습니다.")
-                    
-            except Exception as table_e:
-                print(f"❌ users 테이블 조회 실패: {table_e}")
-                # 테이블 구조 확인
-                try:
-                    cursor.execute("""
-                        SELECT column_name, data_type
-                        FROM information_schema.columns
-                        WHERE table_name = 'users' AND table_schema = 'public'
-                        ORDER BY ordinal_position
-                    """)
-                    columns = cursor.fetchall()
-                    print(f"📊 users 테이블 컬럼: {columns}")
-                except Exception as col_e:
-                    print(f"❌ 컬럼 정보 조회 실패: {col_e}")
+            except Exception as e:
+                print(f"❌ users 테이블 조회 실패: {e}")
         else:
             print("⚠️ users 테이블이 존재하지 않습니다.")
         
         conn.close()
         print(f"✅ 사용자 목록 반환: {len(user_list)}명")
-            
-            return jsonify({
+        
+        return jsonify({
             'users': user_list,
             'debug_info': {
                 'tables': tables,
