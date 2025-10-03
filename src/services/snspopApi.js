@@ -4,7 +4,7 @@ import axios from 'axios'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : 'https://sociality.co.kr/api')
 
 // SMM Panel API 키
-const DEFAULT_API_KEY = import.meta.env.VITE_SMMPANEL_API_KEY || '35246b890345d819e1110d5cea9d5565'
+const DEFAULT_API_KEY = import.meta.env.VITE_SMMPANEL_API_KEY || 'bc85538982fb27c6c0558be6cd669e67'
 
 // SMM Panel API 엔드포인트
 const SMM_PANEL_API_URL = 'https://smmpanel.kr/api/v2'
@@ -243,7 +243,7 @@ export const transformOrderData = (orderData) => {
     device: safeString(safeOrderData.device),
     type_of_traffic: safeString(safeOrderData.type_of_traffic),
     google_keyword: safeString(safeOrderData.google_keyword),
-    key: '35246b890345d819e1110d5cea9d5565' // SMM Panel API 키
+    key: 'bc85538982fb27c6c0558be6cd669e67' // SMM Panel API 키
   }
   
   return transformed

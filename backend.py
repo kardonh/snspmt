@@ -1074,7 +1074,7 @@ def init_database():
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS package_progress (
                 id SERIAL PRIMARY KEY,
-                    order_id INTEGER NOT NULL,
+                    order_id VARCHAR(255) NOT NULL,
                     step_number INTEGER NOT NULL,
                     step_name VARCHAR(255) NOT NULL,
                     service_id VARCHAR(255) NOT NULL,
@@ -1207,6 +1207,24 @@ def init_database():
                 )
             """)
             print("✅ 예약 주문 테이블 생성 완료 (SQLite)")
+            
+            # 패키지 진행 상황 테이블 생성 (SQLite)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS package_progress (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id TEXT NOT NULL,
+                    step_number INTEGER NOT NULL,
+                    step_name TEXT NOT NULL,
+                    service_id TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    smm_panel_order_id TEXT,
+                    status TEXT DEFAULT 'pending',
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    completed_at TIMESTAMP
+                )
+            """)
+            print("✅ 패키지 진행 상황 테이블 생성 완료 (SQLite)")
         
         conn.commit()
         print("✅ 데이터베이스 테이블 초기화 완료")
@@ -3901,7 +3919,7 @@ def smm_panel_test():
         # 간단한 테스트 요청
         test_data = {
             'action': 'balance',
-            'key': '35246b890345d819e1110d5cea9d5565'
+            'key': 'bc85538982fb27c6c0558be6cd669e67'
         }
         
         smm_panel_url = 'https://smmpanel.kr/api/v2'
