@@ -350,11 +350,19 @@ def process_package_step(order_id, step_index):
         print(f"🔍 패키지 주문 데이터: user_id={user_id}, link={link}, package_steps_json={package_steps_json}")
         
         try:
-            package_steps = json.loads(package_steps_json) if package_steps_json else []
-            print(f"🔍 패키지 단계 파싱 성공: {len(package_steps)}단계")
-        except json.JSONDecodeError as e:
-            print(f"❌ 패키지 단계 JSON 파싱 실패: {e}")
-            return False
+            # package_steps가 이미 리스트인지 확인
+            if isinstance(package_steps_json, list):
+                package_steps = package_steps_json
+                print(f"🔍 패키지 단계 (이미 리스트): {len(package_steps)}단계")
+            elif isinstance(package_steps_json, str):
+                package_steps = json.loads(package_steps_json)
+                print(f"🔍 패키지 단계 (JSON 파싱): {len(package_steps)}단계")
+            else:
+                package_steps = []
+                print(f"🔍 패키지 단계 (기본값): {len(package_steps)}단계")
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f"❌ 패키지 단계 파싱 실패: {e}")
+            package_steps = []
         
         if step_index >= len(package_steps):
             # 모든 단계 완료 시 주문 상태 업데이트
@@ -492,21 +500,21 @@ def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, 
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 INSERT INTO orders 
-                (order_id, user_id, platform, service, detailed_service, service_id, link, quantity, 
+                (order_id, user_id, platform, service_name, service_id, link, quantity, 
                  price, status, created_at, updated_at, is_scheduled, package_steps)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(), FALSE, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(), FALSE, %s)
             """, (
-                new_order_id, user_id, 'Instagram', 'Package Service', 'Scheduled Package',
+                new_order_id, user_id, 'Instagram', 'Scheduled Package',
                 service_id, link, quantity, price, 'pending', json.dumps(package_steps)
             ))
         else:
             cursor.execute("""
                 INSERT INTO orders 
-                (order_id, user_id, platform, service, detailed_service, service_id, link, quantity, 
+                (order_id, user_id, platform, service_name, service_id, link, quantity, 
                  price, status, created_at, updated_at, is_scheduled, package_steps)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 0, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 0, ?)
             """, (
-                new_order_id, user_id, 'Instagram', 'Package Service', 'Scheduled Package',
+                new_order_id, user_id, 'Instagram', 'Scheduled Package',
                 service_id, link, quantity, price, 'pending', json.dumps(package_steps)
             ))
         

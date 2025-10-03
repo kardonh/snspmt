@@ -122,9 +122,16 @@ const PaymentPage = () => {
       if (!orderData.isScheduledOrder) {
         try {
           // SMM Panel API용 데이터 변환 (새로운 API 형식)
+          // 패키지 상품인 경우 첫 번째 단계의 서비스 ID 사용
+          let serviceId = orderData.service_id || orderData.detailedService?.id
+          if (orderData.detailedService?.package && orderData.detailedService?.steps && orderData.detailedService.steps.length > 0) {
+            serviceId = orderData.detailedService.steps[0].id
+            console.log('📦 패키지 상품 - 첫 번째 단계 서비스 ID 사용:', serviceId)
+          }
+          
           const smmOrderData = {
             action: 'add',
-            service: orderData.service_id || orderData.detailedService?.id,
+            service: serviceId,
             link: orderData.link,
             quantity: orderData.quantity,
             runs: 1,
