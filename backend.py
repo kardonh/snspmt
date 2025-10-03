@@ -52,22 +52,32 @@ def create_scheduled_order():
         try:
             scheduled_dt = datetime.strptime(scheduled_datetime, '%Y-%m-%d %H:%M')
             now = datetime.now()
+            time_diff_minutes = (scheduled_dt - now).total_seconds() / 60
+            
+            print(f"🔍 예약 시간 검증: 예약시간={scheduled_datetime}, 현재시간={now.strftime('%Y-%m-%d %H:%M')}, 차이={time_diff_minutes:.1f}분")
             
             if scheduled_dt <= now:
+                print(f"❌ 예약 시간이 현재 시간보다 이전입니다.")
                 return jsonify({'error': '예약 시간은 현재 시간보다 늦어야 합니다.'}), 400
                 
             # 5분 ~ 7일 이내
-            time_diff_minutes = (scheduled_dt - now).total_seconds() / 60
             if time_diff_minutes < 5 or time_diff_minutes > 10080:  # 7일 = 7 * 24 * 60 = 10080분
+                print(f"❌ 예약 시간이 범위를 벗어났습니다. (5분~7일)")
                 return jsonify({'error': '예약 시간은 5분 후부터 7일 이내여야 합니다.'}), 400
                 
-        except ValueError:
+            print(f"✅ 예약 시간 검증 통과: {time_diff_minutes:.1f}분 후")
+                
+        except ValueError as e:
+            print(f"❌ 예약 시간 형식 오류: {e}")
             return jsonify({'error': '예약 시간 형식이 올바르지 않습니다.'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
         # 예약 주문 저장
+        package_steps = data.get('package_steps', [])
+        print(f"🔍 예약 주문 저장: 사용자={user_id}, 서비스={service_id}, 예약시간={scheduled_datetime}, 패키지단계={len(package_steps)}개")
+        
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 INSERT INTO scheduled_orders 
@@ -75,7 +85,7 @@ def create_scheduled_order():
                 VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), %s)
             """, (
                 user_id, service_id, link, quantity, price, scheduled_datetime,
-                json.dumps(data.get('package_steps', []))
+                json.dumps(package_steps)
             ))
         else:
             cursor.execute("""
@@ -84,12 +94,13 @@ def create_scheduled_order():
                 VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), ?)
             """, (
                 user_id, service_id, link, quantity, price, scheduled_datetime,
-                json.dumps(data.get('package_steps', []))
+                json.dumps(package_steps)
             ))
         
         conn.commit()
         
         print(f"✅ 예약 발송 주문 생성 완료: {scheduled_datetime}")
+        print(f"✅ 예약 주문이 {time_diff_minutes:.1f}분 후에 처리됩니다.")
         
         return jsonify({
             'success': True,
@@ -465,9 +476,15 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
     print(f"✅ 패키지 단계 {next_step_index + 1} 스케줄링 완료")
 
 # 예약 주문에서 실제 주문 생성 함수
-def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, quantity, price, package_steps, conn, cursor):
+def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, quantity, price, package_steps):
     """예약 주문에서 실제 주문 생성"""
+    conn = None
+    cursor = None
+    
     try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
         # 새로운 주문 ID 생성
         new_order_id = f"ORD_{int(time.time() * 1000)}_{scheduled_id}"
         
@@ -493,18 +510,52 @@ def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, 
                 service_id, link, quantity, price, 'pending', json.dumps(package_steps)
             ))
         
+        conn.commit()
         print(f"✅ 예약 주문에서 실제 주문 생성: {new_order_id}")
         
         # 패키지 상품인 경우 첫 번째 단계 처리
         if package_steps and len(package_steps) > 0:
             print(f"📦 패키지 주문 처리 시작: {len(package_steps)}단계")
             process_package_step(new_order_id, 0)
+        else:
+            # 일반 주문인 경우 SMM Panel API 호출
+            print(f"🚀 일반 예약 주문 - SMM Panel API 호출")
+            smm_result = call_smm_panel_api({
+                'service': service_id,
+                'link': link,
+                'quantity': quantity,
+                'comments': f'Scheduled order from {scheduled_id}'
+            })
+            
+            if smm_result.get('status') == 'success':
+                # SMM Panel 주문 ID 저장
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        UPDATE orders SET smm_panel_order_id = %s, status = 'completed', updated_at = NOW()
+                        WHERE order_id = %s
+                    """, (smm_result.get('order'), new_order_id))
+                else:
+                    cursor.execute("""
+                        UPDATE orders SET smm_panel_order_id = ?, status = 'completed', updated_at = CURRENT_TIMESTAMP
+                        WHERE order_id = ?
+                    """, (smm_result.get('order'), new_order_id))
+                conn.commit()
+                print(f"✅ 일반 예약 주문 완료: SMM 주문 ID {smm_result.get('order')}")
+            else:
+                print(f"❌ 일반 예약 주문 실패: {smm_result.get('message')}")
         
         return True
         
     except Exception as e:
         print(f"❌ 예약 주문에서 실제 주문 생성 실패: {e}")
+        if conn:
+            conn.rollback()
         return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 예약 주문 처리 함수
 def process_scheduled_order(order_id):
@@ -4242,22 +4293,30 @@ def cron_process_scheduled_orders():
         cursor = conn.cursor()
         
         # 현재 시간이 지난 예약 주문 조회 (scheduled_orders 테이블에서)
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"🔍 예약 주문 조회 중... (현재 시간: {current_time})")
+        
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT id, user_id, service_id, link, quantity, price, package_steps
+                SELECT id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime
                 FROM scheduled_orders 
                 WHERE status = 'pending'
                 AND scheduled_datetime <= NOW()
             """)
         else:
             cursor.execute("""
-                SELECT id, user_id, service_id, link, quantity, price, package_steps
+                SELECT id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime
                 FROM scheduled_orders 
                 WHERE status = 'pending'
                 AND scheduled_datetime <= datetime('now')
             """)
         
         scheduled_orders = cursor.fetchall()
+        print(f"🔍 발견된 예약 주문: {len(scheduled_orders)}개")
+        
+        for order in scheduled_orders:
+            print(f"🔍 예약 주문 상세: ID={order[0]}, 예약시간={order[7]}, 사용자={order[1]}")
+        
         processed_count = 0
         
         for order in scheduled_orders:
@@ -4273,7 +4332,7 @@ def cron_process_scheduled_orders():
             
             # 실제 주문 생성
             success = create_actual_order_from_scheduled(
-                order_id, user_id, service_id, link, quantity, price, package_steps, conn, cursor
+                order_id, user_id, service_id, link, quantity, price, package_steps
             )
             
             if success:
@@ -4386,12 +4445,15 @@ def cron_process_split_deliveries():
 # 백그라운드 스케줄러 스레드
 def background_scheduler():
     """백그라운드에서 예약/분할 주문 처리"""
+    print("🚀 백그라운드 스케줄러 시작됨")
     while True:
         try:
             # 5분마다 예약 주문 처리
-            print("🔄 스케줄러: 예약 주문 처리 중...")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"🔄 스케줄러: 예약 주문 처리 중... ({current_time})")
             with app.app_context():
-                cron_process_scheduled_orders()
+                result = cron_process_scheduled_orders()
+                print(f"🔄 스케줄러 결과: {result}")
             
             # 분할 발송 처리 (매일 자정에 한 번만 실행하도록 시간 체크)
             current_hour = datetime.now().hour
@@ -4409,11 +4471,10 @@ def background_scheduler():
 # 앱 시작 시 자동 초기화
 initialize_app()
 
-# 스케줄러 시작 (프로덕션 환경에서만)
-if os.environ.get('FLASK_ENV') == 'production':
-    scheduler_thread = threading.Thread(target=background_scheduler, daemon=True)
-    scheduler_thread.start()
-    print("✅ 백그라운드 스케줄러 시작됨")
+# 스케줄러 시작 (항상 실행)
+scheduler_thread = threading.Thread(target=background_scheduler, daemon=True)
+scheduler_thread.start()
+print("✅ 백그라운드 스케줄러 시작됨")
 
 if __name__ == '__main__':
     # 개발 서버 실행
