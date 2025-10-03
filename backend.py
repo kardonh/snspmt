@@ -25,6 +25,23 @@ def sitemap():
 def rss():
     return app.send_static_file('rss.xml')
 
+# 멈춰있는 패키지 주문 재처리
+@app.route('/api/admin/reprocess-package-orders', methods=['POST'])
+def reprocess_package_orders():
+    """멈춰있는 패키지 주문들을 재처리"""
+    try:
+        print("🔄 관리자 요청: 멈춰있는 패키지 주문 재처리")
+        reprocess_stuck_package_orders()
+        return jsonify({
+            'success': True,
+            'message': '멈춰있는 패키지 주문 재처리가 시작되었습니다.'
+        }), 200
+    except Exception as e:
+        print(f"❌ 패키지 주문 재처리 오류: {e}")
+        return jsonify({
+            'error': f'패키지 주문 재처리 실패: {str(e)}'
+        }), 500
+
 # 예약 발송 주문 처리
 @app.route('/api/scheduled-orders', methods=['POST'])
 def create_scheduled_order():
@@ -482,6 +499,65 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
     thread = threading.Thread(target=delayed_next_step, daemon=True)
     thread.start()
     print(f"✅ 패키지 단계 {next_step_index + 1} 스케줄링 완료")
+
+# 기존 패키지 주문 재처리 함수
+def reprocess_stuck_package_orders():
+    """멈춰있는 패키지 주문들을 재처리"""
+    conn = None
+    cursor = None
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # package_processing 상태인 주문들 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT order_id, package_steps FROM orders 
+                WHERE status = 'package_processing' AND package_steps IS NOT NULL
+                ORDER BY created_at ASC
+            """)
+        else:
+            cursor.execute("""
+                SELECT order_id, package_steps FROM orders 
+                WHERE status = 'package_processing' AND package_steps IS NOT NULL
+                ORDER BY created_at ASC
+            """)
+        
+        stuck_orders = cursor.fetchall()
+        print(f"🔍 멈춰있는 패키지 주문 발견: {len(stuck_orders)}개")
+        
+        for order in stuck_orders:
+            order_id, package_steps_json = order
+            print(f"🔄 패키지 주문 재처리: {order_id}")
+            
+            try:
+                # package_steps 파싱
+                if isinstance(package_steps_json, list):
+                    package_steps = package_steps_json
+                elif isinstance(package_steps_json, str):
+                    package_steps = json.loads(package_steps_json)
+                else:
+                    package_steps = []
+                
+                if package_steps and len(package_steps) > 0:
+                    print(f"📦 패키지 주문 {order_id} 재처리 시작: {len(package_steps)}단계")
+                    process_package_step(order_id, 0)
+                else:
+                    print(f"⚠️ 패키지 주문 {order_id} - 단계 정보 없음")
+                    
+            except Exception as e:
+                print(f"❌ 패키지 주문 {order_id} 재처리 실패: {e}")
+        
+        print(f"✅ 멈춰있는 패키지 주문 재처리 완료")
+        
+    except Exception as e:
+        print(f"❌ 멈춰있는 패키지 주문 재처리 오류: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 예약 주문에서 실제 주문 생성 함수
 def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, quantity, price, package_steps):
