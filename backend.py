@@ -336,7 +336,14 @@ def process_package_step(order_id, step_index):
             return False
         
         user_id, link, package_steps_json, comments = order
-        package_steps = json.loads(package_steps_json)
+        print(f"🔍 패키지 주문 데이터: user_id={user_id}, link={link}, package_steps_json={package_steps_json}")
+        
+        try:
+            package_steps = json.loads(package_steps_json) if package_steps_json else []
+            print(f"🔍 패키지 단계 파싱 성공: {len(package_steps)}단계")
+        except json.JSONDecodeError as e:
+            print(f"❌ 패키지 단계 JSON 파싱 실패: {e}")
+            return False
         
         if step_index >= len(package_steps):
             # 모든 단계 완료 시 주문 상태 업데이트
@@ -399,48 +406,34 @@ def process_package_step(order_id, step_index):
         
         if smm_result.get('status') == 'success':
             print(f"✅ 패키지 단계 {step_index + 1} 완료: {step_name} (SMM 주문 ID: {smm_result.get('order')})")
-            
-            # 패키지 진행 상황 기록
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    INSERT INTO package_progress 
-                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, 'completed', NOW())
-                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, smm_result.get('order')))
-            else:
-                cursor.execute("""
-                    INSERT INTO package_progress 
-                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, 'completed', datetime('now'))
-                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, smm_result.get('order')))
-            
-            conn.commit()
-            
-            # 다음 단계가 있으면 스케줄링
-            schedule_next_package_step(order_id, step_index + 1, package_steps)
-            
-            conn.close()
-            return True
         else:
-            print(f"❌ 패키지 단계 {step_index + 1} 실패: {step_name} - {smm_result.get('error', '알 수 없는 오류')}")
-            
-            # 실패한 단계도 진행 상황에 기록
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    INSERT INTO package_progress 
-                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, 'failed', NOW())
-                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
-            else:
-                cursor.execute("""
-                    INSERT INTO package_progress 
-                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, 'failed', datetime('now'))
-                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
-            
-            conn.commit()
-            conn.close()
-            return False
+            print(f"❌ 패키지 단계 {step_index + 1} 실패: {step_name} - {smm_result.get('message', 'Unknown error')}")
+            # 실패해도 다음 단계로 진행 (재시도 로직은 나중에 추가)
+        
+        # 패키지 진행 상황 기록 (성공/실패 모두)
+        status = 'completed' if smm_result.get('status') == 'success' else 'failed'
+        smm_order_id = smm_result.get('order') if smm_result.get('status') == 'success' else None
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                INSERT INTO package_progress 
+                (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+            """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, smm_order_id, status))
+        else:
+            cursor.execute("""
+                INSERT INTO package_progress 
+                (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, smm_order_id, status))
+        
+        conn.commit()
+        
+        # 다음 단계가 있으면 스케줄링
+        schedule_next_package_step(order_id, step_index + 1, package_steps)
+        
+        conn.close()
+        return True
             
     except Exception as e:
         print(f"❌ 패키지 단계 {step_index + 1} 처리 오류: {str(e)}")
@@ -1635,6 +1628,7 @@ def create_order():
         # 패키지 상품 여부 확인
         package_steps = data.get('package_steps', [])
         is_package = len(package_steps) > 0
+        print(f"🔍 패키지 상품 확인: is_package={is_package}, package_steps={package_steps}")
         
         # 예약/분할/패키지 주문 처리
         if is_scheduled and not is_package:
