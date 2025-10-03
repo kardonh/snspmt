@@ -412,6 +412,11 @@ def process_package_step(order_id, step_index):
             print(f"❌ 패키지 단계 파싱 실패: {e}")
             package_steps = []
         
+        # 패키지 단계가 없으면 종료
+        if not package_steps or len(package_steps) == 0:
+            print(f"❌ 패키지 주문 {order_id} - 단계 정보 없음")
+            return False
+        
         if step_index >= len(package_steps):
             # 모든 단계 완료 시 주문 상태 업데이트
             print(f"🎉 패키지 주문 {order_id} 모든 단계 완료!")
