@@ -146,7 +146,7 @@ const Sidebar = ({ onClose }) => {
       
       {/* Logo */}
       <div className="sidebar-logo">
-        <h2>Sociality</h2>
+        <img src="/logo.png" alt="Sociality" className="logo-image" />
       </div>
 
       {/* User Status */}
