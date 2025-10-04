@@ -215,7 +215,10 @@ def call_smm_panel_api(order_data):
             'oldPosts': 0
         }
         
+        print(f"📞 SMM Panel API 요청: {payload}")
         response = requests.post(smm_panel_url, json=payload, timeout=30)
+        print(f"📞 SMM Panel API 응답 상태: {response.status_code}")
+        print(f"📞 SMM Panel API 응답 내용: {response.text}")
         result = response.json()
         
         if result.get('status') == 'success':
