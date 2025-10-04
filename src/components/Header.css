@@ -216,10 +216,11 @@
   .header-container {
     padding: 0 16px;
     height: 60px;
+    justify-content: space-between;
   }
   
-  .logo {
-    font-size: 20px;
+  .header-logo {
+    height: 35px !important;
   }
   
   .header-nav {
@@ -228,6 +229,8 @@
   
   .mobile-user-info {
     display: flex !important;
+    align-items: center;
+    gap: 8px;
   }
   
   .desktop-user-info {
@@ -236,13 +239,32 @@
   
   .points-info {
     font-size: 13px;
-    padding: 6px 10px;
-    min-width: 70px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    min-width: 80px;
   }
   
   .charge-btn {
-    font-size: 13px;
-    padding: 6px 12px;
+    font-size: 12px;
+    padding: 8px 12px;
+    background: #10b981;
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  
+  .charge-btn:hover {
+    background: #059669;
+    transform: translateY(-1px);
   }
 }
 
@@ -252,8 +274,8 @@
     height: 56px;
   }
   
-  .logo {
-    font-size: 18px;
+  .header-logo {
+    height: 30px !important;
   }
   
   .header-nav {
@@ -262,7 +284,8 @@
   
   .mobile-user-info {
     display: flex !important;
-    gap: 8px;
+    gap: 6px;
+    align-items: center;
   }
   
   .desktop-user-info {
@@ -270,14 +293,33 @@
   }
   
   .points-info {
-    font-size: 12px;
-    padding: 5px 8px;
-    min-width: 60px;
+    font-size: 11px;
+    padding: 6px 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 6px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+    min-width: 70px;
   }
   
   .charge-btn {
-    font-size: 12px;
-    padding: 5px 10px;
+    font-size: 10px;
+    padding: 6px 10px;
+    background: #10b981;
+    color: white;
+    border-radius: 6px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  
+  .charge-btn:hover {
+    background: #059669;
+    transform: translateY(-1px);
   }
 }
 
