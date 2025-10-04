@@ -295,9 +295,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
             <div className="auth-modal-header">
               <div className="header-content">
                 <img src="/logo.png" alt="Sociality" className="logo" />
-                <h2 className="login-title">
-                  {isLogin ? '로그인' : '회원가입'}
-                </h2>
               </div>
               {!isLogin && (
                 <p className="welcome-message">

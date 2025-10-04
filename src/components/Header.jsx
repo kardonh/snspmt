@@ -51,7 +51,7 @@ const Header = () => {
       <header className="header">
         <div className="header-container">
           <Link to="/" className="logo">
-            Sociality
+            <img src="/logo.png" alt="Sociality" className="header-logo" />
           </Link>
         </div>
       </header>
@@ -62,7 +62,7 @@ const Header = () => {
     <header className="header">
       <div className="header-container">
         <Link to="/" className="logo">
-          Sociality
+          <img src="/logo.png" alt="Sociality" className="header-logo" />
         </Link>
         <nav className="header-nav">
           <Link to="/services" className="nav-link">
