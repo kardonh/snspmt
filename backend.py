@@ -189,7 +189,7 @@ def handle_exception(e):
 
 # 데이터베이스 연결 설정 (AWS Secrets Manager 우선, 환경 변수 폴백)
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-cluste.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
-SMMPANEL_API_KEY = os.environ.get('SMMPANEL_API_KEY', '5efae48d287931cf9bd80a1bc6fdfa6d')
+SMMPANEL_API_KEY = os.environ.get('SMMPANEL_API_KEY', 'bc85538982fb27c6c0558be6cd669e67')
 
 # SMM Panel API 호출 함수
 def call_smm_panel_api(order_data):
