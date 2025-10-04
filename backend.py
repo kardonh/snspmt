@@ -605,8 +605,8 @@ def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, 
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 새로운 주문 ID 생성 (숫자 ID 사용)
-        new_order_id = int(time.time() * 1000)
+        # 새로운 주문 ID 생성 (더 작은 숫자 ID 사용)
+        new_order_id = int(time.time() * 100) % 2147483647  # PostgreSQL INTEGER 최대값 미만
         
         # 실제 주문 생성
         if DATABASE_URL.startswith('postgresql://'):
