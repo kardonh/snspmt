@@ -10,10 +10,48 @@ import tempfile
 import sqlite3
 import threading
 import time
+from functools import wraps
 
 # Flask 앱 초기화
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
+
+# API 모니터링 미들웨어
+@app.before_request
+def log_request_info():
+    request.start_time = time.time()
+
+@app.after_request
+def log_response_info(response):
+    if hasattr(request, 'start_time'):
+        duration = time.time() - request.start_time
+        print(f"📊 API {request.method} {request.path} - {response.status_code} - {duration:.3f}s")
+        
+        # 느린 API 요청 경고 (5초 이상)
+        if duration > 5.0:
+            print(f"⚠️ 느린 API 요청 감지: {request.method} {request.path} - {duration:.3f}s")
+    
+    return response
+
+# API 성능 모니터링 데코레이터
+def monitor_performance(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        try:
+            result = func(*args, **kwargs)
+            duration = time.time() - start_time
+            
+            # 성능 로깅
+            if duration > 1.0:  # 1초 이상
+                print(f"🐌 느린 함수 감지: {func.__name__} - {duration:.3f}s")
+            
+            return result
+        except Exception as e:
+            duration = time.time() - start_time
+            print(f"❌ 함수 실행 실패: {func.__name__} - {duration:.3f}s - {str(e)}")
+            raise
+    return wrapper
 
 # sitemap.xml 서빙
 @app.route('/sitemap.xml')
@@ -27,6 +65,7 @@ def rss():
 
 # 멈춰있는 패키지 주문 재처리
 @app.route('/api/admin/reprocess-package-orders', methods=['POST'])
+@require_admin_auth
 def reprocess_package_orders():
     """멈춰있는 패키지 주문들을 재처리"""
     conn = None
@@ -188,8 +227,54 @@ def handle_exception(e):
         return jsonify({'error': str(e), 'message': '개발 환경 오류'}), 500
 
 # 데이터베이스 연결 설정 (AWS Secrets Manager 우선, 환경 변수 폴백)
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-cluste.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
-SMMPANEL_API_KEY = os.environ.get('SMMPANEL_API_KEY', 'bc85538982fb27c6c0558be6cd669e67')
+# 보안을 위해 환경 변수만 사용 (기본값 제거)
+DATABASE_URL = os.environ.get('DATABASE_URL')
+SMMPANEL_API_KEY = os.environ.get('SMMPANEL_API_KEY')
+
+# 필수 환경 변수 검증
+def validate_environment():
+    """환경 변수 검증"""
+    required_vars = {
+        'DATABASE_URL': DATABASE_URL,
+        'SMMPANEL_API_KEY': SMMPANEL_API_KEY
+    }
+    
+    missing_vars = []
+    for var_name, var_value in required_vars.items():
+        if not var_value:
+            missing_vars.append(var_name)
+    
+    if missing_vars:
+        error_msg = f"필수 환경 변수가 설정되지 않았습니다: {', '.join(missing_vars)}"
+        print(f"❌ {error_msg}")
+        raise ValueError(error_msg)
+    
+    # 보안 검증
+    if SMMPANEL_API_KEY == 'bc85538982fb27c6c0558be6cd669e67':
+        print("⚠️ 기본 API 키를 사용하고 있습니다. 프로덕션에서는 다른 키를 사용하세요.")
+    
+    print("✅ 환경 변수 검증 완료")
+
+# 환경 변수 검증 실행
+validate_environment()
+
+# 관리자 인증 함수
+def require_admin_auth(f):
+    """관리자 권한이 필요한 엔드포인트용 데코레이터"""
+    from functools import wraps
+    
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # X-Admin-Token 헤더 확인
+        admin_token = request.headers.get('X-Admin-Token')
+        expected_token = os.environ.get('ADMIN_TOKEN')
+        
+        if not admin_token or not expected_token or admin_token != expected_token:
+            return jsonify({'error': '관리자 권한이 필요합니다.'}), 403
+        
+        return f(*args, **kwargs)
+    
+    return decorated_function
 
 # SMM Panel API 호출 함수
 def call_smm_panel_api(order_data):
@@ -1231,6 +1316,67 @@ def init_database():
         
         conn.commit()
         print("✅ 데이터베이스 테이블 초기화 완료")
+        
+        # 데이터베이스 인덱스 생성 (성능 최적화)
+        print("🔍 데이터베이스 인덱스 생성 중...")
+        
+        if is_postgresql:
+            # PostgreSQL 인덱스
+            indexes = [
+                "CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)",
+                "CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)",
+                "CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at)",
+                "CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id)",
+                "CREATE INDEX IF NOT EXISTS idx_points_user_id ON points(user_id)",
+                "CREATE INDEX IF NOT EXISTS idx_point_purchases_user_id ON point_purchases(user_id)",
+                "CREATE INDEX IF NOT EXISTS idx_point_purchases_status ON point_purchases(status)",
+                "CREATE INDEX IF NOT EXISTS idx_referral_codes_code ON referral_codes(code)",
+                "CREATE INDEX IF NOT EXISTS idx_referral_codes_user_email ON referral_codes(user_email)",
+                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_user_id ON scheduled_orders(user_id)",
+                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_status ON scheduled_orders(status)",
+                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_datetime ON scheduled_orders(scheduled_datetime)",
+                "CREATE INDEX IF NOT EXISTS idx_package_progress_order_id ON package_progress(order_id)",
+                "CREATE INDEX IF NOT EXISTS idx_package_progress_status ON package_progress(status)",
+                "CREATE INDEX IF NOT EXISTS idx_split_delivery_order_id ON split_delivery_progress(order_id)",
+                "CREATE INDEX IF NOT EXISTS idx_commission_points_email ON referral_commission_points(referrer_email)",
+                "CREATE INDEX IF NOT EXISTS idx_commission_transactions_email ON commission_point_transactions(referrer_email)",
+                "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_email ON commission_withdrawal_requests(referrer_email)",
+                "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_status ON commission_withdrawal_requests(status)"
+            ]
+        else:
+            # SQLite 인덱스
+            indexes = [
+                "CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)",
+                "CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)",
+                "CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at)",
+                "CREATE INDEX IF NOT EXISTS idx_points_user_id ON points(user_id)",
+                "CREATE INDEX IF NOT EXISTS idx_point_purchases_user_id ON point_purchases(user_id)",
+                "CREATE INDEX IF NOT EXISTS idx_point_purchases_status ON point_purchases(status)",
+                "CREATE INDEX IF NOT EXISTS idx_referral_codes_code ON referral_codes(code)",
+                "CREATE INDEX IF NOT EXISTS idx_referral_codes_user_email ON referral_codes(user_email)",
+                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_user_id ON scheduled_orders(user_id)",
+                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_status ON scheduled_orders(status)",
+                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_datetime ON scheduled_orders(scheduled_datetime)",
+                "CREATE INDEX IF NOT EXISTS idx_package_progress_order_id ON package_progress(order_id)",
+                "CREATE INDEX IF NOT EXISTS idx_package_progress_status ON package_progress(status)",
+                "CREATE INDEX IF NOT EXISTS idx_split_delivery_order_id ON split_delivery_progress(order_id)",
+                "CREATE INDEX IF NOT EXISTS idx_commission_points_email ON referral_commission_points(referrer_email)",
+                "CREATE INDEX IF NOT EXISTS idx_commission_transactions_email ON commission_point_transactions(referrer_email)",
+                "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_email ON commission_withdrawal_requests(referrer_email)",
+                "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_status ON commission_withdrawal_requests(status)"
+            ]
+        
+        for index_sql in indexes:
+            try:
+                cursor.execute(index_sql)
+                index_name = index_sql.split('idx_')[1].split(' ')[0]
+                print(f"✅ 인덱스 생성: {index_name}")
+            except Exception as e:
+                index_name = index_sql.split('idx_')[1].split(' ')[0]
+                print(f"⚠️ 인덱스 생성 실패 (이미 존재할 수 있음): {index_name} - {e}")
+        
+        conn.commit()
+        print("✅ 데이터베이스 인덱스 생성 완료")
             
     except Exception as e:
         print(f"❌ 데이터베이스 초기화 실패: {e}")
@@ -1371,13 +1517,74 @@ def health_check():
         return jsonify({
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
-            'database': 'connected'
+            'database': 'connected',
+            'version': '1.0.0',
+            'environment': os.environ.get('FLASK_ENV', 'development')
         }), 200
     except Exception as e:
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'database': 'disconnected'
+        }), 500
+
+@app.route('/api/deployment-status', methods=['GET'])
+def deployment_status():
+    """배포 상태 확인"""
+    try:
+        # 필수 환경 변수 확인
+        env_vars = {
+            'DATABASE_URL': bool(os.environ.get('DATABASE_URL')),
+            'SMMPANEL_API_KEY': bool(os.environ.get('SMMPANEL_API_KEY')),
+            'ADMIN_TOKEN': bool(os.environ.get('ADMIN_TOKEN'))
+        }
+        
+        # 데이터베이스 테이블 존재 확인
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        tables_to_check = ['users', 'orders', 'points', 'point_purchases']
+        table_status = {}
+        
+        for table in tables_to_check:
+            try:
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        SELECT EXISTS (
+                            SELECT FROM information_schema.tables 
+                            WHERE table_schema = 'public' 
+                            AND table_name = %s
+                        )
+                    """, (table,))
+                else:
+                    cursor.execute("""
+                        SELECT name FROM sqlite_master 
+                        WHERE type='table' AND name=?
+                    """, (table,))
+                
+                result = cursor.fetchone()
+                table_status[table] = bool(result)
+            except Exception:
+                table_status[table] = False
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'status': 'deployment_ready',
+            'timestamp': datetime.now().isoformat(),
+            'environment_variables': env_vars,
+            'database_tables': table_status,
+            'all_checks_passed': all(env_vars.values()) and all(table_status.values())
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'deployment_not_ready',
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e),
+            'all_checks_passed': False
         }), 500
 
 # 추천인 연결 확인 API (디버깅용)
@@ -2170,6 +2377,7 @@ def purchase_points():
 
 # 관리자 통계
 @app.route('/api/admin/stats', methods=['GET'])
+@require_admin_auth
 def get_admin_stats():
     """관리자 통계"""
     try:
@@ -2454,21 +2662,31 @@ def deduct_points():
         if current_points < amount:
             return jsonify({'error': '포인트가 부족합니다.'}), 400
         
-        # 포인트 차감
+        # 포인트 차감 (동시성 제어)
         new_points = current_points - amount
         
         if DATABASE_URL.startswith('postgresql://'):
+            # PostgreSQL: SELECT FOR UPDATE로 락 설정
             cursor.execute("""
                 UPDATE points
                 SET points = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE user_id = %s
-            """, (new_points, user_id))
+                WHERE user_id = %s AND points = %s
+            """, (new_points, user_id, current_points))
+            
+            if cursor.rowcount == 0:
+                conn.rollback()
+                return jsonify({'error': '포인트 잔액이 변경되었습니다. 다시 시도해주세요.'}), 409
         else:
+            # SQLite: 트랜잭션으로 동시성 제어
             cursor.execute("""
                 UPDATE points
                 SET points = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE user_id = ?
-            """, (new_points, user_id))
+                WHERE user_id = ? AND points = ?
+            """, (new_points, user_id, current_points))
+            
+            if cursor.rowcount == 0:
+                conn.rollback()
+                return jsonify({'error': '포인트 잔액이 변경되었습니다. 다시 시도해주세요.'}), 409
         
         conn.commit()
         

@@ -780,28 +780,28 @@ const Home = () => {
           { id: 'likes_korean', name: '인스타 좋아요 늘리기', description: '한국인 좋아요 서비스' },
           { id: 'regram_korean', name: '인스타 리그램', description: '한국인 리그램 서비스' },
           { id: 'exposure_save_share', name: '인스타 도달, 저장, 공유 등', description: '노출, 도달, 저장, 공유 서비스' },
-          { id: 'auto_comments', name: '자동 : 자동 댓글 늘리기', description: '자동 댓글 서비스' },
+          { id: 'auto_comments', name: '댓글 늘리기', description: '자동 댓글 서비스' },
           { id: 'custom_comments_korean', name: '인스타 커스텀/이모지 댓글', description: '한국인 커스텀/이모지 댓글 서비스' },
-          { id: 'auto_likes', name: '자동 : 자동 좋아요 늘리기', description: '자동 좋아요 서비스' },
+          { id: 'auto_likes', name: '좋아요 늘리기', description: '자동 좋아요 서비스' },
           { id: 'followers_korean', name: '인스타 팔로워 늘리기', description: '한국인 팔로워 서비스' },
-          { id: 'auto_followers', name: '자동 : 자동 팔로워 늘리기', description: '자동 팔로워 서비스' },
+          { id: 'auto_followers', name: '팔로워 늘리기', description: '자동 팔로워 서비스' },
           { id: 'comments_korean', name: '인스타 댓글 늘리기', description: '한국인 댓글 서비스' },
-          { id: 'auto_regram', name: '자동 : 리그램', description: '자동 리그램 서비스' },
+          { id: 'auto_regram', name: '리그램', description: '자동 리그램 서비스' },
           
           // 외국인 서비스 (12개)
           { id: 'foreign_package', name: '인스타 외국인 패키지', description: '외국인 종합 패키지 서비스' },
           { id: 'followers_foreign', name: '인스타 팔로워 늘리기', description: '외국인 팔로워 서비스' },
           { id: 'likes_foreign', name: '인스타 좋아요 늘리기', description: '외국인 좋아요 서비스' },
           
-          { id: 'auto_reels_views_foreign', name: '자동 : 자동 릴스 조회수 늘리기', description: '외국인 자동 릴스 조회수 서비스' },
+          { id: 'auto_reels_views_foreign', name: '조회수 늘리기', description: '외국인 자동 릴스 조회수 서비스' },
           { id: 'reels_views_foreign', name: '인스타 릴스 조회수 늘리기', description: '외국인 릴스 조회수 서비스' },
-          { id: 'auto_followers_foreign', name: '자동 : 자동 팔로워 늘리기', description: '외국인 자동 팔로워 서비스' },
+          { id: 'auto_followers_foreign', name: '팔로워 늘리기', description: '외국인 자동 팔로워 서비스' },
           { id: 'live_streaming', name: '인스타 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' },
-          { id: 'auto_likes_foreign', name: '자동 : 자동 좋아요 늘리기', description: '외국인 자동 좋아요 서비스' },
+          { id: 'auto_likes_foreign', name: '좋아요 늘리기', description: '외국인 자동 좋아요 서비스' },
           { id: 'exposure_save_share_foreign', name: '인스타 노출, 도달, 저장, 공유 등', description: '외국인 노출, 도달, 저장, 공유 서비스' },
-          { id: 'auto_comments_foreign', name: '자동 : 자동 댓글 늘리기', description: '외국인 자동 댓글 서비스' },
+          { id: 'auto_comments_foreign', name: '댓글 늘리기', description: '외국인 자동 댓글 서비스' },
           { id: 'comments_foreign', name: '인스타 댓글 늘리기', description: '외국인 댓글 서비스' },
-          { id: 'auto_exposure_save_share_foreign', name: '자동 : 자동 노출, 도달, 저장, 공유 등', description: '외국인 자동 노출, 도달, 저장, 공유 서비스' }
+          { id: 'auto_exposure_save_share_foreign', name: '노출,도달,저장,공유', description: '외국인 자동 노출, 도달, 저장, 공유 서비스' }
         ]
       case 'youtube':
         return [
@@ -821,9 +821,9 @@ const Home = () => {
           { id: 'likes_foreign', name: '유튜브 좋아요 늘리기', description: '외국인 좋아요 서비스' },
           { id: 'subscribers_foreign', name: '유튜브 구독자 늘리기', description: '외국인 구독자 서비스' },
           { id: 'comments_foreign', name: '유튜브 댓글 늘리기', description: '외국인 댓글 서비스' },
-          { id: 'auto_likes_foreign', name: '자동 : 유튜브 좋아요 늘리기', description: '외국인 자동 좋아요 서비스' },
+          { id: 'auto_likes_foreign', name: '좋아요 늘리기', description: '외국인 자동 좋아요 서비스' },
           { id: 'live_streaming', name: '유튜브 실시간 라이브 스트리밍 시청', description: '실시간 라이브 스트리밍 시청 서비스' },
-          { id: 'auto_views_foreign', name: '자동 : 유튜브 조회수 늘리기', description: '외국인 자동 조회수 서비스' },
+          { id: 'auto_views_foreign', name: '조회수 늘리기', description: '외국인 자동 조회수 서비스' },
         ]
       case 'tiktok':
         return [

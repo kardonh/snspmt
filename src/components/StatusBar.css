@@ -1,68 +1,77 @@
-.status-bar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 12px 0;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  backdrop-filter: blur(10px);
-}
-
-.status-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-indicator svg {
-  color: #10b981;
-}
-
-.status-time {
-  font-family: 'Courier New', monospace;
-  font-weight: 600;
-}
-
 /* 모바일 헤더 스타일 */
 .mobile-header {
+  background: white;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 20px;
   height: 60px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.mobile-logo h2 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 800;
-  color: white;
-  letter-spacing: -0.5px;
+.mobile-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.mobile-header-logo {
+  height: 35px;
+  width: auto;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.mobile-header-logo:hover {
+  transform: scale(1.05);
 }
 
 .mobile-user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+
+.mobile-points-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8f9fa;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+}
+
+.mobile-points-amount {
+  color: #333;
+}
+
+.mobile-charge-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.mobile-charge-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
 }
 
 .mobile-user-name {
   font-size: 14px;
   font-weight: 600;
-  color: white;
-  max-width: 150px;
+  color: #333;
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -71,15 +80,15 @@
 .mobile-guest {
   font-size: 14px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
+  color: #666;
 }
 
 .mobile-logout-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
+  background: #f8f9fa;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 8px;
-  color: white;
+  color: #666;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
@@ -88,7 +97,8 @@
 }
 
 .mobile-logout-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: #e9ecef;
+  color: #333;
   transform: translateY(-1px);
 }
 
@@ -102,8 +112,76 @@
   }
 }
 
+/* 상태바 스타일 */
+.status-content {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator svg {
+  color: #10b981;
+}
+
+.status-time {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+}
+
+/* 모바일 상태바 */
+.mobile-status-bar {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  padding: 8px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(59, 130, 246, 0.2);
+}
+
+.mobile-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mobile-status-indicator svg {
+  color: #10b981;
+  width: 14px;
+  height: 14px;
+}
+
+.mobile-status-time {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+}
+
 @media (min-width: 769px) {
   .mobile-header {
+    display: none;
+  }
+  
+  .mobile-status-bar {
     display: none;
   }
 }

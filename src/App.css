@@ -18,12 +18,34 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  
   background-attachment: fixed;
   color: #1e293b;
   line-height: 1.6;
   min-height: 100vh;
   text-rendering: optimizeLegibility;
+  
+}
+
+
+
+/* Pull-to-refresh 스타일 제어 */
+@media screen and (max-width: 768px) {
+  /* iOS Safari의 pull-to-refresh 인디케이터 숨기기 */
+  body {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+  
+  /* Android Chrome의 pull-to-refresh 인디케이터 숨기기 */
+  html {
+    overscroll-behavior-y: contain;
+  }
+  
+  /* 전체 페이지에서 pull-to-refresh 비활성화 */
+  * {
+    overscroll-behavior: contain;
+  }
 }
 
 code {

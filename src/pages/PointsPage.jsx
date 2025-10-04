@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import smmpanelApi from '../services/snspopApi'
-import { CreditCard, Building2, User, DollarSign, Receipt, FileText, X } from 'lucide-react'
+import { CreditCard, Building2, User, DollarSign, Receipt, FileText, X, Copy, Check } from 'lucide-react'
 import './PointsPage.css'
 
 const PointsPage = () => {
   const { currentUser } = useAuth()
   const [userPoints, setUserPoints] = useState(0)
-  const [selectedAmount, setSelectedAmount] = useState(10000)
+  const [selectedAmount, setSelectedAmount] = useState(0)
   const [depositorName, setDepositorName] = useState('')
   const [bankName, setBankName] = useState('')
   const [receiptType, setReceiptType] = useState('none') // 'tax', 'cash', 'none'
@@ -20,12 +20,13 @@ const PointsPage = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [purchaseHistory, setPurchaseHistory] = useState([])
   const [userInfo, setUserInfo] = useState(null)
+  const [copiedItems, setCopiedItems] = useState({})
 
   const pointPackages = [
+    { amount: 5000, price: 5000 },
     { amount: 10000, price: 10000 },
     { amount: 50000, price: 50000 },
     { amount: 100000, price: 100000 },
-    { amount: 200000, price: 200000 },
     { amount: 500000, price: 500000 },
     { amount: 1000000, price: 1000000 }
   ]
@@ -96,6 +97,33 @@ const PointsPage = () => {
   }
 
 
+  // 복사 기능
+  const handleCopy = async (text, itemType) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedItems(prev => ({ ...prev, [itemType]: true }))
+      
+      // 2초 후 복사 상태 초기화
+      setTimeout(() => {
+        setCopiedItems(prev => ({ ...prev, [itemType]: false }))
+      }, 2000)
+    } catch (err) {
+      console.error('복사 실패:', err)
+      // 폴백: 선택 영역으로 복사
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      
+      setCopiedItems(prev => ({ ...prev, [itemType]: true }))
+      setTimeout(() => {
+        setCopiedItems(prev => ({ ...prev, [itemType]: false }))
+      }, 2000)
+    }
+  }
+
   const handleReceiptTypeChange = (type) => {
     setReceiptType(type)
     
@@ -154,7 +182,7 @@ const PointsPage = () => {
         contactEmail: contactEmail.trim(),
         cashReceiptPhone: cashReceiptPhone.trim(),
         amount: selectedAmount,
-        price: pointPackages.find(pkg => pkg.amount === selectedAmount).price,
+        price: pointPackages.find(pkg => pkg.amount === selectedAmount)?.price || selectedAmount,
         status: 'pending'
       }
 
@@ -168,7 +196,7 @@ const PointsPage = () => {
         body: JSON.stringify({
           user_id: currentUser.uid,
           amount: selectedAmount,
-          price: pointPackages.find(pkg => pkg.amount === selectedAmount).price,
+          price: pointPackages.find(pkg => pkg.amount === selectedAmount)?.price || selectedAmount,
           buyer_name: depositorName.trim(),
           bank_info: bankName.trim()
         })
@@ -200,7 +228,8 @@ const PointsPage = () => {
   }
 
   const getSelectedPackage = () => {
-    return pointPackages.find(pkg => pkg.amount === selectedAmount)
+    const found = pointPackages.find(pkg => pkg.amount === selectedAmount)
+    return found || { amount: 0, price: 0 }
   }
 
   return (
@@ -214,19 +243,37 @@ const PointsPage = () => {
       </div>
 
       <div className="points-content">
-        {/* 포인트 패키지 선택 */}
-        <div className="points-packages">
-          <h2>포인트 패키지 선택</h2>
-          <div className="package-grid">
+        {/* 충전금액 선택 */}
+        <div className="charge-amount-section">
+          <h2>충전금액</h2>
+          <div className="amount-display">
+            <div className={`amount-input-container ${selectedAmount === 0 ? 'zero-amount' : ''}`}>
+              <span className="amount-display-text">
+                <span className="amount-number">
+                  {selectedAmount === 0 ? '0' : selectedAmount.toLocaleString()}
+                </span>
+                <span className="amount-unit">원</span>
+              </span>
+              {selectedAmount > 0 && (
+                <button 
+                  className="clear-amount-btn"
+                  onClick={() => setSelectedAmount(0)}
+                  title="금액 초기화"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="amount-buttons-grid">
             {pointPackages.map((pkg) => (
-              <div
+              <button
                 key={pkg.amount}
-                className={`package-item ${selectedAmount === pkg.amount ? 'selected' : ''}`}
-                onClick={() => setSelectedAmount(pkg.amount)}
+                className="amount-add-btn"
+                onClick={() => setSelectedAmount(selectedAmount + pkg.amount)}
               >
-                <div className="package-amount">{pkg.amount.toLocaleString()}P</div>
-                <div className="package-price">{pkg.price.toLocaleString()}원</div>
-              </div>
+                + {pkg.amount >= 10000 ? `${(pkg.amount / 10000).toLocaleString()}만원` : `${pkg.amount.toLocaleString()}원`}
+              </button>
             ))}
           </div>
         </div>
@@ -271,20 +318,48 @@ const PointsPage = () => {
             <div className="account-details">
               <div className="account-item">
                 <span className="account-label">은행명</span>
-                <span className="account-value">카카오뱅크</span>
+                <div className="account-value-with-copy">
+                  <span className="account-value">카카오뱅크</span>
+                  <button 
+                    className={`copy-btn ${copiedItems.bank ? 'copied' : ''}`}
+                    onClick={() => handleCopy('카카오뱅크', 'bank')}
+                    title="은행명 복사"
+                  >
+                    {copiedItems.bank ? <Check size={16} /> : <Copy size={16} />}
+                  </button>
+                </div>
               </div>
               <div className="account-item">
                 <span className="account-label">계좌번호</span>
-                <span className="account-value">3333-34-9347430</span>
+                <div className="account-value-with-copy">
+                  <span className="account-value">3333-34-9347430</span>
+                  <button 
+                    className={`copy-btn ${copiedItems.account ? 'copied' : ''}`}
+                    onClick={() => handleCopy('3333-34-9347430', 'account')}
+                    title="계좌번호 복사"
+                  >
+                    {copiedItems.account ? <Check size={16} /> : <Copy size={16} />}
+                  </button>
+                </div>
               </div>
               <div className="account-item">
                 <span className="account-label">예금주</span>
-                <span className="account-value">서동현((템블)tamble)</span>
+                <div className="account-value-with-copy">
+                  <span className="account-value">서동현((템블)tamble)</span>
+                  <button 
+                    className={`copy-btn ${copiedItems.holder ? 'copied' : ''}`}
+                    onClick={() => handleCopy('서동현((템블)tamble)', 'holder')}
+                    title="예금주명 복사"
+                  >
+                    {copiedItems.holder ? <Check size={16} /> : <Copy size={16} />}
+                  </button>
+                </div>
               </div>
             </div>
             <div className="account-note">
-              <p>※ 위 계좌로 입금 후 구매 신청을 해주세요.</p>
-              <p>※ 입금자 명은 반드시 본인 명의로 입금해주세요.</p>
+              <p>※ 충전 신청란의 [입금자명] 과 입금시 [입금자명]이 일치해야 30분내로 자동으로 충전 됩니다.</p>
+              <p>※ 30분내 충전이 안될시 카카오채널(링크)로 문의 해주세요</p>
+              <p>※ 세금계산서 및 현금영수증 필요하시면 꼭 선택 부탁드립니다.</p>
             </div>
           </div>
 
@@ -462,7 +537,7 @@ const PointsPage = () => {
 
           <button
             onClick={handlePurchase}
-            disabled={isLoading || !depositorName.trim() || !bankName.trim() || (receiptType === 'tax' && (!businessNumber.trim() || !businessName.trim() || !representative.trim() || !contactPhone.trim() || !contactEmail.trim())) || (receiptType === 'cash' && !cashReceiptPhone.trim())}
+            disabled={isLoading || selectedAmount === 0 || !depositorName.trim() || !bankName.trim() || (receiptType === 'tax' && (!businessNumber.trim() || !businessName.trim() || !representative.trim() || !contactPhone.trim() || !contactEmail.trim())) || (receiptType === 'cash' && !cashReceiptPhone.trim())}
             className="purchase-btn"
           >
             {isLoading ? '처리중...' : '포인트 구매 신청'}

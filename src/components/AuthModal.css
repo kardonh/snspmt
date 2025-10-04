@@ -138,6 +138,8 @@
   align-items: center;
   gap: 16px;
   margin-bottom: 20px;
+  justify-content: center;
+  width: 100%;
 }
 
 .logo {
@@ -661,9 +663,9 @@
 @media (max-width: 768px) {
   .auth-modal {
     width: 95%;
-    max-width: 500px;
-    max-height: 98vh;
-    margin: 10px;
+    max-width: 400px;
+    max-height: 95vh;
+    margin: 5px;
     flex-direction: column;
     border-radius: 16px;
     overflow: hidden;
@@ -679,12 +681,9 @@
     display: none;
   }
   
-  /* 모바일에서 모바일 이미지 표시 */
+  /* 모바일에서 모바일 이미지 숨기기 */
   .auth-modal-image-mobile {
-    display: block;
-    height: 160px;
-    border-radius: 16px 16px 0 0;
-    flex-shrink: 0;
+    display: none;
   }
   
   .auth-image-mobile {
@@ -692,9 +691,9 @@
   }
   
   .auth-modal-form {
-    padding: 16px 12px 40px 12px;
+    padding: 20px 16px 24px 16px;
     flex: 1;
-    border-radius: 0 0 16px 16px;
+    border-radius: 16px;
     overflow-y: auto;
     min-height: 0;
     -webkit-overflow-scrolling: touch;
@@ -791,7 +790,7 @@
   }
   
   .auth-modal-image-mobile {
-    height: 140px;
+    display: none;
   }
   
   .auth-modal-form {
@@ -801,6 +800,10 @@
   
   .auth-modal-header h2 {
     font-size: 20px;
+  }
+  
+  .logo {
+    height: 70px;
   }
   
   .form-group input {
