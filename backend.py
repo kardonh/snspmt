@@ -16,6 +16,24 @@ from functools import wraps
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
 
+# 관리자 인증 데코레이터
+def require_admin_auth(f):
+    """관리자 권한이 필요한 엔드포인트용 데코레이터"""
+    from functools import wraps
+    
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # X-Admin-Token 헤더 확인
+        admin_token = request.headers.get('X-Admin-Token')
+        expected_token = os.environ.get('ADMIN_TOKEN')
+        
+        if not admin_token or not expected_token or admin_token != expected_token:
+            return jsonify({'error': '관리자 권한이 필요합니다.'}), 403
+        
+        return f(*args, **kwargs)
+    
+    return decorated_function
+
 # API 모니터링 미들웨어
 @app.before_request
 def log_request_info():
@@ -258,23 +276,6 @@ def validate_environment():
 # 환경 변수 검증 실행
 validate_environment()
 
-# 관리자 인증 함수
-def require_admin_auth(f):
-    """관리자 권한이 필요한 엔드포인트용 데코레이터"""
-    from functools import wraps
-    
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # X-Admin-Token 헤더 확인
-        admin_token = request.headers.get('X-Admin-Token')
-        expected_token = os.environ.get('ADMIN_TOKEN')
-        
-        if not admin_token or not expected_token or admin_token != expected_token:
-            return jsonify({'error': '관리자 권한이 필요합니다.'}), 403
-        
-        return f(*args, **kwargs)
-    
-    return decorated_function
 
 # SMM Panel API 호출 함수
 def call_smm_panel_api(order_data):
