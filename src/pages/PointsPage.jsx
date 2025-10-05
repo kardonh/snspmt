@@ -21,6 +21,7 @@ const PointsPage = () => {
   const [purchaseHistory, setPurchaseHistory] = useState([])
   const [userInfo, setUserInfo] = useState(null)
   const [copiedItems, setCopiedItems] = useState({})
+  const [showAccountModal, setShowAccountModal] = useState(false)
 
   const pointPackages = [
     { amount: 5000, price: 5000 },
@@ -206,6 +207,10 @@ const PointsPage = () => {
       
       if (response.ok && result.purchase_id) {
         alert('포인트 구매 신청이 완료되었습니다. 관리자 승인 후 포인트가 추가됩니다.')
+        
+        // 계좌 정보 모달 자동으로 열기
+        setShowAccountModal(true)
+        
         setDepositorName('')
         setBankName('')
         setReceiptType('none')
@@ -309,59 +314,6 @@ const PointsPage = () => {
             />
           </div>
 
-          {/* 카카오뱅크 계좌번호 정보 */}
-          <div className="account-info">
-            <h3>
-              <CreditCard size={20} />
-              입금 계좌 정보
-            </h3>
-            <div className="account-details">
-              <div className="account-item">
-                <span className="account-label">은행명</span>
-                <div className="account-value-with-copy">
-                  <span className="account-value">카카오뱅크</span>
-                  <button 
-                    className={`copy-btn ${copiedItems.bank ? 'copied' : ''}`}
-                    onClick={() => handleCopy('카카오뱅크', 'bank')}
-                    title="은행명 복사"
-                  >
-                    {copiedItems.bank ? <Check size={16} /> : <Copy size={16} />}
-                  </button>
-                </div>
-              </div>
-              <div className="account-item">
-                <span className="account-label">계좌번호</span>
-                <div className="account-value-with-copy">
-                  <span className="account-value">3333-34-9347430</span>
-                  <button 
-                    className={`copy-btn ${copiedItems.account ? 'copied' : ''}`}
-                    onClick={() => handleCopy('3333-34-9347430', 'account')}
-                    title="계좌번호 복사"
-                  >
-                    {copiedItems.account ? <Check size={16} /> : <Copy size={16} />}
-                  </button>
-                </div>
-              </div>
-              <div className="account-item">
-                <span className="account-label">예금주</span>
-                <div className="account-value-with-copy">
-                  <span className="account-value">서동현((템블)tamble)</span>
-                  <button 
-                    className={`copy-btn ${copiedItems.holder ? 'copied' : ''}`}
-                    onClick={() => handleCopy('서동현((템블)tamble)', 'holder')}
-                    title="예금주명 복사"
-                  >
-                    {copiedItems.holder ? <Check size={16} /> : <Copy size={16} />}
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="account-note">
-              <p>※ 충전 신청란의 [입금자명] 과 입금시 [입금자명]이 일치해야 30분내로 자동으로 충전 됩니다.</p>
-              <p>※ 30분내 충전이 안될시 카카오채널(링크)로 문의 해주세요</p>
-              <p>※ 세금계산서 및 현금영수증 필요하시면 꼭 선택 부탁드립니다.</p>
-            </div>
-          </div>
 
           {/* 영수증 계산서 선택 */}
           <div className="receipt-section">
@@ -562,10 +514,19 @@ const PointsPage = () => {
                       }
                     </div>
                   </div>
-                  <div className={`history-status ${purchase.status}`}>
-                    {purchase.status === 'pending' && '승인 대기중'}
-                    {purchase.status === 'approved' && '승인 완료'}
-                    {purchase.status === 'rejected' && '승인 거절'}
+                  <div className="history-actions">
+                    <button 
+                      className="account-info-btn-small"
+                      onClick={() => setShowAccountModal(true)}
+                      title="입금 계좌 정보 보기"
+                    >
+                      <CreditCard size={16} />
+                    </button>
+                    <div className={`history-status ${purchase.status}`}>
+                      {purchase.status === 'pending' && '승인 대기중'}
+                      {purchase.status === 'approved' && '승인 완료'}
+                      {purchase.status === 'rejected' && '승인 거절'}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -574,6 +535,82 @@ const PointsPage = () => {
         </div>
 
       </div>
+
+      {/* 입금 계좌 정보 모달 */}
+      {showAccountModal && (
+        <div className="modal-overlay" onClick={() => setShowAccountModal(false)}>
+          <div className="modal-content account-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                <CreditCard size={24} />
+                💳 입금 계좌 정보
+              </h2>
+              <button 
+                className="modal-close-btn"
+                onClick={() => setShowAccountModal(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="modal-info">
+                <p>✅ 포인트 구매 신청이 완료되었습니다!</p>
+                <p>아래 계좌로 입금하시면 30분 내에 자동으로 포인트가 충전됩니다.</p>
+              </div>
+              
+              <div className="account-details">
+                <div className="account-item">
+                  <span className="account-label">은행명</span>
+                  <div className="account-value-with-copy">
+                    <span className="account-value">카카오뱅크</span>
+                    <button 
+                      className={`copy-btn ${copiedItems.bank ? 'copied' : ''}`}
+                      onClick={() => handleCopy('카카오뱅크', 'bank')}
+                      title="은행명 복사"
+                    >
+                      {copiedItems.bank ? <Check size={16} /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                </div>
+                <div className="account-item">
+                  <span className="account-label">계좌번호</span>
+                  <div className="account-value-with-copy">
+                    <span className="account-value">3333-34-9347430</span>
+                    <button 
+                      className={`copy-btn ${copiedItems.account ? 'copied' : ''}`}
+                      onClick={() => handleCopy('3333-34-9347430', 'account')}
+                      title="계좌번호 복사"
+                    >
+                      {copiedItems.account ? <Check size={16} /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                </div>
+                <div className="account-item">
+                  <span className="account-label">예금주</span>
+                  <div className="account-value-with-copy">
+                    <span className="account-value">서동현((템블)tamble)</span>
+                    <button 
+                      className={`copy-btn ${copiedItems.holder ? 'copied' : ''}`}
+                      onClick={() => handleCopy('서동현((템블)tamble)', 'holder')}
+                      title="예금주명 복사"
+                    >
+                      {copiedItems.holder ? <Check size={16} /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="account-note">
+                <p>※ 충전 신청란의 [입금자명] 과 입금시 [입금자명]이 일치해야 30분내로 자동으로 충전 됩니다.</p>
+                <p>※ 30분내 충전이 안될시 카카오채널(링크)로 문의 해주세요</p>
+                <p>※ 세금계산서 및 현금영수증 필요하시면 꼭 선택 부탁드립니다.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

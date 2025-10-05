@@ -605,6 +605,36 @@
   gap: 4px;
 }
 
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-info-btn-small {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.account-info-btn-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.account-info-btn-small:active {
+  transform: translateY(0);
+}
+
 .history-amount {
   font-size: 18px;
   font-weight: 700;
@@ -1110,6 +1140,15 @@
   .history-status {
     font-size: 12px;
   }
+  
+  .account-info-btn-small {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .history-actions {
+    gap: 8px;
+  }
 }
 
 /* 작은 모바일 화면 (480px 이하) */
@@ -1248,6 +1287,15 @@
   
   .history-status {
     font-size: 11px;
+  }
+  
+  .account-info-btn-small {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .history-actions {
+    gap: 6px;
   }
 }
 
@@ -1403,6 +1451,210 @@
   box-shadow: none;
 }
 
+/* 입금 계좌 정보 버튼 */
+.account-info-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: all 0.3s ease;
+  margin-top: 16px;
+}
+
+.account-info-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.account-info-btn:active {
+  transform: translateY(0);
+}
+
+/* 모달 스타일 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 20px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px 16px 32px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-close-btn {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #6b7280;
+}
+
+.modal-close-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.modal-body {
+  padding: 24px 32px 32px 32px;
+}
+
+.modal-info {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #0ea5e9;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.modal-info p {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  color: #0369a1;
+  font-weight: 600;
+}
+
+.modal-info p:last-child {
+  margin-bottom: 0;
+  font-size: 14px;
+  color: #0284c7;
+  font-weight: 500;
+}
+
+.account-modal .account-details {
+  margin-bottom: 24px;
+}
+
+.account-modal .account-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.account-modal .account-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+}
+
+.account-modal .account-value-with-copy {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-modal .account-value {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 16px;
+  font-family: 'Courier New', monospace;
+}
+
+.account-modal .copy-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.account-modal .copy-btn:hover {
+  background: #5a67d8;
+  transform: scale(1.05);
+}
+
+.account-modal .copy-btn.copied {
+  background: #10b981;
+}
+
+.account-modal .account-note {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.account-modal .account-note p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #92400e;
+  line-height: 1.5;
+}
+
+.account-modal .account-note p:last-child {
+  margin-bottom: 0;
+}
+
 .purchase-btn:disabled:hover {
   background: #e5e7eb;
   transform: none;
@@ -1477,5 +1729,111 @@
   .amount-add-btn {
     padding: 12px 14px;
     font-size: 13px;
+  }
+}
+
+/* 모달 모바일 반응형 */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: 16px;
+  }
+  
+  .modal-content {
+    max-width: 100%;
+    border-radius: 16px;
+  }
+  
+  .modal-header {
+    padding: 20px 24px 16px 24px;
+  }
+  
+  .modal-header h2 {
+    font-size: 18px;
+  }
+  
+  .modal-body {
+    padding: 20px 24px 24px 24px;
+  }
+  
+  .modal-info {
+    padding: 14px 16px;
+    margin-bottom: 20px;
+  }
+  
+  .modal-info p {
+    font-size: 14px;
+  }
+  
+  .modal-info p:last-child {
+    font-size: 13px;
+  }
+  
+  .account-modal .account-item {
+    padding: 12px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .account-modal .account-value-with-copy {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .account-info-btn {
+    padding: 14px 20px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: 12px;
+  }
+  
+  .modal-content {
+    border-radius: 12px;
+  }
+  
+  .modal-header {
+    padding: 16px 20px 12px 20px;
+  }
+  
+  .modal-header h2 {
+    font-size: 16px;
+  }
+  
+  .modal-body {
+    padding: 16px 20px 20px 20px;
+  }
+  
+  .modal-info {
+    padding: 12px 14px;
+    margin-bottom: 16px;
+  }
+  
+  .modal-info p {
+    font-size: 13px;
+  }
+  
+  .modal-info p:last-child {
+    font-size: 12px;
+  }
+  
+  .account-modal .account-item {
+    padding: 10px 14px;
+  }
+  
+  .account-modal .account-label {
+    font-size: 13px;
+  }
+  
+  .account-modal .account-value {
+    font-size: 15px;
+  }
+  
+  .account-info-btn {
+    padding: 12px 16px;
+    font-size: 14px;
   }
 }
