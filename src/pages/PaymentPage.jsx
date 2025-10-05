@@ -118,56 +118,13 @@ const PaymentPage = () => {
 
       const deductResult = await deductResponse.json()
 
-      // 2. SMM Panel API 호출 (백엔드 프록시 사용) - 예약 발송이 아닐 때만
-      if (!orderData.isScheduledOrder) {
-        try {
-          // SMM Panel API용 데이터 변환 (새로운 API 형식)
-          // 패키지 상품인 경우 첫 번째 단계의 서비스 ID와 수량 사용
-          let serviceId = orderData.service_id || orderData.detailedService?.id
-          let quantity = orderData.quantity
-          
-          if (orderData.detailedService?.package && orderData.detailedService?.steps && orderData.detailedService.steps.length > 0) {
-            serviceId = orderData.detailedService.steps[0].id
-            quantity = orderData.detailedService.steps[0].quantity || orderData.quantity
-            console.log('📦 패키지 상품 - 첫 번째 단계 서비스 ID:', serviceId, '수량:', quantity)
-          }
-          
-          const smmOrderData = {
-            action: 'add',
-            service: serviceId,
-            link: orderData.link,
-            quantity: quantity,
-            runs: 1,
-            interval: 0,
-            key: 'bc85538982fb27c6c0558be6cd669e67'
-          }
-          
-          
-          const smmResponse = await fetch('/api/smm-panel', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(smmOrderData)
-          })
-
-          if (smmResponse.ok) {
-            const smmResult = await smmResponse.json()
-            
-            if (smmResult.success && smmResult.data) {
-              // 새로운 API 형식: {"order": 23501}
-              if (smmResult.data.order) {
-              }
-            } else {
-            }
-          } else {
-            const errorData = await smmResponse.json().catch(() => ({ error: 'Unknown error' }))
-          }
-        } catch (smmError) {
-          // SMM Panel API 실패해도 주문은 완료된 것으로 처리
-        }
+      // 2. SMM Panel API 호출 - 백엔드에서 처리하므로 프론트엔드에서는 호출하지 않음
+      if (orderData.isScheduledOrder) {
+        console.log('📅 예약 발송 주문 - 백엔드에서 처리 예정')
+      } else if (orderData.detailedService?.package && orderData.detailedService?.steps && orderData.detailedService.steps.length > 0) {
+        console.log('📦 패키지 상품 - 백엔드에서 순차 처리 예정')
       } else {
-        console.log('📅 예약 발송 주문 - SMM Panel API 호출 건너뛰기')
+        console.log('🚀 일반 주문 - 백엔드에서 즉시 처리 예정')
       }
 
       // 3. 주문 생성 (결제 완료 후)
