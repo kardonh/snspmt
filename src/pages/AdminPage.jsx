@@ -149,6 +149,16 @@ const AdminPage = () => {
     }
   }
 
+  // 안전한 숫자 포맷팅 함수
+  const formatNumber = (value) => {
+    if (value === null || value === undefined || isNaN(value)) return '0'
+    try {
+      return Number(value).toLocaleString()
+    } catch (error) {
+      return '0'
+    }
+  }
+
   // 관리자 데이터 로드
   const loadAdminData = async () => {
     setIsLoading(true)
@@ -671,7 +681,7 @@ const AdminPage = () => {
             </div>
           <div className="stat-content">
             <h3>총 사용자</h3>
-            <p className="stat-number">{dashboardData.totalUsers.toLocaleString()}</p>
+            <p className="stat-number">{formatNumber(dashboardData.totalUsers)}</p>
             <p className="stat-label">전체 등록된 사용자</p>
             </div>
             </div>
@@ -682,7 +692,7 @@ const AdminPage = () => {
             </div>
           <div className="stat-content">
             <h3>총 주문</h3>
-            <p className="stat-number">{dashboardData.totalOrders.toLocaleString()}</p>
+            <p className="stat-number">{formatNumber(dashboardData.totalOrders)}</p>
             <p className="stat-label">전체 주문 건수</p>
           </div>
         </div>
@@ -693,7 +703,7 @@ const AdminPage = () => {
           </div>
           <div className="stat-content">
             <h3>총 매출</h3>
-            <p className="stat-number">₩{dashboardData.totalRevenue.toLocaleString()}</p>
+            <p className="stat-number">₩{formatNumber(dashboardData.totalRevenue)}</p>
             <p className="stat-label">전체 누적 매출</p>
                   </div>
                 </div>
@@ -726,7 +736,7 @@ const AdminPage = () => {
             </div>
           <div className="stat-content">
             <h3>오늘 매출</h3>
-            <p className="stat-number">₩{dashboardData.todayRevenue.toLocaleString()}</p>
+            <p className="stat-number">₩{formatNumber(dashboardData.todayRevenue)}</p>
             <p className="stat-label">오늘 신규 매출</p>
           </div>
         </div>
@@ -806,7 +816,7 @@ const AdminPage = () => {
                 <tr key={index}>
                   <td>{user.userId || 'N/A'}</td>
                   <td>{user.email || 'N/A'}</td>
-                  <td>{user.points?.toLocaleString() || 0}</td>
+                  <td>{formatNumber(user.points)}</td>
                   <td>{formatDate(user.createdAt)}</td>
                   <td>{formatDate(user.lastActivity)}</td>
                 </tr>
@@ -857,8 +867,8 @@ const AdminPage = () => {
                   <td>{order.orderId || 'N/A'}</td>
                   <td>{order.platform || 'N/A'}</td>
                   <td>{order.service || 'N/A'}</td>
-                  <td>{order.quantity?.toLocaleString() || 0}</td>
-                  <td>₩{order.amount?.toLocaleString() || 0}</td>
+                  <td>{formatNumber(order.quantity)}</td>
+                  <td>₩{formatNumber(order.amount)}</td>
                   <td>
                     {order.link && order.link !== 'N/A' ? (
                       <a href={order.link} target="_blank" rel="noopener noreferrer" className="order-link">
@@ -922,7 +932,7 @@ const AdminPage = () => {
                 <td>{purchase.email || 'N/A'}</td>
                 <td>{purchase.buyerName || 'N/A'}</td>
                 <td>{purchase.bankInfo || 'N/A'}</td>
-                <td>₩{purchase.amount?.toLocaleString() || 0}</td>
+                <td>₩{formatNumber(purchase.amount)}</td>
                 <td>{formatDate(purchase.createdAt)}</td>
                 <td>
                   <span className={`status ${purchase.status || 'pending'}`}>
@@ -1048,7 +1058,7 @@ const AdminPage = () => {
                     </td>
                     <td>{code.usage_count}</td>
                     <td className="commission-amount">
-                      {code.total_commission.toLocaleString()}원
+                      {formatNumber(code.total_commission)}원
                     </td>
                     <td>{code.created_at ? new Date(code.created_at).toLocaleDateString() : '날짜 없음'}</td>
                   </tr>
@@ -1075,9 +1085,9 @@ const AdminPage = () => {
                 {referralCommissions.map((commission, index) => (
                   <tr key={index}>
                     <td>{commission.referred_user_id}</td>
-                    <td>{commission.purchase_amount?.toLocaleString()}원</td>
+                    <td>{formatNumber(commission.purchase_amount)}원</td>
                     <td className="commission-amount">
-                      {commission.commission_amount.toLocaleString()}원
+                      {formatNumber(commission.commission_amount)}원
                     </td>
                     <td>{(commission.commission_rate * 100).toFixed(1)}%</td>
                     <td>{new Date(commission.created_at).toLocaleDateString()}</td>
@@ -1097,7 +1107,7 @@ const AdminPage = () => {
         <div className="stat-card">
           <h4>총 커미션 지급</h4>
           <span className="stat-number">
-            {referralCommissions.reduce((sum, c) => sum + c.commission_amount, 0).toLocaleString()}원
+            {formatNumber(referralCommissions.reduce((sum, c) => sum + (c.commission_amount || 0), 0))}원
           </span>
                       </div>
         <div className="stat-card">
@@ -1126,11 +1136,11 @@ const AdminPage = () => {
           </div>
           <div className="stat-card">
             <h4>총 커미션</h4>
-            <span className="stat-number">{(commissionStats.total_commissions || 0).toLocaleString()}원</span>
+            <span className="stat-number">{formatNumber(commissionStats.total_commissions)}원</span>
           </div>
           <div className="stat-card">
             <h4>이번 달 커미션</h4>
-            <span className="stat-number">{(commissionStats.this_month_commissions || 0).toLocaleString()}원</span>
+            <span className="stat-number">{formatNumber(commissionStats.this_month_commissions)}원</span>
           </div>
         </div>
       </div>
@@ -1169,14 +1179,14 @@ const AdminPage = () => {
                     <span className="referral-count">{referrer.referral_count}명</span>
                   </td>
                   <td>
-                    <span className="total-commission">{referrer.total_commission.toLocaleString()}원</span>
+                    <span className="total-commission">{formatNumber(referrer.total_commission)}원</span>
                   </td>
                   <td>
-                    <span className="month-commission">{referrer.this_month_commission.toLocaleString()}원</span>
+                    <span className="month-commission">{formatNumber(referrer.this_month_commission)}원</span>
                   </td>
                   <td>
                     <span className={`unpaid-commission ${referrer.unpaid_commission > 0 ? 'has-unpaid' : ''}`}>
-                      {referrer.unpaid_commission.toLocaleString()}원
+                      {formatNumber(referrer.unpaid_commission)}원
                     </span>
                   </td>
                   <td>
@@ -1215,7 +1225,7 @@ const AdminPage = () => {
               {paymentHistory.map((payment, index) => (
                 <tr key={index}>
                   <td>{payment.referrer_email}</td>
-                  <td className="payment-amount">{payment.amount.toLocaleString()}원</td>
+                  <td className="payment-amount">{formatNumber(payment.amount)}원</td>
                   <td>
                     <span className={`payment-method ${payment.payment_method}`}>
                       {payment.payment_method === 'bank_transfer' ? '계좌이체' : 

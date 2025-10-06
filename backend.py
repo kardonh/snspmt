@@ -1069,7 +1069,7 @@ def init_database():
             
             # 추천인 커미션 포인트 테이블 생성
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS referral_commission_points (
+                CREATE TABLE IF NOT EXISTS commission_points (
                     id SERIAL PRIMARY KEY,
                     referrer_email VARCHAR(255) NOT NULL,
                     referrer_name VARCHAR(255),
@@ -1356,7 +1356,7 @@ def init_database():
                 "CREATE INDEX IF NOT EXISTS idx_package_progress_order_id ON package_progress(order_id)",
                 "CREATE INDEX IF NOT EXISTS idx_package_progress_status ON package_progress(status)",
                 "CREATE INDEX IF NOT EXISTS idx_split_delivery_order_id ON split_delivery_progress(order_id)",
-                "CREATE INDEX IF NOT EXISTS idx_commission_points_email ON referral_commission_points(referrer_email)",
+                "CREATE INDEX IF NOT EXISTS idx_commission_points_email ON commission_points(referrer_email)",
                 "CREATE INDEX IF NOT EXISTS idx_commission_transactions_email ON commission_point_transactions(referrer_email)",
                 "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_email ON commission_withdrawal_requests(referrer_email)",
                 "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_status ON commission_withdrawal_requests(status)"
@@ -1378,7 +1378,7 @@ def init_database():
                 "CREATE INDEX IF NOT EXISTS idx_package_progress_order_id ON package_progress(order_id)",
                 "CREATE INDEX IF NOT EXISTS idx_package_progress_status ON package_progress(status)",
                 "CREATE INDEX IF NOT EXISTS idx_split_delivery_order_id ON split_delivery_progress(order_id)",
-                "CREATE INDEX IF NOT EXISTS idx_commission_points_email ON referral_commission_points(referrer_email)",
+                "CREATE INDEX IF NOT EXISTS idx_commission_points_email ON commission_points(referrer_email)",
                 "CREATE INDEX IF NOT EXISTS idx_commission_transactions_email ON commission_point_transactions(referrer_email)",
                 "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_email ON commission_withdrawal_requests(referrer_email)",
                 "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_status ON commission_withdrawal_requests(status)"
@@ -1977,13 +1977,13 @@ def create_order():
                 # 커미션 포인트 적립 처리
                 if DATABASE_URL.startswith('postgresql://'):
                     # 추천인 포인트 계정이 있는지 확인
-                    cursor.execute("SELECT id FROM referral_commission_points WHERE referrer_email = %s", (referrer_email,))
+                    cursor.execute("SELECT id FROM commission_points WHERE referrer_email = %s", (referrer_email,))
                     existing_account = cursor.fetchone()
                     
                     if existing_account:
                         # 기존 계정 업데이트
                         cursor.execute("""
-                            UPDATE referral_commission_points 
+                            UPDATE commission_points 
                             SET total_earned = total_earned + %s, 
                                 current_balance = current_balance + %s,
                                 updated_at = NOW()
@@ -1992,7 +1992,7 @@ def create_order():
                     else:
                         # 새 계정 생성
                         cursor.execute("""
-                            INSERT INTO referral_commission_points 
+                            INSERT INTO commission_points 
                             (referrer_email, total_earned, current_balance, created_at, updated_at)
                             VALUES (%s, %s, %s, NOW(), NOW())
                         """, (referrer_email, commission_amount, commission_amount))
@@ -2005,12 +2005,12 @@ def create_order():
                     """, (referrer_email, 'earned', commission_amount, commission_amount, f'추천인 커미션 적립 - 주문 ID: {order_id}'))
                 else:
                     # SQLite 버전
-                    cursor.execute("SELECT id FROM referral_commission_points WHERE referrer_email = ?", (referrer_email,))
+                    cursor.execute("SELECT id FROM commission_points WHERE referrer_email = ?", (referrer_email,))
                     existing_account = cursor.fetchone()
                     
                     if existing_account:
                         cursor.execute("""
-                            UPDATE referral_commission_points 
+                            UPDATE commission_points 
                             SET total_earned = total_earned + ?, 
                                 current_balance = current_balance + ?,
                                 updated_at = datetime('now')
@@ -2018,7 +2018,7 @@ def create_order():
                         """, (commission_amount, commission_amount, referrer_email))
                     else:
                         cursor.execute("""
-                            INSERT INTO referral_commission_points 
+                            INSERT INTO commission_points 
                             (referrer_email, total_earned, current_balance, created_at, updated_at)
                             VALUES (?, ?, ?, datetime('now'), datetime('now'))
                         """, (referrer_email, commission_amount, commission_amount))
@@ -4428,13 +4428,13 @@ def get_commission_points():
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT total_earned, total_paid, current_balance, created_at, updated_at
-                FROM referral_commission_points 
+                FROM commission_points 
                 WHERE referrer_email = %s
             """, (referrer_email,))
         else:
             cursor.execute("""
                 SELECT total_earned, total_paid, current_balance, created_at, updated_at
-                FROM referral_commission_points 
+                FROM commission_points 
                 WHERE referrer_email = ?
             """, (referrer_email,))
         
@@ -4526,12 +4526,12 @@ def request_withdrawal():
         # 현재 잔액 확인
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT current_balance FROM referral_commission_points 
+                SELECT current_balance FROM commission_points 
                 WHERE referrer_email = %s
             """, (referrer_email,))
         else:
             cursor.execute("""
-                SELECT current_balance FROM referral_commission_points 
+                SELECT current_balance FROM commission_points 
                 WHERE referrer_email = ?
             """, (referrer_email,))
         
@@ -4645,12 +4645,12 @@ def process_withdrawal():
             # 현재 잔액 조회
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    SELECT current_balance FROM referral_commission_points 
+                    SELECT current_balance FROM commission_points 
                     WHERE referrer_email = %s
                 """, (referrer_email,))
             else:
                 cursor.execute("""
-                    SELECT current_balance FROM referral_commission_points 
+                    SELECT current_balance FROM commission_points 
                     WHERE referrer_email = ?
                 """, (referrer_email,))
             
@@ -4673,12 +4673,12 @@ def process_withdrawal():
             # 차감 전 현재 total_paid 조회
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    SELECT total_paid FROM referral_commission_points 
+                    SELECT total_paid FROM commission_points 
                     WHERE referrer_email = %s
                 """, (referrer_email,))
             else:
                 cursor.execute("""
-                    SELECT total_paid FROM referral_commission_points 
+                    SELECT total_paid FROM commission_points 
                     WHERE referrer_email = ?
                 """, (referrer_email,))
             
@@ -4689,7 +4689,7 @@ def process_withdrawal():
             print(f"💰 total_paid 업데이트 - 현재: {current_total_paid}, 차감 후: {new_total_paid}")
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    UPDATE referral_commission_points 
+                    UPDATE commission_points 
                     SET current_balance = current_balance - %s, 
                         total_paid = total_paid - %s,
                         updated_at = NOW()
@@ -4713,7 +4713,7 @@ def process_withdrawal():
             else:
                 # SQLite 버전
                 cursor.execute("""
-                    UPDATE referral_commission_points 
+                    UPDATE commission_points 
                     SET current_balance = current_balance - ?, 
                         total_paid = total_paid - ?,
                         updated_at = datetime('now')
