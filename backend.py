@@ -2163,6 +2163,7 @@ def start_package_processing():
             return jsonify({'error': '주문 ID가 필요합니다.'}), 400
         
         print(f"🚀 패키지 주문 처리 시작 요청: {order_id}")
+        print(f"🚀 요청 데이터: {data}")
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -2183,12 +2184,19 @@ def start_package_processing():
         
         order = cursor.fetchone()
         
+        print(f"🔍 주문 조회 결과: {order}")
+        
         if not order:
+            print(f"❌ 주문 {order_id}을 찾을 수 없습니다.")
             return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
         
         order_id_db, user_id, link, package_steps_json, status = order
         
+        print(f"🔍 주문 상세 정보: ID={order_id_db}, 사용자={user_id}, 상태={status}")
+        print(f"🔍 패키지 단계 정보: {package_steps_json}")
+        
         if status != 'pending':
+            print(f"❌ 주문 {order_id} 상태가 'pending'이 아닙니다. 현재 상태: {status}")
             return jsonify({'error': '이미 처리된 주문입니다.'}), 400
         
         # package_steps 파싱

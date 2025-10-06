@@ -221,7 +221,8 @@ const PaymentPage = () => {
           })
 
           if (!startPackageResponse.ok) {
-            console.warn('⚠️ 패키지 주문 시작 실패 (주문은 정상 생성됨)')
+            const errorData = await startPackageResponse.json()
+            console.warn('⚠️ 패키지 주문 시작 실패 (주문은 정상 생성됨):', errorData)
           } else {
             console.log('✅ 패키지 주문 처리 시작됨')
           }
