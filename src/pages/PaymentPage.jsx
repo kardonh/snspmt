@@ -216,7 +216,7 @@ const PaymentPage = () => {
               'X-User-ID': orderData.userId || orderData.user_id
             },
             body: JSON.stringify({
-              order_id: orderResult.order_id || orderResult.order
+              order_id: orderResult.order_id
             })
           })
 

@@ -1971,9 +1971,9 @@ const Home = () => {
                 로그인하여 주문하기
               </button>
             ) : (
-              <button className="submit-btn" onClick={handlePurchase} disabled={isLoading}>
-                {isLoading ? '처리 중...' : '구매하기'}
-              </button>
+            <button className="submit-btn" onClick={handlePurchase} disabled={isLoading}>
+              {isLoading ? '처리 중...' : '구매하기'}
+            </button>
             )}
           </div>
         </div>

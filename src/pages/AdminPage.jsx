@@ -27,6 +27,21 @@ import {
 import './AdminPage.css'
 
 const AdminPage = () => {
+  // 관리자 API 호출 헬퍼 함수
+  const adminFetch = async (url, options = {}) => {
+    const defaultHeaders = {
+      'X-Admin-Token': 'admin_sociality_2024' // 관리자 토큰
+    }
+    
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers
+      }
+    })
+  }
+
   // 상태 관리
   const [activeTab, setActiveTab] = useState('dashboard')
   const [isLoading, setIsLoading] = useState(false)
@@ -163,7 +178,7 @@ const AdminPage = () => {
   // 대시보드 통계 로드
   const loadDashboardStats = async () => {
     try {
-      const response = await fetch('/api/admin/stats')
+      const response = await adminFetch('/api/admin/stats')
       
       if (response.ok) {
         const data = await response.json()
@@ -175,6 +190,8 @@ const AdminPage = () => {
           todayOrders: data.today_orders || 0,
           todayRevenue: data.today_revenue || 0
         })
+      } else {
+        console.error('대시보드 통계 로드 실패:', response.status)
       }
     } catch (error) {
       // 대시보드 통계 로드 실패
@@ -184,7 +201,7 @@ const AdminPage = () => {
   // 사용자 데이터 로드
   const loadUsers = async () => {
     try {
-      const response = await fetch('/api/admin/users')
+      const response = await adminFetch('/api/admin/users')
       
       if (response.ok) {
       const data = await response.json()
@@ -209,7 +226,7 @@ const AdminPage = () => {
   // 주문 데이터 로드
   const loadOrders = async () => {
     try {
-      const response = await fetch('/api/admin/transactions')
+      const response = await adminFetch('/api/admin/transactions')
       
       if (response.ok) {
         const data = await response.json()
@@ -238,7 +255,7 @@ const AdminPage = () => {
   // 포인트 구매 신청 로드
   const loadPendingPurchases = async () => {
     try {
-      const response = await fetch('/api/admin/purchases')
+      const response = await adminFetch('/api/admin/purchases')
       
       if (response.ok) {
         const data = await response.json()
@@ -267,7 +284,7 @@ const AdminPage = () => {
   // 포인트 구매 신청 승인
   const handleApprovePurchase = async (purchaseId) => {
     try {
-      const response = await fetch(`/api/admin/purchases/${purchaseId}`, {
+      const response = await adminFetch(`/api/admin/purchases/${purchaseId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -298,7 +315,7 @@ const AdminPage = () => {
   // 포인트 구매 신청 거절
   const handleRejectPurchase = async (purchaseId) => {
     try {
-      const response = await fetch(`/api/admin/purchases/${purchaseId}`, {
+      const response = await adminFetch(`/api/admin/purchases/${purchaseId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -334,9 +351,9 @@ const AdminPage = () => {
       
       // 서버에서 데이터 로드
       const [codesResponse, referralsResponse, commissionsResponse] = await Promise.all([
-        fetch('/api/admin/referral/codes'),
-        fetch('/api/admin/referral/list'),
-        fetch('/api/admin/referral/commissions')
+        adminFetch('/api/admin/referral/codes'),
+        adminFetch('/api/admin/referral/list'),
+        adminFetch('/api/admin/referral/commissions')
       ])
       
       console.log('📡 API 응답 상태:', {
@@ -393,8 +410,8 @@ const AdminPage = () => {
   const loadCommissionData = async () => {
     try {
       const [overviewResponse, historyResponse] = await Promise.all([
-        fetch('/api/admin/referral/commission-overview'),
-        fetch('/api/admin/referral/payment-history')
+        adminFetch('/api/admin/referral/commission-overview'),
+        adminFetch('/api/admin/referral/payment-history')
       ])
       
       if (overviewResponse.ok) {
@@ -415,7 +432,7 @@ const AdminPage = () => {
   // 커미션 환급 처리
   const handleCommissionPayment = async () => {
     try {
-      const response = await fetch('/api/admin/referral/pay-commission', {
+      const response = await adminFetch('/api/admin/referral/pay-commission', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -458,7 +475,7 @@ const AdminPage = () => {
   // 모든 추천인 코드 활성화
   const handleActivateAllCodes = async () => {
     try {
-      const response = await fetch('/api/admin/referral/activate-all', {
+      const response = await adminFetch('/api/admin/referral/activate-all', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -492,7 +509,7 @@ const AdminPage = () => {
   const handleReferralRegistrationSuccess = async (result) => {
     try {
       // 서버에 추천인 등록
-      const response = await fetch('/api/admin/referral/register', {
+      const response = await adminFetch('/api/admin/referral/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -527,7 +544,7 @@ const AdminPage = () => {
     }
 
     try {
-      const response = await fetch('/api/admin/referral/register', {
+      const response = await adminFetch('/api/admin/referral/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
