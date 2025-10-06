@@ -2063,15 +2063,15 @@ def create_order():
             print(f"📦 패키지 주문 - {len(package_steps)}단계 순차 처리 예정")
             print(f"📦 패키지 단계 상세: {json.dumps(package_steps, indent=2, ensure_ascii=False)}")
             
-            # 패키지 단계 정보를 JSON으로 저장
+            # 패키지 단계 정보를 JSON으로 저장 (상태는 pending으로 유지)
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    UPDATE orders SET package_steps = %s, status = 'package_processing', updated_at = NOW()
+                    UPDATE orders SET package_steps = %s, updated_at = NOW()
                     WHERE order_id = %s
                 """, (json.dumps(package_steps), order_id))
             else:
                 cursor.execute("""
-                    UPDATE orders SET package_steps = ?, status = 'package_processing', updated_at = CURRENT_TIMESTAMP
+                    UPDATE orders SET package_steps = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE order_id = ?
                 """, (json.dumps(package_steps), order_id))
             
