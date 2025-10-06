@@ -75,6 +75,13 @@ const OrdersPage = () => {
   useEffect(() => {
     if (currentUser) {
       loadOrders()
+      
+      // 30초마다 주문 상태 업데이트
+      const interval = setInterval(() => {
+        loadOrders()
+      }, 30000)
+      
+      return () => clearInterval(interval)
     }
   }, [currentUser])
 
@@ -127,10 +134,12 @@ const OrdersPage = () => {
       case 'completed':
         return <CheckCircle size={20} className="status-icon completed" />
       case 'canceled':
+      case 'cancelled':
         return <XCircle size={20} className="status-icon canceled" />
       case 'pending':
         return <Clock size={20} className="status-icon pending" />
       case 'processing':
+      case 'package_processing':
         return <RefreshCw size={20} className="status-icon processing" />
       case 'pending_payment':
         return <AlertCircle size={20} className="status-icon pending" />
@@ -140,6 +149,12 @@ const OrdersPage = () => {
         return <AlertCircle size={20} className="status-icon received" />
       case 'in_progress':
         return <RefreshCw size={20} className="status-icon in-progress" />
+      case 'split_scheduled':
+        return <Clock size={20} className="status-icon scheduled" />
+      case 'failed':
+        return <XCircle size={20} className="status-icon canceled" />
+      case 'partial_completed':
+        return <CheckCircle size={20} className="status-icon completed" />
       default:
         return <AlertCircle size={20} className="status-icon unknown" />
     }
@@ -150,10 +165,12 @@ const OrdersPage = () => {
       case 'completed':
         return '완료'
       case 'canceled':
+      case 'cancelled':
         return '주문 취소 및 전액 환불'
       case 'pending':
         return '주문 대기 중'
       case 'processing':
+      case 'package_processing':
         return '주문 준비 및 가동 중'
       case 'pending_payment':
         return '주문 접수'
@@ -163,6 +180,12 @@ const OrdersPage = () => {
         return '접수됨'
       case 'in_progress':
         return '실행중'
+      case 'split_scheduled':
+        return '분할 발송 예약됨'
+      case 'failed':
+        return '실패'
+      case 'partial_completed':
+        return '부분 완료 (작업 안된 만큼 환불)'
       default:
         return '알 수 없음'
     }
@@ -216,13 +239,27 @@ const OrdersPage = () => {
       case 'completed':
         return 'status-completed'
       case 'canceled':
+      case 'cancelled':
         return 'status-canceled'
       case 'pending':
         return 'status-pending'
       case 'processing':
+      case 'package_processing':
         return 'status-processing'
       case 'pending_payment':
         return 'status-pending'
+      case 'scheduled':
+        return 'status-scheduled'
+      case 'received':
+        return 'status-received'
+      case 'in_progress':
+        return 'status-in-progress'
+      case 'split_scheduled':
+        return 'status-scheduled'
+      case 'failed':
+        return 'status-canceled'
+      case 'partial_completed':
+        return 'status-completed'
       default:
         return 'status-unknown'
     }
@@ -350,14 +387,14 @@ const OrdersPage = () => {
 
   const filterOptions = [
     '전체',
-    '예약됨',
-    '접수됨', 
-    '실행중',
-    '완료',
+    '주문 대기 중',
     '주문 접수',
     '주문 준비 및 가동 중',
+    '실행중',
+    '완료',
     '부분 완료 (작업 안된 만큼 환불)',
-    '주문 대기 중',
+    '예약됨',
+    '접수됨',
     '주문 취소 및 전액 환불'
   ]
 
@@ -366,6 +403,15 @@ const OrdersPage = () => {
       <div className="orders-container">
         <div className="orders-header">
           <h1>주문내역 관리</h1>
+          <button 
+            className="refresh-btn"
+            onClick={loadOrders}
+            disabled={loading}
+            title="주문 상태 새로고침"
+          >
+            <RefreshCw size={20} className={loading ? 'loading-icon' : ''} />
+            새로고침
+          </button>
         </div>
 
         <div className="orders-controls">
@@ -451,7 +497,7 @@ const OrdersPage = () => {
                       </div>
                       <div className="info-row">
                         <span className="label">수량:</span>
-                        <span className="value">{order.quantity?.toLocaleString() || 'N/A'}</span>
+                        <span className="value">{order.quantity ? order.quantity.toLocaleString() : 'N/A'}</span>
                       </div>
                       <div className="info-row">
                         <span className="label">가격:</span>
@@ -485,7 +531,7 @@ const OrdersPage = () => {
                                 <div className="step-header">
                                   <span className="step-number">{index + 1}</span>
                                   <span className="step-name">{step.name}</span>
-                                  <span className="step-quantity">({step.quantity?.toLocaleString() || 0}개)</span>
+                                  <span className="step-quantity">({step.quantity ? step.quantity.toLocaleString() : 0}개)</span>
                                 </div>
                                 {step.description && (
                                   <div className="step-description">{step.description}</div>
@@ -592,7 +638,7 @@ const OrdersPage = () => {
                   </div>
                   <div className="detail-item">
                     <span className="label">수량:</span>
-                    <span className="value">{selectedOrder.quantity?.toLocaleString() || 'N/A'}</span>
+                    <span className="value">{selectedOrder.quantity ? selectedOrder.quantity.toLocaleString() : 'N/A'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">주문일:</span>
@@ -607,11 +653,11 @@ const OrdersPage = () => {
                   <div className="detail-grid">
                     <div className="detail-item">
                       <span className="label">시작 수량:</span>
-                      <span className="value">{selectedOrder.start_count?.toLocaleString() || '0'}</span>
+                      <span className="value">{selectedOrder.start_count ? selectedOrder.start_count.toLocaleString() : '0'}</span>
                     </div>
                     <div className="detail-item">
                       <span className="label">남은 수량:</span>
-                      <span className="value">{selectedOrder.remains?.toLocaleString() || '0'}</span>
+                      <span className="value">{selectedOrder.remains ? selectedOrder.remains.toLocaleString() : '0'}</span>
                     </div>
                   </div>
                 </div>

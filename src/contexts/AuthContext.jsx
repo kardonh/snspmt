@@ -23,6 +23,7 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   function signup(email, password, username, businessInfo = null) {
     return createUserWithEmailAndPassword(auth, email, password)
@@ -31,11 +32,12 @@ export function AuthProvider({ children }) {
         return updateProfile(userCredential.user, {
           displayName: username
         }).then(() => {
-          // 비즈니스 정보가 있으면 추가 정보와 함께 저장
+          // 사용자 정보 저장
           const userData = {
             user_id: userCredential.user.uid,
             email: userCredential.user.email,
-            name: username || userCredential.user.email.split('@')[0] || '사용자'
+            name: username || userCredential.user.email.split('@')[0] || '사용자',
+            phoneNumber: businessInfo?.phoneNumber || '' // 개인/비즈니스 계정 모두 전화번호 저장
           };
           
           if (businessInfo && businessInfo.accountType === 'business') {
@@ -204,7 +206,9 @@ export function AuthProvider({ children }) {
     login,
     logout,
     updateProfile: updateUserProfile,
-    deleteAccount
+    deleteAccount,
+    showAuthModal,
+    setShowAuthModal
   };
 
   return (

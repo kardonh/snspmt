@@ -51,6 +51,13 @@ const PointsPage = () => {
     }
   }, [userInfo, receiptType])
 
+  // userInfo가 로드되면 현금영수증 전화번호 자동 입력
+  useEffect(() => {
+    if (userInfo && userInfo.phoneNumber) {
+      setCashReceiptPhone(userInfo.phoneNumber)
+    }
+  }, [userInfo])
+
   const loadUserPoints = async () => {
     try {
       const userId = currentUser?.uid || localStorage.getItem('userId') || 'demo_user'
@@ -465,13 +472,16 @@ const PointsPage = () => {
               <label>
                 <User size={16} />
                 전화번호
+                {userInfo && userInfo.phoneNumber && (
+                  <span className="auto-fill-badge">자동입력됨</span>
+                )}
               </label>
               <input
                 type="tel"
                 value={cashReceiptPhone}
                 onChange={(e) => setCashReceiptPhone(e.target.value)}
                 placeholder="현금영수증 발급용 전화번호를 입력하세요 (예: 010-1234-5678)"
-                className="form-input"
+                className={`form-input ${userInfo && userInfo.phoneNumber ? 'auto-filled' : ''}`}
               />
             </div>
           )}

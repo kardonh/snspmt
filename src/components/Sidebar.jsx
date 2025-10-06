@@ -17,12 +17,15 @@ import {
   Users
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useGuest } from '../contexts/GuestContext'
 import './Sidebar.css'
 
 const Sidebar = ({ onClose }) => {
   const location = useLocation()
   const navigate = useNavigate()
-  const { currentUser, logout } = useAuth()
+  const { currentUser, logout, setShowAuthModal } = useAuth()
+  const { isGuest } = useGuest()
+
   const [businessInfoOpen, setBusinessInfoOpen] = useState(false)
   const [userPoints, setUserPoints] = useState(0)
   const [pointsLoading, setPointsLoading] = useState(false)
@@ -102,9 +105,13 @@ const Sidebar = ({ onClose }) => {
   const referralMenuItem = { id: 'referral', name: '추천인 대시보드', icon: Users, path: '/referral', color: '#8b5cf6' }
 
   // 최종 메뉴 아이템 구성
-  const menuItems = hasReferralCode 
-    ? [...baseMenuItems.slice(0, 3), referralMenuItem, ...baseMenuItems.slice(3)]
+  const filteredBaseMenuItems = (isGuest && !currentUser)
+    ? baseMenuItems.filter(item => ['order', 'faq', 'service'].includes(item.id)) // 게스트 모드에서는 주문하기, FAQ, 서비스 소개서만 표시
     : baseMenuItems
+
+  const menuItems = (hasReferralCode && !isGuest) 
+    ? [...filteredBaseMenuItems.slice(0, 3), referralMenuItem, ...filteredBaseMenuItems.slice(3)]
+    : filteredBaseMenuItems
 
   // 관리자 메뉴 아이템 (관리자 계정일 때만 표시)
   const adminMenuItems = [
@@ -114,7 +121,7 @@ const Sidebar = ({ onClose }) => {
   const handleSignOut = async () => {
     try {
       await logout()
-      alert('로그아웃되었습니다.')
+      alert('로그아웃되었습니다. 게스트 모드로 전환됩니다.')
       // 모바일에서 사이드바가 열려있다면 닫기
       if (onClose) {
         onClose()
@@ -153,17 +160,20 @@ const Sidebar = ({ onClose }) => {
         {currentUser ? (
           <div className="user-info">
             <span className="user-name">{currentUser.displayName || currentUser.email}</span>
-            <div className="user-points">
-              <Coins size={16} className="points-icon" />
-              <span className="points-text">
-                {pointsLoading ? '로딩중...' : `${userPoints.toLocaleString()}P`}
-              </span>
-            </div>
+            {currentUser && (
+              <div className="user-points">
+                <Coins size={16} className="points-icon" />
+                <span className="points-text">
+                  {pointsLoading ? '로딩중...' : `${userPoints.toLocaleString()}P`}
+                </span>
+              </div>
+            )}
             <button onClick={handleSignOut} className="logout-btn">로그아웃</button>
           </div>
         ) : (
           <div className="guest-info">
-            <span>guest</span>
+            <span className="guest-text">게스트 모드</span>
+            <button onClick={() => setShowAuthModal(true)} className="login-btn">로그인</button>
           </div>
         )}
       </div>

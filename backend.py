@@ -617,13 +617,30 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
     
     # 스레드로 지연 실행
     def delayed_next_step():
-        print(f"⏰ {next_delay}분 대기 후 다음 단계 실행: {next_step_name}")
-        time.sleep(next_delay * 60)  # 분을 초로 변환
-        process_package_step(order_id, next_step_index)
+        try:
+            print(f"⏰ {next_delay}분 대기 시작: {next_step_name}")
+            print(f"⏰ 현재 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            # 실제 대기 시간을 초 단위로 변환
+            wait_seconds = next_delay * 60
+            print(f"⏰ 대기 시간: {wait_seconds}초 ({next_delay}분)")
+            
+            # 1초씩 나누어서 대기 (중간에 중단되지 않도록)
+            for i in range(wait_seconds):
+                time.sleep(1)
+                if i % 60 == 0 and i > 0:  # 매분마다 로그
+                    remaining_minutes = (wait_seconds - i) // 60
+                    print(f"⏰ 남은 시간: {remaining_minutes}분")
+            
+            print(f"⏰ {next_delay}분 대기 완료, 다음 단계 실행: {next_step_name}")
+            print(f"⏰ 실행 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            process_package_step(order_id, next_step_index)
+        except Exception as e:
+            print(f"❌ 지연 실행 중 오류 발생: {str(e)}")
     
-    thread = threading.Thread(target=delayed_next_step, daemon=True)
+    thread = threading.Thread(target=delayed_next_step, daemon=False, name=f"PackageStep-{order_id}-{next_step_index}")
     thread.start()
-    print(f"✅ 패키지 단계 {next_step_index + 1} 스케줄링 완료")
+    print(f"✅ 패키지 단계 {next_step_index + 1} 스케줄링 완료 (스레드 ID: {thread.ident})")
 
 # 기존 패키지 주문 재처리 함수
 def reprocess_stuck_package_orders():
@@ -2060,28 +2077,12 @@ def create_order():
             
             conn.commit()
             
-            # 예약 발송이 아닌 경우에만 즉시 실행
-            if not is_scheduled:
-                print(f"🚀 패키지 주문 즉시 실행 - 첫 번째 단계 시작")
-                print(f"🚀 주문 ID: {order_id}, 사용자: {user_id}, 링크: {link}")
-                print(f"🚀 첫 번째 단계: {package_steps[0] if package_steps else 'None'}")
-                
-                # 첫 번째 단계 즉시 실행
-                def start_package_processing():
-                    print(f"📦 패키지 주문 {order_id} 처리 시작")
-                    print(f"📦 첫 번째 단계 실행: {package_steps[0] if package_steps else 'None'}")
-                    process_package_step(order_id, 0)
-                
-                # 별도 스레드에서 실행
-                thread = threading.Thread(target=start_package_processing, daemon=True)
-                thread.start()
-                
-                status = 'package_processing'
-                message = f'패키지 주문이 생성되었습니다. ({len(package_steps)}단계 순차 처리)'
-            else:
-                print(f"📅 예약 패키지 주문 - 예약 시간에 처리 예정")
-                status = 'scheduled'
-                message = f'예약 패키지 주문이 생성되었습니다. ({len(package_steps)}단계 순차 처리)'
+            # 모든 패키지 주문은 결제 완료 후에만 처리되도록 변경
+            print(f"📦 패키지 주문 생성 완료 - 결제 완료 후 처리 예정")
+            print(f"📦 주문 ID: {order_id}, 사용자: {user_id}, 단계 수: {len(package_steps)}")
+            
+            status = 'pending'  # 결제 완료 전까지는 pending 상태
+            message = f'패키지 주문이 생성되었습니다. 결제 완료 후 {len(package_steps)}단계 순차 처리됩니다.'
         else:
             # 일반 주문은 즉시 SMM Panel API 호출
             print(f"🚀 일반 주문 - 즉시 SMM Panel API 호출")
@@ -2146,6 +2147,110 @@ def create_order():
         if conn:
             conn.close()
         print("✅ 데이터베이스 연결 종료")
+
+# 패키지 주문 처리 시작
+@app.route('/api/orders/start-package-processing', methods=['POST'])
+def start_package_processing():
+    """결제 완료 후 패키지 주문 처리 시작"""
+    conn = None
+    cursor = None
+    
+    try:
+        data = request.get_json()
+        order_id = data.get('order_id')
+        
+        if not order_id:
+            return jsonify({'error': '주문 ID가 필요합니다.'}), 400
+        
+        print(f"🚀 패키지 주문 처리 시작 요청: {order_id}")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 주문 정보 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT order_id, user_id, link, package_steps, status 
+                FROM orders 
+                WHERE order_id = %s
+            """, (order_id,))
+        else:
+            cursor.execute("""
+                SELECT order_id, user_id, link, package_steps, status 
+                FROM orders 
+                WHERE order_id = ?
+            """, (order_id,))
+        
+        order = cursor.fetchone()
+        
+        if not order:
+            return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
+        
+        order_id_db, user_id, link, package_steps_json, status = order
+        
+        if status != 'pending':
+            return jsonify({'error': '이미 처리된 주문입니다.'}), 400
+        
+        # package_steps 파싱
+        try:
+            if isinstance(package_steps_json, list):
+                package_steps = package_steps_json
+            elif isinstance(package_steps_json, str):
+                package_steps = json.loads(package_steps_json)
+            else:
+                package_steps = []
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f"❌ 패키지 단계 파싱 실패: {e}")
+            return jsonify({'error': '패키지 단계 정보가 올바르지 않습니다.'}), 400
+        
+        if not package_steps or len(package_steps) == 0:
+            return jsonify({'error': '패키지 단계 정보가 없습니다.'}), 400
+        
+        print(f"📦 패키지 주문 처리 시작: {order_id}")
+        print(f"📦 사용자: {user_id}, 링크: {link}")
+        print(f"📦 단계 수: {len(package_steps)}")
+        print(f"📦 첫 번째 단계: {package_steps[0] if package_steps else 'None'}")
+        
+        # 주문 상태를 package_processing으로 변경
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                UPDATE orders SET status = 'package_processing', updated_at = NOW()
+                WHERE order_id = %s
+            """, (order_id,))
+        else:
+            cursor.execute("""
+                UPDATE orders SET status = 'package_processing', updated_at = CURRENT_TIMESTAMP
+                WHERE order_id = ?
+            """, (order_id,))
+        
+        conn.commit()
+        
+        # 첫 번째 단계 처리 시작
+        def start_package_processing():
+            print(f"📦 패키지 주문 {order_id} 처리 시작")
+            print(f"📦 첫 번째 단계 실행: {package_steps[0] if package_steps else 'None'}")
+            process_package_step(order_id, 0)
+        
+        # 별도 스레드에서 실행
+        thread = threading.Thread(target=start_package_processing, daemon=False, name=f"PackageStart-{order_id}")
+        thread.start()
+        
+        print(f"✅ 패키지 주문 처리 시작됨: {order_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'패키지 주문 처리가 시작되었습니다. ({len(package_steps)}단계 순차 처리)',
+            'order_id': order_id
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 패키지 주문 처리 시작 오류: {str(e)}")
+        return jsonify({'error': f'패키지 주문 처리 시작 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 패키지 상품 진행 상황 조회
 @app.route('/api/orders/<int:order_id>/package-progress', methods=['GET'])
@@ -4645,6 +4750,65 @@ def process_withdrawal():
     except Exception as e:
         return jsonify({'error': f'환급 신청 처리 실패: {str(e)}'}), 500
 
+# 예약 주문 조회 (디버깅용)
+@app.route('/api/admin/scheduled-orders', methods=['GET'])
+@require_admin_auth
+def get_scheduled_orders():
+    """예약 주문 목록 조회 (관리자용)"""
+    conn = None
+    cursor = None
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id, user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, processed_at
+                FROM scheduled_orders 
+                ORDER BY scheduled_datetime DESC
+                LIMIT 50
+            """)
+        else:
+            cursor.execute("""
+                SELECT id, user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, processed_at
+                FROM scheduled_orders 
+                ORDER BY scheduled_datetime DESC
+                LIMIT 50
+            """)
+        
+        orders = cursor.fetchall()
+        
+        order_list = []
+        for order in orders:
+            order_list.append({
+                'id': order[0],
+                'user_id': order[1],
+                'service_id': order[2],
+                'link': order[3],
+                'quantity': order[4],
+                'price': float(order[5]) if order[5] else 0,
+                'scheduled_datetime': order[6],
+                'status': order[7],
+                'created_at': order[8].isoformat() if order[8] else None,
+                'processed_at': order[9].isoformat() if order[9] else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'orders': order_list,
+            'count': len(order_list)
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 예약 주문 조회 오류: {str(e)}")
+        return jsonify({'error': f'예약 주문 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 # 스케줄러 작업: 예약/분할 주문 처리
 @app.route('/api/cron/process-scheduled-orders', methods=['POST'])
 def cron_process_scheduled_orders():
@@ -4657,6 +4821,30 @@ def cron_process_scheduled_orders():
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print(f"🔍 예약 주문 조회 중... (현재 시간: {current_time})")
         
+        # 먼저 모든 pending 예약 주문을 확인
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime, status
+                FROM scheduled_orders 
+                WHERE status = 'pending'
+                ORDER BY scheduled_datetime ASC
+            """)
+        else:
+            cursor.execute("""
+                SELECT id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime, status
+                FROM scheduled_orders 
+                WHERE status = 'pending'
+                ORDER BY scheduled_datetime ASC
+            """)
+        
+        all_pending_orders = cursor.fetchall()
+        print(f"🔍 모든 pending 예약 주문: {len(all_pending_orders)}개")
+        
+        for order in all_pending_orders:
+            order_id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime, status = order
+            print(f"🔍 예약 주문: ID={order_id}, 예약시간={scheduled_datetime}, 상태={status}, 현재시간={current_time}")
+        
+        # 현재 시간이 지난 예약 주문만 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime

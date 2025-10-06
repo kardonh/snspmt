@@ -22,12 +22,15 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useGuest } from '../contexts/GuestContext'
 import { smmpanelApi, transformOrderData } from '../services/snspopApi'
 import './Home.css'
 
 const Home = () => {
-  const { currentUser } = useAuth()
+  const { currentUser, setShowAuthModal } = useAuth()
+  const { isGuest } = useGuest()
   const navigate = useNavigate()
+
   const [selectedPlatform, setSelectedPlatform] = useState('instagram')
   const [selectedServiceType, setSelectedServiceType] = useState('recommended')
   const [selectedService, setSelectedService] = useState('followers_korean')
@@ -41,6 +44,7 @@ const Home = () => {
   const [explanation, setExplanation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showOrderMethodModal, setShowOrderMethodModal] = useState(false)
+
   
   // 할인 쿠폰 관련 상태
   const [selectedDiscountCoupon, setSelectedDiscountCoupon] = useState(null)
@@ -1231,6 +1235,13 @@ const Home = () => {
   const handlePurchase = async () => {
     try {
       
+      // 게스트 모드인 경우 주문 불가
+      if (isGuest) {
+        alert('게스트 모드에서는 주문할 수 없습니다. 로그인 후 주문해주세요!')
+        return
+      }
+
+      // 로그인하지 않은 경우
       if (!currentUser) {
         alert('로그인이 필요합니다.')
         return
@@ -1470,6 +1481,11 @@ const Home = () => {
   }
 
   const handleAddToCart = async () => {
+    if (isGuest) {
+      alert('게스트 모드에서는 장바구니에 추가할 수 없습니다. 로그인 후 이용해주세요!')
+      return
+    }
+
     if (!currentUser) {
       alert('로그인이 필요합니다.')
       return
@@ -1946,9 +1962,19 @@ const Home = () => {
 
           {/* Action Buttons */}
           <div className="action-buttons">
-            <button className="submit-btn" onClick={handlePurchase} disabled={isLoading}>
-              {isLoading ? '처리 중...' : '구매하기'}
-            </button>
+            {isGuest ? (
+              <button 
+                className="login-required-btn" 
+                onClick={() => setShowAuthModal(true)}
+                disabled={isLoading}
+              >
+                로그인하여 주문하기
+              </button>
+            ) : (
+              <button className="submit-btn" onClick={handlePurchase} disabled={isLoading}>
+                {isLoading ? '처리 중...' : '구매하기'}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -2025,6 +2051,7 @@ const Home = () => {
           </div>
         </div>
       )}
+
 
     </div>
   )

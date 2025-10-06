@@ -9,6 +9,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [accountType, setAccountType] = useState('personal') // 'personal' or 'business'
+  const [phoneNumber, setPhoneNumber] = useState('') // 개인 계정용 전화번호
   const [businessNumber, setBusinessNumber] = useState('')
   const [businessName, setBusinessName] = useState('')
   const [representative, setRepresentative] = useState('')
@@ -136,6 +137,12 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
       return false;
     }
     
+    // 회원가입 시 전화번호 검증
+    if (!isLogin && !phoneNumber.trim()) {
+      setError('전화번호를 입력해주세요.');
+      return false;
+    }
+    
     return true;
   };
 
@@ -194,6 +201,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
 
         await signup(email, password, displayName, {
           accountType,
+          phoneNumber: phoneNumber.trim(),
           businessNumber: businessNumber.trim(),
           businessName: businessName.trim(),
           representative: representative.trim(),
@@ -247,6 +255,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
     setEmail('')
     setPassword('')
     setDisplayName('')
+    setPhoneNumber('')
     setAccountType('personal')
     setBusinessNumber('')
     setBusinessName('')
@@ -262,14 +271,15 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
   if (!isOpen) return null
 
   return (
-    <div className="auth-modal-overlay">
+    <div className="auth-modal-overlay" onClick={onClose}>
       <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
-        {/* 로그인하지 않은 상태에서는 닫기 버튼 숨김 */}
-        {false && (
-          <button className="auth-modal-close" onClick={onClose}>
-            <X size={24} />
-          </button>
-        )}
+        {/* 닫기 버튼 활성화 */}
+        <button className="auth-modal-close" onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}>
+          <X size={24} />
+        </button>
 
         <div className="auth-modal-content">
           {/* 모바일용 상단 이미지 섹션 */}
@@ -398,6 +408,23 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
                   />
                 </div>
 
+                <div className="form-group">
+                  <label htmlFor="phoneNumber">
+                    <User size={16} />
+                    전화번호
+                  </label>
+                  <input
+                    type="tel"
+                    id="phoneNumber"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="전화번호를 입력하세요 (예: 010-1234-5678)"
+                    required={!isLogin}
+                  />
+                </div>
+              </div>
+
+              <div className="signup-form-row">
                 <div className="form-group">
                   <label htmlFor="email">
                     <Mail size={16} />

@@ -4,11 +4,11 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
   backdrop-filter: blur(20px);
   /* 로그인하지 않은 상태에서는 클릭으로 닫을 수 없음 */
   pointer-events: auto;
@@ -119,6 +119,7 @@
   padding: 8px;
   border-radius: 8px;
   transition: all 0.2s ease;
+  z-index: 1001;
 }
 
 .auth-modal-close:hover {

@@ -14,7 +14,7 @@ import './BottomTabBar.css'
 
 const BottomTabBar = () => {
   const location = useLocation()
-  const { currentUser } = useAuth()
+  const { currentUser, setShowAuthModal } = useAuth()
 
   const tabItems = [
     { id: 'order', name: '주문하기', icon: Star, path: '/', color: '#3b82f6' },

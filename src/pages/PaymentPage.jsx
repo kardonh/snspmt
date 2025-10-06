@@ -204,7 +204,33 @@ const PaymentPage = () => {
 
       const orderResult = await orderResponse.json()
 
-      // 4. 결제 성공 처리
+      // 4. 패키지 주문인 경우 결제 완료 후 처리 시작
+      if (orderData.detailedService?.package && orderData.detailedService?.steps && orderData.detailedService.steps.length > 0) {
+        console.log('📦 패키지 주문 - 결제 완료 후 처리 시작')
+        
+        try {
+          const startPackageResponse = await fetch('/api/orders/start-package-processing', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-User-ID': orderData.userId || orderData.user_id
+            },
+            body: JSON.stringify({
+              order_id: orderResult.order_id || orderResult.order
+            })
+          })
+
+          if (!startPackageResponse.ok) {
+            console.warn('⚠️ 패키지 주문 시작 실패 (주문은 정상 생성됨)')
+          } else {
+            console.log('✅ 패키지 주문 처리 시작됨')
+          }
+        } catch (error) {
+          console.warn('⚠️ 패키지 주문 시작 중 오류 (주문은 정상 생성됨):', error)
+        }
+      }
+
+      // 5. 결제 성공 처리
       setIsProcessing(false)
       setPaymentSuccess(true)
       

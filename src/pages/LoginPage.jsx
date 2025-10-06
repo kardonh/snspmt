@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useGuest } from '../contexts/GuestContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import './LoginPage.css';
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutTime, setLockoutTime] = useState(0);
   const { login } = useAuth();
+  const { isGuest, guestData } = useGuest();
   const navigate = useNavigate();
 
   // 로그인 시도 제한 확인
@@ -130,6 +132,9 @@ export default function LoginPage() {
       
       // 성공 시 처리
       handleLoginAttempt(true);
+      
+      // 로그인 성공 - 게스트 모드는 자동으로 비활성화됨
+      
       navigate('/');
       
     } catch (error) {

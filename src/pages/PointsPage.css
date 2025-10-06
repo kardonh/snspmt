@@ -239,6 +239,19 @@
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1), 0 4px 12px rgba(16, 185, 129, 0.1);
 }
 
+/* 자동입력 배지 스타일 */
+.auto-fill-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
 /* 계좌 정보 섹션 */
 .account-info {
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);

@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { LanguageProvider } from './contexts/LanguageContext'
+import { GuestProvider } from './contexts/GuestContext'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
 import LoadingSpinner from './components/LoadingSpinner'
@@ -30,8 +31,9 @@ function App() {
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
           <LanguageProvider>
-            <div className="App">
-              <Layout>
+            <GuestProvider>
+              <div className="App">
+                <Layout>
                 <Suspense fallback={<LoadingSpinner message="페이지를 로딩하는 중..." size="large" />}>
                   <Routes>
                     <Route path="/" element={<Home />} />
@@ -50,7 +52,8 @@ function App() {
                   </Routes>
                 </Suspense>
               </Layout>
-            </div>
+              </div>
+            </GuestProvider>
         </LanguageProvider>
       </AuthProvider>
     </Router>
