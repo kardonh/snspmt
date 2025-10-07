@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { GuestProvider } from './contexts/GuestContext'
+import { NoticeProvider } from './contexts/NoticeContext'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
 import LoadingSpinner from './components/LoadingSpinner'
@@ -32,8 +33,9 @@ function App() {
         <AuthProvider>
           <LanguageProvider>
             <GuestProvider>
-              <div className="App">
-                <Layout>
+              <NoticeProvider>
+                <div className="App">
+                  <Layout>
                 <Suspense fallback={<LoadingSpinner message="페이지를 로딩하는 중..." size="large" />}>
                   <Routes>
                     <Route path="/" element={<Home />} />
@@ -53,6 +55,7 @@ function App() {
                 </Suspense>
               </Layout>
               </div>
+              </NoticeProvider>
             </GuestProvider>
         </LanguageProvider>
       </AuthProvider>

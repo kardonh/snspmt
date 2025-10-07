@@ -6,6 +6,7 @@ import Sidebar from './Sidebar'
 import BottomTabBar from './BottomTabBar'
 import GuidePanel from './GuidePanel'
 import AuthModal from './AuthModal'
+import NoticePopup from './NoticePopup'
 import './Layout.css'
 
 const Layout = ({ children }) => {
@@ -68,6 +69,9 @@ const Layout = ({ children }) => {
           setShowAuthModal(false)
         }}
       />
+
+      {/* Notice Popup */}
+      <NoticePopup />
     </div>
   )
 }
