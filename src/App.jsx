@@ -21,7 +21,7 @@ const ServicePage = lazy(() => import('./pages/ServicePage'))
 const ServicesPage = lazy(() => import('./pages/ServicesPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const ReferralDashboard = lazy(() => import('./pages/ReferralDashboard'))
-const ProtectedRoute = lazy(() => import('./components/ProtectedRoute'))
+import ProtectedRoute from './components/ProtectedRoute'
 
 import './App.css'
 import './components/ErrorBoundary.css'
