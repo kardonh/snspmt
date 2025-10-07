@@ -326,6 +326,53 @@ def call_smm_panel_api(order_data):
             'message': str(e)
         }
 
+# SMM Panel 서비스 목록 조회 함수
+def get_smm_panel_services():
+    """SMM Panel에서 사용 가능한 서비스 목록 조회"""
+    try:
+        smm_panel_url = 'https://smmpanel.kr/api/v2'
+        
+        payload = {
+            'key': SMMPANEL_API_KEY,
+            'action': 'services'
+        }
+        
+        print(f"📞 SMM Panel 서비스 목록 조회 요청")
+        response = requests.post(smm_panel_url, json=payload, timeout=30)
+        print(f"📞 SMM Panel 서비스 목록 응답 상태: {response.status_code}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('status') == 'success':
+                services = result.get('services', [])
+                print(f"📞 SMM Panel 서비스 개수: {len(services)}")
+                
+                # 서비스 ID 리스트 추출
+                service_ids = [str(service.get('service')) for service in services if service.get('service')]
+                print(f"📞 사용 가능한 서비스 ID: {service_ids[:10]}...")  # 처음 10개만 로그
+                
+                return {
+                    'status': 'success',
+                    'services': services,
+                    'service_ids': service_ids
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'message': result.get('message', 'Failed to get services')
+                }
+        else:
+            return {
+                'status': 'error',
+                'message': f'HTTP {response.status_code}'
+            }
+    except Exception as e:
+        print(f"❌ SMM Panel 서비스 목록 조회 오류: {str(e)}")
+        return {
+            'status': 'error',
+            'message': str(e)
+        }
+
 # 분할 발송 처리 함수
 def process_split_delivery(order_id, day_number):
     """분할 발송 일일 처리"""
@@ -4816,6 +4863,29 @@ def get_scheduled_orders():
             cursor.close()
         if conn:
             conn.close()
+
+# SMM Panel 서비스 목록 조회
+@app.route('/api/smm-panel/services', methods=['GET'])
+def get_smm_services():
+    """SMM Panel에서 사용 가능한 서비스 목록 조회"""
+    try:
+        result = get_smm_panel_services()
+        
+        if result.get('status') == 'success':
+            return jsonify({
+                'success': True,
+                'services': result.get('services', []),
+                'service_ids': result.get('service_ids', [])
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('message', 'Failed to get services')
+            }), 500
+            
+    except Exception as e:
+        print(f"❌ SMM Panel 서비스 목록 조회 오류: {str(e)}")
+        return jsonify({'error': f'서비스 목록 조회 실패: {str(e)}'}), 500
 
 # 스케줄러 작업: 예약/분할 주문 처리
 @app.route('/api/cron/process-scheduled-orders', methods=['POST'])

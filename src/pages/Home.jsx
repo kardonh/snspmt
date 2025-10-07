@@ -50,6 +50,10 @@ const Home = () => {
   const [selectedDiscountCoupon, setSelectedDiscountCoupon] = useState(null)
   const [availableDiscountCoupons, setAvailableDiscountCoupons] = useState([])
   
+  // SMM Panel 유효 서비스 ID 목록
+  const [validServiceIds, setValidServiceIds] = useState([])
+  const [isLoadingServices, setIsLoadingServices] = useState(false)
+  
   // 예약 발송 관련 상태
   const [isScheduledOrder, setIsScheduledOrder] = useState(false)
   const [scheduledDate, setScheduledDate] = useState('')
@@ -114,8 +118,46 @@ const Home = () => {
     return info
   }
 
-  // 컴포넌트 마운트 시 기본 서비스 자동 선택
+  // 유효한 서비스만 필터링하는 함수
+  const filterValidServices = (services) => {
+    if (validServiceIds.length > 0) {
+      return services.filter(service => {
+        // SMM Panel 서비스 ID가 있는 경우에만 필터링
+        if (service.smmkings_id) {
+          return validServiceIds.includes(service.smmkings_id.toString())
+        }
+        // 패키지 상품이나 SMM Panel 서비스 ID가 없는 경우는 그대로 유지
+        return true
+      })
+    }
+    return services
+  }
+
+  // SMM Panel 서비스 목록 로드
+  const loadSMMServices = async () => {
+    setIsLoadingServices(true)
+    try {
+      const response = await fetch('/api/smm-panel/services')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setValidServiceIds(data.service_ids || [])
+          console.log('✅ SMM Panel 서비스 목록 로드 완료:', data.service_ids.length, '개')
+        }
+      } else {
+        console.warn('⚠️ SMM Panel 서비스 목록 로드 실패')
+      }
+    } catch (error) {
+      console.warn('⚠️ SMM Panel 서비스 목록 로드 오류:', error)
+    } finally {
+      setIsLoadingServices(false)
+    }
+  }
+
+  // 컴포넌트 마운트 시 기본 서비스 자동 선택 및 SMM 서비스 목록 로드
   useEffect(() => {
+    loadSMMServices()
+    
     if (selectedPlatform && selectedService && !selectedDetailedService) {
       const detailedServices = getDetailedServices(selectedPlatform, selectedService)
       if (detailedServices && detailedServices.length > 0) {
@@ -551,75 +593,75 @@ const Home = () => {
   if (platform === 'top-exposure') {
     const services = instagramDetailedServices.top_exposure || {}
     if (serviceType === 'seo') {
-      return services.manual?.filter(s => s.id === 1001) || []
+      return filterValidServices(services.manual?.filter(s => s.id === 1001) || [])
     } else if (serviceType === 'instagram_optimization') {
-      return services.manual?.filter(s => s.id === 1002) || []
+      return filterValidServices(services.manual?.filter(s => s.id === 1002) || [])
     } else if (serviceType === 'entry_stage') {
-      return services.manual?.filter(s => s.id === 1003) || []
+      return filterValidServices(services.manual?.filter(s => s.id === 1003) || [])
     } else if (serviceType === 'maintenance_stage') {
-      return services.manual?.filter(s => s.id === 1004) || []
+      return filterValidServices(services.manual?.filter(s => s.id === 1004) || [])
     }
-    return []
+    return filterValidServices([])
     }
     if (platform === 'instagram' && instagramDetailedServices[serviceType]) {
-      return instagramDetailedServices[serviceType]
+      return filterValidServices(instagramDetailedServices[serviceType])
     }
     
     // 인스타그램 외국인 서비스 매핑
     if (platform === 'instagram' && instagramDetailedServices) {
       if (serviceType === 'foreign_package') {
-        return instagramDetailedServices.foreign_package || []
+        return filterValidServices(instagramDetailedServices.foreign_package || [])
       } else if (serviceType === 'followers_foreign') {
-        return instagramDetailedServices.followers_foreign || []
+        return filterValidServices(instagramDetailedServices.followers_foreign || [])
       } else if (serviceType === 'likes_foreign') {
-        return instagramDetailedServices.likes_foreign || []
+        return filterValidServices(instagramDetailedServices.likes_foreign || [])
       } else if (serviceType === 'comments_foreign') {
-        return instagramDetailedServices.comments_foreign || []
+        return filterValidServices(instagramDetailedServices.comments_foreign || [])
       } else if (serviceType === 'reels_views_foreign') {
-        return instagramDetailedServices.reels_views_foreign || []
+        return filterValidServices(instagramDetailedServices.reels_views_foreign || [])
       } else if (serviceType === 'exposure_save_share_foreign') {
-        return instagramDetailedServices.exposure_save_share_foreign || []
+        return filterValidServices(instagramDetailedServices.exposure_save_share_foreign || [])
       } else if (serviceType === 'live_streaming') {
-        return instagramDetailedServices.live_streaming || []
+        return filterValidServices(instagramDetailedServices.live_streaming || [])
       } else if (serviceType === 'auto_likes_foreign') {
-        return instagramDetailedServices.auto_likes_foreign || []
+        return filterValidServices(instagramDetailedServices.auto_likes_foreign || [])
       } else if (serviceType === 'auto_followers_foreign') {
-        return instagramDetailedServices.auto_followers_foreign || []
+        return filterValidServices(instagramDetailedServices.auto_followers_foreign || [])
       } else if (serviceType === 'auto_comments_foreign') {
-        return instagramDetailedServices.auto_comments_foreign || []
+        return filterValidServices(instagramDetailedServices.auto_comments_foreign || [])
       } else if (serviceType === 'auto_reels_views_foreign') {
-        return instagramDetailedServices.auto_reels_views_foreign || []
+        return filterValidServices(instagramDetailedServices.auto_reels_views_foreign || [])
       } else if (serviceType === 'auto_exposure_save_share_foreign') {
-        return instagramDetailedServices.auto_exposure_save_share_foreign || []
+        return filterValidServices(instagramDetailedServices.auto_exposure_save_share_foreign || [])
       }
     }
     
     // 유튜브 서비스 매핑
     if (platform === 'youtube' && instagramDetailedServices.youtube) {
       if (serviceType === 'views_korean') {
-        return instagramDetailedServices.youtube.views.filter(service => service.name.includes('한국'))
+        return filterValidServices(instagramDetailedServices.youtube.views.filter(service => service.name.includes('한국')))
       } else if (serviceType === 'views_foreign') {
-        return instagramDetailedServices.youtube.views.filter(service => !service.name.includes('한국'))
+        return filterValidServices(instagramDetailedServices.youtube.views.filter(service => !service.name.includes('한국')))
       } else if (serviceType === 'likes_korean') {
-        return instagramDetailedServices.youtube.likes.filter(service => service.name.includes('한국'))
+        return filterValidServices(instagramDetailedServices.youtube.likes.filter(service => service.name.includes('한국')))
       } else if (serviceType === 'likes_foreign') {
-        return instagramDetailedServices.youtube.likes.filter(service => !service.name.includes('한국'))
+        return filterValidServices(instagramDetailedServices.youtube.likes.filter(service => !service.name.includes('한국')))
       } else if (serviceType === 'subscribers_korean') {
-        return instagramDetailedServices.youtube.subscribers.filter(service => service.name.includes('한국'))
+        return filterValidServices(instagramDetailedServices.youtube.subscribers.filter(service => service.name.includes('한국')))
       } else if (serviceType === 'subscribers_foreign') {
-        return instagramDetailedServices.youtube.subscribers.filter(service => !service.name.includes('한국'))
+        return filterValidServices(instagramDetailedServices.youtube.subscribers.filter(service => !service.name.includes('한국')))
       } else if (serviceType === 'comments_korean') {
-        return (instagramDetailedServices.youtube.comments_shares || []).filter(service => service.name.includes('한국') && service.name.includes('댓글'))
+        return filterValidServices((instagramDetailedServices.youtube.comments_shares || []).filter(service => service.name.includes('한국') && service.name.includes('댓글')))
       } else if (serviceType === 'comments_foreign') {
-        return (instagramDetailedServices.youtube.comments_shares || []).filter(service => !service.name.includes('한국') && service.name.includes('댓글'))
+        return filterValidServices((instagramDetailedServices.youtube.comments_shares || []).filter(service => !service.name.includes('한국') && service.name.includes('댓글')))
       } else if (serviceType === 'shares_korean') {
-        return (instagramDetailedServices.youtube.comments_shares || []).filter(service => service.name.includes('한국') && service.name.includes('공유'))
+        return filterValidServices((instagramDetailedServices.youtube.comments_shares || []).filter(service => service.name.includes('한국') && service.name.includes('공유')))
       } else if (serviceType === 'auto_views_foreign') {
-        return instagramDetailedServices.youtube.auto_views || []
+        return filterValidServices(instagramDetailedServices.youtube.auto_views || [])
       } else if (serviceType === 'auto_likes_foreign') {
-        return instagramDetailedServices.youtube.auto_likes || []
+        return filterValidServices(instagramDetailedServices.youtube.auto_likes || [])
       } else if (serviceType === 'live_streaming') {
-        return instagramDetailedServices.youtube.live_streaming || []
+        return filterValidServices(instagramDetailedServices.youtube.live_streaming || [])
       }
     }
     
@@ -718,7 +760,8 @@ const Home = () => {
     }
     
     // 기존 로직 사용
-    return getDetailedServicesLegacy(platform, serviceType)
+    const services = getDetailedServicesLegacy(platform, serviceType)
+    return filterValidServices(services)
   }
 
   // 선택된 세부 서비스 정보 가져오기
