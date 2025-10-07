@@ -102,18 +102,66 @@ const OrdersPage = () => {
       if (response.ok) {
         const data = await response.json()
         if (data.orders) {
-          setOrders(data.orders)
+          const orders = data.orders
           
-          // 첫 번째 주문의 데이터 구조 확인
-          if (data.orders.length > 0) {
-            console.log('🔍 첫 번째 주문 데이터 구조:', data.orders[0])
-            console.log('🔍 주문번호 필드들:', {
-              id: data.orders[0].id,
-              order_id: data.orders[0].order_id,
-              order_number: data.orders[0].order_number,
-              orderId: data.orders[0].orderId
-            })
+          // 완료되지 않은 주문들의 상태를 SMM Panel에서 확인
+          const pendingOrders = orders.filter(order => 
+            order.status && 
+            !['completed', 'failed', 'canceled', 'cancelled'].includes(order.status.toLowerCase()) &&
+            order.smm_panel_order_id
+          )
+          
+          // SMM Panel 상태 확인 및 업데이트
+          for (const order of pendingOrders) {
+            try {
+              const statusResponse = await fetch('/api/smm-panel', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-User-ID': userId
+                },
+                body: JSON.stringify({
+                  action: 'status',
+                  order: order.smm_panel_order_id
+                })
+              })
+              
+              if (statusResponse.ok) {
+                const statusData = await statusResponse.json()
+                if (statusData.success && statusData.data) {
+                  const smmStatus = statusData.data
+                  
+                  // SMM Panel에서 완료된 경우 상태 업데이트
+                  if (smmStatus.remains === 0 && smmStatus.status === 'Completed') {
+                    // 백엔드에서 상태 업데이트
+                    await fetch('/api/orders/check-status', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': 'admin_sociality_2024'
+                      },
+                      body: JSON.stringify({
+                        order_id: order.order_id
+                      })
+                    })
+                    
+                    // 로컬 상태도 업데이트
+                    const updatedOrders = orders.map(o => 
+                      o.order_id === order.order_id 
+                        ? { ...o, status: 'completed' }
+                        : o
+                    )
+                    setOrders(updatedOrders)
+                    return // 업데이트 후 함수 종료
+                  }
+                }
+              }
+            } catch (error) {
+              // SMM Panel 상태 확인 실패 시 무시
+            }
           }
+          
+          setOrders(orders)
         } else {
           setOrders([])
         }

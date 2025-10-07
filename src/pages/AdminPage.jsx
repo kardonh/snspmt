@@ -54,7 +54,8 @@ const AdminPage = () => {
     users: { searchTerm: '', lastUpdate: null },
     orders: { searchTerm: '', lastUpdate: null },
     purchases: { searchTerm: '', lastUpdate: null },
-    referrals: { lastUpdate: null }
+    referrals: { lastUpdate: null },
+    notices: { lastUpdate: null }
   })
 
   // 대시보드 데이터
@@ -80,6 +81,17 @@ const AdminPage = () => {
   const [referrals, setReferrals] = useState([])
   const [showReferralModal, setShowReferralModal] = useState(false)
   const [filteredPurchases, setFilteredPurchases] = useState([])
+  
+  // 공지사항 데이터
+  const [notices, setNotices] = useState([])
+  const [showNoticeModal, setShowNoticeModal] = useState(false)
+  const [editingNotice, setEditingNotice] = useState(null)
+  const [noticeForm, setNoticeForm] = useState({
+    title: '',
+    content: '',
+    image_url: '',
+    is_active: true
+  })
   const [referralCodes, setReferralCodes] = useState([])
   const [referralCommissions, setReferralCommissions] = useState([])
   const [newReferralUser, setNewReferralUser] = useState('')
@@ -354,6 +366,93 @@ const AdminPage = () => {
   }
 
   // 데이터 내보내기 함수
+  // 공지사항 데이터 로드
+  const loadNotices = async () => {
+    try {
+      const response = await adminFetch('/api/admin/notices')
+      if (response.ok) {
+        const data = await response.json()
+        setNotices(data.notices || [])
+      }
+    } catch (error) {
+      console.error('공지사항 로드 실패:', error)
+    }
+  }
+
+  // 공지사항 생성/수정
+  const handleNoticeSubmit = async () => {
+    try {
+      setIsLoading(true)
+      
+      const url = editingNotice 
+        ? `/api/admin/notices/${editingNotice.id}`
+        : '/api/admin/notices'
+      
+      const method = editingNotice ? 'PUT' : 'POST'
+      
+      const response = await adminFetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(noticeForm)
+      })
+      
+      if (response.ok) {
+        await loadNotices()
+        setShowNoticeModal(false)
+        setEditingNotice(null)
+        setNoticeForm({
+          title: '',
+          content: '',
+          image_url: '',
+          is_active: true
+        })
+        alert(editingNotice ? '공지사항이 수정되었습니다.' : '공지사항이 생성되었습니다.')
+      } else {
+        const errorData = await response.json()
+        alert(`오류: ${errorData.error}`)
+      }
+    } catch (error) {
+      alert('공지사항 처리 중 오류가 발생했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // 공지사항 삭제
+  const handleDeleteNotice = async (noticeId) => {
+    if (!confirm('정말로 이 공지사항을 삭제하시겠습니까?')) return
+    
+    try {
+      const response = await adminFetch(`/api/admin/notices/${noticeId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        await loadNotices()
+        alert('공지사항이 삭제되었습니다.')
+      } else {
+        const errorData = await response.json()
+        alert(`오류: ${errorData.error}`)
+      }
+    } catch (error) {
+      alert('공지사항 삭제 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 공지사항 수정 모달 열기
+  const handleEditNotice = (notice) => {
+    setEditingNotice(notice)
+    setNoticeForm({
+      title: notice.title,
+      content: notice.content,
+      image_url: notice.image_url || '',
+      is_active: notice.is_active
+    })
+    setShowNoticeModal(true)
+  }
+
   // 추천인 데이터 로드
   const loadReferralData = async () => {
     try {
@@ -1120,6 +1219,76 @@ const AdminPage = () => {
               </div>
   )
 
+  // 공지사항 관리 탭 렌더링
+  const renderNotices = () => (
+    <div className="notices-management">
+      <div className="notices-header">
+        <h2>공지사항 관리</h2>
+        <button 
+          className="btn-primary"
+          onClick={() => {
+            setEditingNotice(null)
+            setNoticeForm({
+              title: '',
+              content: '',
+              image_url: '',
+              is_active: true
+            })
+            setShowNoticeModal(true)
+          }}
+        >
+          <FileText size={16} />
+          새 공지사항 작성
+        </button>
+      </div>
+
+      <div className="notices-list">
+        {notices.length === 0 ? (
+          <div className="empty-state">
+            <FileText size={48} />
+            <p>등록된 공지사항이 없습니다.</p>
+          </div>
+        ) : (
+          notices.map(notice => (
+            <div key={notice.id} className="notice-item">
+              <div className="notice-header">
+                <h3>{notice.title}</h3>
+                <div className="notice-actions">
+                  <button 
+                    className="btn-edit"
+                    onClick={() => handleEditNotice(notice)}
+                  >
+                    수정
+                  </button>
+                  <button 
+                    className="btn-delete"
+                    onClick={() => handleDeleteNotice(notice.id)}
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+              <div className="notice-content">
+                <p>{notice.content}</p>
+                {notice.image_url && (
+                  <img src={notice.image_url} alt="공지사항 이미지" className="notice-image" />
+                )}
+              </div>
+              <div className="notice-footer">
+                <span className={`status-badge ${notice.is_active ? 'active' : 'inactive'}`}>
+                  {notice.is_active ? '활성' : '비활성'}
+                </span>
+                <span className="notice-date">
+                  {new Date(notice.created_at).toLocaleDateString('ko-KR')}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+
   // 커미션 관리 탭 렌더링
   const renderCommissions = () => (
     <div className="commission-management">
@@ -1321,6 +1490,13 @@ const AdminPage = () => {
           추천인 관리
                   </button>
                   <button
+          className={`tab-button ${activeTab === 'notices' ? 'active' : ''}`}
+          onClick={() => setActiveTab('notices')}
+                  >
+          <FileText size={20} />
+          공지사항 관리
+                  </button>
+                  <button
           className={`tab-button ${activeTab === 'commissions' ? 'active' : ''}`}
           onClick={() => setActiveTab('commissions')}
                   >
@@ -1343,6 +1519,7 @@ const AdminPage = () => {
             {activeTab === 'purchases' && renderPurchases()}
             {activeTab === 'referrals' && renderReferrals()}
             {activeTab === 'commissions' && renderCommissions()}
+            {activeTab === 'notices' && renderNotices()}
           </>
         )}
       </div>
@@ -1429,6 +1606,83 @@ const AdminPage = () => {
                 disabled={!paymentData.amount || parseFloat(paymentData.amount) <= 0}
               >
                 환급 처리
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 공지사항 모달 */}
+      {showNoticeModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>{editingNotice ? '공지사항 수정' : '새 공지사항 작성'}</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowNoticeModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>제목</label>
+                <input
+                  type="text"
+                  value={noticeForm.title}
+                  onChange={(e) => setNoticeForm({...noticeForm, title: e.target.value})}
+                  placeholder="공지사항 제목을 입력하세요"
+                  className="admin-input"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>내용</label>
+                <textarea
+                  value={noticeForm.content}
+                  onChange={(e) => setNoticeForm({...noticeForm, content: e.target.value})}
+                  placeholder="공지사항 내용을 입력하세요"
+                  className="admin-input"
+                  rows="5"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>이미지 URL (선택사항)</label>
+                <input
+                  type="url"
+                  value={noticeForm.image_url}
+                  onChange={(e) => setNoticeForm({...noticeForm, image_url: e.target.value})}
+                  placeholder="https://example.com/image.jpg"
+                  className="admin-input"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={noticeForm.is_active}
+                    onChange={(e) => setNoticeForm({...noticeForm, is_active: e.target.checked})}
+                  />
+                  활성화
+                </label>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="admin-button secondary"
+                onClick={() => setShowNoticeModal(false)}
+              >
+                취소
+              </button>
+              <button 
+                className="admin-button primary"
+                onClick={handleNoticeSubmit}
+                disabled={!noticeForm.title || !noticeForm.content || isLoading}
+              >
+                {editingNotice ? '수정' : '생성'}
               </button>
             </div>
           </div>

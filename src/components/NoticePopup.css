@@ -1,0 +1,161 @@
+/* 공지사항 팝업 스타일 */
+.notice-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.notice-popup {
+  background: white;
+  border-radius: 16px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  animation: noticePopupSlideIn 0.3s ease-out;
+}
+
+@keyframes noticePopupSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.notice-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.notice-popup-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.notice-popup-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.notice-popup-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.notice-popup-content {
+  padding: 20px 24px;
+}
+
+.notice-popup-image {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.notice-popup-content p {
+  margin: 0;
+  line-height: 1.6;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.notice-popup-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px 20px;
+  border-top: 1px solid #e5e7eb;
+  gap: 12px;
+}
+
+.notice-dismiss-btn {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notice-dismiss-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.notice-popup-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.notice-next-btn,
+.notice-close-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notice-next-btn:hover,
+.notice-close-btn:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  transform: translateY(-1px);
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .notice-popup {
+    margin: 10px;
+    max-width: calc(100% - 20px);
+  }
+  
+  .notice-popup-header {
+    padding: 16px 20px 12px;
+  }
+  
+  .notice-popup-content {
+    padding: 16px 20px;
+  }
+  
+  .notice-popup-footer {
+    padding: 12px 20px 16px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .notice-popup-actions {
+    justify-content: center;
+  }
+}

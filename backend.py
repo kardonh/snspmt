@@ -1178,6 +1178,19 @@ def init_database():
                 )
             """)
             
+            # 공지사항 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS notices (
+                    id SERIAL PRIMARY KEY,
+                    title VARCHAR(255) NOT NULL,
+                    content TEXT NOT NULL,
+                    image_url VARCHAR(500),
+                    is_active BOOLEAN DEFAULT true,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            
             # 주문 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
@@ -1397,6 +1410,20 @@ def init_database():
                 )
             """)
             print("✅ 패키지 진행 상황 테이블 생성 완료 (SQLite)")
+            
+            # 공지사항 테이블 생성 (SQLite)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS notices (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    image_url TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            print("✅ 공지사항 테이블 생성 완료 (SQLite)")
         
         conn.commit()
         print("✅ 데이터베이스 테이블 초기화 완료")
@@ -4893,6 +4920,252 @@ def get_scheduled_orders():
             cursor.close()
         if conn:
             conn.close()
+
+# 주문 상태 확인 및 수정 API
+@app.route('/api/orders/check-status', methods=['POST'])
+@require_admin_auth
+def check_order_status():
+    """주문 상태 확인 및 수정"""
+    try:
+        data = request.get_json()
+        order_id = data.get('order_id')
+        
+        if not order_id:
+            return jsonify({'error': '주문 ID가 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 주문 정보 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT order_id, status, smm_panel_order_id, created_at, updated_at
+                FROM orders 
+                WHERE order_id = %s
+            """, (order_id,))
+        else:
+            cursor.execute("""
+                SELECT order_id, status, smm_panel_order_id, created_at, updated_at
+                FROM orders 
+                WHERE order_id = ?
+            """, (order_id,))
+        
+        order = cursor.fetchone()
+        
+        if not order:
+            return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
+        
+        order_id_db, status, smm_panel_order_id, created_at, updated_at = order
+        
+        # SMM Panel에서 주문 상태 확인
+        if smm_panel_order_id:
+            smm_result = call_smm_panel_api({
+                'action': 'status',
+                'order': smm_panel_order_id
+            })
+            
+            if smm_result.get('status') == 'success':
+                # SMM Panel에서 완료된 경우 상태 업데이트
+                if smm_result.get('remains', 0) == 0:
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
+                            UPDATE orders SET status = 'completed', updated_at = NOW()
+                            WHERE order_id = %s
+                        """, (order_id,))
+                    else:
+                        cursor.execute("""
+                            UPDATE orders SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+                            WHERE order_id = ?
+                        """, (order_id,))
+                    conn.commit()
+                    status = 'completed'
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'order_id': order_id_db,
+            'status': status,
+            'smm_panel_order_id': smm_panel_order_id,
+            'created_at': created_at,
+            'updated_at': updated_at
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'주문 상태 확인 실패: {str(e)}'}), 500
+
+# 공지사항 관리 API
+@app.route('/api/admin/notices', methods=['GET'])
+@require_admin_auth
+def get_notices():
+    """공지사항 목록 조회"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id, title, content, image_url, is_active, created_at, updated_at
+                FROM notices 
+                ORDER BY created_at DESC
+            """)
+        else:
+            cursor.execute("""
+                SELECT id, title, content, image_url, is_active, created_at, updated_at
+                FROM notices 
+                ORDER BY created_at DESC
+            """)
+        
+        notices = []
+        for row in cursor.fetchall():
+            notices.append({
+                'id': row[0],
+                'title': row[1],
+                'content': row[2],
+                'image_url': row[3],
+                'is_active': row[4],
+                'created_at': row[5].isoformat() if row[5] else None,
+                'updated_at': row[6].isoformat() if row[6] else None
+            })
+        
+        conn.close()
+        return jsonify({'notices': notices}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'공지사항 조회 실패: {str(e)}'}), 500
+
+@app.route('/api/admin/notices', methods=['POST'])
+@require_admin_auth
+def create_notice():
+    """공지사항 생성"""
+    try:
+        data = request.get_json()
+        title = data.get('title')
+        content = data.get('content')
+        image_url = data.get('image_url')
+        is_active = data.get('is_active', True)
+        
+        if not title or not content:
+            return jsonify({'error': '제목과 내용이 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                INSERT INTO notices (title, content, image_url, is_active, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, NOW(), NOW())
+            """, (title, content, image_url, is_active))
+        else:
+            cursor.execute("""
+                INSERT INTO notices (title, content, image_url, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+            """, (title, content, image_url, is_active))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': '공지사항이 생성되었습니다.'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'공지사항 생성 실패: {str(e)}'}), 500
+
+@app.route('/api/admin/notices/<int:notice_id>', methods=['PUT'])
+@require_admin_auth
+def update_notice(notice_id):
+    """공지사항 수정"""
+    try:
+        data = request.get_json()
+        title = data.get('title')
+        content = data.get('content')
+        image_url = data.get('image_url')
+        is_active = data.get('is_active')
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                UPDATE notices 
+                SET title = %s, content = %s, image_url = %s, is_active = %s, updated_at = NOW()
+                WHERE id = %s
+            """, (title, content, image_url, is_active, notice_id))
+        else:
+            cursor.execute("""
+                UPDATE notices 
+                SET title = ?, content = ?, image_url = ?, is_active = ?, updated_at = datetime('now')
+                WHERE id = ?
+            """, (title, content, image_url, is_active, notice_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': '공지사항이 수정되었습니다.'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'공지사항 수정 실패: {str(e)}'}), 500
+
+@app.route('/api/admin/notices/<int:notice_id>', methods=['DELETE'])
+@require_admin_auth
+def delete_notice(notice_id):
+    """공지사항 삭제"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("DELETE FROM notices WHERE id = %s", (notice_id,))
+        else:
+            cursor.execute("DELETE FROM notices WHERE id = ?", (notice_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': '공지사항이 삭제되었습니다.'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'공지사항 삭제 실패: {str(e)}'}), 500
+
+# 사용자용 활성 공지사항 조회
+@app.route('/api/notices/active', methods=['GET'])
+def get_active_notices():
+    """활성화된 공지사항 조회"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id, title, content, image_url, created_at
+                FROM notices 
+                WHERE is_active = true
+                ORDER BY created_at DESC
+                LIMIT 5
+            """)
+        else:
+            cursor.execute("""
+                SELECT id, title, content, image_url, created_at
+                FROM notices 
+                WHERE is_active = 1
+                ORDER BY created_at DESC
+                LIMIT 5
+            """)
+        
+        notices = []
+        for row in cursor.fetchall():
+            notices.append({
+                'id': row[0],
+                'title': row[1],
+                'content': row[2],
+                'image_url': row[3],
+                'created_at': row[4].isoformat() if row[4] else None
+            })
+        
+        conn.close()
+        return jsonify({'notices': notices}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'공지사항 조회 실패: {str(e)}'}), 500
 
 # SMM Panel 서비스 목록 조회
 @app.route('/api/smm-panel/services', methods=['GET'])

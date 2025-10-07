@@ -25,6 +25,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useGuest } from '../contexts/GuestContext'
 import { smmpanelApi, transformOrderData } from '../services/snspopApi'
 import './Home.css'
+import '../components/NoticePopup.css'
 
 const Home = () => {
   const { currentUser, setShowAuthModal } = useAuth()
@@ -53,6 +54,11 @@ const Home = () => {
   // SMM Panel 유효 서비스 ID 목록
   const [validServiceIds, setValidServiceIds] = useState([])
   const [isLoadingServices, setIsLoadingServices] = useState(false)
+  
+  // 공지사항 팝업 관련 상태
+  const [notices, setNotices] = useState([])
+  const [showNoticePopup, setShowNoticePopup] = useState(false)
+  const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0)
   
   // 예약 발송 관련 상태
   const [isScheduledOrder, setIsScheduledOrder] = useState(false)
@@ -152,9 +158,55 @@ const Home = () => {
     }
   }
 
+  // 공지사항 로드
+  const loadNotices = async () => {
+    try {
+      const response = await fetch('/api/notices/active')
+      if (response.ok) {
+        const data = await response.json()
+        setNotices(data.notices || [])
+        
+        // 오늘 하루 보지 않기 체크
+        const today = new Date().toDateString()
+        const dismissedNotices = JSON.parse(localStorage.getItem('dismissedNotices') || '{}')
+        
+        // 오늘 보지 않은 공지사항이 있고, 활성 공지사항이 있으면 팝업 표시
+        if (data.notices && data.notices.length > 0 && dismissedNotices[today] !== true) {
+          setShowNoticePopup(true)
+        }
+      }
+    } catch (error) {
+      // 공지사항 로드 실패 시 무시
+    }
+  }
+
+  // 오늘 하루 보지 않기
+  const handleDismissToday = () => {
+    const today = new Date().toDateString()
+    const dismissedNotices = JSON.parse(localStorage.getItem('dismissedNotices') || '{}')
+    dismissedNotices[today] = true
+    localStorage.setItem('dismissedNotices', JSON.stringify(dismissedNotices))
+    setShowNoticePopup(false)
+  }
+
+  // 공지사항 닫기
+  const handleCloseNotice = () => {
+    setShowNoticePopup(false)
+  }
+
+  // 다음 공지사항 보기
+  const handleNextNotice = () => {
+    if (currentNoticeIndex < notices.length - 1) {
+      setCurrentNoticeIndex(currentNoticeIndex + 1)
+    } else {
+      setShowNoticePopup(false)
+    }
+  }
+
   // 컴포넌트 마운트 시 기본 서비스 자동 선택 및 SMM 서비스 목록 로드
   useEffect(() => {
     loadSMMServices()
+    loadNotices()
     
     if (selectedPlatform && selectedService && !selectedDetailedService) {
       const detailedServices = getDetailedServices(selectedPlatform, selectedService)
@@ -2093,6 +2145,57 @@ const Home = () => {
         </div>
       )}
 
+      {/* 공지사항 팝업 */}
+      {showNoticePopup && notices.length > 0 && (
+        <div className="notice-popup-overlay">
+          <div className="notice-popup">
+            <div className="notice-popup-header">
+              <h3>{notices[currentNoticeIndex]?.title}</h3>
+              <button 
+                className="notice-popup-close"
+                onClick={handleCloseNotice}
+              >
+                ×
+              </button>
+            </div>
+            <div className="notice-popup-content">
+              {notices[currentNoticeIndex]?.image_url && (
+                <img 
+                  src={notices[currentNoticeIndex].image_url} 
+                  alt="공지사항 이미지" 
+                  className="notice-popup-image"
+                />
+              )}
+              <p>{notices[currentNoticeIndex]?.content}</p>
+            </div>
+            <div className="notice-popup-footer">
+              <button 
+                className="notice-dismiss-btn"
+                onClick={handleDismissToday}
+              >
+                오늘 하루 보지 않기
+              </button>
+              <div className="notice-popup-actions">
+                {currentNoticeIndex < notices.length - 1 ? (
+                  <button 
+                    className="notice-next-btn"
+                    onClick={handleNextNotice}
+                  >
+                    다음 공지사항
+                  </button>
+                ) : (
+                  <button 
+                    className="notice-close-btn"
+                    onClick={handleCloseNotice}
+                  >
+                    확인
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
