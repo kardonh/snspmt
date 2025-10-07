@@ -44,7 +44,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => {
     // 성공 응답 로깅
-    console.log(`✅ API Success: ${response.config.method?.toUpperCase()} ${response.config.url}`)
+    // API 호출 성공
     return response.data
   },
   (error) => {
@@ -57,7 +57,7 @@ apiClient.interceptors.response.use(
       data: error.response?.data
     }
     
-    console.error(`❌ API Error: ${errorInfo.method} ${errorInfo.url}`, errorInfo)
+    // API 호출 오류
     
     return Promise.reject(error)
   }

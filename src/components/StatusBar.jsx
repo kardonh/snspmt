@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { CheckCircle, LogOut, Coins } from 'lucide-react'
+import { CheckCircle, LogOut, Coins, User } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
 import './StatusBar.css'
@@ -9,7 +9,7 @@ const StatusBar = () => {
   const [isMobile, setIsMobile] = useState(false)
   const [userPoints, setUserPoints] = useState(0)
   const [pointsLoading, setPointsLoading] = useState(false)
-  const { currentUser, logout } = useAuth()
+  const { currentUser, logout, setShowAuthModal } = useAuth()
   const navigate = useNavigate()
 
   // 사용자 포인트 조회 함수
@@ -110,7 +110,13 @@ const StatusBar = () => {
                   </button>
                 </>
               ) : (
-                <span className="mobile-guest">guest</span>
+                <button 
+                  className="mobile-login-btn"
+                  onClick={() => setShowAuthModal(true)}
+                >
+                  <User size={16} />
+                  <span>로그인</span>
+                </button>
               )}
             </div>
           </div>

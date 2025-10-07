@@ -337,18 +337,14 @@ def get_smm_panel_services():
             'action': 'services'
         }
         
-        print(f"📞 SMM Panel 서비스 목록 조회 요청")
         response = requests.post(smm_panel_url, json=payload, timeout=30)
-        print(f"📞 SMM Panel 서비스 목록 응답 상태: {response.status_code}")
         
         if response.status_code == 200:
             result = response.json()
-            print(f"📞 SMM Panel API 응답: {result}")
             
             # 응답 구조 확인 및 안전한 처리
             if isinstance(result, dict) and result.get('status') == 'success':
                 services = result.get('services', [])
-                print(f"📞 SMM Panel 서비스 개수: {len(services)}")
                 
                 # 서비스 ID 리스트 추출 (안전한 방식)
                 service_ids = []
@@ -359,8 +355,6 @@ def get_smm_panel_services():
                         elif isinstance(service, (int, str)):
                             service_ids.append(str(service))
                 
-                print(f"📞 사용 가능한 서비스 ID: {service_ids[:10]}...")  # 처음 10개만 로그
-                
                 return {
                     'status': 'success',
                     'services': services,
@@ -369,7 +363,6 @@ def get_smm_panel_services():
             elif isinstance(result, list):
                 # 응답이 리스트인 경우
                 services = result
-                print(f"📞 SMM Panel 서비스 개수: {len(services)}")
                 
                 service_ids = []
                 for service in services:
@@ -377,8 +370,6 @@ def get_smm_panel_services():
                         service_ids.append(str(service['service']))
                     elif isinstance(service, (int, str)):
                         service_ids.append(str(service))
-                
-                print(f"📞 사용 가능한 서비스 ID: {service_ids[:10]}...")
                 
                 return {
                     'status': 'success',
@@ -396,7 +387,6 @@ def get_smm_panel_services():
                 'message': f'HTTP {response.status_code}'
             }
     except Exception as e:
-        print(f"❌ SMM Panel 서비스 목록 조회 오류: {str(e)}")
         return {
             'status': 'error',
             'message': str(e)

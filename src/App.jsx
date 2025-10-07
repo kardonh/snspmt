@@ -20,6 +20,7 @@ const ServicePage = lazy(() => import('./pages/ServicePage'))
 const ServicesPage = lazy(() => import('./pages/ServicesPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const ReferralDashboard = lazy(() => import('./pages/ReferralDashboard'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
 const ProtectedRoute = lazy(() => import('./components/ProtectedRoute'))
 
 import './App.css'
@@ -45,6 +46,7 @@ function App() {
                     <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                     <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
                     <Route path="/referral" element={<ProtectedRoute><ReferralDashboard /></ProtectedRoute>} />
+                    <Route path="/login" element={<LoginPage />} />
                     <Route path="/info" element={<InfoPage />} />
                     <Route path="/faq" element={<FAQPage />} />
                     <Route path="/service" element={<ServicePage />} />

@@ -121,22 +121,15 @@ const Home = () => {
   // 유효한 서비스만 필터링하는 함수
   const filterValidServices = (services) => {
     if (validServiceIds.length > 0) {
-      const filtered = services.filter(service => {
+      return services.filter(service => {
         // SMM Panel 서비스 ID가 있는 경우에만 필터링
         if (service.smmkings_id) {
-          const isValid = validServiceIds.includes(service.smmkings_id.toString())
-          if (!isValid) {
-            console.log(`🚫 SMM Panel에 없는 서비스 숨김: ${service.name} (ID: ${service.smmkings_id})`)
-          }
-          return isValid
+          return validServiceIds.includes(service.smmkings_id.toString())
         }
         // 패키지 상품이나 SMM Panel 서비스 ID가 없는 경우는 그대로 유지
         // (패키지 상품은 여러 단계로 구성되어 있어서 SMM Panel 서비스 ID가 없을 수 있음)
         return true
       })
-      
-      console.log(`📊 서비스 필터링 결과: 전체 ${services.length}개 → SMM Panel 유효 ${filtered.length}개`)
-      return filtered
     }
     return services
   }
@@ -150,13 +143,10 @@ const Home = () => {
         const data = await response.json()
         if (data.success) {
           setValidServiceIds(data.service_ids || [])
-          console.log('✅ SMM Panel 서비스 목록 로드 완료:', data.service_ids.length, '개')
         }
-      } else {
-        console.warn('⚠️ SMM Panel 서비스 목록 로드 실패')
       }
     } catch (error) {
-      console.warn('⚠️ SMM Panel 서비스 목록 로드 오류:', error)
+      // SMM Panel 서비스 목록 로드 실패 시 무시
     } finally {
       setIsLoadingServices(false)
     }
@@ -310,7 +300,7 @@ const Home = () => {
       { id: 281, name: 'KR 인스타그램 리얼 한국인 [30대남자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' }
     ],
     followers_korean: [
-      { id: 514, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [일반]', price: 150000, min: 30, max: 3000, time: '2시간 16분', description: '상세정보' },
+      { id: 491, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [일반]', price: 180000, min: 10, max: 1000, time: '2시간 16분', description: '상세정보' },
       { id: 491, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [디럭스]', price: 210000, min: 10, max: 1000, time: '데이터 부족', description: '상세정보' },
       { id: 334, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [프리미엄]', price: 270000, min: 10, max: 40000, time: '1시간 3분', description: '상세정보' }
     ],

@@ -222,23 +222,15 @@ const PaymentPage = () => {
 
           if (!startPackageResponse.ok) {
             const errorData = await startPackageResponse.json()
-            console.warn('⚠️ 패키지 주문 시작 실패 (주문은 정상 생성됨):', errorData)
+            // 패키지 주문 시작 실패 (주문은 정상 생성됨)
           } else {
             const responseData = await startPackageResponse.json()
             if (responseData.success) {
-              if (responseData.status === 'package_processing') {
-                console.log('✅ 패키지 주문이 이미 처리 중입니다')
-              } else if (responseData.status === 'completed') {
-                console.log('✅ 패키지 주문이 이미 완료되었습니다')
-              } else {
-                console.log('✅ 패키지 주문 처리 시작됨')
-              }
-            } else {
-              console.warn('⚠️ 패키지 주문 처리 응답 오류:', responseData)
+              // 패키지 주문 처리 상태 확인 완료
             }
           }
         } catch (error) {
-          console.warn('⚠️ 패키지 주문 시작 중 오류 (주문은 정상 생성됨):', error)
+          // 패키지 주문 시작 중 오류 (주문은 정상 생성됨)
         }
       }
 
