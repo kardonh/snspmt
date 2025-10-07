@@ -15,7 +15,7 @@ import {
   Activity,
   Info,
   UserPlus,
-  FileText
+  Bell
 } from 'lucide-react'
 import ReferralRegistration from '../components/ReferralRegistration'
 import { 
@@ -1238,7 +1238,7 @@ const AdminPage = () => {
             setShowNoticeModal(true)
           }}
         >
-          <FileText size={16} />
+          <Bell size={16} />
           새 공지사항 작성
         </button>
       </div>
@@ -1246,7 +1246,7 @@ const AdminPage = () => {
       <div className="notices-list">
         {notices.length === 0 ? (
           <div className="empty-state">
-            <FileText size={48} />
+            <Bell size={48} />
             <p>등록된 공지사항이 없습니다.</p>
           </div>
         ) : (
@@ -1494,7 +1494,7 @@ const AdminPage = () => {
           className={`tab-button ${activeTab === 'notices' ? 'active' : ''}`}
           onClick={() => setActiveTab('notices')}
                   >
-          <FileText size={20} />
+          <Bell size={20} />
           공지사항 관리
                   </button>
                   <button
