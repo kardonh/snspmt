@@ -343,13 +343,42 @@ def get_smm_panel_services():
         
         if response.status_code == 200:
             result = response.json()
-            if result.get('status') == 'success':
+            print(f"📞 SMM Panel API 응답: {result}")
+            
+            # 응답 구조 확인 및 안전한 처리
+            if isinstance(result, dict) and result.get('status') == 'success':
                 services = result.get('services', [])
                 print(f"📞 SMM Panel 서비스 개수: {len(services)}")
                 
-                # 서비스 ID 리스트 추출
-                service_ids = [str(service.get('service')) for service in services if service.get('service')]
+                # 서비스 ID 리스트 추출 (안전한 방식)
+                service_ids = []
+                if isinstance(services, list):
+                    for service in services:
+                        if isinstance(service, dict) and 'service' in service:
+                            service_ids.append(str(service['service']))
+                        elif isinstance(service, (int, str)):
+                            service_ids.append(str(service))
+                
                 print(f"📞 사용 가능한 서비스 ID: {service_ids[:10]}...")  # 처음 10개만 로그
+                
+                return {
+                    'status': 'success',
+                    'services': services,
+                    'service_ids': service_ids
+                }
+            elif isinstance(result, list):
+                # 응답이 리스트인 경우
+                services = result
+                print(f"📞 SMM Panel 서비스 개수: {len(services)}")
+                
+                service_ids = []
+                for service in services:
+                    if isinstance(service, dict) and 'service' in service:
+                        service_ids.append(str(service['service']))
+                    elif isinstance(service, (int, str)):
+                        service_ids.append(str(service))
+                
+                print(f"📞 사용 가능한 서비스 ID: {service_ids[:10]}...")
                 
                 return {
                     'status': 'success',
@@ -359,7 +388,7 @@ def get_smm_panel_services():
             else:
                 return {
                     'status': 'error',
-                    'message': result.get('message', 'Failed to get services')
+                    'message': f'Unexpected response format: {type(result)}'
                 }
         else:
             return {
