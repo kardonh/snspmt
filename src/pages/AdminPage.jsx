@@ -14,7 +14,8 @@ import {
   DollarSign,
   Activity,
   Info,
-  UserPlus
+  UserPlus,
+  FileText
 } from 'lucide-react'
 import ReferralRegistration from '../components/ReferralRegistration'
 import { 
