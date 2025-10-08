@@ -23,7 +23,7 @@ import './Sidebar.css'
 const Sidebar = ({ onClose }) => {
   const location = useLocation()
   const navigate = useNavigate()
-  const { currentUser, logout, setShowAuthModal } = useAuth()
+  const { currentUser, logout, openLoginModal, openSignupModal } = useAuth()
   const { isGuest } = useGuest()
 
   const [businessInfoOpen, setBusinessInfoOpen] = useState(false)
@@ -152,7 +152,13 @@ const Sidebar = ({ onClose }) => {
       
       {/* Logo */}
       <div className="sidebar-logo">
-        <img src="/logo.png" alt="Sociality" className="logo-image" />
+        <img 
+          src="/logo.png" 
+          alt="Sociality" 
+          className="logo-image" 
+          onClick={() => navigate('/')}
+          style={{ cursor: 'pointer' }}
+        />
       </div>
 
       {/* User Status */}
@@ -173,7 +179,10 @@ const Sidebar = ({ onClose }) => {
         ) : (
           <div className="guest-info">
             <span className="guest-text">게스트 모드</span>
-            <button onClick={() => setShowAuthModal(true)} className="login-btn">로그인</button>
+            <div className="auth-buttons">
+              <button onClick={openLoginModal} className="login-btn">로그인</button>
+              <button onClick={openSignupModal} className="signup-btn">회원가입</button>
+            </div>
           </div>
         )}
       </div>

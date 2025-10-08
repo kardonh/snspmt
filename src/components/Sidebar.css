@@ -123,8 +123,14 @@
   font-size: 14px;
 }
 
-.login-btn, .logout-btn {
-  padding: 8px 16px;
+.auth-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.login-btn, .logout-btn, .signup-btn {
+  padding: 6px 8px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: 2px solid transparent;
@@ -135,11 +141,23 @@
   text-decoration: none;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  flex: 1;
+  min-width: 80px;
+}
+
+.signup-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
 .login-btn:hover, .logout-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+}
+
+.signup-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
 }
 
 .login-btn:active, .logout-btn:active {

@@ -27,7 +27,7 @@ import { smmpanelApi, transformOrderData } from '../services/snspopApi'
 import './Home.css'
 
 const Home = () => {
-  const { currentUser, setShowAuthModal } = useAuth()
+  const { currentUser, setShowAuthModal, setShowOrderMethodModal } = useAuth()
   const { isGuest } = useGuest()
   const navigate = useNavigate()
 
@@ -43,7 +43,6 @@ const Home = () => {
   const [comments, setComments] = useState('')
   const [explanation, setExplanation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [showOrderMethodModal, setShowOrderMethodModal] = useState(false)
 
   
   // 할인 쿠폰 관련 상태
@@ -1559,8 +1558,18 @@ const Home = () => {
     <div className="order-page">
       {/* Service Selection */}
       <div className="service-selection">
-        <h2>주문하기</h2>
-        <p>원하는 서비스를 선택하고 주문해보세요!</p>
+        <div className="service-header">
+          <div className="header-title">
+            <h2>주문하기</h2>
+            <p>원하는 서비스를 선택하고 주문해보세요!</p>
+          </div>
+          <button 
+            className="order-method-btn"
+            onClick={() => setShowOrderMethodModal(true)}
+          >
+            📋 주문방법
+          </button>
+        </div>
         
         <div className="platform-grid">
           {platforms.map(({ id, name, icon, color, description }) => (
@@ -1758,15 +1767,7 @@ const Home = () => {
       {selectedDetailedService && (
         <div className="order-form">
           <div className="order-info-header">
-          <h3>
-            주문 정보 입력
-          </h3>
-            <button 
-              className="order-method-btn"
-              onClick={() => setShowOrderMethodModal(true)}
-            >
-              📋 주문방법
-            </button>
+            <h3>주문 정보 입력</h3>
           </div>
           
           
@@ -2020,80 +2021,6 @@ const Home = () => {
           </div>
         </div>
       )}
-
-
-      {/* 주문방법 모달 */}
-      {showOrderMethodModal && (
-        <div className="order-method-modal-overlay">
-          <div className="order-method-modal">
-            <div className="modal-header">
-              <h3>📋 주문방법 가이드</h3>
-              <button 
-                className="modal-close-btn"
-                onClick={() => setShowOrderMethodModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="modal-content">
-              <div className="order-steps">
-                <div className="step">
-                  <div className="step-number">1</div>
-                  <div className="step-content">
-                    <h4>서비스 선택</h4>
-                    <p>원하는 플랫폼과 서비스를 선택하세요</p>
-                  </div>
-                </div>
-                
-                <div className="step">
-                  <div className="step-number">2</div>
-                  <div className="step-content">
-                    <h4>수량 입력</h4>
-                    <p>원하는 수량을 입력하세요 (최소 수량 이상)</p>
-                  </div>
-                </div>
-                
-                <div className="step">
-                  <div className="step-number">3</div>
-                  <div className="step-content">
-                    <h4>링크 입력</h4>
-                    <p>대상 게시물의 URL 또는 사용자명을 입력하세요</p>
-                  </div>
-                </div>
-                
-                <div className="step">
-                  <div className="step-number">4</div>
-                  <div className="step-content">
-                    <h4>구매하기</h4>
-                    <p>모든 정보를 확인하고 구매하기 버튼을 클릭하세요</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="important-notes">
-                <h4>⚠️ 주의사항</h4>
-                <ul>
-                  <li>공개 계정의 게시물만 주문 가능합니다</li>
-                  <li>링크는 정확한 URL 또는 사용자명을 입력해주세요</li>
-                  <li>수량은 최소 수량 이상 입력해주세요</li>
-                  <li>주문 후 취소는 불가능하니 신중히 선택해주세요</li>
-                </ul>
-              </div>
-            </div>
-            
-            <div className="modal-footer">
-              <button 
-                className="modal-confirm-btn"
-                onClick={() => setShowOrderMethodModal(false)}
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
 
     </div>
   )

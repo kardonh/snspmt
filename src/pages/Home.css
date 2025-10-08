@@ -308,6 +308,26 @@
   line-height: 1.6;
 }
 
+/* 서비스 헤더 스타일 */
+.service-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 40px;
+}
+
+.header-title {
+  flex: 1;
+}
+
+.header-title h2 {
+  margin-bottom: 12px;
+}
+
+.header-title p {
+  margin-bottom: 0;
+}
+
 /* 플랫폼 그리드 - 기본 설정 */
 .platform-grid {
   display: grid;
@@ -697,7 +717,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+
 }
 
 .service-name {
@@ -955,13 +975,15 @@
   border-radius: 20px;
   max-width: 520px;
   width: 100%;
-  max-height: 85vh;
-  overflow-y: auto;
+  max-height: 90vh;
+  overflow: visible;
   box-shadow: 
     0 25px 50px -12px rgba(0, 0, 0, 0.25),
     0 0 0 1px rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   animation: slideUp 0.4s ease-out;
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes slideUp {
@@ -985,6 +1007,7 @@
   margin-bottom: 0;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .modal-header::before {
@@ -1035,6 +1058,9 @@
 
 .modal-content {
   padding: 32px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .order-steps {
@@ -1169,6 +1195,7 @@
   text-align: center;
   background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
   border-radius: 0 0 20px 20px;
+  flex-shrink: 0;
 }
 
 .modal-confirm-btn {
@@ -2084,14 +2111,26 @@
     border-radius: 16px;
   }
   
-  .service-selection h2 {
+  .service-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  
+  .header-title h2 {
     font-size: 24px;
     margin-bottom: 15px;
   }
   
-  .service-selection p {
+  .header-title p {
     font-size: 16px;
-    margin-bottom: 20px;
+    margin-bottom: 0;
+  }
+  
+  .order-method-btn {
+    align-self: flex-end;
+    padding: 10px 16px;
+    font-size: 13px;
   }
   
   /* 모바일에서 상세 서비스 선택 최적화 */
@@ -2281,12 +2320,58 @@
     margin-bottom: 16px;
   }
   
-  .service-selection h2 {
+  .service-header {
+    gap: 12px;
+  }
+  
+  .header-title h2 {
     font-size: 22px;
   }
   
-  .service-selection p {
+  .header-title p {
     font-size: 13px;
+  }
+  
+  .order-method-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  /* 모바일에서 주문방법 모달 팝업 */
+  .order-method-modal-overlay {
+    padding: 16px;
+  }
+  
+  .order-method-modal {
+    max-width: 95vw;
+    max-height: 90vh;
+    border-radius: 16px;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .modal-header {
+    padding: 20px;
+    border-radius: 16px 16px 0 0;
+    flex-shrink: 0;
+  }
+  
+  .modal-header h3 {
+    font-size: 18px;
+  }
+  
+  .modal-content {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+  }
+  
+  .modal-footer {
+    padding: 20px;
+    border-radius: 0 0 16px 16px;
+    flex-shrink: 0;
   }
   
   .platform-item {

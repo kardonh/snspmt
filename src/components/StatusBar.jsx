@@ -9,7 +9,7 @@ const StatusBar = () => {
   const [isMobile, setIsMobile] = useState(false)
   const [userPoints, setUserPoints] = useState(0)
   const [pointsLoading, setPointsLoading] = useState(false)
-  const { currentUser, logout, setShowAuthModal } = useAuth()
+  const { currentUser, logout, openLoginModal, openSignupModal } = useAuth()
   const navigate = useNavigate()
 
   // 사용자 포인트 조회 함수
@@ -88,7 +88,12 @@ const StatusBar = () => {
         <>
           <div className="mobile-header">
             <Link to="/" className="mobile-logo">
-              <img src="/logo.png" alt="Sociality" className="mobile-header-logo" />
+              <img 
+                src="/logo.png" 
+                alt="Sociality" 
+                className="mobile-header-logo"
+                style={{ cursor: 'pointer' }}
+              />
             </Link>
             <div className="mobile-user-info">
               {currentUser ? (
@@ -110,13 +115,22 @@ const StatusBar = () => {
                   </button>
                 </>
               ) : (
-                <button 
-                  className="mobile-login-btn"
-                  onClick={() => setShowAuthModal(true)}
-                >
-                  <User size={16} />
-                  <span>로그인</span>
-                </button>
+                <div className="mobile-auth-buttons">
+                  <button 
+                    className="mobile-login-btn"
+                    onClick={openLoginModal}
+                  >
+                    <User size={16} />
+                    <span>로그인</span>
+                  </button>
+                  <button 
+                    className="mobile-signup-btn"
+                    onClick={openSignupModal}
+                  >
+                    <User size={16} />
+                    <span>회원가입</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>

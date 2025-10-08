@@ -734,9 +734,51 @@
   }
 }
 
-/* 모바일 화면 (768px 이하) - GuidePanel 숨김 */
+/* 모바일 화면 (768px 이하) - GuidePanel 숨김, 1:1 상담 버튼만 표시 */
 @media (max-width: 768px) {
   .guide-panel {
     display: none;
+  }
+  
+  /* 모바일에서 1:1 상담 버튼만 표시 */
+  .consultation-section {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 120px;
+    z-index: 1000;
+  }
+  
+  .consultation-btn {
+    background: linear-gradient(135deg, #92e2dd 0%, #ffffff 100%);
+    border: none;
+    border-radius: 25px;
+    padding: 10px 16px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    transition: all 0.3s ease;
+  }
+  
+  .consultation-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+  }
+  
+  .talk-bubble {
+    background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+    border-radius: 8px;
+    padding: 2px 6px;
+    margin-left: 4px;
+  }
+  
+  .talk-text {
+    font-size: 8px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 0.5px;
   }
 }

@@ -24,6 +24,8 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login');
+  const [showOrderMethodModal, setShowOrderMethodModal] = useState(false);
 
   function signup(email, password, username, businessInfo = null) {
     return createUserWithEmailAndPassword(auth, email, password)
@@ -199,6 +201,16 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
+  const openSignupModal = () => {
+    setAuthModalMode('signup');
+    setShowAuthModal(true);
+  };
+
+  const openLoginModal = () => {
+    setAuthModalMode('login');
+    setShowAuthModal(true);
+  };
+
   const value = {
     currentUser,
     loading,
@@ -208,7 +220,12 @@ export function AuthProvider({ children }) {
     updateProfile: updateUserProfile,
     deleteAccount,
     showAuthModal,
-    setShowAuthModal
+    setShowAuthModal,
+    authModalMode,
+    openSignupModal,
+    openLoginModal,
+    showOrderMethodModal,
+    setShowOrderMethodModal
   };
 
   return (

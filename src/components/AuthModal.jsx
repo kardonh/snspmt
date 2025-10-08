@@ -3,8 +3,8 @@ import { X, LogIn, UserPlus, Mail, Lock, User, Building2, Briefcase, Eye, EyeOff
 import { useAuth } from '../contexts/AuthContext'
 import './AuthModal.css'
 
-const AuthModal = ({ isOpen, onClose, onSuccess }) => {
-  const [isLogin, setIsLogin] = useState(true)
+const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
+  const [isLogin, setIsLogin] = useState(initialMode === 'login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -29,6 +29,11 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
   const [referralCodeError, setReferralCodeError] = useState('')
   
   const { login, signup } = useAuth()
+
+  // initialMode가 변경될 때 isLogin 상태 업데이트
+  useEffect(() => {
+    setIsLogin(initialMode === 'login')
+  }, [initialMode])
 
   // 추천인 코드 검증
   const validateReferralCode = async (code) => {
@@ -304,7 +309,13 @@ const AuthModal = ({ isOpen, onClose, onSuccess }) => {
           <div className="auth-modal-form">
             <div className="auth-modal-header">
               <div className="header-content">
-                <img src="/logo.png" alt="Sociality" className="logo" />
+                <img 
+                  src="/logo.png" 
+                  alt="Sociality" 
+                  className="logo" 
+                  onClick={() => window.location.href = '/'}
+                  style={{ cursor: 'pointer' }}
+                />
               </div>
               {!isLogin && (
                 <p className="welcome-message">

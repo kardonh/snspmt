@@ -327,20 +327,6 @@ const GuidePanel = () => {
         ))}
       </div>
 
-      {/* 1대1 상담 버튼 */}
-      <div className="consultation-section">
-        <button 
-          className="consultation-btn"
-          onClick={() => window.open('http://pf.kakao.com/_QqyKn', '_blank')}
-        >
-          <div className="consultation-content">
-            <div className="consultation-text">1:1 상담</div>
-            <div className="talk-bubble">
-              <span className="talk-text">TALK</span>
-            </div>
-          </div>
-        </button>
-      </div>
     </aside>
   )
 }
