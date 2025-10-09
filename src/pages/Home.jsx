@@ -302,8 +302,10 @@ const Home = () => {
       { id: 281, name: 'KR 인스타그램 리얼 한국인 [30대남자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' }
     ],
     followers_korean: [
-      { id: 491, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [디럭스]', price: 210000, min: 10, max: 1000, time: '데이터 부족', description: '상세정보' },
-      { id: 334, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [프리미엄]', price: 270000, min: 10, max: 40000, time: '1시간 3분', description: '상세정보' }
+      { id: 491, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [일반반]', price: 160000, min: 10, max: 1000, time: '데이터 부족', description: '상세정보' },
+      { id: 334, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [디럭스]', price: 210000, min: 10, max: 40000, time: '1시간 3분', description: '상세정보' },
+      { id: 383, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [프리미엄]', price: 270000, min: 10, max: 40000, time: '1시간 3분', description: '상세정보' }
+
     ],
     views: [
       { id: 111, name: 'KR 인스타그램 리얼 한국인 동영상 조회수', price: 2000, min: 100, max: 2147483647, time: '20시간 33분', description: '상세정보' },
