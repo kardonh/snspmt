@@ -48,43 +48,37 @@
   position: fixed;
   bottom: 20px;
   right: 20px;
-  width: 150px;
+  width: 60px;
   z-index: 1000;
 }
 
 /* 1대1 상담 버튼 */
 .consultation-btn {
-  background: linear-gradient(135deg, #92e2dd 0%, #ffffff 100%);
+  background: transparent;
   border: none;
-  border-radius: 12px;
-  padding: 12px 18px;
+  border-radius: 50%;
+  padding: 0;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   position: relative;
   overflow: hidden;
-  width: 100%;
+  width: 60px;
+  height: 60px;
 }
 
-.consultation-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
+.consult-image {
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s ease;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+  background: #FEE500;
 }
 
 .consultation-btn:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
-}
-
-.consultation-btn:hover::before {
-  left: 100%;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
 }
 
 .consultation-content {
@@ -99,6 +93,16 @@
   font-size: 14px;
   font-weight: 600;
   color: white;
+}
+
+/* 데스크톱과 모바일 텍스트 표시 구분 */
+/* 데스크톱에서는 "1:1 상담" 표시 */
+.desktop-text {
+  display: inline;
+}
+
+.mobile-text {
+  display: none;
 }
 
 .talk-bubble {
@@ -740,45 +744,111 @@
     display: none;
   }
   
-  /* 모바일에서 1:1 상담 버튼만 표시 */
+  /* 모바일에서 1:1 상담 버튼만 표시 - 하단 탭 메뉴 위에 위치 */
   .consultation-section {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 120px;
+    bottom: 90px; /* 하단 탭 메뉴(약 70px) + 여백(20px) */
+    right: 16px;
+    width: 50px;
+    height: 50px;
     z-index: 1000;
   }
   
   .consultation-btn {
-    background: linear-gradient(135deg, #92e2dd 0%, #ffffff 100%);
+    background: transparent;
     border: none;
-    border-radius: 25px;
-    padding: 10px 16px;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
     position: relative;
     overflow: hidden;
-    width: 100%;
     transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  
+  .consult-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  
+  .consultation-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .consultation-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  }
+  
+  .consultation-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1f2937;
+    text-align: center;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* 모바일에서는 "1:1"만 표시 */
+  .desktop-text {
+    display: none;
+  }
+  
+  .mobile-text {
+    display: inline;
+  }
+  
+  .talk-bubble {
+    display: none; /* 모바일에서는 TALK 버블 숨김 */
+  }
+  
+  .talk-text {
+    display: none; /* 모바일에서는 TALK 텍스트 숨김 */
+  }
+}
+
+/* 더 작은 모바일 화면 (480px 이하) */
+@media (max-width: 480px) {
+  .consultation-section {
+    bottom: 85px; /* 더 작은 여백 */
+    right: 12px;
+    width: 50px;
+    height: 50px;
+  }
+  
+  .consultation-btn {
+    width: 50px;
+    height: 50px;
+    background: transparent;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  }
+  
+  .consult-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  
+  .consultation-btn:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
   }
   
   .consultation-text {
     font-size: 12px;
-    font-weight: 600;
-    color: white;
-  }
-  
-  .talk-bubble {
-    background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
-    border-radius: 8px;
-    padding: 2px 6px;
-    margin-left: 4px;
-  }
-  
-  .talk-text {
-    font-size: 8px;
-    font-weight: 700;
-    color: white;
-    letter-spacing: 0.5px;
   }
 }

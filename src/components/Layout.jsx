@@ -82,12 +82,7 @@ const Layout = ({ children }) => {
           className="consultation-btn"
           onClick={() => window.open('http://pf.kakao.com/_QqyKn', '_blank')}
         >
-          <div className="consultation-content">
-            <div className="consultation-text">1:1 상담</div>
-            <div className="talk-bubble">
-              <span className="talk-text">TALK</span>
-            </div>
-          </div>
+          <img src="/images/kakao-talk-simple.png" alt="1:1 상담" className="consult-image" />
         </button>
       </div>
 

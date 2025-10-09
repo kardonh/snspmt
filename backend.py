@@ -1777,6 +1777,14 @@ def register():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # 이메일 중복 체크
+        cursor.execute("SELECT user_id FROM users WHERE email = %s", (email,))
+        existing_user = cursor.fetchone()
+        
+        if existing_user and existing_user[0] != user_id:
+            print(f"❌ 이메일 중복: {email} (기존 user_id: {existing_user[0]}, 새 user_id: {user_id})")
+            return jsonify({'error': '이미 사용 중인 이메일입니다.'}), 400
+        
         # 사용자 정보 저장
         print(f"💾 사용자 정보 저장 시도 - user_id: {user_id}, email: {email}, name: {name}")
         
