@@ -255,8 +255,8 @@ const Sidebar = ({ onClose }) => {
               <strong>이메일:</strong> tambleofficial@gmail.com
             </div>
             <div className="info-links">
-              <a href="https://docs.google.com/document/d/1AkgWndVOffH8y7Q-vTlDzgg4SgcC1DPCTYrZ9K9HT6Q/edit?usp=sharing" target="_blank">이용약관</a>
-              <a href="https://docs.google.com/document/d/1yPv8pknCIKc0yjyn7LIJ8oIQux_wL7LU-63doJ5njCA/edit?tab=t.0" target="_blank">개인정보처리방침</a>
+              <a href="https://drive.google.com/file/d/1Nn3ABQFUbRSUpD25IAdyJrfjBbDn70Ji/view?usp=sharing" target="_blank">이용약관</a>
+              <a href="https://drive.google.com/file/d/1PWCtiDv_tFrP2EyNVaQw4CY-pi0K5Hrc/view?usp=sharing" target="_blank">개인정보처리방침</a>
             </div>
           </div>
         )}
