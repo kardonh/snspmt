@@ -999,18 +999,6 @@ const Home = () => {
         return [
           { id: 'whatsapp_services', name: '왓츠앱 서비스', description: '왓츠앱 서비스' }
         ]
-      case 'recommended':
-        return [
-          { id: 'instagram_followers', name: '인스타그램 팔로워', description: '인기 팔로워 서비스' },
-          { id: 'instagram_likes', name: '인스타그램 좋아요', description: '인기 좋아요 서비스' },
-          { id: 'instagram_popular', name: '인스타그램 상위노출', description: '인기 상위노출 서비스' },
-          { id: 'youtube_subscribers', name: '유튜브 구독자', description: '인기 구독자 서비스' },
-          { id: 'youtube_views', name: '유튜브 조회수', description: '인기 조회수 서비스' },
-          { id: 'tiktok_followers', name: '틱톡 팔로워', description: '인기 팔로워 서비스' },
-          { id: 'tiktok_views', name: '틱톡 조회수', description: '인기 조회수 서비스' },
-          { id: 'facebook_page_likes', name: '페이스북 팬페이지 좋아요', description: '인기 팬페이지 서비스' },
-          { id: 'twitter_followers', name: '트위터 팔로워', description: '인기 팔로워 서비스' }
-        ]
       default:
         return []
     }
@@ -1908,7 +1896,22 @@ const Home = () => {
       }
     };
 
-    const product = descriptions[platform]?.[service];
+    // 기본 상품 설명 (모든 서비스에 적용)
+    const defaultProduct = {
+      title: `${platform === 'instagram' ? '📸 인스타그램' : platform === 'youtube' ? '📺 유튜브' : platform === 'tiktok' ? '🎵 틱톡' : platform === 'twitter' ? '🐦 트위터' : platform === 'facebook' ? '👥 페이스북' : platform === 'telegram' ? '📱 텔레그램' : platform === 'whatsapp' ? '💬 왓츠앱' : platform === 'naver' ? '🔍 네이버' : '📱'} ${service.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}`,
+      specs: [
+        "✴️ 품질: 고품질 리얼 서비스",
+        "✴️ 시작: 즉시~30분",
+        "✳️ 속도: 자연스러운 속도로 유입"
+      ],
+      warnings: [
+        "✔️ 계정공개 필수, 비공개 계정 작업 불가",
+        "✔️ 주문접수 후 취소, 변경, 환불 불가",
+        "✔️ 진행 상태 정보는 정확히 일치하지 않을 수 있습니다"
+      ]
+    };
+
+    const product = descriptions[platform]?.[service] || defaultProduct;
     if (!product) return null;
 
     return (
