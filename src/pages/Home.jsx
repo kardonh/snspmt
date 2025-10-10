@@ -615,14 +615,10 @@ const Home = () => {
   
   // 이벤트 매핑
   if (platform === 'event') {
-    if (serviceType === 'instagram_optimization_30days') {
-      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1002) || [])
-    } else if (serviceType === 'recommended_tab_maintenance') {
-      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1004) || [])
-    } else if (serviceType === 'instagram_korean_likes') {
+    if (serviceType === 'instagram_korean_followers_bulk') {
+      return filterValidServices(instagramDetailedServices.followers_korean || [])
+    } else if (serviceType === 'instagram_korean_likes_bulk') {
       return filterValidServices(instagramDetailedServices.likes_korean || [])
-    } else if (serviceType === 'instagram_regram') {
-      return filterValidServices(instagramDetailedServices.regram_korean || [])
     }
     return filterValidServices([])
   }
@@ -863,10 +859,8 @@ const Home = () => {
         ]
       case 'event':
         return [
-          { id: 'instagram_optimization_30days', name: '인스타 최적화 계정만들기 [30일]', description: '인스타그램 최적화 계정 생성 서비스' },
-          { id: 'recommended_tab_maintenance', name: '추천탭 상위노출 (본인계정) - 유지단계', description: '추천탭 상위노출 유지단계 서비스' },
-          { id: 'instagram_korean_likes', name: '인스타 한국인 좋아요 늘리기', description: '인스타그램 한국인 좋아요 증가 서비스' },
-          { id: 'instagram_regram', name: '인스타 리그램', description: '인스타그램 리그램 서비스' }
+          { id: 'instagram_korean_followers_bulk', name: '인스타 한국인 팔로워 대량 구매', description: '인스타그램 한국인 팔로워 대량 구매 서비스' },
+          { id: 'instagram_korean_likes_bulk', name: '인스타 한국인 좋아요 대량 구매', description: '인스타그램 한국인 좋아요 대량 구매 서비스' }
         ]
       case 'top-exposure':
         return [
@@ -1270,7 +1264,7 @@ const Home = () => {
       setSelectedService('top_exposure_30days')
       setQuantity(1)
     } else if (platformId === 'event') {
-      setSelectedService('instagram_optimization_30days')
+      setSelectedService('instagram_korean_followers_bulk')
       setQuantity(1)
     } else if (platformId === 'top-exposure') {
       setSelectedService('top_exposure_30days')
