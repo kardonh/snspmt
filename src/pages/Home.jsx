@@ -2228,8 +2228,8 @@ const Home = () => {
       <div className="service-selection">
         <div className="service-header">
           <div className="header-title">
-            <h2>주문하기</h2>
-            <p>원하는 서비스를 선택하고 주문해보세요!</p>
+        <h2>주문하기</h2>
+        <p>원하는 서비스를 선택하고 주문해보세요!</p>
           </div>
           <button 
             className="order-method-btn"
