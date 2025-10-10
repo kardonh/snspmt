@@ -596,7 +596,22 @@ const Home = () => {
     if (serviceType === 'top_exposure_30days') {
       return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1001) || [])
     } else if (serviceType === 'recommended_tab_entry') {
-      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1003) || [])
+      // 추천탭 상위노출 (본인계정) - 진입단계 패키지 상품
+      return filterValidServices([{
+        id: 1003,
+        name: '🎯 추천탭 상위노출 (본인계정) - 진입단계 [3단계 패키지]',
+        price: 20000000,
+        min: 1,
+        max: 1,
+        time: '24-48시간',
+        description: '진입단계 3단계 완전 패키지',
+        package: true,
+        steps: [
+          { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 300, delay: 0, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
+          { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', quantity: 3000, delay: 10, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
+          { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' }
+        ]
+      }])
     } else if (serviceType === 'instagram_followers') {
       return filterValidServices(instagramDetailedServices.followers_korean || [])
     } else if (serviceType === 'instagram_reels_views') {
@@ -604,7 +619,21 @@ const Home = () => {
     } else if (serviceType === 'instagram_optimization_30days') {
       return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1002) || [])
     } else if (serviceType === 'recommended_tab_maintenance') {
-      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1004) || [])
+      // 추천탭 상위노출 (본인계정) - 유지단계 패키지 상품
+      return filterValidServices([{
+        id: 1004,
+        name: '🎯 추천탭 상위노출 (본인계정) - 유지단계 [2단계 패키지]',
+        price: 15000000,
+        min: 1,
+        max: 1,
+        time: '12-24시간',
+        description: '유지단계 2단계 완전 패키지',
+        package: true,
+        steps: [
+          { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 250, delay: 0, description: '[상승단계]:리얼 한국인 좋아요' },
+          { id: 331, name: '2단계: 게시물 노출+도달+홈 [✔연속 유입]', quantity: 3000, delay: 10, description: '[유지단계]:게시물 노출+도달+홈 [✔연속 유입] 작업' }
+        ]
+      }])
     } else if (serviceType === 'instagram_korean_likes') {
       return filterValidServices(instagramDetailedServices.likes_korean || [])
     } else if (serviceType === 'instagram_regram') {
@@ -631,9 +660,38 @@ const Home = () => {
     } else if (serviceType === 'instagram_optimization_30days') {
       return filterValidServices(services.manual?.filter(s => s.id === 1002) || [])
     } else if (serviceType === 'recommended_tab_entry') {
-      return filterValidServices(services.manual?.filter(s => s.id === 1003) || [])
+      // 추천탭 상위노출 (본인계정) - 진입단계 패키지 상품
+      return filterValidServices([{
+        id: 1003,
+        name: '🎯 추천탭 상위노출 (본인계정) - 진입단계 [3단계 패키지]',
+        price: 20000000,
+        min: 1,
+        max: 1,
+        time: '24-48시간',
+        description: '진입단계 3단계 완전 패키지',
+        package: true,
+        steps: [
+          { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 300, delay: 0, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
+          { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', quantity: 3000, delay: 10, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
+          { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' }
+        ]
+      }])
     } else if (serviceType === 'recommended_tab_maintenance') {
-      return filterValidServices(services.manual?.filter(s => s.id === 1004) || [])
+      // 추천탭 상위노출 (본인계정) - 유지단계 패키지 상품
+      return filterValidServices([{
+        id: 1004,
+        name: '🎯 추천탭 상위노출 (본인계정) - 유지단계 [2단계 패키지]',
+        price: 15000000,
+        min: 1,
+        max: 1,
+        time: '12-24시간',
+        description: '유지단계 2단계 완전 패키지',
+        package: true,
+        steps: [
+          { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 250, delay: 0, description: '[상승단계]:리얼 한국인 좋아요' },
+          { id: 331, name: '2단계: 게시물 노출+도달+홈 [✔연속 유입]', quantity: 3000, delay: 10, description: '[유지단계]:게시물 노출+도달+홈 [✔연속 유입] 작업' }
+        ]
+      }])
     }
     return filterValidServices([])
     }
