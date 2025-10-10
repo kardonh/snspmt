@@ -853,16 +853,16 @@ def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, 
                 # SMM Panel 주문 ID 저장
                 if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
-                        UPDATE orders SET smm_panel_order_id = %s, status = 'completed', updated_at = NOW()
+                        UPDATE orders SET smm_panel_order_id = %s, status = 'processing', updated_at = NOW()
                         WHERE order_id = %s
                     """, (smm_result.get('order'), new_order_id))
                 else:
                     cursor.execute("""
-                        UPDATE orders SET smm_panel_order_id = ?, status = 'completed', updated_at = CURRENT_TIMESTAMP
+                        UPDATE orders SET smm_panel_order_id = ?, status = 'processing', updated_at = CURRENT_TIMESTAMP
                         WHERE order_id = ?
                     """, (smm_result.get('order'), new_order_id))
                 conn.commit()
-                print(f"✅ 일반 예약 주문 완료: SMM 주문 ID {smm_result.get('order')}")
+                print(f"✅ 일반 예약 주문 진행중: SMM 주문 ID {smm_result.get('order')}")
             else:
                 print(f"❌ 일반 예약 주문 실패: {smm_result.get('message')}")
         
@@ -922,13 +922,13 @@ def process_scheduled_order(order_id):
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     UPDATE orders 
-                    SET status = 'completed', smm_panel_order_id = %s, updated_at = NOW()
+                    SET status = 'processing', smm_panel_order_id = %s, updated_at = NOW()
                     WHERE order_id = %s
                 """, (smm_result.get('order'), order_id))
             else:
                 cursor.execute("""
                     UPDATE orders 
-                    SET status = 'completed', smm_panel_order_id = ?, updated_at = datetime('now')
+                    SET status = 'processing', smm_panel_order_id = ?, updated_at = datetime('now')
                     WHERE order_id = ?
                 """, (smm_result.get('order'), order_id))
             
@@ -2230,18 +2230,18 @@ def create_order():
                     # SMM Panel 주문 ID 저장
                     if DATABASE_URL.startswith('postgresql://'):
                         cursor.execute("""
-                            UPDATE orders SET smm_panel_order_id = %s, status = 'completed', updated_at = NOW()
+                            UPDATE orders SET smm_panel_order_id = %s, status = 'processing', updated_at = NOW()
                             WHERE order_id = %s
                         """, (smm_result.get('order'), order_id))
                     else:
                         cursor.execute("""
-                            UPDATE orders SET smm_panel_order_id = ?, status = 'completed', updated_at = CURRENT_TIMESTAMP
+                            UPDATE orders SET smm_panel_order_id = ?, status = 'processing', updated_at = CURRENT_TIMESTAMP
                             WHERE order_id = ?
                         """, (smm_result.get('order'), order_id))
                     
                     conn.commit()
-                    status = 'completed'
-                    message = '주문이 즉시 처리되었습니다.'
+                    status = 'processing'
+                    message = '주문이 접수되어 진행중입니다.'
                 else:
                     status = 'failed'
                     message = 'SMM Panel API 호출 실패'

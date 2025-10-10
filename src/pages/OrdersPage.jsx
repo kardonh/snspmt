@@ -451,6 +451,11 @@ const OrdersPage = () => {
                       <span className="value">
                         {order.order_id || order.id || order.order_number || 'N/A'}
                       </span>
+                      {order.smm_panel_order_id && (
+                        <span className="smm-order-id" title="SMM Panel 주문 ID">
+                          (SMM: {order.smm_panel_order_id})
+                        </span>
+                      )}
                     </div>
                     <div className="order-status-section">
                       <div className={`order-status ${getStatusClass(order.status)}`}>
