@@ -586,6 +586,30 @@ const Home = () => {
         { id: 397, name: '유튜브 외국인 실시간 라이브 스트리밍 [120분]', price: 80000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' },
         { id: 398, name: '유튜브 외국인 실시간 라이브 스트리밍 [180분]', price: 120000, min: 100, max: 1000000, time: '데이터 부족', description: '상세정보' }
       ]
+    },
+    
+    // 상위노출 패키지 서비스
+    top_exposure: {
+      manual: [
+        // 🎯 추천탭 상위노출 (내계정) - 진입단계
+        { id: 1003, name: '🎯 추천탭 상위노출 (내계정) - 진입단계 [3단계 패키지]', price: 20000000, min: 1, max: 1, time: '24-48시간', description: '진입단계 3단계 완전 패키지', package: true, steps: [
+          { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 300, delay: 0, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
+          { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', quantity: 3000, delay: 10, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
+          { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' }
+        ]},
+        
+        // 🎯 추천탭 상위노출 (내계정) - 유지단계
+        { id: 1004, name: '🎯 추천탭 상위노출 (내계정) - 유지단계 [2단계 패키지]', price: 15000000, min: 1, max: 1, time: '12-24시간', description: '유지단계 2단계 완전 패키지', package: true, steps: [
+          { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 250, delay: 0, description: '[상승단계]:리얼 한국인 좋아요' },
+          { id: 331, name: '2단계: 게시물 노출+도달+홈 [✔연속 유입]', quantity: 3000, delay: 10, description: '[유지단계]:게시물 노출+도달+홈 [✔연속 유입] 작업' }
+        ]},
+        
+        // 인스타 계정 상위노출 [30일]
+        { id: 1001, name: '인스타 계정 상위노출 [30일]', price: 5000000, min: 1, max: 1, time: '30일', description: '인스타그램 계정 상위노출 서비스' },
+        
+        // 인스타 최적화 계정만들기 [30일]
+        { id: 1002, name: '인스타 최적화 계정만들기 [30일]', price: 3000000, min: 1, max: 1, time: '30일', description: '인스타그램 최적화 계정 생성 서비스' }
+      ]
     }
   }
   
@@ -596,22 +620,7 @@ const Home = () => {
     if (serviceType === 'top_exposure_30days') {
       return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1001) || [])
     } else if (serviceType === 'recommended_tab_entry') {
-      // 추천탭 상위노출 (본인계정) - 진입단계 패키지 상품
-      return filterValidServices([{
-        id: 1003,
-        name: '🎯 추천탭 상위노출 (본인계정) - 진입단계 [3단계 패키지]',
-        price: 20000000,
-        min: 1,
-        max: 1,
-        time: '24-48시간',
-        description: '진입단계 3단계 완전 패키지',
-        package: true,
-        steps: [
-          { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 300, delay: 0, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
-          { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', quantity: 3000, delay: 10, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
-          { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' }
-        ]
-      }])
+      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1003) || [])
     } else if (serviceType === 'instagram_followers') {
       return filterValidServices(instagramDetailedServices.followers_korean || [])
     } else if (serviceType === 'instagram_reels_views') {
@@ -619,21 +628,7 @@ const Home = () => {
     } else if (serviceType === 'instagram_optimization_30days') {
       return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1002) || [])
     } else if (serviceType === 'recommended_tab_maintenance') {
-      // 추천탭 상위노출 (본인계정) - 유지단계 패키지 상품
-      return filterValidServices([{
-        id: 1004,
-        name: '🎯 추천탭 상위노출 (본인계정) - 유지단계 [2단계 패키지]',
-        price: 15000000,
-        min: 1,
-        max: 1,
-        time: '12-24시간',
-        description: '유지단계 2단계 완전 패키지',
-        package: true,
-        steps: [
-          { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 250, delay: 0, description: '[상승단계]:리얼 한국인 좋아요' },
-          { id: 331, name: '2단계: 게시물 노출+도달+홈 [✔연속 유입]', quantity: 3000, delay: 10, description: '[유지단계]:게시물 노출+도달+홈 [✔연속 유입] 작업' }
-        ]
-      }])
+      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1004) || [])
     } else if (serviceType === 'instagram_korean_likes') {
       return filterValidServices(instagramDetailedServices.likes_korean || [])
     } else if (serviceType === 'instagram_regram') {
@@ -660,38 +655,9 @@ const Home = () => {
     } else if (serviceType === 'instagram_optimization_30days') {
       return filterValidServices(services.manual?.filter(s => s.id === 1002) || [])
     } else if (serviceType === 'recommended_tab_entry') {
-      // 추천탭 상위노출 (본인계정) - 진입단계 패키지 상품
-      return filterValidServices([{
-        id: 1003,
-        name: '🎯 추천탭 상위노출 (본인계정) - 진입단계 [3단계 패키지]',
-        price: 20000000,
-        min: 1,
-        max: 1,
-        time: '24-48시간',
-        description: '진입단계 3단계 완전 패키지',
-        package: true,
-        steps: [
-          { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 300, delay: 0, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
-          { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', quantity: 3000, delay: 10, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
-          { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' }
-        ]
-      }])
+      return filterValidServices(services.manual?.filter(s => s.id === 1003) || [])
     } else if (serviceType === 'recommended_tab_maintenance') {
-      // 추천탭 상위노출 (본인계정) - 유지단계 패키지 상품
-      return filterValidServices([{
-        id: 1004,
-        name: '🎯 추천탭 상위노출 (본인계정) - 유지단계 [2단계 패키지]',
-        price: 15000000,
-        min: 1,
-        max: 1,
-        time: '12-24시간',
-        description: '유지단계 2단계 완전 패키지',
-        package: true,
-        steps: [
-          { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 250, delay: 0, description: '[상승단계]:리얼 한국인 좋아요' },
-          { id: 331, name: '2단계: 게시물 노출+도달+홈 [✔연속 유입]', quantity: 3000, delay: 10, description: '[유지단계]:게시물 노출+도달+홈 [✔연속 유입] 작업' }
-        ]
-      }])
+      return filterValidServices(services.manual?.filter(s => s.id === 1004) || [])
     }
     return filterValidServices([])
     }
