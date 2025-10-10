@@ -283,23 +283,34 @@ def call_smm_panel_api(order_data):
     try:
         smm_panel_url = 'https://smmpanel.kr/api/v2'
         
-        payload = {
-            'key': SMMPANEL_API_KEY,
-            'action': 'add',
-            'service': order_data.get('service'),
-            'link': order_data.get('link'),
-            'quantity': order_data.get('quantity'),
-            'runs': 1,
-            'interval': 0,
-            'comments': order_data.get('comments', ''),
-            'username': '',
-            'min': 0,
-            'max': 0,
-            'posts': 0,
-            'delay': 0,
-            'expiry': '',
-            'oldPosts': 0
-        }
+        action = order_data.get('action', 'add')
+        
+        # 상태 조회일 경우
+        if action == 'status':
+            payload = {
+                'key': SMMPANEL_API_KEY,
+                'action': 'status',
+                'order': order_data.get('order')
+            }
+        else:
+            # 주문 생성일 경우
+            payload = {
+                'key': SMMPANEL_API_KEY,
+                'action': 'add',
+                'service': order_data.get('service'),
+                'link': order_data.get('link'),
+                'quantity': order_data.get('quantity'),
+                'runs': 1,
+                'interval': 0,
+                'comments': order_data.get('comments', ''),
+                'username': '',
+                'min': 0,
+                'max': 0,
+                'posts': 0,
+                'delay': 0,
+                'expiry': '',
+                'oldPosts': 0
+            }
         
         print(f"📞 SMM Panel API 요청: {payload}")
         response = requests.post(smm_panel_url, json=payload, timeout=30)
@@ -307,7 +318,25 @@ def call_smm_panel_api(order_data):
         print(f"📞 SMM Panel API 응답 내용: {response.text}")
         result = response.json()
         
-        if result.get('status') == 'success':
+        # 상태 조회 응답 처리
+        if action == 'status':
+            if response.status_code == 200:
+                return {
+                    'status': 'success',
+                    'order': result.get('order'),
+                    'status_text': result.get('status'),  # SMM Panel의 status (Pending, In progress, Completed 등)
+                    'charge': result.get('charge'),
+                    'start_count': result.get('start_count', 0),
+                    'remains': result.get('remains', 0)
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'message': result.get('error', 'Unknown error')
+                }
+        
+        # 주문 생성 응답 처리
+        if result.get('status') == 'success' or result.get('order'):
             return {
                 'status': 'success',
                 'order': result.get('order'),
@@ -318,9 +347,10 @@ def call_smm_panel_api(order_data):
         else:
             return {
                 'status': 'error',
-                'message': result.get('message', 'Unknown error')
+                'message': result.get('error', 'Unknown error')
             }
     except Exception as e:
+        print(f"❌ SMM Panel API 호출 오류: {str(e)}")
         return {
             'status': 'error',
             'message': str(e)
@@ -2480,13 +2510,13 @@ def get_orders():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps
+                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps, smm_panel_order_id, detailed_service
                 FROM orders WHERE user_id = %s
                 ORDER BY created_at DESC
             """, (user_id,))
         else:
             cursor.execute("""
-                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps
+                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps, smm_panel_order_id, detailed_service
                 FROM orders WHERE user_id = ?
                 ORDER BY created_at DESC
             """, (user_id,))
@@ -2508,6 +2538,42 @@ def get_orders():
                 except:
                     package_steps = []
             
+            smm_panel_order_id = order[8]
+            db_status = order[5]
+            
+            # SMM Panel에서 실시간 상태 확인 (완료되지 않은 주문만)
+            real_status = db_status
+            start_count = 0
+            remains = order[3]  # 초기값은 주문 수량
+            
+            if smm_panel_order_id and db_status not in ['completed', 'canceled', 'cancelled', 'failed']:
+                try:
+                    smm_result = call_smm_panel_api({
+                        'action': 'status',
+                        'order': smm_panel_order_id
+                    })
+                    
+                    if smm_result.get('status') == 'success':
+                        smm_status = smm_result.get('status_text', '').lower()
+                        start_count = smm_result.get('start_count', 0)
+                        remains = smm_result.get('remains', 0)
+                        
+                        # SMM Panel 상태를 우리 상태로 매핑
+                        if smm_status == 'completed' or remains == 0:
+                            real_status = 'completed'
+                        elif smm_status == 'in progress' or (start_count > 0 and remains < order[3]):
+                            real_status = 'in_progress'  # 작업중
+                        elif smm_status == 'pending':
+                            real_status = 'processing'  # 진행중
+                        elif smm_status == 'partial':
+                            real_status = 'partial_completed'
+                        elif smm_status == 'canceled' or smm_status == 'cancelled':
+                            real_status = 'canceled'
+                        
+                        print(f"📊 주문 {order[0]} 실시간 상태: DB={db_status}, SMM={smm_status}, 실제={real_status}, 시작={start_count}, 남음={remains}")
+                except Exception as e:
+                    print(f"⚠️ 주문 {order[0]} 상태 확인 실패: {str(e)}")
+            
             order_list.append({
                 'id': order[0],  # 프론트엔드 호환성을 위해 id 필드 추가
                 'order_id': order[0],
@@ -2515,11 +2581,15 @@ def get_orders():
                 'link': order[2],
                 'quantity': order[3],
                 'price': float(order[4]),
-                'status': order[5],
+                'status': real_status,  # 실시간 상태 사용
                 'created_at': order[6].isoformat() if hasattr(order[6], 'isoformat') else str(order[6]),
                 'is_package': len(package_steps) > 0,
                 'package_steps': package_steps,
-                'total_steps': len(package_steps)
+                'total_steps': len(package_steps),
+                'smm_panel_order_id': smm_panel_order_id,
+                'detailed_service': order[9] if len(order) > 9 else None,
+                'start_count': start_count,
+                'remains': remains
             })
         
         print(f"✅ 주문 조회 성공: {len(order_list)}개")
