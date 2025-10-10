@@ -1257,10 +1257,16 @@ const Home = () => {
     setSelectedDetailedService(null)
     
     // 플랫폼에 따라 기본 서비스 설정
-    if (platformId === 'top-exposure') {
-      setSelectedService('popular_posts')
+    if (platformId === 'recommended') {
+      setSelectedService('top_exposure_30days')
       setQuantity(1)
-    } else if (['recommended', 'event', 'account-management', 'package', 'other', 'threads', 'news-media', 'experience-group', 'kakao', 'store-marketing', 'app-marketing', 'seo-traffic'].includes(platformId)) {
+    } else if (platformId === 'event') {
+      setSelectedService('instagram_optimization_30days')
+      setQuantity(1)
+    } else if (platformId === 'top-exposure') {
+      setSelectedService('automatic')
+      setQuantity(1)
+    } else if (['account-management', 'package', 'other', 'threads', 'news-media', 'experience-group', 'kakao', 'store-marketing', 'app-marketing', 'seo-traffic'].includes(platformId)) {
       setSelectedService('instagram_followers')
       setQuantity(1)
     } else {
@@ -2270,7 +2276,7 @@ const Home = () => {
           <p className="category-description">상세 서비스를 선택해주세요</p>
           
           {/* Tab Navigation - 특정 플랫폼에서는 숨김 */}
-          {!['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp'].includes(selectedPlatform) && (
+          {!['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp', 'recommended', 'event', 'top-exposure'].includes(selectedPlatform) && (
             <div className="service-tabs">
               <button 
                 className={`tab-button ${selectedTab === 'korean' ? 'active' : ''}`}
@@ -2311,7 +2317,7 @@ const Home = () => {
                 }
                 
                 // 특정 플랫폼들은 탭 구분 없이 모든 서비스 표시
-                if (['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp'].includes(selectedPlatform)) {
+                if (['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp', 'recommended', 'event', 'top-exposure'].includes(selectedPlatform)) {
                   return true
                 }
                 
