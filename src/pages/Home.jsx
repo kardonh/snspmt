@@ -232,6 +232,31 @@ const Home = () => {
 
   // 인스타그램 세부 서비스 데이터
   const instagramDetailedServices = {
+    // 추천서비스
+    recommended_services: [
+      { id: 1001, name: '인스타 계정 상위노출 [30일]', price: 5000000, min: 1, max: 1, time: '30일', description: '인스타그램 계정 상위노출 서비스' },
+      { id: 1003, name: '추천탭 상위노출 (본인계정) - 진입단계', price: 20000000, min: 1, max: 1, time: '24-48시간', description: '추천탭 상위노출 진입단계 패키지', package: true },
+      { id: 334, name: '인스타 팔로워 늘리기', price: 210000, min: 10, max: 40000, time: '1시간 3분', description: '리얼 한국인 팔로워' },
+      { id: 111, name: '인스타 릴스 조회수 늘리기', price: 2000, min: 100, max: 2147483647, time: '20시간 33분', description: '리얼 한국인 동영상 조회수' }
+    ],
+    
+    // 이벤트 서비스
+    event_services: [
+      { id: 1002, name: '인스타 최적화 계정만들기 [30일]', price: 3000000, min: 1, max: 1, time: '30일', description: '인스타그램 최적화 계정 만들기' },
+      { id: 1004, name: '추천탭 상위노출 (본인계정) - 유지단계', price: 15000000, min: 1, max: 1, time: '12-24시간', description: '추천탭 상위노출 유지단계 패키지', package: true },
+      { id: 122, name: '인스타 한국인 좋아요 늘리기', price: 19000, min: 30, max: 2500, time: '14시간 54분', description: '파워업 좋아요' },
+      { id: 305, name: '인스타 리그램', price: 450000, min: 3, max: 3000, time: '6시간 12분', description: '한국인 리그램' }
+    ],
+    
+    // 상위노출 패키지
+    top_exposure_package: [
+      { id: 'auto', name: '자동', price: 0, min: 1, max: 1, time: '자동', description: '자동 패키지 선택' },
+      { id: 1001, name: '인스타 계정 상위노출 [30일]', price: 5000000, min: 1, max: 1, time: '30일', description: '인스타그램 계정 상위노출 서비스' },
+      { id: 1002, name: '인스타 최적화 계정만들기 [30일]', price: 3000000, min: 1, max: 1, time: '30일', description: '인스타그램 최적화 계정 만들기' },
+      { id: 1003, name: '추천탭 상위노출 (본인계정) - 진입단계', price: 20000000, min: 1, max: 1, time: '24-48시간', description: '추천탭 상위노출 진입단계 패키지', package: true },
+      { id: 1004, name: '추천탭 상위노출 (본인계정) - 유지단계', price: 15000000, min: 1, max: 1, time: '12-24시간', description: '추천탭 상위노출 유지단계 패키지', package: true }
+    ],
+    
     popular_posts: [
       // 기존 서비스들
       { id: 361, name: '🥇인기게시물 상위 노출[🎨사진] TI1', price: 3000000, min: 1, max: 10, time: '6 시간 10 분' },
@@ -591,6 +616,21 @@ const Home = () => {
   
   // 세부 서비스 목록 가져오기
   const getDetailedServices = (platform, serviceType) => {
+  // 추천서비스
+  if (platform === 'recommended' && serviceType === 'recommended_services') {
+    return filterValidServices(instagramDetailedServices.recommended_services || [])
+  }
+  
+  // 이벤트 서비스
+  if (platform === 'event' && serviceType === 'event_services') {
+    return filterValidServices(instagramDetailedServices.event_services || [])
+  }
+  
+  // 상위노출 패키지
+  if (platform === 'top-exposure' && serviceType === 'top_exposure_package') {
+    return filterValidServices(instagramDetailedServices.top_exposure_package || [])
+  }
+  
   if (platform === 'top-exposure') {
     const services = instagramDetailedServices.top_exposure || {}
     if (serviceType === 'seo') {
@@ -2627,6 +2667,30 @@ const Home = () => {
           </div>
 
           {/* Action Buttons */}
+          <div className="action-buttons">
+            {isGuest ? (
+              <button 
+                className="login-required-btn" 
+                onClick={() => setShowAuthModal(true)}
+                disabled={isLoading}
+              >
+                로그인하여 주문하기
+              </button>
+            ) : (
+            <button className="submit-btn" onClick={handlePurchase} disabled={isLoading}>
+              {isLoading ? '처리 중...' : '구매하기'}
+            </button>
+            )}
+          </div>
+        </div>
+      )}
+
+    </div>
+  )
+}
+
+export default Home
+
           <div className="action-buttons">
             {isGuest ? (
               <button 
