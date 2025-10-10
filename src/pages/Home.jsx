@@ -601,6 +601,14 @@ const Home = () => {
       return filterValidServices(instagramDetailedServices.followers_korean || [])
     } else if (serviceType === 'instagram_reels_views') {
       return filterValidServices(instagramDetailedServices.reels_views_korean || [])
+    } else if (serviceType === 'instagram_optimization_30days') {
+      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1002) || [])
+    } else if (serviceType === 'recommended_tab_maintenance') {
+      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1004) || [])
+    } else if (serviceType === 'instagram_korean_likes') {
+      return filterValidServices(instagramDetailedServices.likes_korean || [])
+    } else if (serviceType === 'instagram_regram') {
+      return filterValidServices(instagramDetailedServices.regram_korean || [])
     }
     return filterValidServices([])
   }
@@ -847,7 +855,11 @@ const Home = () => {
           { id: 'top_exposure_30days', name: '인스타 계정 상위노출 [30일]', description: '인스타그램 계정 상위노출 서비스' },
           { id: 'recommended_tab_entry', name: '추천탭 상위노출 (본인계정) - 진입단계', description: '추천탭 상위노출 진입단계 서비스' },
           { id: 'instagram_followers', name: '인스타 팔로워 늘리기', description: '인스타그램 팔로워 증가 서비스' },
-          { id: 'instagram_reels_views', name: '인스타 릴스 조회수 늘리기', description: '인스타그램 릴스 조회수 증가 서비스' }
+          { id: 'instagram_reels_views', name: '인스타 릴스 조회수 늘리기', description: '인스타그램 릴스 조회수 증가 서비스' },
+          { id: 'instagram_optimization_30days', name: '인스타 최적화 계정만들기 [30일]', description: '인스타그램 최적화 계정 생성 서비스' },
+          { id: 'recommended_tab_maintenance', name: '추천탭 상위노출 (본인계정) - 유지단계', description: '추천탭 상위노출 유지단계 서비스' },
+          { id: 'instagram_korean_likes', name: '인스타 한국인 좋아요 늘리기', description: '인스타그램 한국인 좋아요 증가 서비스' },
+          { id: 'instagram_regram', name: '인스타 리그램', description: '인스타그램 리그램 서비스' }
         ]
       case 'event':
         return [
