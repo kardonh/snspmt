@@ -290,16 +290,16 @@ const Home = () => {
     
     
     likes_korean: [
-      { id: 122, name: 'KR 인스타그램 한국인 ❤️ 파워업 좋아요', price: 19000, min: 30, max: 2500, time: '14시간 54분', description: '상세정보' },
-      { id: 333, name: 'KR 인스타그램 한국인 ❤️ 슈퍼프리미엄 좋아요', price: 29000, min: 100, max: 1000, time: '데이터 부족', description: '상세정보' },
-      { id: 276, name: 'KR 인스타그램 리얼 한국인 [여자] 좋아요', price: 29000, min: 30, max: 5000, time: '9분', description: '상세정보' },
-      { id: 275, name: 'KR 인스타그램 리얼 한국인 [남자] 좋아요', price: 29000, min: 30, max: 5000, time: '10분', description: '상세정보' },
-      { id: 277, name: 'KR 인스타그램 리얼 한국인 [20대] 좋아요', price: 29000, min: 30, max: 5000, time: '데이터 부족', description: '상세정보' },
-      { id: 280, name: 'KR 인스타그램 리얼 한국인 [20대여자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
-      { id: 279, name: 'KR 인스타그램 리얼 한국인 [20대남자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
-      { id: 278, name: 'KR 인스타그램 리얼 한국인 [30대] 좋아요', price: 29000, min: 30, max: 5000, time: '데이터 부족', description: '상세정보' },
-      { id: 282, name: 'KR 인스타그램 리얼 한국인 [30대여자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
-      { id: 281, name: 'KR 인스타그램 리얼 한국인 [30대남자] 좋아요', price: 39000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' }
+      { id: 122, name: 'KR 인스타그램 한국인 ❤️ 파워업 좋아요', price: 20000, min: 30, max: 2500, time: '14시간 54분', description: '상세정보' },
+      { id: 333, name: 'KR 인스타그램 한국인 ❤️ 슈퍼프리미엄 좋아요', price: 30000, min: 100, max: 1000, time: '데이터 부족', description: '상세정보' },
+      { id: 276, name: 'KR 인스타그램 리얼 한국인 [여자] 좋아요', price: 30000, min: 30, max: 5000, time: '9분', description: '상세정보' },
+      { id: 275, name: 'KR 인스타그램 리얼 한국인 [남자] 좋아요', price: 30000, min: 30, max: 5000, time: '10분', description: '상세정보' },
+      { id: 277, name: 'KR 인스타그램 리얼 한국인 [20대] 좋아요', price: 30000, min: 30, max: 5000, time: '데이터 부족', description: '상세정보' },
+      { id: 280, name: 'KR 인스타그램 리얼 한국인 [20대여자] 좋아요', price: 40000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
+      { id: 279, name: 'KR 인스타그램 리얼 한국인 [20대남자] 좋아요', price: 40000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
+      { id: 278, name: 'KR 인스타그램 리얼 한국인 [30대] 좋아요', price: 30000, min: 30, max: 5000, time: '데이터 부족', description: '상세정보' },
+      { id: 282, name: 'KR 인스타그램 리얼 한국인 [30대여자] 좋아요', price: 40000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' },
+      { id: 281, name: 'KR 인스타그램 리얼 한국인 [30대남자] 좋아요', price: 40000, min: 30, max: 2500, time: '데이터 부족', description: '상세정보' }
     ],
     followers_korean: [
       { id: 491, name: 'KR 인스타그램 💯 리얼 한국인 팔로워 [일반반]', price: 160000, min: 10, max: 1000, time: '데이터 부족', description: '상세정보' },
@@ -370,8 +370,8 @@ const Home = () => {
       { id: 475, name: '인스타그램 외국인 팔로워', price: 10000, min: 100, max: 10000, time: '데이터 부족', description: '외국인 팔로워 서비스' }
     ],
     likes_foreign: [
-      { id: 105, name: '인스타그램 외국인 좋아요', price: 4000, min: 50, max: 10000, time: '데이터 부족', description: '외국인 좋아요 서비스' },
-      { id: 116, name: '인스타그램 리얼 외국인 좋아요', price: 6000, min: 50, max: 10000, time: '데이터 부족', description: '리얼 외국인 좋아요 서비스' }
+      { id: 105, name: '인스타그램 외국인 좋아요', price: 5000, min: 50, max: 10000, time: '데이터 부족', description: '외국인 좋아요 서비스' },
+      { id: 116, name: '인스타그램 리얼 외국인 좋아요', price: 7000, min: 50, max: 10000, time: '데이터 부족', description: '리얼 외국인 좋아요 서비스' }
     ],
     comments_foreign: [
       { id: 480, name: '인스타그램 외국인 랜덤 댓글', price: 50000, min: 20, max: 1000, time: '데이터 부족', description: '외국인 랜덤 댓글 서비스' },
@@ -401,8 +401,8 @@ const Home = () => {
       { id: 426, name: '인스타그램 실시간 라이브 스트리밍 시청 + 좋아요 + 댓글', price: 40000, min: 10, max: 10000, time: '데이터 부족', description: '실시간 라이브 스트리밍 시청 + 좋아요 + 댓글 서비스' }
     ],
     auto_likes_foreign: [
-      { id: 105, name: '인스타그램 외국인 좋아요', price: 4000, min: 50, max: 10000, time: '데이터 부족', description: '외국인 좋아요 서비스' },
-      { id: 116, name: '인스타그램 리얼 외국인 좋아요', price: 6000, min: 50, max: 10000, time: '데이터 부족', description: '리얼 외국인 좋아요 서비스' }
+      { id: 105, name: '인스타그램 외국인 좋아요', price: 5000, min: 50, max: 10000, time: '데이터 부족', description: '외국인 좋아요 서비스' },
+      { id: 116, name: '인스타그램 리얼 외국인 좋아요', price: 7000, min: 50, max: 10000, time: '데이터 부족', description: '리얼 외국인 좋아요 서비스' }
     ],
     auto_followers_foreign: [
       { id: 475, name: '인스타그램 외국인 팔로워', price: 10000, min: 100, max: 10000, time: '데이터 부족', description: '외국인 팔로워 서비스' }
