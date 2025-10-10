@@ -622,9 +622,7 @@ const Home = () => {
   // 상위노출 매핑
   if (platform === 'top-exposure') {
     const services = instagramDetailedServices.top_exposure || {}
-    if (serviceType === 'automatic') {
-      return filterValidServices(services.manual || [])
-    } else if (serviceType === 'top_exposure_30days') {
+    if (serviceType === 'top_exposure_30days') {
       return filterValidServices(services.manual?.filter(s => s.id === 1001) || [])
     } else if (serviceType === 'instagram_optimization_30days') {
       return filterValidServices(services.manual?.filter(s => s.id === 1002) || [])
@@ -860,7 +858,6 @@ const Home = () => {
         ]
       case 'top-exposure':
         return [
-          { id: 'automatic', name: '자동', description: '자동 상위노출 패키지' },
           { id: 'top_exposure_30days', name: '인스타 계정 상위노출 [30일]', description: '인스타그램 계정 상위노출 서비스' },
           { id: 'instagram_optimization_30days', name: '인스타 최적화 계정만들기 [30일]', description: '인스타그램 최적화 계정 생성 서비스' },
           { id: 'recommended_tab_entry', name: '추천탭 상위노출 (본인계정) - 진입단계', description: '추천탭 상위노출 진입단계 서비스' },
@@ -1264,7 +1261,7 @@ const Home = () => {
       setSelectedService('instagram_optimization_30days')
       setQuantity(1)
     } else if (platformId === 'top-exposure') {
-      setSelectedService('automatic')
+      setSelectedService('top_exposure_30days')
       setQuantity(1)
     } else if (['account-management', 'package', 'other', 'threads', 'news-media', 'experience-group', 'kakao', 'store-marketing', 'app-marketing', 'seo-traffic'].includes(platformId)) {
       setSelectedService('instagram_followers')
