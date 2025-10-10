@@ -449,13 +449,8 @@ const OrdersPage = () => {
                     <div className="order-id">
                       <span className="label">주문번호:</span>
                       <span className="value">
-                        {order.order_id || order.id || order.order_number || 'N/A'}
+                        {order.smm_panel_order_id || 'N/A'}
                       </span>
-                      {order.smm_panel_order_id && (
-                        <span className="smm-order-id" title="SMM Panel 주문 ID">
-                          (SMM: {order.smm_panel_order_id})
-                        </span>
-                      )}
                     </div>
                     <div className="order-status-section">
                       <div className={`order-status ${getStatusClass(order.status)}`}>
@@ -614,7 +609,7 @@ const OrdersPage = () => {
                 <div className="detail-grid">
                   <div className="detail-item">
                     <span className="label">주문번호:</span>
-                    <span className="value">{selectedOrder.id}</span>
+                    <span className="value">{selectedOrder.smm_panel_order_id || 'N/A'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">상태:</span>
@@ -624,7 +619,11 @@ const OrdersPage = () => {
                   </div>
                   <div className="detail-item">
                     <span className="label">서비스:</span>
-                    <span className="value">{selectedOrder.service || 'N/A'}</span>
+                    <span className="value">{selectedOrder.detailed_service || selectedOrder.service || 'N/A'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">서비스 ID:</span>
+                    <span className="value">{selectedOrder.service_id || 'N/A'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">링크:</span>
@@ -633,6 +632,10 @@ const OrdersPage = () => {
                   <div className="detail-item">
                     <span className="label">수량:</span>
                     <span className="value">{selectedOrder.quantity ? selectedOrder.quantity.toLocaleString() : 'N/A'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">가격:</span>
+                    <span className="value">{selectedOrder.price ? `${selectedOrder.price.toLocaleString()}원` : 'N/A'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">주문일:</span>

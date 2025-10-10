@@ -29,18 +29,6 @@
   color: #1a1a1a;
 }
 
-.order-id {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.smm-order-id {
-  font-size: 0.85rem;
-  color: #6b7280;
-  font-weight: 400;
-}
-
 .refresh-btn {
   display: flex;
   align-items: center;
