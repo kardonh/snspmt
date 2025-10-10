@@ -32,9 +32,9 @@ const Home = () => {
   const navigate = useNavigate()
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(true)
 
-  const [selectedPlatform, setSelectedPlatform] = useState('instagram')
+  const [selectedPlatform, setSelectedPlatform] = useState('recommended')
   const [selectedServiceType, setSelectedServiceType] = useState('recommended')
-  const [selectedService, setSelectedService] = useState('followers_korean')
+  const [selectedService, setSelectedService] = useState('top_exposure_30days')
   const [selectedDetailedService, setSelectedDetailedService] = useState(null)
   const [selectedTab, setSelectedTab] = useState('korean') // 'korean' or 'foreign'
   const [quantity, setQuantity] = useState(200)
@@ -591,15 +591,46 @@ const Home = () => {
   
   // 세부 서비스 목록 가져오기
   const getDetailedServices = (platform, serviceType) => {
+  // 추천서비스 매핑
+  if (platform === 'recommended') {
+    if (serviceType === 'top_exposure_30days') {
+      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1001) || [])
+    } else if (serviceType === 'recommended_tab_entry') {
+      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1003) || [])
+    } else if (serviceType === 'instagram_followers') {
+      return filterValidServices(instagramDetailedServices.followers_korean || [])
+    } else if (serviceType === 'instagram_reels_views') {
+      return filterValidServices(instagramDetailedServices.reels_views_korean || [])
+    }
+    return filterValidServices([])
+  }
+  
+  // 이벤트 매핑
+  if (platform === 'event') {
+    if (serviceType === 'instagram_optimization_30days') {
+      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1002) || [])
+    } else if (serviceType === 'recommended_tab_maintenance') {
+      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1004) || [])
+    } else if (serviceType === 'instagram_korean_likes') {
+      return filterValidServices(instagramDetailedServices.likes_korean || [])
+    } else if (serviceType === 'instagram_regram') {
+      return filterValidServices(instagramDetailedServices.regram_korean || [])
+    }
+    return filterValidServices([])
+  }
+  
+  // 상위노출 매핑
   if (platform === 'top-exposure') {
     const services = instagramDetailedServices.top_exposure || {}
-    if (serviceType === 'seo') {
+    if (serviceType === 'automatic') {
+      return filterValidServices(services.manual || [])
+    } else if (serviceType === 'top_exposure_30days') {
       return filterValidServices(services.manual?.filter(s => s.id === 1001) || [])
-    } else if (serviceType === 'instagram_optimization') {
+    } else if (serviceType === 'instagram_optimization_30days') {
       return filterValidServices(services.manual?.filter(s => s.id === 1002) || [])
-    } else if (serviceType === 'entry_stage') {
+    } else if (serviceType === 'recommended_tab_entry') {
       return filterValidServices(services.manual?.filter(s => s.id === 1003) || [])
-    } else if (serviceType === 'maintenance_stage') {
+    } else if (serviceType === 'recommended_tab_maintenance') {
       return filterValidServices(services.manual?.filter(s => s.id === 1004) || [])
     }
     return filterValidServices([])
@@ -813,12 +844,27 @@ const Home = () => {
     
   const getServicesForPlatform = (platform) => {
     switch (platform) {
+      case 'recommended':
+        return [
+          { id: 'top_exposure_30days', name: '인스타 계정 상위노출 [30일]', description: '인스타그램 계정 상위노출 서비스' },
+          { id: 'recommended_tab_entry', name: '추천탭 상위노출 (본인계정) - 진입단계', description: '추천탭 상위노출 진입단계 서비스' },
+          { id: 'instagram_followers', name: '인스타 팔로워 늘리기', description: '인스타그램 팔로워 증가 서비스' },
+          { id: 'instagram_reels_views', name: '인스타 릴스 조회수 늘리기', description: '인스타그램 릴스 조회수 증가 서비스' }
+        ]
+      case 'event':
+        return [
+          { id: 'instagram_optimization_30days', name: '인스타 최적화 계정만들기 [30일]', description: '인스타그램 최적화 계정 생성 서비스' },
+          { id: 'recommended_tab_maintenance', name: '추천탭 상위노출 (본인계정) - 유지단계', description: '추천탭 상위노출 유지단계 서비스' },
+          { id: 'instagram_korean_likes', name: '인스타 한국인 좋아요 늘리기', description: '인스타그램 한국인 좋아요 증가 서비스' },
+          { id: 'instagram_regram', name: '인스타 리그램', description: '인스타그램 리그램 서비스' }
+        ]
       case 'top-exposure':
         return [
-          { id: 'seo', name: '검색엔진 최적화 [SEO]', description: '웹사이트 SEO 최적화 서비스' },
-          { id: 'instagram_optimization', name: '인스타 최적화 계정만들기 [30일]', description: '인스타그램 계정 최적화 및 관리' },
-          { id: 'entry_stage', name: '추천탭 상위노출 (셀프) - 진입단계', description: '진입단계 4단계 완전 패키지' },
-          { id: 'maintenance_stage', name: '추천탭 상위노출 (셀프) - 유지단계', description: '유지단계 2단계 완전 패키지' }
+          { id: 'automatic', name: '자동', description: '자동 상위노출 패키지' },
+          { id: 'top_exposure_30days', name: '인스타 계정 상위노출 [30일]', description: '인스타그램 계정 상위노출 서비스' },
+          { id: 'instagram_optimization_30days', name: '인스타 최적화 계정만들기 [30일]', description: '인스타그램 최적화 계정 생성 서비스' },
+          { id: 'recommended_tab_entry', name: '추천탭 상위노출 (본인계정) - 진입단계', description: '추천탭 상위노출 진입단계 서비스' },
+          { id: 'recommended_tab_maintenance', name: '추천탭 상위노출 (본인계정) - 유지단계', description: '추천탭 상위노출 유지단계 서비스' }
         ]
       case 'instagram':
         return [
