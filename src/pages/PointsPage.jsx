@@ -22,6 +22,8 @@ const PointsPage = () => {
   const [userInfo, setUserInfo] = useState(null)
   const [copiedItems, setCopiedItems] = useState({})
   const [showAccountModal, setShowAccountModal] = useState(false)
+  const [autoFilledFields, setAutoFilledFields] = useState({})
+  const [showAutoFillMessage, setShowAutoFillMessage] = useState(false)
 
   const pointPackages = [
     { amount: 5000, price: 5000 },
@@ -141,20 +143,43 @@ const PointsPage = () => {
     // 비즈니스 계정이고 세금계산서를 선택한 경우 자동으로 정보 입력
     if (type === 'tax' && userInfo && userInfo.accountType === 'business') {
       console.log('비즈니스 계정 자동 입력 시작')
-      setBusinessNumber(userInfo.businessNumber || '')
-      setBusinessName(userInfo.businessName || '')
-      setRepresentative(userInfo.representative || '')
-      setContactPhone(userInfo.contactPhone || '')
-      setContactEmail(userInfo.contactEmail || '')
       
-      // 자동 입력 완료 메시지
+      // 자동 입력된 필드들 설정
+      const autoFilled = {
+        businessNumber: userInfo.businessNumber || '',
+        businessName: userInfo.businessName || '',
+        representative: userInfo.representative || '',
+        contactPhone: userInfo.contactPhone || '',
+        contactEmail: userInfo.contactEmail || ''
+      }
+      
+      setBusinessNumber(autoFilled.businessNumber)
+      setBusinessName(autoFilled.businessName)
+      setRepresentative(autoFilled.representative)
+      setContactPhone(autoFilled.contactPhone)
+      setContactEmail(autoFilled.contactEmail)
+      
+      // 자동 입력된 필드 표시
+      setAutoFilledFields(autoFilled)
+      
+      // 자동 입력 완료 메시지 표시
+      setShowAutoFillMessage(true)
       setTimeout(() => {
-        alert('비즈니스 계정 정보가 자동으로 입력되었습니다.')
-      }, 100)
+        setShowAutoFillMessage(false)
+      }, 3000)
+      
     } else if (type === 'tax') {
       console.log('비즈니스 계정이 아님 또는 사용자 정보 없음')
       console.log('userInfo:', userInfo)
       console.log('accountType:', userInfo?.accountType)
+      
+      // 자동 입력 필드 초기화
+      setAutoFilledFields({})
+    }
+    
+    // 다른 영수증 타입 선택 시 자동 입력 필드 초기화
+    if (type !== 'tax') {
+      setAutoFilledFields({})
     }
   }
 
@@ -322,6 +347,19 @@ const PointsPage = () => {
           </div>
 
 
+          {/* 자동 입력 완료 메시지 */}
+          {showAutoFillMessage && (
+            <div className="auto-fill-message">
+              <div className="auto-fill-message-content">
+                <div className="auto-fill-icon">✅</div>
+                <div className="auto-fill-text">
+                  <div className="auto-fill-title">비즈니스 정보 자동 입력 완료</div>
+                  <div className="auto-fill-subtitle">회원가입 시 입력한 정보가 자동으로 입력되었습니다.</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 영수증 계산서 선택 */}
           <div className="receipt-section">
             <h3>
@@ -372,10 +410,8 @@ const PointsPage = () => {
                 <label>
                   <User size={16} />
                   사업자등록번호
-                  {userInfo && userInfo.accountType === 'business' && (
-                    <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
-                      (자동 입력됨)
-                    </span>
+                  {autoFilledFields.businessNumber && (
+                    <span className="auto-fill-badge">자동입력</span>
                   )}
                 </label>
                 <input
@@ -383,18 +419,15 @@ const PointsPage = () => {
                   value={businessNumber}
                   onChange={(e) => setBusinessNumber(e.target.value)}
                   placeholder="사업자등록번호를 입력하세요 (예: 123-45-67890)"
-                  className={`form-input ${userInfo && userInfo.accountType === 'business' ? 'auto-filled' : ''}`}
-                  readOnly={userInfo && userInfo.accountType === 'business'}
+                  className={`form-input ${autoFilledFields.businessNumber ? 'auto-filled' : ''}`}
                 />
               </div>
               <div className="form-group">
                 <label>
                   <Building2 size={16} />
                   상호명
-                  {userInfo && userInfo.accountType === 'business' && (
-                    <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
-                      (자동 입력됨)
-                    </span>
+                  {autoFilledFields.businessName && (
+                    <span className="auto-fill-badge">자동입력</span>
                   )}
                 </label>
                 <input
@@ -402,18 +435,15 @@ const PointsPage = () => {
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="상호명을 입력하세요"
-                  className={`form-input ${userInfo && userInfo.accountType === 'business' ? 'auto-filled' : ''}`}
-                  readOnly={userInfo && userInfo.accountType === 'business'}
+                  className={`form-input ${autoFilledFields.businessName ? 'auto-filled' : ''}`}
                 />
               </div>
               <div className="form-group">
                 <label>
                   <User size={16} />
                   대표자
-                  {userInfo && userInfo.accountType === 'business' && (
-                    <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
-                      (자동 입력됨)
-                    </span>
+                  {autoFilledFields.representative && (
+                    <span className="auto-fill-badge">자동입력</span>
                   )}
                 </label>
                 <input
@@ -421,18 +451,15 @@ const PointsPage = () => {
                   value={representative}
                   onChange={(e) => setRepresentative(e.target.value)}
                   placeholder="대표자명을 입력하세요"
-                  className={`form-input ${userInfo && userInfo.accountType === 'business' ? 'auto-filled' : ''}`}
-                  readOnly={userInfo && userInfo.accountType === 'business'}
+                  className={`form-input ${autoFilledFields.representative ? 'auto-filled' : ''}`}
                 />
               </div>
               <div className="form-group">
                 <label>
                   <User size={16} />
                   담당자 연락처
-                  {userInfo && userInfo.accountType === 'business' && (
-                    <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
-                      (자동 입력됨)
-                    </span>
+                  {autoFilledFields.contactPhone && (
+                    <span className="auto-fill-badge">자동입력</span>
                   )}
                 </label>
                 <input
@@ -440,18 +467,15 @@ const PointsPage = () => {
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   placeholder="담당자 연락처를 입력하세요 (예: 010-1234-5678)"
-                  className={`form-input ${userInfo && userInfo.accountType === 'business' ? 'auto-filled' : ''}`}
-                  readOnly={userInfo && userInfo.accountType === 'business'}
+                  className={`form-input ${autoFilledFields.contactPhone ? 'auto-filled' : ''}`}
                 />
               </div>
               <div className="form-group">
                 <label>
                   <User size={16} />
                   메일주소
-                  {userInfo && userInfo.accountType === 'business' && (
-                    <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
-                      (자동 입력됨)
-                    </span>
+                  {autoFilledFields.contactEmail && (
+                    <span className="auto-fill-badge">자동입력</span>
                   )}
                 </label>
                 <input
@@ -459,8 +483,7 @@ const PointsPage = () => {
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   placeholder="메일주소를 입력하세요"
-                  className={`form-input ${userInfo && userInfo.accountType === 'business' ? 'auto-filled' : ''}`}
-                  readOnly={userInfo && userInfo.accountType === 'business'}
+                  className={`form-input ${autoFilledFields.contactEmail ? 'auto-filled' : ''}`}
                 />
               </div>
             </>

@@ -891,6 +891,27 @@
   font-size: 14px !important;
 }
 
+/* 모바일에서 링크 입력 필드 폰트 크기 축소 */
+@media (max-width: 768px) {
+  .link-input-field {
+    font-size: 13px !important;
+  }
+  
+  .link-input-field::placeholder {
+    font-size: 12px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .link-input-field {
+    font-size: 12px !important;
+  }
+  
+  .link-input-field::placeholder {
+    font-size: 11px !important;
+  }
+}
+
 .quantity-input-invalid {
   border-color: #ef4444 !important;
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1) !important;
@@ -2847,9 +2868,26 @@
   input[type="text"],
   input[type="number"],
   textarea {
-    font-size: 16px; /* iOS 줌 방지 */
+    font-size: 14px; /* 모바일에서 폰트 크기 축소 */
     padding: 12px;
     border-radius: 8px;
+  }
+  
+  /* 모바일에서 플레이스홀더 텍스트 크기 최적화 */
+  input[type="text"]::placeholder,
+  input[type="number"]::placeholder,
+  textarea::placeholder {
+    font-size: 13px;
+    color: #9ca3af;
+  }
+  
+  /* 링크 입력 필드 모바일 최적화 */
+  .link-input-field {
+    font-size: 13px !important;
+  }
+  
+  .link-input-field::placeholder {
+    font-size: 12px !important;
   }
   
   /* 버튼 호버 효과 모바일에서 비활성화 */
@@ -2877,7 +2915,28 @@
   .platform-grid {
     grid-template-columns: repeat(4, 1fr);
     gap: 6px;
-    padding: 0 2px;
+  }
+  
+  /* 매우 작은 화면에서 input 폰트 크기 더 축소 */
+  input[type="text"],
+  input[type="number"],
+  textarea {
+    font-size: 12px;
+    padding: 10px;
+  }
+  
+  input[type="text"]::placeholder,
+  input[type="number"]::placeholder,
+  textarea::placeholder {
+    font-size: 11px;
+  }
+  
+  .link-input-field {
+    font-size: 12px !important;
+  }
+  
+  .link-input-field::placeholder {
+    font-size: 11px !important;
   }
   
   .platform-item {
