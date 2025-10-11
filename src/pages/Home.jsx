@@ -2301,7 +2301,7 @@ const Home = () => {
         {/* Service Selection */}
         <div className="service-category">
           <h3 className="category-title">
-            {platforms.find(p => p.id === selectedPlatform)?.name} 서비스
+            {platforms.find(p => p.id === selectedPlatform)?.name}
           </h3>
           <p className="category-description">상세 서비스를 선택해주세요</p>
           
