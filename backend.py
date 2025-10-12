@@ -315,8 +315,25 @@ def call_smm_panel_api(order_data):
         print(f"📞 SMM Panel API 요청: {payload}")
         response = requests.post(smm_panel_url, json=payload, timeout=30)
         print(f"📞 SMM Panel API 응답 상태: {response.status_code}")
-        print(f"📞 SMM Panel API 응답 내용: {response.text}")
-        result = response.json()
+        
+        # 응답이 없거나 빈 경우 처리
+        if not response.text:
+            print(f"⚠️ SMM Panel API 응답이 비어있음")
+            return {
+                'status': 'error',
+                'message': 'Empty response from SMM Panel'
+            }
+        
+        print(f"📞 SMM Panel API 응답 내용: {response.text[:500]}")  # 긴 응답은 잘라서 출력
+        
+        try:
+            result = response.json()
+        except json.JSONDecodeError as json_err:
+            print(f"❌ SMM Panel API JSON 파싱 실패: {json_err}")
+            return {
+                'status': 'error',
+                'message': f'Invalid JSON response: {response.text[:200]}'
+            }
         
         # 상태 조회 응답 처리
         if action == 'status':
@@ -2530,67 +2547,75 @@ def get_orders():
         
         order_list = []
         for order in orders:
-            # 패키지 상품 정보 파싱
-            package_steps = []
-            if order[7]:  # package_steps 컬럼
-                try:
-                    package_steps = json.loads(order[7])
-                except:
-                    package_steps = []
-            
-            smm_panel_order_id = order[8]
-            db_status = order[5]
-            
-            # SMM Panel에서 실시간 상태 확인 (완료되지 않은 주문만)
-            real_status = db_status
-            start_count = 0
-            remains = order[3]  # 초기값은 주문 수량
-            
-            if smm_panel_order_id and db_status not in ['completed', 'canceled', 'cancelled', 'failed']:
-                try:
-                    smm_result = call_smm_panel_api({
-                        'action': 'status',
-                        'order': smm_panel_order_id
-                    })
-                    
-                    if smm_result.get('status') == 'success':
-                        smm_status = smm_result.get('status_text', '').lower()
-                        start_count = smm_result.get('start_count', 0)
-                        remains = smm_result.get('remains', 0)
+            try:
+                # 패키지 상품 정보 파싱
+                package_steps = []
+                if len(order) > 7 and order[7]:  # package_steps 컬럼
+                    try:
+                        package_steps = json.loads(order[7])
+                    except Exception as parse_err:
+                        print(f"⚠️ 패키지 정보 파싱 실패: {parse_err}")
+                        package_steps = []
+                
+                smm_panel_order_id = order[8] if len(order) > 8 else None
+                db_status = order[5] if len(order) > 5 else 'unknown'
+                
+                # SMM Panel에서 실시간 상태 확인 (완료되지 않은 주문만)
+                real_status = db_status
+                start_count = 0
+                remains = order[3] if len(order) > 3 else 0  # 초기값은 주문 수량
+                
+                if smm_panel_order_id and db_status not in ['completed', 'canceled', 'cancelled', 'failed']:
+                    try:
+                        smm_result = call_smm_panel_api({
+                            'action': 'status',
+                            'order': smm_panel_order_id
+                        })
                         
-                        # SMM Panel 상태를 우리 상태로 매핑
-                        if smm_status == 'completed' or remains == 0:
-                            real_status = 'completed'
-                        elif smm_status == 'in progress' or (start_count > 0 and remains < order[3]):
-                            real_status = 'in_progress'  # 작업중
-                        elif smm_status == 'pending':
-                            real_status = 'processing'  # 진행중
-                        elif smm_status == 'partial':
-                            real_status = 'partial_completed'
-                        elif smm_status == 'canceled' or smm_status == 'cancelled':
-                            real_status = 'canceled'
-                        
-                        print(f"📊 주문 {order[0]} 실시간 상태: DB={db_status}, SMM={smm_status}, 실제={real_status}, 시작={start_count}, 남음={remains}")
-                except Exception as e:
-                    print(f"⚠️ 주문 {order[0]} 상태 확인 실패: {str(e)}")
-            
-            order_list.append({
-                'id': order[0],  # 프론트엔드 호환성을 위해 id 필드 추가
-                'order_id': order[0],
-                'service_id': order[1],
-                'link': order[2],
-                'quantity': order[3],
-                'price': float(order[4]),
-                'status': real_status,  # 실시간 상태 사용
-                'created_at': order[6].isoformat() if hasattr(order[6], 'isoformat') else str(order[6]),
-                'is_package': len(package_steps) > 0,
-                'package_steps': package_steps,
-                'total_steps': len(package_steps),
-                'smm_panel_order_id': smm_panel_order_id,
-                'detailed_service': order[9] if len(order) > 9 else None,
-                'start_count': start_count,
-                'remains': remains
-            })
+                        if smm_result and smm_result.get('status') == 'success':
+                            smm_status = smm_result.get('status_text', '').lower()
+                            start_count = smm_result.get('start_count', 0)
+                            remains = smm_result.get('remains', 0)
+                            
+                            # SMM Panel 상태를 우리 상태로 매핑
+                            if smm_status == 'completed' or remains == 0:
+                                real_status = 'completed'
+                            elif smm_status == 'in progress' or (start_count > 0 and remains < order[3]):
+                                real_status = 'in_progress'  # 작업중
+                            elif smm_status == 'pending':
+                                real_status = 'processing'  # 진행중
+                            elif smm_status == 'partial':
+                                real_status = 'partial_completed'
+                            elif smm_status == 'canceled' or smm_status == 'cancelled':
+                                real_status = 'canceled'
+                            
+                            print(f"📊 주문 {order[0]} 실시간 상태: DB={db_status}, SMM={smm_status}, 실제={real_status}, 시작={start_count}, 남음={remains}")
+                    except Exception as e:
+                        print(f"⚠️ 주문 {order[0]} 상태 확인 실패: {str(e)}")
+                        # SMM Panel 확인 실패 시 DB 상태 유지
+                
+                order_list.append({
+                    'id': order[0],  # 프론트엔드 호환성을 위해 id 필드 추가
+                    'order_id': order[0],
+                    'service_id': order[1] if len(order) > 1 else '',
+                    'link': order[2] if len(order) > 2 else '',
+                    'quantity': order[3] if len(order) > 3 else 0,
+                    'price': float(order[4]) if len(order) > 4 else 0.0,
+                    'status': real_status,  # 실시간 상태 사용
+                    'created_at': order[6].isoformat() if len(order) > 6 and hasattr(order[6], 'isoformat') else str(order[6]) if len(order) > 6 else '',
+                    'is_package': len(package_steps) > 0,
+                    'package_steps': package_steps,
+                    'total_steps': len(package_steps),
+                    'smm_panel_order_id': smm_panel_order_id,
+                    'detailed_service': order[9] if len(order) > 9 else None,
+                    'start_count': start_count,
+                    'remains': remains
+                })
+            except Exception as order_err:
+                print(f"❌ 주문 처리 중 오류 발생: {order_err}")
+                print(f"❌ 문제가 된 주문 데이터: {order}")
+                # 오류가 발생한 주문은 건너뛰고 계속 진행
+                continue
         
         print(f"✅ 주문 조회 성공: {len(order_list)}개")
         return jsonify({
