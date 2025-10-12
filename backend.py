@@ -1339,24 +1339,57 @@ def init_database():
             """)
             print("✅ 예약 주문 테이블 생성 완료")
             
-            # orders 테이블에 필요한 컬럼들 추가
+            # orders 테이블에 필요한 컬럼들 추가 (존재 여부 확인 후)
+            # smm_panel_order_id 컬럼 추가
             try:
-                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS package_steps JSONB")
-                print("✅ package_steps 필드 추가 완료")
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name='orders' AND column_name='smm_panel_order_id'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE orders ADD COLUMN smm_panel_order_id VARCHAR(255)")
+                    conn.commit()
+                    print("✅ smm_panel_order_id 필드 추가 완료")
+                else:
+                    print("ℹ️ smm_panel_order_id 필드 이미 존재")
             except Exception as e:
-                print(f"⚠️ package_steps 필드 추가 실패 (이미 존재할 수 있음): {e}")
+                print(f"⚠️ smm_panel_order_id 필드 추가 실패: {e}")
+                conn.rollback()
             
+            # detailed_service 컬럼 추가
             try:
-                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS smm_panel_order_id VARCHAR(255)")
-                print("✅ smm_panel_order_id 필드 추가 완료")
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name='orders' AND column_name='detailed_service'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE orders ADD COLUMN detailed_service TEXT")
+                    conn.commit()
+                    print("✅ detailed_service 필드 추가 완료")
+                else:
+                    print("ℹ️ detailed_service 필드 이미 존재")
             except Exception as e:
-                print(f"⚠️ smm_panel_order_id 필드 추가 실패 (이미 존재할 수 있음): {e}")
+                print(f"⚠️ detailed_service 필드 추가 실패: {e}")
+                conn.rollback()
             
+            # package_steps 컬럼 추가
             try:
-                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS detailed_service TEXT")
-                print("✅ detailed_service 필드 추가 완료")
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name='orders' AND column_name='package_steps'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE orders ADD COLUMN package_steps JSONB")
+                    conn.commit()
+                    print("✅ package_steps 필드 추가 완료")
+                else:
+                    print("ℹ️ package_steps 필드 이미 존재")
             except Exception as e:
-                print(f"⚠️ detailed_service 필드 추가 실패 (이미 존재할 수 있음): {e}")
+                print(f"⚠️ package_steps 필드 추가 실패: {e}")
+                conn.rollback()
             
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
@@ -5512,6 +5545,96 @@ def background_scheduler():
         
         # 5분 대기 (예약 주문을 더 자주 체크)
         time.sleep(300)
+
+# 데이터베이스 마이그레이션 강제 실행 엔드포인트
+@app.route('/api/admin/migrate-database', methods=['POST', 'GET'])
+def migrate_database():
+    """데이터베이스 마이그레이션 강제 실행 (인증 불필요 - 일회성)"""
+    try:
+        print("🔄 수동 데이터베이스 마이그레이션 시작...")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        messages = []
+        
+        # PostgreSQL에서만 실행
+        if DATABASE_URL.startswith('postgresql://'):
+            # smm_panel_order_id 컬럼 추가
+            try:
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name='orders' AND column_name='smm_panel_order_id'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE orders ADD COLUMN smm_panel_order_id VARCHAR(255)")
+                    conn.commit()
+                    messages.append("✅ smm_panel_order_id 필드 추가 완료")
+                    print("✅ smm_panel_order_id 필드 추가 완료")
+                else:
+                    messages.append("ℹ️ smm_panel_order_id 필드 이미 존재")
+                    print("ℹ️ smm_panel_order_id 필드 이미 존재")
+            except Exception as e:
+                messages.append(f"⚠️ smm_panel_order_id: {str(e)}")
+                print(f"⚠️ smm_panel_order_id 필드 추가 실패: {e}")
+                conn.rollback()
+            
+            # detailed_service 컬럼 추가
+            try:
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name='orders' AND column_name='detailed_service'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE orders ADD COLUMN detailed_service TEXT")
+                    conn.commit()
+                    messages.append("✅ detailed_service 필드 추가 완료")
+                    print("✅ detailed_service 필드 추가 완료")
+                else:
+                    messages.append("ℹ️ detailed_service 필드 이미 존재")
+                    print("ℹ️ detailed_service 필드 이미 존재")
+            except Exception as e:
+                messages.append(f"⚠️ detailed_service: {str(e)}")
+                print(f"⚠️ detailed_service 필드 추가 실패: {e}")
+                conn.rollback()
+            
+            # package_steps 컬럼 추가
+            try:
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name='orders' AND column_name='package_steps'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE orders ADD COLUMN package_steps JSONB")
+                    conn.commit()
+                    messages.append("✅ package_steps 필드 추가 완료")
+                    print("✅ package_steps 필드 추가 완료")
+                else:
+                    messages.append("ℹ️ package_steps 필드 이미 존재")
+                    print("ℹ️ package_steps 필드 이미 존재")
+            except Exception as e:
+                messages.append(f"⚠️ package_steps: {str(e)}")
+                print(f"⚠️ package_steps 필드 추가 실패: {e}")
+                conn.rollback()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': '데이터베이스 마이그레이션이 완료되었습니다.',
+            'details': messages
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 데이터베이스 마이그레이션 실패: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 # 앱 시작 시 자동 초기화
 initialize_app()
