@@ -2592,7 +2592,8 @@ const Home = () => {
             </div>
           )}
 
-          {/* 예약 발송 체크박스 */}
+          {/* 예약 발송 체크박스 - 숨김 처리 */}
+          {false && (
           <div className="scheduled-order-section">
             <div className="scheduled-order-checkbox">
               <input
@@ -2633,8 +2634,10 @@ const Home = () => {
               </div>
             )}
           </div>
+          )}
 
-          {/* 분할 발송 체크박스 */}
+          {/* 분할 발송 체크박스 - 숨김 처리 */}
+          {false && (
           <div className="split-delivery-section">
             <div className="split-delivery-checkbox">
               <input
@@ -2698,6 +2701,7 @@ const Home = () => {
               </div>
             )}
           </div>
+          )}
 
           {/* Total Price */}
           <div className="price-display">
