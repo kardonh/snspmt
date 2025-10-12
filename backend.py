@@ -2597,7 +2597,13 @@ def get_orders():
                 package_steps = []
                 if len(order) > 7 and order[7]:  # package_steps 컬럼
                     try:
-                        package_steps = json.loads(order[7])
+                        # 이미 list인 경우 그대로 사용, 문자열인 경우 파싱
+                        if isinstance(order[7], list):
+                            package_steps = order[7]
+                        elif isinstance(order[7], str):
+                            package_steps = json.loads(order[7])
+                        else:
+                            package_steps = []
                     except Exception as parse_err:
                         print(f"⚠️ 패키지 정보 파싱 실패: {parse_err}")
                         package_steps = []
