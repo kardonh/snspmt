@@ -1339,12 +1339,24 @@ def init_database():
             """)
             print("✅ 예약 주문 테이블 생성 완료")
             
-            # orders 테이블에 package_steps 컬럼 추가
+            # orders 테이블에 필요한 컬럼들 추가
             try:
                 cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS package_steps JSONB")
                 print("✅ package_steps 필드 추가 완료")
             except Exception as e:
                 print(f"⚠️ package_steps 필드 추가 실패 (이미 존재할 수 있음): {e}")
+            
+            try:
+                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS smm_panel_order_id VARCHAR(255)")
+                print("✅ smm_panel_order_id 필드 추가 완료")
+            except Exception as e:
+                print(f"⚠️ smm_panel_order_id 필드 추가 실패 (이미 존재할 수 있음): {e}")
+            
+            try:
+                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS detailed_service TEXT")
+                print("✅ detailed_service 필드 추가 완료")
+            except Exception as e:
+                print(f"⚠️ detailed_service 필드 추가 실패 (이미 존재할 수 있음): {e}")
             
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
