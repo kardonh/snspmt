@@ -449,7 +449,7 @@ const OrdersPage = () => {
                     <div className="order-id">
                       <span className="label">주문번호:</span>
                       <span className="value">
-                        {order.smm_panel_order_id || 'N/A'}
+                        {order.smm_panel_order_id || order.order_id || order.id || 'N/A'}
                       </span>
                     </div>
                     <div className="order-status-section">
@@ -477,7 +477,7 @@ const OrdersPage = () => {
                       <div className="info-row">
                         <span className="label">서비스:</span>
                         <span className="value">
-                          {order.detailed_service || order.service_name || order.service || order.platform || 'N/A'}
+                          {order.service_name || order.detailed_service || order.service || order.platform || 'N/A'}
                         </span>
                       </div>
                       <div className="info-row">
@@ -609,7 +609,7 @@ const OrdersPage = () => {
                 <div className="detail-grid">
                   <div className="detail-item">
                     <span className="label">주문번호:</span>
-                    <span className="value">{selectedOrder.smm_panel_order_id || 'N/A'}</span>
+                    <span className="value">{selectedOrder.smm_panel_order_id || selectedOrder.order_id || selectedOrder.id || 'N/A'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">상태:</span>
@@ -619,7 +619,7 @@ const OrdersPage = () => {
                   </div>
                   <div className="detail-item">
                     <span className="label">서비스:</span>
-                    <span className="value">{selectedOrder.detailed_service || selectedOrder.service || 'N/A'}</span>
+                    <span className="value">{selectedOrder.service_name || selectedOrder.detailed_service || selectedOrder.service || 'N/A'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">서비스 ID:</span>
