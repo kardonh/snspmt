@@ -500,23 +500,15 @@ const AdminPage = () => {
 
   // 주문 상태 클래스 변환 (4개 상태로 통일)
   const getOrderStatusClass = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'completed':
+    switch (status) {
+      case '주문 실행완료':
         return 'completed'
-      case 'canceled':
-      case 'cancelled':
-      case 'failed':
-        return 'canceled'
-      case 'processing':
-      case 'package_processing':
-      case 'in_progress':
-      case 'split_scheduled':
-      case 'partial_completed':
+      case '주문 실행중':
         return 'processing'
-      case 'pending':
-      case 'pending_payment':
-      case 'scheduled':
-      case 'received':
+      case '주문발송':
+        return 'pending'
+      case '주문 미처리':
+        return 'canceled'
       default:
         return 'pending'
     }
@@ -524,26 +516,17 @@ const AdminPage = () => {
 
   // 액션 버튼 텍스트 변환
   const getActionButtonText = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-      case 'pending_payment':
-      case 'scheduled':
-      case 'received':
-        return '접수됨'
-      case 'processing':
-      case 'package_processing':
-      case 'in_progress':
-      case 'split_scheduled':
-      case 'partial_completed':
-        return '진행중'
-      case 'completed':
-        return '완료'
-      case 'canceled':
-      case 'cancelled':
-      case 'failed':
-        return '취소/실패'
+    switch (status) {
+      case '주문발송':
+        return '주문발송'
+      case '주문 실행중':
+        return '주문 실행중'
+      case '주문 실행완료':
+        return '주문 실행완료'
+      case '주문 미처리':
+        return '주문 미처리'
       default:
-        return '접수됨'
+        return '주문발송'
     }
   }
 
@@ -580,28 +563,19 @@ const AdminPage = () => {
     if (!currentOrder) return
 
     let nextStatus
-    switch (currentOrder.status?.toLowerCase()) {
-      case 'pending':
-      case 'pending_payment':
-      case 'scheduled':
-      case 'received':
-        nextStatus = 'processing'  // 접수됨 → 진행중
+    switch (currentOrder.status) {
+      case '주문발송':
+        nextStatus = '주문 실행중'  // 주문발송 → 주문 실행중
         break
-      case 'processing':
-      case 'package_processing':
-      case 'in_progress':
-      case 'split_scheduled':
-      case 'partial_completed':
-        nextStatus = 'completed'  // 진행중 → 완료
+      case '주문 실행중':
+        nextStatus = '주문 실행완료'  // 주문 실행중 → 주문 실행완료
         break
-      case 'completed':
+      case '주문 실행완료':
         return // 이미 완료된 주문
-      case 'canceled':
-      case 'cancelled':
-      case 'failed':
-        return // 취소/실패된 주문
+      case '주문 미처리':
+        return // 미처리된 주문
       default:
-        nextStatus = 'processing'
+        nextStatus = '주문 실행중'
     }
 
     await handleOrderStatusChange(orderId, nextStatus)

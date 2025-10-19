@@ -394,11 +394,11 @@ def get_service_name(service_id):
     """서비스 ID를 기반으로 서비스명을 반환"""
     service_mapping = {
         # 패키지 상품들
-        '1001': '인스타 계정 상위노출 [30일]',
-        '1002': '인스타 최적화 계정만들기 [30일]',
-        '1003': '추천탭 상위노출 (본인계정) - 진입단계',
-        '1004': '추천탭 상위노출 (본인계정) - 유지단계',
-        '999': '외국인 패키지',
+        'pkg_1001': '인스타 계정 상위노출 [30일]',
+        'pkg_1002': '인스타 최적화 계정만들기 [30일]',
+        'pkg_1003': '추천탭 상위노출 (본인계정) - 진입단계',
+        'pkg_1004': '추천탭 상위노출 (본인계정) - 유지단계',
+        'pkg_999': '외국인 패키지',
         
         # 일반 서비스들
         '100': '외국인 팔로워',
@@ -447,11 +447,11 @@ def get_service_name(service_id):
         '903': '페이스북 댓글',
         '904': '페이스북 공유',
         
-        # 네이버 서비스들
-        '1001': '네이버 블로그 조회수',
-        '1002': '네이버 블로그 댓글',
-        '1003': '네이버 카페 조회수',
-        '1004': '네이버 카페 댓글',
+        # 네이버 서비스들 (중복 ID 수정)
+        'nb_1001': '네이버 블로그 조회수',
+        'nb_1002': '네이버 블로그 댓글',
+        'nb_1003': '네이버 카페 조회수',
+        'nb_1004': '네이버 카페 댓글',
         
         # 텔레그램 서비스들
         '1101': '텔레그램 채널 구독자',
@@ -463,7 +463,20 @@ def get_service_name(service_id):
         '1202': '왓츠앱 채널 구독자'
     }
     
-    return service_mapping.get(str(service_id), f'서비스 ID: {service_id}')
+    # SMM Panel에서 받은 실제 서비스명이 있으면 사용, 없으면 매핑에서 찾기
+    service_name = service_mapping.get(str(service_id), f'서비스 ID: {service_id}')
+    
+    # SMM Panel API에서 서비스 정보를 가져와서 더 정확한 이름 제공
+    try:
+        smm_services = get_smm_panel_services()
+        if smm_services:
+            for service in smm_services:
+                if str(service.get('service')) == str(service_id):
+                    return service.get('name', service_name)
+    except:
+        pass  # SMM API 호출 실패 시 기본 매핑 사용
+    
+    return service_name
 
 # SMM Panel 서비스 목록 조회 함수
 def get_smm_panel_services():
@@ -2284,32 +2297,33 @@ def create_order():
         split_days = data.get('split_days', 0)
         split_quantity = data.get('split_quantity', 0)
         
-        # 주문 생성
+        # 임시 주문 ID 생성 (SMM API 호출 후 실제 주문 번호로 업데이트)
+        import time
+        current_time = datetime.now()
+        temp_order_id = f"temp_{current_time.strftime('%Y%m%d%H%M%S')}{str(int(time.time() * 1000))[-3:]}"
+        
+        # 주문 생성 (임시 ID로)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                INSERT INTO orders (user_id, service_id, link, quantity, price, 
+                INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
                                 discount_amount, referral_code, status, created_at, updated_at,
                                 is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending_payment', NOW(), NOW(),
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pending_payment', NOW(), NOW(),
                         %s, %s, %s, %s, %s)
-                RETURNING order_id
-            """, (user_id, service_id, link, quantity, final_price, discount_amount, 
+            """, (temp_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
                 referral_data[0] if referral_data else None, is_scheduled, scheduled_datetime,
                 is_split_delivery, split_days, split_quantity))
         else:
             cursor.execute("""
-                INSERT INTO orders (user_id, service_id, link, quantity, price, 
+                INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
                                 discount_amount, referral_code, status, created_at, updated_at,
                                 is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_payment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
                         ?, ?, ?, ?, ?)
-            """, (user_id, service_id, link, quantity, final_price, discount_amount,
+            """, (temp_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
                 referral_data[0] if referral_data else None, is_scheduled, scheduled_datetime,
                 is_split_delivery, split_days, split_quantity))
-            cursor.execute("SELECT last_insert_rowid()")
-        
-        order_id = cursor.fetchone()[0]
-        print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {user_id}, service_id: {service_id}, price: {final_price}")
+        print(f"✅ 임시 주문 생성 완료 - temp_order_id: {temp_order_id}, user_id: {user_id}, service_id: {service_id}, price: {final_price}")
         
         # 추천인이 있는 경우 10% 커미션 포인트 적립
         commission_amount = 0
@@ -2458,20 +2472,22 @@ def create_order():
                 })
                 
                 if smm_result.get('status') == 'success':
-                    # SMM Panel 주문 ID 저장
+                    # SMM Panel에서 받은 실제 주문 번호로 업데이트
+                    real_order_id = smm_result.get('order')
                     if DATABASE_URL.startswith('postgresql://'):
                         cursor.execute("""
-                            UPDATE orders SET smm_panel_order_id = %s, status = 'processing', updated_at = NOW()
+                            UPDATE orders SET order_id = %s, smm_panel_order_id = %s, status = '주문발송', updated_at = NOW()
                             WHERE order_id = %s
-                        """, (smm_result.get('order'), order_id))
+                        """, (real_order_id, real_order_id, temp_order_id))
                     else:
                         cursor.execute("""
-                            UPDATE orders SET smm_panel_order_id = ?, status = 'processing', updated_at = CURRENT_TIMESTAMP
+                            UPDATE orders SET order_id = ?, smm_panel_order_id = ?, status = '주문발송', updated_at = CURRENT_TIMESTAMP
                             WHERE order_id = ?
-                        """, (smm_result.get('order'), order_id))
+                        """, (real_order_id, real_order_id, temp_order_id))
                     
                     conn.commit()
-                    status = 'processing'
+                    order_id = real_order_id  # 실제 주문 번호로 업데이트
+                    status = '주문발송'
                     message = '주문이 접수되어 진행중입니다.'
                 else:
                     status = 'failed'
@@ -2797,17 +2813,17 @@ def get_orders():
                             start_count = smm_result.get('start_count', 0)
                             remains = smm_result.get('remains', 0)
                             
-                            # SMM Panel 상태를 우리 상태로 매핑
+                            # SMM Panel 상태를 4개 상태로 매핑
                             if smm_status == 'completed' or remains == 0:
-                                real_status = 'completed'
+                                real_status = '주문 실행완료'
                             elif smm_status == 'in progress' or (start_count > 0 and remains < order[3]):
-                                real_status = 'in_progress'  # 작업중
+                                real_status = '주문 실행중'
                             elif smm_status == 'pending':
-                                real_status = 'processing'  # 진행중
+                                real_status = '주문발송'
                             elif smm_status == 'partial':
-                                real_status = 'partial_completed'
+                                real_status = '주문 실행중'
                             elif smm_status == 'canceled' or smm_status == 'cancelled':
-                                real_status = 'canceled'
+                                real_status = '주문 미처리'
                             
                             print(f"📊 주문 {order[0]} 실시간 상태: DB={db_status}, SMM={smm_status}, 실제={real_status}, 시작={start_count}, 남음={remains}")
                     except Exception as e:
@@ -2817,9 +2833,12 @@ def get_orders():
                 # 서비스명 매핑
                 service_name = get_service_name(order[1]) if order[1] else '알 수 없는 서비스'
                 
+                # SMM Panel 주문 ID가 있으면 그것을 실제 주문 번호로 사용
+                actual_order_id = smm_panel_order_id if smm_panel_order_id else order[0]
+                
                 order_list.append({
-                    'id': order[0],  # 프론트엔드 호환성을 위해 id 필드 추가
-                    'order_id': order[0],
+                    'id': actual_order_id,  # SMM Panel 주문 ID를 실제 주문 번호로 사용
+                    'order_id': actual_order_id,
                     'service_id': order[1] if len(order) > 1 else '',
                     'service_name': service_name,
                     'link': order[2] if len(order) > 2 else '',

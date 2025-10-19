@@ -4,26 +4,22 @@ import smmpanelApi from '../services/snspopApi'
 import { Copy, ExternalLink, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import './OrdersPage.css'
 
-// 주문 현황 상태 상수
+// 주문 현황 상태 상수 (4개로 단순화)
 const ORDER_STATUS = {
-  ALL: 'all',                 // 전체
-  RECEIVED: 'received',       // 주문 접수
-  IN_PROGRESS: 'in_progress', // 주문 준비 및 가동 중
-  COMPLETED: 'completed',     // 완료
-  PARTIAL: 'partial',         // 부분 완료
-  PENDING: 'pending',         // 주문 대기 중
-  CANCELLED: 'cancelled'      // 주문 취소 및 전액 환불
+  ALL: 'all',                    // 전체
+  SENT: '주문발송',              // 주문발송
+  IN_PROGRESS: '주문 실행중',    // 주문 실행중
+  COMPLETED: '주문 실행완료',    // 주문 실행완료
+  UNPROCESSED: '주문 미처리'     // 주문 미처리
 }
 
 // 주문 현황 상태 한글 매핑
 const ORDER_STATUS_LABELS = {
   [ORDER_STATUS.ALL]: '전체',
-  [ORDER_STATUS.RECEIVED]: '주문 접수',
-  [ORDER_STATUS.IN_PROGRESS]: '주문 준비 및 가동 중',
-  [ORDER_STATUS.COMPLETED]: '완료',
-  [ORDER_STATUS.PARTIAL]: '부분 완료 (작업 안된 만큼 환불)',
-  [ORDER_STATUS.PENDING]: '주문 대기 중',
-  [ORDER_STATUS.CANCELLED]: '주문 취소 및 전액 환불'
+  [ORDER_STATUS.SENT]: '주문발송',
+  [ORDER_STATUS.IN_PROGRESS]: '주문 실행중',
+  [ORDER_STATUS.COMPLETED]: '주문 실행완료',
+  [ORDER_STATUS.UNPROCESSED]: '주문 미처리'
 }
 
 // 주문 카드 컴포넌트
@@ -43,12 +39,10 @@ const OrderCard = ({ order, onCopyOrderId, onCopyLink, onRefill }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return '#10b981'
-      case 'in_progress': return '#8b5cf6'
-      case 'received': return '#3b82f6'
-      case 'partial': return '#f59e0b'
-      case 'pending': return '#6b7280'
-      case 'cancelled': return '#ef4444'
+      case '주문 실행완료': return '#10b981'
+      case '주문 실행중': return '#8b5cf6'
+      case '주문발송': return '#3b82f6'
+      case '주문 미처리': return '#ef4444'
       default: return '#6b7280'
     }
   }
@@ -116,7 +110,7 @@ const OrderCard = ({ order, onCopyOrderId, onCopyLink, onRefill }) => {
         </div>
       </div>
       
-      {order.status === 'completed' && (
+      {order.status === '주문 실행완료' && (
         <div className="order-actions">
           <button className="refill-btn" onClick={() => onRefill(order.order_id)}>
             리필(확인중)
@@ -266,7 +260,7 @@ const OrdersPage = () => {
           <h1>주문내역 관리</h1>
         </div>
 
-        {/* 필터 버튼들 */}
+        {/* 필터 버튼들 (4개로 단순화) */}
         <div className="filter-section">
           <div className="filter-row">
             <button 
@@ -276,10 +270,10 @@ const OrdersPage = () => {
               {ORDER_STATUS_LABELS[ORDER_STATUS.ALL]}
             </button>
             <button 
-              className={`filter-btn ${selectedFilter === ORDER_STATUS.RECEIVED ? 'active' : ''}`}
-              onClick={() => handleFilterChange(ORDER_STATUS.RECEIVED)}
+              className={`filter-btn ${selectedFilter === ORDER_STATUS.SENT ? 'active' : ''}`}
+              onClick={() => handleFilterChange(ORDER_STATUS.SENT)}
             >
-              {ORDER_STATUS_LABELS[ORDER_STATUS.RECEIVED]}
+              {ORDER_STATUS_LABELS[ORDER_STATUS.SENT]}
             </button>
             <button 
               className={`filter-btn ${selectedFilter === ORDER_STATUS.IN_PROGRESS ? 'active' : ''}`}
@@ -287,31 +281,19 @@ const OrdersPage = () => {
             >
               {ORDER_STATUS_LABELS[ORDER_STATUS.IN_PROGRESS]}
             </button>
-              <button
+            <button
               className={`filter-btn ${selectedFilter === ORDER_STATUS.COMPLETED ? 'active' : ''}`}
               onClick={() => handleFilterChange(ORDER_STATUS.COMPLETED)}
-              >
+            >
               {ORDER_STATUS_LABELS[ORDER_STATUS.COMPLETED]}
-              </button>
+            </button>
           </div>
           <div className="filter-row">
             <button 
-              className={`filter-btn ${selectedFilter === ORDER_STATUS.PARTIAL ? 'active' : ''}`}
-              onClick={() => handleFilterChange(ORDER_STATUS.PARTIAL)}
+              className={`filter-btn ${selectedFilter === ORDER_STATUS.UNPROCESSED ? 'active' : ''}`}
+              onClick={() => handleFilterChange(ORDER_STATUS.UNPROCESSED)}
             >
-              {ORDER_STATUS_LABELS[ORDER_STATUS.PARTIAL]}
-            </button>
-            <button 
-              className={`filter-btn ${selectedFilter === ORDER_STATUS.PENDING ? 'active' : ''}`}
-              onClick={() => handleFilterChange(ORDER_STATUS.PENDING)}
-            >
-              {ORDER_STATUS_LABELS[ORDER_STATUS.PENDING]}
-            </button>
-            <button 
-              className={`filter-btn ${selectedFilter === ORDER_STATUS.CANCELLED ? 'active' : ''}`}
-              onClick={() => handleFilterChange(ORDER_STATUS.CANCELLED)}
-            >
-              {ORDER_STATUS_LABELS[ORDER_STATUS.CANCELLED]}
+              {ORDER_STATUS_LABELS[ORDER_STATUS.UNPROCESSED]}
             </button>
           </div>
         </div>
