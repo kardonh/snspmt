@@ -12,10 +12,17 @@ import threading
 import time
 from functools import wraps
 from werkzeug.utils import secure_filename
+from flask import send_from_directory
 
 # Flask 앱 초기화
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
+
+# 정적 파일 서빙 설정
+@app.route('/static/uploads/<filename>')
+def uploaded_file(filename):
+    """업로드된 파일 서빙"""
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 # 파일 업로드 설정
 UPLOAD_FOLDER = 'static/uploads'
@@ -329,7 +336,7 @@ def call_smm_panel_api(order_data):
             }
         
         print(f"📞 SMM Panel API 요청: {payload}")
-        response = requests.post(smm_panel_url, json=payload, timeout=5)
+        response = requests.post(smm_panel_url, json=payload, timeout=3)
         print(f"📞 SMM Panel API 응답 상태: {response.status_code}")
         
         # 응답이 없거나 빈 경우 처리
@@ -2801,11 +2808,12 @@ def get_orders():
                 start_count = 0
                 remains = order[3] if len(order) > 3 else 0  # 초기값은 주문 수량
                 
-                # 최근 7일 이내 주문만 SMM API 호출 (성능 최적화)
+                # 최근 3일 이내 주문만 SMM API 호출 (성능 최적화 강화)
                 order_date = order[6] if len(order) > 6 else None
-                is_recent = order_date and (datetime.now() - order_date).days <= 7
+                is_recent = order_date and (datetime.now() - order_date).days <= 3
                 
-                if smm_panel_order_id and db_status not in ['completed', 'canceled', 'cancelled', 'failed'] and is_recent:
+                # 동시 API 호출 제한: 한 번에 최대 3개까지만
+                if smm_panel_order_id and db_status not in ['completed', 'canceled', 'cancelled', 'failed'] and is_recent and len([o for o in order_list if 'smm_api_called' in o]) < 3:
                     try:
                         smm_result = call_smm_panel_api({
                             'action': 'status',
@@ -2833,6 +2841,9 @@ def get_orders():
                     except Exception as e:
                         print(f"⚠️ 주문 {order[0]} 상태 확인 실패: {str(e)}")
                         # SMM Panel 확인 실패 시 DB 상태 유지
+                    
+                    # API 호출 완료 표시
+                    smm_api_called = True
                 
                 # 서비스명 매핑
                 service_name = get_service_name(order[1]) if order[1] else '알 수 없는 서비스'
@@ -6094,7 +6105,7 @@ def get_blog_post(post_id):
             'excerpt': row[3],
             'category': row[4],
             'thumbnail_url': row[5],
-            'tags': json.loads(row[6]) if row[6] else [],
+            'tags': row[6] if isinstance(row[6], list) else (json.loads(row[6]) if row[6] else []),
             'created_at': row[7].isoformat(),
             'updated_at': row[8].isoformat(),
             'view_count': row[9]
