@@ -5968,25 +5968,40 @@ def get_blog_posts():
         count_query = "SELECT COUNT(*) FROM blog_posts WHERE is_published = true"
         params = []
         
-        # 검색 조건 추가
+        # 검색 조건 추가 (SQLite/PostgreSQL 구분)
         if search:
-            base_query += " AND (title ILIKE %s OR content ILIKE %s OR excerpt ILIKE %s)"
-            count_query += " AND (title ILIKE %s OR content ILIKE %s OR excerpt ILIKE %s)"
+            if DATABASE_URL.startswith('postgresql://'):
+                base_query += " AND (title ILIKE %s OR content ILIKE %s OR excerpt ILIKE %s)"
+                count_query += " AND (title ILIKE %s OR content ILIKE %s OR excerpt ILIKE %s)"
+            else:
+                base_query += " AND (title LIKE ? OR content LIKE ? OR excerpt LIKE ?)"
+                count_query += " AND (title LIKE ? OR content LIKE ? OR excerpt LIKE ?)"
             search_param = f"%{search}%"
             params.extend([search_param, search_param, search_param])
         
         if tag:
-            base_query += " AND tags::text ILIKE %s"
-            count_query += " AND tags::text ILIKE %s"
+            if DATABASE_URL.startswith('postgresql://'):
+                base_query += " AND tags::text ILIKE %s"
+                count_query += " AND tags::text ILIKE %s"
+            else:
+                base_query += " AND tags LIKE ?"
+                count_query += " AND tags LIKE ?"
             params.append(f"%{tag}%")
         
         if category:
-            base_query += " AND category = %s"
-            count_query += " AND category = %s"
+            if DATABASE_URL.startswith('postgresql://'):
+                base_query += " AND category = %s"
+                count_query += " AND category = %s"
+            else:
+                base_query += " AND category = ?"
+                count_query += " AND category = ?"
             params.append(category)
         
         # 정렬 및 페이지네이션
-        base_query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+        if DATABASE_URL.startswith('postgresql://'):
+            base_query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+        else:
+            base_query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
         
         # 총 개수 조회
@@ -6040,14 +6055,24 @@ def get_blog_post(post_id):
         cursor = conn.cursor()
         
         # 조회수 증가
-        cursor.execute("UPDATE blog_posts SET view_count = view_count + 1 WHERE id = %s", (post_id,))
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("UPDATE blog_posts SET view_count = view_count + 1 WHERE id = %s", (post_id,))
+        else:
+            cursor.execute("UPDATE blog_posts SET view_count = view_count + 1 WHERE id = ?", (post_id,))
         
         # 글 조회
-        cursor.execute("""
-            SELECT id, title, content, excerpt, category, thumbnail_url, tags, created_at, updated_at, view_count
-            FROM blog_posts 
-            WHERE id = %s AND is_published = true
-        """, (post_id,))
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id, title, content, excerpt, category, thumbnail_url, tags, created_at, updated_at, view_count
+                FROM blog_posts 
+                WHERE id = %s AND is_published = true
+            """, (post_id,))
+        else:
+            cursor.execute("""
+                SELECT id, title, content, excerpt, category, thumbnail_url, tags, created_at, updated_at, view_count
+                FROM blog_posts 
+                WHERE id = ? AND is_published = true
+            """, (post_id,))
         
         row = cursor.fetchone()
         if not row:
@@ -6094,13 +6119,22 @@ def get_blog_categories():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("""
-            SELECT category, COUNT(*) as count
-            FROM blog_posts 
-            WHERE is_published = true AND category IS NOT NULL
-            GROUP BY category
-            ORDER BY count DESC, category
-        """)
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT category, COUNT(*) as count
+                FROM blog_posts 
+                WHERE is_published = true AND category IS NOT NULL
+                GROUP BY category
+                ORDER BY count DESC, category
+            """)
+        else:
+            cursor.execute("""
+                SELECT category, COUNT(*) as count
+                FROM blog_posts 
+                WHERE is_published = true AND category IS NOT NULL
+                GROUP BY category
+                ORDER BY count DESC, category
+            """)
         
         rows = cursor.fetchall()
         categories = [{'name': row[0], 'count': row[1]} for row in rows]
@@ -6127,11 +6161,19 @@ def get_blog_tags():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("""
-            SELECT DISTINCT jsonb_array_elements_text(tags) as tag
-            FROM blog_posts 
-            WHERE is_published = true AND tags IS NOT NULL
-        """)
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT DISTINCT jsonb_array_elements_text(tags) as tag
+                FROM blog_posts 
+                WHERE is_published = true AND tags IS NOT NULL
+            """)
+        else:
+            # SQLite에서는 JSON 함수 사용
+            cursor.execute("""
+                SELECT DISTINCT json_extract(tags.value, '$') as tag
+                FROM blog_posts, json_each(tags) as tags
+                WHERE is_published = true AND tags IS NOT NULL
+            """)
         
         rows = cursor.fetchall()
         tags = [row[0] for row in rows if row[0]]
