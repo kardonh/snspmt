@@ -128,11 +128,10 @@ const OrderCompletePage = () => {
         {/* 고객센터 정보 */}
         <div className="customer-service">
           <h3>고객센터</h3>
-          <p>문의사항이 있으시면 언제든 연락해주세요.</p>
+          <p>문의사항이 있으시면 하단의 카카오채널로 문의 부탁드립니다!</p>
           <div className="contact-info">
-            <p>📧 이메일: support@snspmt.com</p>
-            <p>📞 전화: 1588-0000</p>
-            <p>⏰ 운영시간: 평일 09:00 - 18:00</p>
+
+            <p>⏰ 운영시간: 평일 운영시간: 10:00 ~ 18:00</p>
           </div>
         </div>
       </div>

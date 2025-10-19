@@ -52,6 +52,20 @@
 
       gtag('config', 'G-JRHTX4LVE1');
     </script>
+    
+    <!-- 카카오 SDK -->
+    <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.0/kakao.min.js" crossorigin="anonymous"></script>
+    <script>
+      // 카카오 SDK 로딩 확인
+      window.addEventListener('load', function() {
+        console.log('페이지 로드 완료, 카카오 SDK 상태:', typeof window.Kakao);
+        if (window.Kakao) {
+          console.log('카카오 SDK 로딩 성공');
+        } else {
+          console.error('카카오 SDK 로딩 실패');
+        }
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

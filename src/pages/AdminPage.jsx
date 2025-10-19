@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
   Users, 
   ShoppingCart, 
@@ -15,7 +16,10 @@ import {
   Activity,
   Info,
   UserPlus,
-  Bell
+  Bell,
+  FileText,
+  Edit,
+  Trash2
 } from 'lucide-react'
 import ReferralRegistration from '../components/ReferralRegistration'
 import { 
@@ -28,6 +32,8 @@ import {
 import './AdminPage.css'
 
 const AdminPage = () => {
+  const navigate = useNavigate()
+  
   // 관리자 API 호출 헬퍼 함수
   const adminFetch = async (url, options = {}) => {
     const defaultHeaders = {
@@ -88,11 +94,10 @@ const AdminPage = () => {
   const [showNoticeModal, setShowNoticeModal] = useState(false)
   const [editingNotice, setEditingNotice] = useState(null)
   const [noticeForm, setNoticeForm] = useState({
-    title: '',
-    content: '',
     image_url: '',
     is_active: true
   })
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [referralCodes, setReferralCodes] = useState([])
   const [referralCommissions, setReferralCommissions] = useState([])
   const [newReferralUser, setNewReferralUser] = useState('')
@@ -380,6 +385,34 @@ const AdminPage = () => {
     }
   }
 
+  // 이미지 업로드
+  const handleImageUpload = async (file) => {
+    try {
+      setUploadingImage(true)
+      
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      const response = await adminFetch('/api/admin/upload-image', {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setNoticeForm({...noticeForm, image_url: data.image_url})
+        alert('이미지가 업로드되었습니다.')
+      } else {
+        const errorData = await response.json()
+        alert(`이미지 업로드 실패: ${errorData.error}`)
+      }
+    } catch (error) {
+      alert('이미지 업로드 중 오류가 발생했습니다.')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
   // 공지사항 생성/수정
   const handleNoticeSubmit = async () => {
     try {
@@ -404,8 +437,6 @@ const AdminPage = () => {
         setShowNoticeModal(false)
         setEditingNotice(null)
         setNoticeForm({
-          title: '',
-          content: '',
           image_url: '',
           is_active: true
         })
@@ -446,12 +477,134 @@ const AdminPage = () => {
   const handleEditNotice = (notice) => {
     setEditingNotice(notice)
     setNoticeForm({
-      title: notice.title,
-      content: notice.content,
       image_url: notice.image_url || '',
       is_active: notice.is_active
     })
     setShowNoticeModal(true)
+  }
+
+  // 주문 상태 텍스트 변환
+  const getOrderStatusText = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+        return '주문 접수'
+      case 'processing':
+      case 'in_progress':
+        return '작업중'
+      case 'completed':
+        return '작업완료'
+      default:
+        return '주문 접수'
+    }
+  }
+
+  // 주문 상태 클래스 변환 (4개 상태로 통일)
+  const getOrderStatusClass = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'completed':
+        return 'completed'
+      case 'canceled':
+      case 'cancelled':
+      case 'failed':
+        return 'canceled'
+      case 'processing':
+      case 'package_processing':
+      case 'in_progress':
+      case 'split_scheduled':
+      case 'partial_completed':
+        return 'processing'
+      case 'pending':
+      case 'pending_payment':
+      case 'scheduled':
+      case 'received':
+      default:
+        return 'pending'
+    }
+  }
+
+  // 액션 버튼 텍스트 변환
+  const getActionButtonText = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+      case 'pending_payment':
+      case 'scheduled':
+      case 'received':
+        return '접수됨'
+      case 'processing':
+      case 'package_processing':
+      case 'in_progress':
+      case 'split_scheduled':
+      case 'partial_completed':
+        return '진행중'
+      case 'completed':
+        return '완료'
+      case 'canceled':
+      case 'cancelled':
+      case 'failed':
+        return '취소/실패'
+      default:
+        return '접수됨'
+    }
+  }
+
+  // 주문 상태 변경
+  const handleOrderStatusChange = async (orderId, newStatus) => {
+    try {
+      setIsLoading(true)
+      const response = await adminFetch(`/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      if (response.ok) {
+        await loadOrders()
+        alert('주문 상태가 변경되었습니다.')
+      } else {
+        const errorData = await response.json()
+        alert(`오류: ${errorData.error}`)
+      }
+    } catch (error) {
+      alert('주문 상태 변경 중 오류가 발생했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // 주문 액션 처리 (4개 상태로 통일)
+  const handleOrderAction = async (orderId) => {
+    // 주문 상태에 따라 다음 단계로 진행
+    const currentOrder = orders.find(order => order.orderId === orderId)
+    if (!currentOrder) return
+
+    let nextStatus
+    switch (currentOrder.status?.toLowerCase()) {
+      case 'pending':
+      case 'pending_payment':
+      case 'scheduled':
+      case 'received':
+        nextStatus = 'processing'  // 접수됨 → 진행중
+        break
+      case 'processing':
+      case 'package_processing':
+      case 'in_progress':
+      case 'split_scheduled':
+      case 'partial_completed':
+        nextStatus = 'completed'  // 진행중 → 완료
+        break
+      case 'completed':
+        return // 이미 완료된 주문
+      case 'canceled':
+      case 'cancelled':
+      case 'failed':
+        return // 취소/실패된 주문
+      default:
+        nextStatus = 'processing'
+    }
+
+    await handleOrderStatusChange(orderId, nextStatus)
   }
 
   // 추천인 데이터 로드
@@ -759,10 +912,23 @@ const AdminPage = () => {
     try {
       const orderId = String(order?.orderId || '')
       const platform = String(order?.platform || '')
+      const service = String(order?.service || '')
       const searchTerm = String(tabStates.orders.searchTerm || '').toLowerCase()
+      const selectedFilter = tabStates.orders.selectedFilter || '전체'
       
-      return orderId.toLowerCase().includes(searchTerm) ||
-             platform.toLowerCase().includes(searchTerm)
+      // 검색어 필터링
+      const matchesSearch = orderId.toLowerCase().includes(searchTerm) || 
+                           platform.toLowerCase().includes(searchTerm) ||
+                           service.toLowerCase().includes(searchTerm)
+      
+      // 상태 필터링
+      let matchesFilter = true
+      if (selectedFilter !== '전체') {
+        const orderStatusText = getOrderStatusText(order.status)
+        matchesFilter = orderStatusText === selectedFilter
+      }
+      
+      return matchesSearch && matchesFilter
     } catch (error) {
       console.error('주문 필터링 오류:', error, order)
       return false
@@ -936,64 +1102,153 @@ const AdminPage = () => {
 
   const renderOrders = () => (
     <div className="tab-content">
-      <div className="search-bar">
-        <Search size={20} />
-        <input
-          type="text"
-          placeholder="주문 ID 또는 플랫폼으로 검색..."
-          value={tabStates.orders.searchTerm}
-          onChange={(e) => updateSearchTerm('orders', e.target.value)}
-        />
+      <div className="orders-header">
+        <h2>주문내역 수정</h2>
+        <p>아래 사진과 내역 수정</p>
+      </div>
+      
+      <div className="orders-management">
+        <div className="order-filters">
+          <div className="filter-tabs">
+            <button 
+              className={`filter-tab ${tabStates.orders.selectedFilter === '전체' ? 'active' : ''}`}
+              onClick={() => updateFilter('orders', '전체')}
+            >
+              전체
+            </button>
+            <button 
+              className={`filter-tab ${tabStates.orders.selectedFilter === '주문 접수' ? 'active' : ''}`}
+              onClick={() => updateFilter('orders', '주문 접수')}
+            >
+              주문 접수
+            </button>
+            <button 
+              className={`filter-tab ${tabStates.orders.selectedFilter === '작업중' ? 'active' : ''}`}
+              onClick={() => updateFilter('orders', '작업중')}
+            >
+              작업중
+            </button>
+            <button 
+              className={`filter-tab ${tabStates.orders.selectedFilter === '작업완료' ? 'active' : ''}`}
+              onClick={() => updateFilter('orders', '작업완료')}
+            >
+              작업완료
+            </button>
           </div>
+          
+          <div className="search-bar">
+            <Search size={20} />
+            <input
+              type="text"
+              placeholder="주문조회"
+              value={tabStates.orders.searchTerm}
+              onChange={(e) => updateSearchTerm('orders', e.target.value)}
+            />
+            <button className="refresh-btn" onClick={() => loadOrders()}>
+              <RefreshCw size={16} />
+              새로고침
+            </button>
+          </div>
+        </div>
+      </div>
 
-      <div className="data-table">
-        <table>
-          <thead>
-            <tr>
-              <th>주문 ID</th>
-              <th>플랫폼</th>
-              <th>서비스</th>
-              <th>수량</th>
-              <th>금액</th>
-              <th>링크</th>
-              <th>상태</th>
-              <th>주문일</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredOrders.length > 0 ? (
-              filteredOrders.map((order, index) => (
-                <tr key={index}>
-                  <td>{order.orderId || 'N/A'}</td>
-                  <td>{order.platform || 'N/A'}</td>
-                  <td>{order.service || 'N/A'}</td>
-                  <td>{formatNumber(order.quantity)}</td>
-                  <td>₩{formatNumber(order.amount)}</td>
-                  <td>
+      <div className="orders-list">
+        {filteredOrders.length > 0 ? (
+          filteredOrders.map((order, index) => (
+            <div key={index} className="order-item">
+              <div className="order-header">
+                <div className="order-info">
+                  <h3>주문번호: {order.orderId || 'N/A'}</h3>
+                  <p>주문일: {formatDate(order.createdAt)}</p>
+                </div>
+                <div className="order-actions">
+                  <button className="btn-details">
+                    <Eye size={16} />
+                    상세보기
+                  </button>
+                </div>
+              </div>
+              
+              <div className="order-content">
+                <div className="service-info">
+                  <div className="info-row">
+                    <span className="label">서비스:</span>
+                    <span className="value">{order.service || 'N/A'}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="label">서비스 ID:</span>
+                    <span className="value">{order.serviceId || 'N/A'}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="label">수량:</span>
+                    <span className="value">{formatNumber(order.quantity)}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="label">가격:</span>
+                    <span className="value">₩{formatNumber(order.amount)}</span>
+                  </div>
+                </div>
+                
+                {order.packageSteps && order.packageSteps.length > 0 && (
+                  <div className="package-progress">
+                    <h4>패키지 진행:</h4>
+                    <div className="progress-bar">
+                      <div className="progress-fill" style={{width: `${order.progressPercentage || 0}%`}}></div>
+                    </div>
+                    <div className="progress-text">
+                      {order.currentStatus || '대기중'} ({order.completedSteps || 0}/{order.totalSteps || 0})
+                    </div>
+                    
+                    <div className="package-steps">
+                      {order.packageSteps.map((step, stepIndex) => (
+                        <div key={stepIndex} className={`step ${step.completed ? 'completed' : step.current ? 'current' : 'pending'}`}>
+                          <div className="step-number">{stepIndex + 1}</div>
+                          <div className="step-content">
+                            <div className="step-title">{step.title}</div>
+                            <div className="step-description">{step.description}</div>
+                            <div className="step-quantity">{step.quantity}</div>
+                            {step.schedule && <div className="step-schedule">{step.schedule}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="order-actions-buttons">
+                  <button 
+                    className={`status-btn ${getOrderStatusClass(order.status)}`}
+                    onClick={() => handleOrderStatusChange(order.orderId, 'in_progress')}
+                  >
+                    {getOrderStatusText(order.status)}
+                  </button>
+                  <button 
+                    className="action-btn purple"
+                    onClick={() => handleOrderAction(order.orderId)}
+                  >
+                    {getActionButtonText(order.status)}
+                  </button>
+                </div>
+                
+                <div className="order-link">
+                  <span className="label">링크:</span>
+                  <span className="value">
                     {order.link && order.link !== 'N/A' ? (
-                      <a href={order.link} target="_blank" rel="noopener noreferrer" className="order-link">
-                        {order.link.length > 30 ? order.link.substring(0, 30) + '...' : order.link}
+                      <a href={order.link} target="_blank" rel="noopener noreferrer">
+                        {order.link}
                       </a>
                     ) : 'N/A'}
-                  </td>
-                  <td>
-                    <span className={`status ${order.status || 'pending'}`}>
-                      {order.status || '대기중'}
-                    </span>
-                  </td>
-                  <td>{formatDate(order.createdAt)}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="8" className="no-data">
-                  {orders.length === 0 ? '주문 데이터를 불러오는 중...' : '검색 결과가 없습니다.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  </span>
+                </div>
+              </div>
             </div>
+          ))
+        ) : (
+          <div className="no-orders">
+            <p>{orders.length === 0 ? '주문 데이터를 불러오는 중...' : '검색 결과가 없습니다.'}</p>
+          </div>
+        )}
+      </div>
                     </div>
   )
 
@@ -1226,7 +1481,7 @@ const AdminPage = () => {
       <div className="notices-header">
         <h2>공지사항 관리</h2>
         <button 
-          className="btn-primary"
+          className="create-notice-btn"
           onClick={() => {
             setEditingNotice(null)
             setNoticeForm({
@@ -1253,26 +1508,41 @@ const AdminPage = () => {
           notices.map(notice => (
             <div key={notice.id} className="notice-item">
               <div className="notice-header">
-                <h3>{notice.title}</h3>
+                <h3>공지사항</h3>
                 <div className="notice-actions">
                   <button 
-                    className="btn-edit"
+                    className="notice-action-btn edit"
                     onClick={() => handleEditNotice(notice)}
+                    title="수정"
                   >
-                    수정
+                    <Edit size={16} />
                   </button>
                   <button 
-                    className="btn-delete"
+                    className="notice-action-btn delete"
                     onClick={() => handleDeleteNotice(notice.id)}
+                    title="삭제"
                   >
-                    삭제
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>
               <div className="notice-content">
-                <p>{notice.content}</p>
                 {notice.image_url && (
-                  <img src={notice.image_url} alt="공지사항 이미지" className="notice-image" />
+                  <div className="notice-image-wrapper">
+                    <img 
+                      src={notice.image_url} 
+                      alt="공지사항 이미지" 
+                      className="notice-image"
+                      onError={(e) => {
+                        e.target.style.display = 'none'
+                        e.target.nextSibling.style.display = 'block'
+                      }}
+                    />
+                    <div className="image-error-fallback" style={{display: 'none'}}>
+                      <div className="error-icon">⚠️</div>
+                      <p>이미지를 불러올 수 없습니다</p>
+                    </div>
+                  </div>
                 )}
               </div>
               <div className="notice-footer">
@@ -1491,6 +1761,13 @@ const AdminPage = () => {
           추천인 관리
                   </button>
                   <button
+          className={`tab-button ${activeTab === 'blog' ? 'active' : ''}`}
+          onClick={() => setActiveTab('blog')}
+                  >
+          <FileText size={20} />
+          블로그 관리
+                  </button>
+                  <button
           className={`tab-button ${activeTab === 'notices' ? 'active' : ''}`}
           onClick={() => setActiveTab('notices')}
                   >
@@ -1519,6 +1796,24 @@ const AdminPage = () => {
             {activeTab === 'orders' && renderOrders()}
             {activeTab === 'purchases' && renderPurchases()}
             {activeTab === 'referrals' && renderReferrals()}
+            {activeTab === 'blog' && (
+              <div className="blog-management">
+                <div className="blog-header">
+                  <h2>블로그 관리</h2>
+                  <p>블로그 글을 작성하고 관리할 수 있습니다.</p>
+                </div>
+                <div className="blog-redirect">
+                  <p>블로그 관리는 별도 페이지에서 진행됩니다.</p>
+                  <button 
+                    className="admin-button"
+                    onClick={() => navigate('/admin/blog')}
+                  >
+                    <FileText size={16} />
+                    블로그 관리 페이지로 이동
+                  </button>
+                </div>
+              </div>
+            )}
             {activeTab === 'commissions' && renderCommissions()}
             {activeTab === 'notices' && renderNotices()}
           </>
@@ -1615,8 +1910,8 @@ const AdminPage = () => {
 
       {/* 공지사항 모달 */}
       {showNoticeModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
+        <div className="notice-modal">
+          <div className="notice-modal-content">
             <div className="modal-header">
               <h3>{editingNotice ? '공지사항 수정' : '새 공지사항 작성'}</h3>
               <button 
@@ -1628,36 +1923,37 @@ const AdminPage = () => {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>제목</label>
-                <input
-                  type="text"
-                  value={noticeForm.title}
-                  onChange={(e) => setNoticeForm({...noticeForm, title: e.target.value})}
-                  placeholder="공지사항 제목을 입력하세요"
-                  className="admin-input"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>내용</label>
-                <textarea
-                  value={noticeForm.content}
-                  onChange={(e) => setNoticeForm({...noticeForm, content: e.target.value})}
-                  placeholder="공지사항 내용을 입력하세요"
-                  className="admin-input"
-                  rows="5"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>이미지 URL (선택사항)</label>
-                <input
-                  type="url"
-                  value={noticeForm.image_url}
-                  onChange={(e) => setNoticeForm({...noticeForm, image_url: e.target.value})}
-                  placeholder="https://example.com/image.jpg"
-                  className="admin-input"
-                />
+                <label>이미지 업로드</label>
+                <div className="image-upload-container">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0]
+                      if (file) {
+                        handleImageUpload(file)
+                      }
+                    }}
+                    className="file-input"
+                    id="image-upload"
+                    disabled={uploadingImage}
+                  />
+                  <label htmlFor="image-upload" className="file-input-label">
+                    {uploadingImage ? '업로드 중...' : '이미지 선택'}
+                  </label>
+                  {noticeForm.image_url && (
+                    <div className="uploaded-image-preview">
+                      <img src={noticeForm.image_url} alt="업로드된 이미지" />
+                      <button 
+                        type="button"
+                        onClick={() => setNoticeForm({...noticeForm, image_url: ''})}
+                        className="remove-image-btn"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               
               <div className="form-group">
@@ -1681,11 +1977,31 @@ const AdminPage = () => {
               <button 
                 className="admin-button primary"
                 onClick={handleNoticeSubmit}
-                disabled={!noticeForm.title || !noticeForm.content || isLoading}
+                disabled={!noticeForm.image_url || isLoading || uploadingImage}
               >
                 {editingNotice ? '수정' : '생성'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 블로그 관리 */}
+      {activeTab === 'blog' && (
+        <div className="admin-section">
+          <div className="section-header">
+            <h2>블로그 관리</h2>
+            <p>블로그 글을 작성하고 관리할 수 있습니다.</p>
+          </div>
+          <div className="blog-redirect">
+            <p>블로그 관리는 별도 페이지에서 진행됩니다.</p>
+            <button 
+              className="admin-button primary"
+              onClick={() => navigate('/admin/blog')}
+            >
+              <FileText size={16} />
+              블로그 관리 페이지로 이동
+            </button>
           </div>
         </div>
       )}

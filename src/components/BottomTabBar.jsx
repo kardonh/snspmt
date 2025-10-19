@@ -3,7 +3,6 @@ import { useLocation, Link } from 'react-router-dom'
 import { 
   Star, 
   FileText, 
-  Info, 
   HelpCircle, 
   Shield,
   CreditCard,
@@ -20,7 +19,8 @@ const BottomTabBar = () => {
     { id: 'order', name: '주문하기', icon: Star, path: '/', color: '#3b82f6' },
     { id: 'orders', name: '주문내역', icon: FileText, path: '/orders', color: '#8b5cf6' },
     { id: 'points', name: '포인트 구매', icon: CreditCard, path: '/points', color: '#f59e0b' },
-    { id: 'info', name: '상품안내', icon: Info, path: '/info', color: '#10b981' }
+    { id: 'blog', name: '블로그', icon: FileText, path: '/blog', color: '#06b6d4' },
+    { id: 'faq', name: '자주묻는질문', icon: HelpCircle, path: '/faq', color: '#10b981' }
   ]
 
   // 관리자 탭 (관리자 계정일 때만 표시)

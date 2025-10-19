@@ -19,7 +19,7 @@ const Layout = ({ children }) => {
   // 화면 크기 감지
   useEffect(() => {
     const checkIsMobile = () => {
-      const mobile = window.innerWidth <= 768
+      const mobile = window.innerWidth <= 1200  // 1200px까지 모바일로 처리
       setIsMobile(mobile)
     }
     

@@ -43,7 +43,7 @@ const StatusBar = () => {
     }, 1000)
 
     const checkIsMobile = () => {
-      setIsMobile(window.innerWidth <= 768)
+      setIsMobile(window.innerWidth <= 1200)
     }
     
     checkIsMobile()
@@ -150,7 +150,7 @@ const StatusBar = () => {
       
       {/* 데스크톱 상태바 */}
       {!isMobile && (
-        <div className="status-content">
+        <div className="status-content" style={{ display: 'flex', visibility: 'visible', opacity: 1 }}>
           <div className="status-indicator">
             <CheckCircle size={16} />
             <span>모든 서비스 정상 가동중</span>

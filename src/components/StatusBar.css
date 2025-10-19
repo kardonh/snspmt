@@ -151,11 +151,57 @@
   transform: translateY(-1px);
 }
 
-@media (max-width: 768px) {
+/* 모바일 모드 (1351px 이하) - 상태바 표시 및 크기 조정 */
+@media (max-width: 1351px) {
   .status-content {
-    display: none;
+    display: flex !important; /* 강제 표시 */
+    padding: 16px 24px;
+    font-size: 16px;
+    visibility: visible !important; /* 확실히 보이도록 */
+    opacity: 1 !important; /* 투명도 제거 */
   }
   
+  .status-indicator {
+    gap: 10px;
+  }
+  
+  .status-indicator svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .status-time {
+    font-size: 15px;
+  }
+}
+
+/* 데스크톱 (1200px 초과) - 상태바 숨김 */
+@media (min-width: 1201px) {
+  .status-content {
+    display: none !important;
+  }
+  .status-bar {
+    padding: 0;
+  }
+}
+
+/* 모바일 (1200px 이하) - 상태바 표시 */
+@media (max-width: 1200px) {
+  .status-content {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    padding: 12px 16px !important;
+    font-size: 13px !important;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+    color: white !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1000 !important;
+    width: 100% !important;
+  }
   .status-bar {
     padding: 0;
   }
@@ -163,22 +209,67 @@
 
 /* 상태바 스타일 */
 .status-content {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
-  padding: 12px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  color: white !important;
+  padding: 12px 20px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1000 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 100% !important;
+  height: auto !important;
 }
+
+/* 모든 화면 크기에서 상태바 강제 표시 */
+.status-content {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* 1200px 이하 모든 화면에서 상태바 강제 표시 */
+@media (max-width: 1200px) {
+  .status-content {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    padding: 16px 24px !important;
+    font-size: 16px !important;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+    color: white !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1000 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+  
+  .status-indicator {
+    gap: 10px !important;
+  }
+  
+  .status-indicator svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  .status-time {
+    font-size: 15px !important;
+  }
+}
+
 
 .status-indicator {
   display: flex;
@@ -225,7 +316,7 @@
   font-size: 11px;
 }
 
-@media (min-width: 769px) {
+@media (min-width: 1200px) {
   .mobile-header {
     display: none;
   }

@@ -6,21 +6,34 @@ const GuestContext = createContext()
 export const useGuest = () => {
   const context = useContext(GuestContext)
   if (!context) {
-    throw new Error('useGuest must be used within a GuestProvider')
+    console.warn('useGuest must be used within a GuestProvider, returning default values')
+    return {
+      isGuest: true,
+      guestData: { guestId: null, tempOrders: [], tempCart: [] },
+      enableGuestMode: () => {},
+      disableGuestMode: () => {},
+      saveGuestOrder: () => {},
+      saveGuestCartItem: () => {},
+      clearGuestData: () => {}
+    }
   }
   return context
 }
 
 export const GuestProvider = ({ children }) => {
-  const { currentUser } = useAuth()
   const [guestData, setGuestData] = useState({
     guestId: null,
     tempOrders: [],
     tempCart: []
   })
+  
+  // AuthContext를 안전하게 사용
+  const authContext = useAuth()
+  const currentUser = authContext?.currentUser
 
   // 로그인 상태에 따라 자동으로 게스트 모드 결정
-  const isGuest = !currentUser
+  // currentUser가 undefined일 때를 대비하여 안전하게 처리
+  const isGuest = currentUser === null || currentUser === undefined
 
   // 게스트 데이터 초기화 및 관리
   useEffect(() => {

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { User, LogOut, Coins } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { smmpanelApi } from '../services/snspopApi'
-import LoginModal from './LoginModal'
+import AuthModal from './AuthModal'
 import './Header.css'
 
 const Header = () => {
@@ -65,12 +65,6 @@ const Header = () => {
           <img src="/logo.png" alt="Sociality" className="header-logo" />
         </Link>
         <nav className="header-nav">
-          <Link to="/services" className="nav-link">
-            서비스
-          </Link>
-          <Link to="/info" className="nav-link">
-            정보
-          </Link>
           <Link to="/faq" className="nav-link">
             FAQ
           </Link>
@@ -107,6 +101,7 @@ const Header = () => {
             <button 
               className="member-btn"
               onClick={() => setIsLoginModalOpen(true)}
+              onTouchEnd={() => setIsLoginModalOpen(true)}
             >
               <User size={20} />
               <span>로그인</span>
@@ -115,9 +110,10 @@ const Header = () => {
         </div>
       </div>
       
-      <LoginModal 
+      <AuthModal 
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
+        initialMode="login"
       />
     </header>
   )

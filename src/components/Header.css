@@ -268,6 +268,78 @@
   }
 }
 
+/* 400px 이하 - 버튼들을 세로로 배치 */
+@media (max-width: 400px) {
+  .header-container {
+    padding: 0 12px;
+    height: auto;
+    min-height: 56px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .header-logo {
+    height: 30px !important;
+    align-self: center;
+  }
+  
+  .header-nav {
+    display: none; /* 모바일에서는 네비게이션 숨김 */
+  }
+  
+  .header-right {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+  }
+  
+  .mobile-user-info {
+    display: flex !important;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  
+  .desktop-user-info {
+    display: none !important;
+  }
+  
+  .points-info {
+    font-size: 11px;
+    padding: 6px 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 6px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+    min-width: 70px;
+  }
+  
+  .charge-btn {
+    font-size: 10px;
+    padding: 6px 10px;
+    background: #10b981;
+    color: white;
+    border-radius: 6px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  
+  .charge-btn:hover {
+    background: #059669;
+    transform: translateY(-1px);
+  }
+}
+
 @media (max-width: 480px) {
   .header-container {
     padding: 0 12px;

@@ -84,8 +84,31 @@
   background: #dc2626;
 }
 
-/* 모바일에서만 표시 */
-@media (min-width: 769px) {
+/* 테블릿 모드 (768px - 1351px) - 하단바 표시 */
+@media (max-width: 1200px) and (min-width: 769px) {
+  .bottom-tab-bar {
+    display: flex;
+    padding: 16px 0;
+  }
+  
+  .tab-item {
+    padding: 14px 20px;
+    min-width: 80px;
+  }
+  
+  .tab-icon {
+    margin-bottom: 8px;
+    width: 24px;
+    height: 24px;
+  }
+  
+  .tab-label {
+    font-size: 14px;
+  }
+}
+
+/* 데스크톱에서만 숨김 */
+@media (min-width: 1201px) {
   .bottom-tab-bar {
     display: none;
   }

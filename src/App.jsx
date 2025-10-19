@@ -15,12 +15,13 @@ const OrderCompletePage = lazy(() => import('./pages/OrderCompletePage'))
 const OrdersPage = lazy(() => import('./pages/OrdersPage'))
 const PointsPage = lazy(() => import('./pages/PointsPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
-const InfoPage = lazy(() => import('./pages/InfoPage'))
 const FAQPage = lazy(() => import('./pages/FAQPage'))
-const ServicePage = lazy(() => import('./pages/ServicePage'))
-const ServicesPage = lazy(() => import('./pages/ServicesPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const ReferralDashboard = lazy(() => import('./pages/ReferralDashboard'))
+const KakaoCallback = lazy(() => import('./pages/KakaoCallback'))
+const BlogPage = lazy(() => import('./pages/BlogPage'))
+const BlogDetailPage = lazy(() => import('./pages/BlogDetailPage'))
+const AdminBlogPage = lazy(() => import('./pages/AdminBlogPage'))
 import ProtectedRoute from './components/ProtectedRoute'
 
 import './App.css'
@@ -47,10 +48,11 @@ function App() {
                     <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                     <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
                     <Route path="/referral" element={<ProtectedRoute><ReferralDashboard /></ProtectedRoute>} />
-                    <Route path="/info" element={<InfoPage />} />
                     <Route path="/faq" element={<FAQPage />} />
-                    <Route path="/service" element={<ServicePage />} />
-                    <Route path="/services" element={<ServicesPage />} />
+                    <Route path="/blog" element={<BlogPage />} />
+                    <Route path="/blog/:id" element={<BlogDetailPage />} />
+                    <Route path="/admin/blog" element={<ProtectedRoute><AdminBlogPage /></ProtectedRoute>} />
+                    <Route path="/kakao-callback" element={<KakaoCallback />} />
                   </Routes>
                 </Suspense>
               </Layout>

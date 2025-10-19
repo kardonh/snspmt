@@ -97,8 +97,9 @@ const Sidebar = ({ onClose }) => {
     { id: 'order', name: '주문하기', icon: Star, path: '/', color: '#3b82f6' },
     { id: 'orders', name: '주문내역', icon: FileText, path: '/orders', color: '#8b5cf6' },
     { id: 'points', name: '포인트 구매', icon: CreditCard, path: '/points', color: '#f59e0b' },
+    { id: 'blog', name: '블로그', icon: FileText, path: '/blog', color: '#06b6d4' },
     { id: 'faq', name: '자주 묻는 질문', icon: HelpCircle, path: '/faq', color: '#10b981' },
-    { id: 'service', name: '서비스 소개서', icon: FileText, path: '/service', color: '#6b7280' }
+    { id: 'service', name: '서비스 소개서', icon: FileText, path: '/service-guide.pdf', color: '#6b7280', external: true },
   ]
 
   // 추천인 대시보드 메뉴 (추천인 코드가 있는 사용자만)
@@ -106,7 +107,7 @@ const Sidebar = ({ onClose }) => {
 
   // 최종 메뉴 아이템 구성
   const filteredBaseMenuItems = (isGuest && !currentUser)
-    ? baseMenuItems.filter(item => ['order', 'faq', 'service'].includes(item.id)) // 게스트 모드에서는 주문하기, FAQ, 서비스 소개서만 표시
+    ? baseMenuItems.filter(item => ['order', 'blog', 'faq', 'service'].includes(item.id)) // 게스트 모드에서는 주문하기, 블로그, FAQ, 서비스 소개서만 표시
     : baseMenuItems
 
   const menuItems = (hasReferralCode && !isGuest) 
@@ -189,18 +190,34 @@ const Sidebar = ({ onClose }) => {
 
       {/* Navigation Menu */}
       <nav className="sidebar-nav">
-        {menuItems.map(({ id, name, icon: Icon, path, color }) => (
-          <Link
-            key={id}
-            to={path}
-            className={`sidebar-item ${location.pathname === path ? 'active' : ''}`}
-            onClick={handleMenuItemClick}
-          >
-            <div className="sidebar-item-icon" style={{ color }}>
-              <Icon size={20} />
-            </div>
-            <span className="sidebar-item-text">{name}</span>
-          </Link>
+        {menuItems.map(({ id, name, icon: Icon, path, color, external }) => (
+          external ? (
+            <a
+              key={id}
+              href={path}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sidebar-item"
+              onClick={handleMenuItemClick}
+            >
+              <div className="sidebar-item-icon" style={{ color }}>
+                <Icon size={20} />
+              </div>
+              <span className="sidebar-item-text">{name}</span>
+            </a>
+          ) : (
+            <Link
+              key={id}
+              to={path}
+              className={`sidebar-item ${location.pathname === path ? 'active' : ''}`}
+              onClick={handleMenuItemClick}
+            >
+              <div className="sidebar-item-icon" style={{ color }}>
+                <Icon size={20} />
+              </div>
+              <span className="sidebar-item-text">{name}</span>
+            </Link>
+          )
         ))}
         
         {/* 관리자 메뉴 (관리자 계정일 때만 표시) */}

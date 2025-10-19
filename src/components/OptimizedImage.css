@@ -112,6 +112,40 @@
 /* 카드 이미지 */
 .optimized-image-container.card {
   border-radius: 12px;
+}
+
+/* 테블릿 모드 (768px - 1024px) - 이미지 크기 최적화 */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .optimized-image-container {
+    border-radius: 10px;
+  }
+  
+  .optimized-image-container.logo .optimized-image {
+    max-width: 120%;
+    max-height: 120%;
+  }
+  
+  .optimized-image-container.card {
+    border-radius: 10px;
+  }
+  
+  .placeholder-icon {
+    font-size: 28px;
+    margin-bottom: 10px;
+  }
+  
+  .loading-spinner {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 4px solid #e2e8f0;
+    border-top: 4px solid #667eea;
+  }
+}
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 

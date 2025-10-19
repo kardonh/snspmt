@@ -80,12 +80,189 @@
   padding: 20px 24px;
 }
 
+
+.notice-image-container {
+  position: relative;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
 .notice-popup-image {
   width: 100%;
-  max-height: 300px;
-  object-fit: cover;
+  max-height: 500px;
+  object-fit: contain;
   border-radius: 8px;
   margin-bottom: 16px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.notice-popup-image.loaded {
+  opacity: 1;
+}
+
+.notice-popup-image.loading {
+  opacity: 0;
+}
+
+.image-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.image-loading p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.image-error {
+  text-align: center;
+  color: #6b7280;
+  padding: 40px 20px;
+}
+
+.error-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.image-error p {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+}
+
+.retry-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease;
+}
+
+.retry-btn:hover {
+  background: #5a67d8;
+}
+
+/* 모바일 모드 (1351px 이하) - 모바일과 동일하게 처리 */
+@media (max-width: 1200px) {
+  .notice-popup-overlay {
+    padding: 10px !important;
+  }
+  
+  .notice-popup {
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    border-radius: 12px !important;
+  }
+  
+  .notice-popup-header {
+    padding: 16px 20px 12px;
+  }
+  
+  .notice-popup-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .notice-popup-close {
+    font-size: 20px;
+    padding: 2px;
+  }
+  
+  .notice-popup-content {
+    padding: 16px 20px;
+  }
+  
+  
+  .notice-image-container {
+    min-height: 150px;
+  }
+  
+  .notice-popup-image {
+    max-height: 400px;
+  }
+  
+  .image-loading {
+    padding: 20px;
+  }
+  
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    margin: 0 auto 12px;
+  }
+  
+  .image-loading p {
+    font-size: 13px;
+  }
+  
+  .image-error {
+    padding: 30px 16px;
+  }
+  
+  .error-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+  
+  .image-error p {
+    font-size: 15px;
+    margin: 0 0 12px 0;
+  }
+  
+  .retry-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .notice-popup-footer {
+    padding: 16px 20px;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .notice-dismiss-btn {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    order: 2;
+  }
+  
+  .notice-popup-actions {
+    order: 1;
+  }
+  
+  .notice-next-btn,
+  .notice-close-btn {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
 }
 
 .notice-popup-content p {

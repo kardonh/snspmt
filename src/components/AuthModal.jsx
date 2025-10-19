@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { X, LogIn, UserPlus, Mail, Lock, User, Building2, Briefcase, Eye, EyeOff, AlertTriangle, ArrowRight } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import kakaoAuth from '../utils/kakaoAuth'
+import googleAuth from '../utils/googleAuth'
 import './AuthModal.css'
 
 const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
@@ -27,13 +29,41 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
   const [referralCode, setReferralCode] = useState('')
   const [referralCodeValid, setReferralCodeValid] = useState(false)
   const [referralCodeError, setReferralCodeError] = useState('')
+  const [autoLogin, setAutoLogin] = useState(false)
   
-  const { login, signup } = useAuth()
+  const { login, signup, kakaoLogin, googleLogin } = useAuth()
 
   // initialMode가 변경될 때 isLogin 상태 업데이트
   useEffect(() => {
     setIsLogin(initialMode === 'login')
   }, [initialMode])
+
+  // 모바일에서 모달이 열릴 때 body 스크롤 방지
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.width = '100%'
+    } else {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+    }
+
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+    }
+  }, [isOpen])
+
+  // 비즈니스 정보가 입력될 때 세금계산서 필드에 자동 입력
+  useEffect(() => {
+    if (accountType === 'business' && businessNumber && businessName && representative && contactPhone && contactEmail) {
+      // 비즈니스 정보가 모두 입력되면 세금계산서 필드에 자동으로 채우기
+      // 이 부분은 실제 세금계산서 입력 필드가 있을 때 구현
+    }
+  }, [accountType, businessNumber, businessName, representative, contactPhone, contactEmail])
 
   // 추천인 코드 검증
   const validateReferralCode = async (code) => {
@@ -172,6 +202,64 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
         setIsLocked(true);
         setLockoutTime(15 * 60);
       }
+    }
+  };
+
+  // 카카오 로그인 처리
+  const handleKakaoLogin = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      console.log('카카오 로그인 시작...');
+      await kakaoAuth.login();
+      // 리다이렉트 방식이므로 여기서는 아무것도 하지 않음
+      // 실제 로그인 처리는 KakaoCallback 페이지에서 처리됨
+    } catch (error) {
+      console.error('카카오 로그인 오류:', error);
+      
+      // 구체적인 오류 메시지 제공
+      let errorMessage = '카카오 로그인 중 오류가 발생했습니다.';
+      
+      if (error.message.includes('SDK') || error.message.includes('로딩')) {
+        errorMessage = '카카오 SDK 로딩에 실패했습니다. 페이지를 새로고침해주세요.';
+      } else if (error.message.includes('앱 키')) {
+        errorMessage = '카카오 앱 설정에 문제가 있습니다. 관리자에게 문의해주세요.';
+      } else if (error.message.includes('네트워크')) {
+        errorMessage = '네트워크 연결을 확인해주세요.';
+      } else if (error.message.includes('취소')) {
+        errorMessage = '카카오 로그인이 취소되었습니다.';
+      } else if (error.message.includes('리다이렉트')) {
+        // 리다이렉트 방식이므로 오류가 아님
+        return;
+      }
+      
+      setError(errorMessage);
+      setLoading(false);
+    }
+  };
+
+  // 구글 로그인 처리
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      console.log('구글 로그인 시작...');
+      const googleUserInfo = await googleAuth.login();
+      console.log('구글 사용자 정보:', googleUserInfo);
+      
+      const user = await googleLogin(googleUserInfo);
+      console.log('로그인 성공:', user);
+      
+      // 로그인 성공
+      onSuccess && onSuccess(user);
+      onClose();
+    } catch (error) {
+      console.error('구글 로그인 오류:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -324,6 +412,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
               )}
             </div>
 
+
         <form onSubmit={handleSubmit} className="auth-form">
           {!isLogin && (
             <>
@@ -339,7 +428,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
                       checked={accountType === 'personal'}
                       onChange={(e) => setAccountType(e.target.value)}
                     />
-                    <User size={16} className="account-type-icon" />
                     <span>개인 계정</span>
                   </label>
                   <label className="account-type-option">
@@ -350,7 +438,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
                       checked={accountType === 'business'}
                       onChange={(e) => setAccountType(e.target.value)}
                     />
-                    <Building2 size={16} className="account-type-icon" />
                     <span>비즈니스 계정</span>
                   </label>
                 </div>
@@ -359,7 +446,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
               {/* 가입경로 선택 */}
               <div className="form-group">
                 <label htmlFor="signupSource">
-                  <Briefcase size={16} />
                   가입경로
                 </label>
                 <select
@@ -381,7 +467,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
               {/* 추천인 코드 */}
               <div className="form-group">
                 <label htmlFor="referralCode">
-                  <User size={16} />
                   추천인 코드 (선택사항)
                   {referralCode && referralCodeValid && (
                     <span className="valid-icon">✓</span>
@@ -406,7 +491,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
               <div className="signup-form-row">
                 <div className="form-group">
                   <label htmlFor="displayName">
-                    <User size={16} />
                     이름
                   </label>
                   <input
@@ -421,7 +505,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
 
                 <div className="form-group">
                   <label htmlFor="phoneNumber">
-                    <User size={16} />
                     전화번호
                   </label>
                   <input
@@ -454,7 +537,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
 
               <div className="form-group">
                 <label htmlFor="password">
-                  <Lock size={16} />
                   비밀번호
                 </label>
                 <div className="password-input-wrapper">
@@ -475,6 +557,19 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
                   </button>
                 </div>
               </div>
+
+              {/* 자동 로그인 체크박스 */}
+              <div className="auto-login-section">
+                <label className="auto-login-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={autoLogin}
+                    onChange={(e) => setAutoLogin(e.target.checked)}
+                  />
+                  <span className="checkmark"></span>
+                  <span className="auto-login-text">자동 로그인</span>
+                </label>
+              </div>
             </>
           )}
 
@@ -482,7 +577,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
             <div className="login-form-row">
               <div className="form-group">
                 <label htmlFor="email">
-                  <Mail size={16} />
                   이메일
                 </label>
                 <input
@@ -497,7 +591,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
 
               <div className="form-group">
                 <label htmlFor="password">
-                  <Lock size={16} />
                   비밀번호
                 </label>
                 <div className="password-input-wrapper">
@@ -633,6 +726,39 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
             {loading ? '처리중...' : (isLogin ? '로그인' : '회원가입')}
           </button>
         </form>
+
+        {/* 소셜 로그인 버튼들 */}
+        <div className="social-login-section">
+          {/* 구글 로그인 버튼 */}
+          <button
+            type="button"
+            className="google-login-btn"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+          >
+            <img 
+              src="https://developers.google.com/identity/images/g-logo.png" 
+              alt="구글" 
+              className="google-icon"
+            />
+            구글
+          </button>
+
+          {/* 카카오 로그인 버튼 */}
+          <button
+            type="button"
+            className="kakao-login-btn"
+            onClick={handleKakaoLogin}
+            disabled={loading}
+          >
+            <img 
+              src="/images/kakao-talk-simple.png" 
+              alt="카카오" 
+              className="kakao-icon"
+            />
+            카카오
+          </button>
+        </div>
 
         {isLogin && (
           <div className="signup-section">

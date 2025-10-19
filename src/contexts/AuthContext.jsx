@@ -141,6 +141,97 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
+  // 카카오 로그인 함수
+  async function kakaoLogin(kakaoUserInfo) {
+    try {
+      const response = await fetch('/api/auth/kakao-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          kakaoId: kakaoUserInfo.id,
+          email: kakaoUserInfo.email,
+          nickname: kakaoUserInfo.nickname,
+          profileImage: kakaoUserInfo.profile_image,
+          accessToken: kakaoUserInfo.access_token
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // 카카오 로그인 성공 시 사용자 정보 설정
+          setCurrentUser(data.user);
+          return data.user;
+        } else {
+          throw new Error(data.message || '카카오 로그인에 실패했습니다.');
+        }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || '카카오 로그인에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('카카오 로그인 오류:', error);
+      throw error;
+    }
+  }
+
+  // 구글 로그인 함수
+  async function googleLogin(googleUserInfo) {
+    try {
+      console.log('구글 로그인 요청 시작:', googleUserInfo);
+      
+      const response = await fetch('/api/auth/google-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          googleId: googleUserInfo.uid,
+          email: googleUserInfo.email,
+          displayName: googleUserInfo.displayName,
+          photoURL: googleUserInfo.photoURL,
+          emailVerified: googleUserInfo.emailVerified,
+          accessToken: googleUserInfo.accessToken
+        }),
+      });
+
+      console.log('구글 로그인 응답 상태:', response.status, response.statusText);
+
+      // 응답 텍스트를 먼저 확인
+      const responseText = await response.text();
+      console.log('구글 로그인 응답 텍스트:', responseText);
+
+      if (response.ok) {
+        try {
+          const data = JSON.parse(responseText);
+          if (data.success) {
+            // 구글 로그인 성공 시 사용자 정보 설정
+            setCurrentUser(data.user);
+            return data.user;
+          } else {
+            throw new Error(data.message || '구글 로그인에 실패했습니다.');
+          }
+        } catch (parseError) {
+          console.error('JSON 파싱 오류:', parseError);
+          throw new Error('서버 응답을 처리할 수 없습니다.');
+        }
+      } else {
+        try {
+          const errorData = JSON.parse(responseText);
+          throw new Error(errorData.message || `구글 로그인에 실패했습니다. (${response.status})`);
+        } catch (parseError) {
+          console.error('오류 응답 JSON 파싱 오류:', parseError);
+          throw new Error(`구글 로그인에 실패했습니다. (${response.status}: ${response.statusText})`);
+        }
+      }
+    } catch (error) {
+      console.error('구글 로그인 오류:', error);
+      throw error;
+    }
+  }
+
   function updateUserProfile(updates) {
     if (!currentUser) {
       throw new Error('사용자가 로그인되지 않았습니다.');
@@ -217,6 +308,8 @@ export function AuthProvider({ children }) {
     signup,
     login,
     logout,
+    kakaoLogin,
+    googleLogin,
     updateProfile: updateUserProfile,
     deleteAccount,
     showAuthModal,
