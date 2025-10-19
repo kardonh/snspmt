@@ -329,7 +329,7 @@ def call_smm_panel_api(order_data):
             }
         
         print(f"📞 SMM Panel API 요청: {payload}")
-        response = requests.post(smm_panel_url, json=payload, timeout=30)
+        response = requests.post(smm_panel_url, json=payload, timeout=5)
         print(f"📞 SMM Panel API 응답 상태: {response.status_code}")
         
         # 응답이 없거나 빈 경우 처리
@@ -2801,7 +2801,11 @@ def get_orders():
                 start_count = 0
                 remains = order[3] if len(order) > 3 else 0  # 초기값은 주문 수량
                 
-                if smm_panel_order_id and db_status not in ['completed', 'canceled', 'cancelled', 'failed']:
+                # 최근 7일 이내 주문만 SMM API 호출 (성능 최적화)
+                order_date = order[6] if len(order) > 6 else None
+                is_recent = order_date and (datetime.now() - order_date).days <= 7
+                
+                if smm_panel_order_id and db_status not in ['completed', 'canceled', 'cancelled', 'failed'] and is_recent:
                     try:
                         smm_result = call_smm_panel_api({
                             'action': 'status',
@@ -6020,7 +6024,7 @@ def get_blog_posts():
                 'excerpt': row[2],
                 'category': row[3],
                 'thumbnail_url': row[4],
-                'tags': json.loads(row[5]) if row[5] else [],
+                'tags': row[5] if isinstance(row[5], list) else (json.loads(row[5]) if row[5] else []),
                 'created_at': row[6].isoformat(),
                 'updated_at': row[7].isoformat(),
                 'view_count': row[8]
