@@ -2808,42 +2808,20 @@ def get_orders():
                 start_count = 0
                 remains = order[3] if len(order) > 3 else 0  # 초기값은 주문 수량
                 
-                # 최근 3일 이내 주문만 SMM API 호출 (성능 최적화 강화)
-                order_date = order[6] if len(order) > 6 else None
-                is_recent = order_date and (datetime.now() - order_date).days <= 3
+                # SMM API 호출 비활성화 - DB 상태만 사용 (성능 최적화)
+                print(f"📊 주문 {order[0]} DB 상태 사용: {db_status}")
                 
-                # 동시 API 호출 제한: 한 번에 최대 3개까지만
-                if smm_panel_order_id and db_status not in ['completed', 'canceled', 'cancelled', 'failed'] and is_recent and len([o for o in order_list if 'smm_api_called' in o]) < 3:
-                    try:
-                        smm_result = call_smm_panel_api({
-                            'action': 'status',
-                            'order': smm_panel_order_id
-                        })
-                        
-                        if smm_result and smm_result.get('status') == 'success':
-                            smm_status = smm_result.get('status_text', '').lower()
-                            start_count = smm_result.get('start_count', 0)
-                            remains = smm_result.get('remains', 0)
-                            
-                            # SMM Panel 상태를 4개 상태로 매핑
-                            if smm_status == 'completed' or remains == 0:
-                                real_status = '주문 실행완료'
-                            elif smm_status == 'in progress' or (start_count > 0 and remains < order[3]):
-                                real_status = '주문 실행중'
-                            elif smm_status == 'pending':
-                                real_status = '주문발송'
-                            elif smm_status == 'partial':
-                                real_status = '주문 실행중'
-                            elif smm_status == 'canceled' or smm_status == 'cancelled':
-                                real_status = '주문 미처리'
-                            
-                            print(f"📊 주문 {order[0]} 실시간 상태: DB={db_status}, SMM={smm_status}, 실제={real_status}, 시작={start_count}, 남음={remains}")
-                    except Exception as e:
-                        print(f"⚠️ 주문 {order[0]} 상태 확인 실패: {str(e)}")
-                        # SMM Panel 확인 실패 시 DB 상태 유지
-                    
-                    # API 호출 완료 표시
-                    smm_api_called = True
+                # DB 상태를 4개 상태로 매핑
+                if db_status in ['completed', '완료']:
+                    real_status = '주문 실행완료'
+                elif db_status in ['in_progress', '진행중', 'processing']:
+                    real_status = '주문 실행중'
+                elif db_status in ['pending', '접수됨', '주문발송']:
+                    real_status = '주문발송'
+                elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
+                    real_status = '주문 미처리'
+                else:
+                    real_status = '주문발송'  # 기본값
                 
                 # 서비스명 매핑
                 service_name = get_service_name(order[1]) if order[1] else '알 수 없는 서비스'
