@@ -11,10 +11,26 @@ import sqlite3
 import threading
 import time
 from functools import wraps
+from werkzeug.utils import secure_filename
 
 # Flask 앱 초기화
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
+
+# 파일 업로드 설정
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# 업로드 폴더 생성
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    """허용된 파일 확장자인지 확인"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # 관리자 인증 데코레이터
 def require_admin_auth(f):
@@ -1314,6 +1330,23 @@ def init_database():
                 )
             """)
             
+            # 블로그 테이블 생성
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS blog_posts (
+                    id SERIAL PRIMARY KEY,
+                    title VARCHAR(255) NOT NULL,
+                    content TEXT NOT NULL,
+                    excerpt TEXT,
+                    category VARCHAR(100),
+                    thumbnail_url TEXT,
+                    tags JSONB DEFAULT '[]',
+                    is_published BOOLEAN DEFAULT false,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW(),
+                    view_count INTEGER DEFAULT 0
+                )
+            """)
+            
             # 주문 테이블 생성 (기존 데이터 보존)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
@@ -1592,6 +1625,24 @@ def init_database():
                 )
             """)
             print("✅ 공지사항 테이블 생성 완료 (SQLite)")
+            
+            # 블로그 테이블 생성 (SQLite)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS blog_posts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    excerpt TEXT,
+                    category TEXT,
+                    thumbnail_url TEXT,
+                    tags TEXT DEFAULT '[]',
+                    is_published INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    view_count INTEGER DEFAULT 0
+                )
+            """)
+            print("✅ 블로그 테이블 생성 완료 (SQLite)")
         
         conn.commit()
         print("✅ 데이터베이스 테이블 초기화 완료")
@@ -5717,6 +5768,420 @@ def migrate_database():
         
     except Exception as e:
         print(f"❌ 데이터베이스 마이그레이션 실패: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ==================== 블로그 API ====================
+
+@app.route('/api/blog/posts', methods=['GET'])
+def get_blog_posts():
+    """블로그 글 목록 조회"""
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        search = request.args.get('search', '')
+        tag = request.args.get('tag', '')
+        category = request.args.get('category', '')
+        
+        offset = (page - 1) * limit
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 기본 쿼리
+        base_query = """
+            SELECT id, title, excerpt, category, thumbnail_url, tags, created_at, updated_at, view_count
+            FROM blog_posts 
+            WHERE is_published = true
+        """
+        count_query = "SELECT COUNT(*) FROM blog_posts WHERE is_published = true"
+        params = []
+        
+        # 검색 조건 추가
+        if search:
+            base_query += " AND (title ILIKE %s OR content ILIKE %s OR excerpt ILIKE %s)"
+            count_query += " AND (title ILIKE %s OR content ILIKE %s OR excerpt ILIKE %s)"
+            search_param = f"%{search}%"
+            params.extend([search_param, search_param, search_param])
+        
+        if tag:
+            base_query += " AND tags::text ILIKE %s"
+            count_query += " AND tags::text ILIKE %s"
+            params.append(f"%{tag}%")
+        
+        if category:
+            base_query += " AND category = %s"
+            count_query += " AND category = %s"
+            params.append(category)
+        
+        # 정렬 및 페이지네이션
+        base_query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+        params.extend([limit, offset])
+        
+        # 총 개수 조회
+        cursor.execute(count_query, params[:-2])  # LIMIT, OFFSET 제외
+        total = cursor.fetchone()[0]
+        
+        # 글 목록 조회
+        cursor.execute(base_query, params)
+        rows = cursor.fetchall()
+        
+        posts = []
+        for row in rows:
+            posts.append({
+                'id': row[0],
+                'title': row[1],
+                'excerpt': row[2],
+                'category': row[3],
+                'thumbnail_url': row[4],
+                'tags': json.loads(row[5]) if row[5] else [],
+                'created_at': row[6].isoformat(),
+                'updated_at': row[7].isoformat(),
+                'view_count': row[8]
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'posts': posts,
+            'pagination': {
+                'page': page,
+                'limit': limit,
+                'total': total,
+                'pages': (total + limit - 1) // limit
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"블로그 글 목록 조회 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/blog/posts/<int:post_id>', methods=['GET'])
+def get_blog_post(post_id):
+    """블로그 글 상세 조회"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 조회수 증가
+        cursor.execute("UPDATE blog_posts SET view_count = view_count + 1 WHERE id = %s", (post_id,))
+        
+        # 글 조회
+        cursor.execute("""
+            SELECT id, title, content, excerpt, category, thumbnail_url, tags, created_at, updated_at, view_count
+            FROM blog_posts 
+            WHERE id = %s AND is_published = true
+        """, (post_id,))
+        
+        row = cursor.fetchone()
+        if not row:
+            cursor.close()
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': '블로그 글을 찾을 수 없습니다.'
+            }), 404
+        
+        post = {
+            'id': row[0],
+            'title': row[1],
+            'content': row[2],
+            'excerpt': row[3],
+            'category': row[4],
+            'thumbnail_url': row[5],
+            'tags': json.loads(row[6]) if row[6] else [],
+            'created_at': row[7].isoformat(),
+            'updated_at': row[8].isoformat(),
+            'view_count': row[9]
+        }
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'post': post
+        }), 200
+        
+    except Exception as e:
+        print(f"블로그 글 상세 조회 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/blog/categories', methods=['GET'])
+def get_blog_categories():
+    """블로그 카테고리 목록 조회"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT category, COUNT(*) as count
+            FROM blog_posts 
+            WHERE is_published = true AND category IS NOT NULL
+            GROUP BY category
+            ORDER BY count DESC, category
+        """)
+        
+        rows = cursor.fetchall()
+        categories = [{'name': row[0], 'count': row[1]} for row in rows]
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'categories': categories
+        }), 200
+        
+    except Exception as e:
+        print(f"카테고리 조회 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/blog/tags', methods=['GET'])
+def get_blog_tags():
+    """블로그 태그 목록 조회"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT DISTINCT jsonb_array_elements_text(tags) as tag
+            FROM blog_posts 
+            WHERE is_published = true AND tags IS NOT NULL
+        """)
+        
+        rows = cursor.fetchall()
+        tags = [row[0] for row in rows if row[0]]
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'tags': tags
+        }), 200
+        
+    except Exception as e:
+        print(f"태그 조회 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ==================== 관리자 블로그 API ====================
+
+def require_admin_auth(f):
+    """관리자 인증 데코레이터"""
+    def decorated_function(*args, **kwargs):
+        admin_token = request.headers.get('X-Admin-Token')
+        if admin_token != 'admin_sociality_2024':
+            return jsonify({
+                'success': False,
+                'error': '관리자 권한이 필요합니다.'
+            }), 403
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
+@app.route('/api/blog/posts', methods=['POST'])
+@require_admin_auth
+def create_blog_post():
+    """블로그 글 생성 (관리자 전용)"""
+    try:
+        data = request.get_json()
+        
+        title = data.get('title', '').strip()
+        content = data.get('content', '').strip()
+        excerpt = data.get('excerpt', '').strip()
+        category = data.get('category', '일반')
+        thumbnail_url = data.get('thumbnail_url', '')
+        tags = data.get('tags', [])
+        is_published = data.get('is_published', False)
+        
+        if not title or not content:
+            return jsonify({
+                'success': False,
+                'error': '제목과 내용은 필수입니다.'
+            }), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO blog_posts (
+                title, content, excerpt, category, thumbnail_url, tags, is_published,
+                created_at, updated_at, view_count
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (
+            title, content, excerpt, category, thumbnail_url, json.dumps(tags), is_published,
+            datetime.now(), datetime.now(), 0
+        ))
+        
+        post_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': '블로그 글이 생성되었습니다.',
+            'post_id': post_id
+        }), 201
+        
+    except Exception as e:
+        print(f"블로그 글 생성 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/blog/posts/<int:post_id>', methods=['PUT'])
+@require_admin_auth
+def update_blog_post(post_id):
+    """블로그 글 수정 (관리자 전용)"""
+    try:
+        data = request.get_json()
+        
+        title = data.get('title', '').strip()
+        content = data.get('content', '').strip()
+        excerpt = data.get('excerpt', '').strip()
+        category = data.get('category', '일반')
+        thumbnail_url = data.get('thumbnail_url', '')
+        tags = data.get('tags', [])
+        is_published = data.get('is_published', False)
+        
+        if not title or not content:
+            return jsonify({
+                'success': False,
+                'error': '제목과 내용은 필수입니다.'
+            }), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE blog_posts
+            SET title = %s, content = %s, excerpt = %s, category = %s, thumbnail_url = %s, tags = %s,
+                is_published = %s, updated_at = %s
+            WHERE id = %s
+        """, (title, content, excerpt, category, thumbnail_url, json.dumps(tags), is_published, datetime.now(), post_id))
+        
+        if cursor.rowcount == 0:
+            cursor.close()
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': '블로그 글을 찾을 수 없습니다.'
+            }), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': '블로그 글이 수정되었습니다.'
+        }), 200
+        
+    except Exception as e:
+        print(f"블로그 글 수정 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/blog/posts/<int:post_id>', methods=['DELETE'])
+@require_admin_auth
+def delete_blog_post(post_id):
+    """블로그 글 삭제 (관리자 전용)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("DELETE FROM blog_posts WHERE id = %s", (post_id,))
+        
+        if cursor.rowcount == 0:
+            cursor.close()
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': '블로그 글을 찾을 수 없습니다.'
+            }), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': '블로그 글이 삭제되었습니다.'
+        }), 200
+        
+    except Exception as e:
+        print(f"블로그 글 삭제 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/admin/upload-image', methods=['POST'])
+@require_admin_auth
+def upload_admin_image():
+    """관리자 이미지 업로드"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': '이미지 파일이 없습니다.'
+            }), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'error': '파일이 선택되지 않았습니다.'
+            }), 400
+        
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            # 고유한 파일명 생성
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"{timestamp}_{filename}"
+            
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            
+            # URL 생성
+            image_url = f"/static/uploads/{filename}"
+            
+            return jsonify({
+                'success': True,
+                'image_url': image_url,
+                'message': '이미지가 업로드되었습니다.'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': '허용되지 않는 파일 형식입니다.'
+            }), 400
+            
+    except Exception as e:
+        print(f"이미지 업로드 오류: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
