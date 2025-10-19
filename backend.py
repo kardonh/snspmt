@@ -1145,11 +1145,25 @@ def init_database():
                     email VARCHAR(255) UNIQUE NOT NULL,
                     name VARCHAR(255) NOT NULL,
                     display_name VARCHAR(255),
+                    google_id VARCHAR(255),
+                    kakao_id VARCHAR(255),
+                    profile_image TEXT,
+                    last_login TIMESTAMP,
                     last_activity TIMESTAMP DEFAULT NOW(),
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
+            
+            # 기존 테이블에 컬럼 추가 (PostgreSQL)
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)")
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS kakao_id VARCHAR(255)")
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image TEXT")
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP")
+                print("✅ 사용자 테이블 컬럼 추가 완료 (PostgreSQL)")
+            except Exception as e:
+                print(f"⚠️ 사용자 테이블 컬럼 추가 실패 (이미 존재할 수 있음): {e}")
             
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS points (
@@ -1523,14 +1537,42 @@ def init_database():
         else:
             # SQLite 테이블 생성
             cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
+                CREATE TABLE IF NOT EXISTS users (
                     user_id TEXT PRIMARY KEY,
                     email TEXT UNIQUE NOT NULL,
                     name TEXT NOT NULL,
+                    display_name TEXT,
+                    google_id TEXT,
+                    kakao_id TEXT,
+                    profile_image TEXT,
+                    last_login TIMESTAMP,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            
+            # 기존 테이블에 컬럼 추가 (SQLite)
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN google_id TEXT")
+            except:
+                pass
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN kakao_id TEXT")
+            except:
+                pass
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN profile_image TEXT")
+            except:
+                pass
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN last_login TIMESTAMP")
+            except:
+                pass
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
+            except:
+                pass
+            print("✅ 사용자 테이블 컬럼 추가 완료 (SQLite)")
             
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS points (
@@ -5768,6 +5810,114 @@ def migrate_database():
         
     except Exception as e:
         print(f"❌ 데이터베이스 마이그레이션 실패: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ==================== 소셜 로그인 API ====================
+
+@app.route('/api/auth/google-login', methods=['POST'])
+def google_login():
+    """구글 로그인 처리"""
+    try:
+        data = request.get_json()
+        
+        google_id = data.get('googleId')
+        email = data.get('email')
+        display_name = data.get('displayName')
+        photo_url = data.get('photoURL')
+        email_verified = data.get('emailVerified', False)
+        access_token = data.get('accessToken')
+        
+        if not google_id or not email:
+            return jsonify({
+                'success': False,
+                'error': '구글 ID와 이메일이 필요합니다.'
+            }), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 기존 사용자 확인 (구글 ID 또는 이메일로)
+        cursor.execute("""
+            SELECT user_id, email, name, google_id, last_login
+            FROM users 
+            WHERE google_id = %s OR email = %s
+        """, (google_id, email))
+        
+        existing_user = cursor.fetchone()
+        
+        if existing_user:
+            # 기존 사용자 업데이트
+            user_id, user_email, user_name, user_google_id, last_login = existing_user
+            
+            # 구글 ID가 없으면 추가
+            if not user_google_id:
+                cursor.execute("""
+                    UPDATE users 
+                    SET google_id = %s, last_login = %s
+                    WHERE user_id = %s
+                """, (google_id, datetime.now(), user_id))
+            else:
+                cursor.execute("""
+                    UPDATE users 
+                    SET last_login = %s
+                    WHERE user_id = %s
+                """, (datetime.now(), user_id))
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'user': {
+                    'uid': user_id,
+                    'email': user_email,
+                    'displayName': user_name,
+                    'photoURL': photo_url
+                },
+                'message': '구글 로그인 성공'
+            }), 200
+        else:
+            # 새 사용자 생성
+            user_id = f"google_{google_id}"
+            
+            cursor.execute("""
+                INSERT INTO users (
+                    user_id, email, name, google_id, profile_image, last_login, created_at, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                user_id, email, display_name, google_id, photo_url, 
+                datetime.now(), datetime.now(), datetime.now()
+            ))
+            
+            # 포인트 테이블에도 초기 레코드 생성
+            cursor.execute("""
+                INSERT INTO points (user_id, points, created_at, updated_at)
+                VALUES (%s, %s, %s, %s)
+            """, (user_id, 0, datetime.now(), datetime.now()))
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'user': {
+                    'uid': user_id,
+                    'email': email,
+                    'displayName': display_name,
+                    'photoURL': photo_url
+                },
+                'message': '구글 회원가입 및 로그인 성공'
+            }), 201
+            
+    except Exception as e:
+        print(f"구글 로그인 오류: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)
