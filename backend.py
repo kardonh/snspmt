@@ -1835,6 +1835,19 @@ def init_database():
                 )
             """)
             print("✅ 블로그 테이블 생성 완료 (SQLite)")
+            
+            # 커미션 환급 내역 테이블 생성 (SQLite)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS commission_payments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    referrer_email TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    payment_method TEXT DEFAULT 'bank_transfer',
+                    notes TEXT,
+                    paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            print("✅ 커미션 환급 내역 테이블 생성 완료 (SQLite)")
         
         conn.commit()
         print("✅ 데이터베이스 테이블 초기화 완료")
