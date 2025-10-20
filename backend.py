@@ -3172,12 +3172,48 @@ def kcp_register_transaction():
         
         # KCP 거래등록 API 호출
         import requests
+        # 테스트 환경 URL (실제 운영시에는 다른 URL 사용)
         kcp_register_url = 'https://testsmpay.kcp.co.kr/trade/register.do'
+        print(f"🔍 KCP 거래등록 URL: {kcp_register_url}")
+        print(f"🔍 KCP 거래등록 데이터: {register_data}")
         
         try:
-            response = requests.post(kcp_register_url, json=register_data, timeout=30)
+            # KCP API는 form-data로 요청해야 함
+            response = requests.post(kcp_register_url, data=register_data, timeout=30)
             response.raise_for_status()
-            kcp_response = response.json()
+            
+            # 응답 내용 로깅
+            print(f"🔍 KCP 거래등록 응답 상태: {response.status_code}")
+            print(f"🔍 KCP 거래등록 응답 헤더: {dict(response.headers)}")
+            print(f"🔍 KCP 거래등록 응답 내용: {response.text[:500]}")
+            
+            # JSON 파싱 시도
+            try:
+                kcp_response = response.json()
+                print(f"🔍 KCP JSON 응답: {kcp_response}")
+            except ValueError as json_err:
+                print(f"❌ JSON 파싱 실패, HTML 응답으로 처리: {json_err}")
+                # HTML 응답에서 필요한 데이터 추출 시도
+                response_text = response.text
+                print(f"🔍 HTML 응답 내용: {response_text[:1000]}")
+                
+                # HTML에서 JavaScript 변수나 hidden input에서 데이터 추출
+                import re
+                
+                # approvalKey 추출
+                approval_key_match = re.search(r'approvalKey["\']?\s*[:=]\s*["\']([^"\']+)["\']', response_text)
+                pay_url_match = re.search(r'PayUrl["\']?\s*[:=]\s*["\']([^"\']+)["\']', response_text)
+                
+                if approval_key_match and pay_url_match:
+                    kcp_response = {
+                        'Code': '0000',
+                        'approvalKey': approval_key_match.group(1),
+                        'PayUrl': pay_url_match.group(1)
+                    }
+                    print(f"🔍 추출된 KCP 데이터: {kcp_response}")
+                else:
+                    print(f"❌ HTML에서 필요한 데이터를 찾을 수 없음")
+                    return jsonify({'error': 'KCP 서버 응답에서 필요한 데이터를 찾을 수 없습니다.'}), 500
             
             if kcp_response.get('Code') == '0000':
                 # DB에 거래등록 정보 저장

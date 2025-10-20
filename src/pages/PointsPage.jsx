@@ -103,7 +103,15 @@ const PointsPage = () => {
         })
       })
 
-      const registerResult = await registerResponse.json()
+      let registerResult
+      try {
+        registerResult = await registerResponse.json()
+      } catch (jsonErr) {
+        console.error('JSON 파싱 실패:', jsonErr)
+        console.error('응답 상태:', registerResponse.status)
+        console.error('응답 텍스트:', await registerResponse.text())
+        throw new Error('서버 응답 형식 오류가 발생했습니다.')
+      }
       
       if (!registerResult.success) {
         throw new Error(registerResult.error || 'KCP 거래등록 실패')
@@ -128,7 +136,15 @@ const PointsPage = () => {
         })
       })
 
-      const formResult = await formResponse.json()
+      let formResult
+      try {
+        formResult = await formResponse.json()
+      } catch (jsonErr) {
+        console.error('결제창 데이터 JSON 파싱 실패:', jsonErr)
+        console.error('응답 상태:', formResponse.status)
+        console.error('응답 텍스트:', await formResponse.text())
+        throw new Error('결제창 데이터 생성 중 서버 오류가 발생했습니다.')
+      }
       
       if (!formResult.success) {
         throw new Error(formResult.error || '결제창 데이터 생성 실패')
