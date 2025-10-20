@@ -2977,7 +2977,7 @@ def get_orders():
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT order_id, service_id, link, quantity, price, status, created_at, 
-                       smm_panel_order_id, detailed_service, start_count, remains
+                       smm_panel_order_id, detailed_service
                 FROM orders 
                 WHERE user_id = %s
                 ORDER BY created_at DESC
@@ -2986,7 +2986,7 @@ def get_orders():
         else:
             cursor.execute("""
                 SELECT order_id, service_id, link, quantity, price, status, created_at, 
-                       smm_panel_order_id, detailed_service, start_count, remains
+                       smm_panel_order_id, detailed_service
                 FROM orders 
                 WHERE user_id = ?
                 ORDER BY created_at DESC
@@ -3009,8 +3009,9 @@ def get_orders():
                 created_at = order[6]
                 smm_panel_order_id = order[7] if len(order) > 7 else None
                 detailed_service = order[8] if len(order) > 8 else None
-                start_count = order[9] if len(order) > 9 else 0
-                remains = order[10] if len(order) > 10 else quantity
+                # 일부 DB에는 start_count, remains 컬럼이 없을 수 있으므로 기본값 사용
+                start_count = 0
+                remains = quantity
                 
                 # 간단한 상태 매핑
                 if db_status in ['completed', '완료']:
@@ -3177,11 +3178,26 @@ def kcp_register_transaction():
         # KCP 거래등록 요청 데이터
         kcp_site_cd = get_parameter_value('KCP_SITE_CD', 'ALFCQ')
         kcp_cert_info = get_parameter_value('KCP_CERT_INFO', '')
-        if not kcp_cert_info or len(kcp_cert_info) < 10:
-            # 필수 인증서 누락 시 명확하게 안내
+        # 환경변수에 \n 형태로 들어온 경우 실제 개행으로 변환
+        if kcp_cert_info:
+            kcp_cert_info = kcp_cert_info.replace('\\n', '\n').strip()
+        # 진단 로그 (길이와 시작/끝만 표시)
+        try:
+            print(f"🔐 KCP_CERT_INFO length: {len(kcp_cert_info) if kcp_cert_info else 0}")
+            if kcp_cert_info:
+                print(f"🔐 KCP_CERT_INFO head: {kcp_cert_info[:30]}")
+                print(f"🔐 KCP_CERT_INFO tail: {kcp_cert_info[-30:]}")
+        except Exception:
+            pass
+        if not kcp_cert_info or len(kcp_cert_info) < 60:
             return jsonify({
                 'success': False,
-                'error': 'KCP 거래등록 실패: KCP_CERT_INFO(서비스 인증서) 환경변수를 설정하세요.',
+                'error': 'KCP 거래등록 실패: KCP_CERT_INFO(서비스 인증서)가 비어있거나 너무 짧습니다. PEM 전체를 저장하세요.',
+            }), 400
+        if not (kcp_cert_info.startswith('-----BEGIN') and 'END CERTIFICATE' in kcp_cert_info):
+            return jsonify({
+                'success': False,
+                'error': 'KCP 거래등록 실패: KCP_CERT_INFO 형식 오류(PEM 구분자 누락). BEGIN/END CERTIFICATE 포함해 저장하세요.',
             }), 400
         register_data = {
             'site_cd': kcp_site_cd,
