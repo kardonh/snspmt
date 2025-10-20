@@ -3182,13 +3182,15 @@ def kcp_register_transaction():
             'good_mny': str(int(price)),
             'good_name': good_name,
             'pay_method': pay_method,
+            'currency': '410',  # KRW
+            'shop_name': 'SOCIALITY',
             'Ret_URL': f"{external_base}/api/points/purchase-kcp/return"
         }
         
         # KCP 거래등록 API 호출
         import requests
-        # 테스트 환경 URL (실제 운영시에는 다른 URL 사용)
-        kcp_register_url = 'https://testsmpay.kcp.co.kr/trade/register.do'
+        # 테스트 환경 URL (KCP 최신 가이드)
+        kcp_register_url = 'https://stg-spl.kcp.co.kr/std/tradeReg/register'
         print(f"🔍 KCP 거래등록 URL: {kcp_register_url}")
         print(f"🔍 KCP 거래등록 데이터: {register_data}")
         
