@@ -3260,9 +3260,19 @@ def kcp_register_transaction():
                 }), 400
                 
         except requests.RequestException as e:
-            print(f"❌ KCP 거래등록 API 호출 실패: {e}")
-            # 네트워크/타임아웃 등 요청 자체 실패 시 상세 사유 전달
-            return jsonify({'success': False, 'error': f'KCP 거래등록 API 호출 실패: {str(e)}'}), 502
+            # HTTPError 인 경우 KCP가 보낸 응답 본문을 함께 노출
+            resp_text = ''
+            try:
+                if hasattr(e, 'response') and e.response is not None:
+                    resp_text = e.response.text
+            except Exception:
+                pass
+            print(f"❌ KCP 거래등록 API 호출 실패: {e}\n📄 KCP 응답 본문: {resp_text[:1000]}")
+            return jsonify({
+                'success': False,
+                'error': f'KCP 거래등록 API 호출 실패: {str(e)}',
+                'kcp_raw': resp_text
+            }), 502
         
     except Exception as e:
         print(f"❌ KCP 거래등록 실패: {e}")
