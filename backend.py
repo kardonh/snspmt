@@ -2965,31 +2965,31 @@ def get_orders():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 초고속 최적화된 쿼리 - 최소한의 컬럼만 선택하고 인덱스 활용
+        # 초고속 최적화된 쿼리 - 최소한의 컬럼만 선택
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT order_id, service_id, link, quantity, price, status, created_at, 
-                       package_steps, smm_panel_order_id, detailed_service
+                       smm_panel_order_id
                 FROM orders 
                 WHERE user_id = %s
                 ORDER BY created_at DESC
-                LIMIT 50
+                LIMIT 20
             """, (user_id,))
         else:
             cursor.execute("""
                 SELECT order_id, service_id, link, quantity, price, status, created_at, 
-                       package_steps, smm_panel_order_id, detailed_service
+                       smm_panel_order_id
                 FROM orders 
                 WHERE user_id = ?
                 ORDER BY created_at DESC
-                LIMIT 50
+                LIMIT 20
             """, (user_id,))
         
         orders = cursor.fetchall()
         print(f"📊 조회된 주문 수: {len(orders)}개")
         
         order_list = []
-        for i, order in enumerate(orders):
+        for order in orders:
             try:
                 # 초고속 처리 - 최소한의 데이터만 처리
                 order_id = order[0]
@@ -2999,6 +2999,7 @@ def get_orders():
                 price = float(order[4]) if len(order) > 4 else 0.0
                 db_status = order[5] if len(order) > 5 else 'pending'
                 created_at = order[6]
+                smm_panel_order_id = order[7] if len(order) > 7 else None
                 
                 # 간단한 상태 매핑
                 if db_status in ['completed', '완료']:
@@ -3013,39 +3014,30 @@ def get_orders():
                 # 날짜 포맷팅 (간소화)
                 created_at_str = created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at)
                 
-                # 패키지 정보 (간소화)
-                package_steps = []
-                if len(order) > 7 and order[7]:
-                    try:
-                        package_steps = order[7] if isinstance(order[7], list) else json.loads(order[7])
-                    except:
-                        package_steps = []
-                
                 # SMM Panel 주문번호 우선 사용
-                smm_panel_order_id = order[8] if len(order) > 8 else None
                 display_order_id = smm_panel_order_id if smm_panel_order_id else order_id
                 
                 order_list.append({
                     'id': display_order_id,
                     'order_id': display_order_id,
                     'service_id': service_id,
-                    'service_name': '서비스',  # 간소화
+                    'service_name': '서비스',
                     'link': link,
                     'quantity': quantity,
                     'price': price,
                     'status': status,
                     'created_at': created_at_str,
-                    'is_package': len(package_steps) > 0,
-                    'package_steps': package_steps,
-                    'total_steps': len(package_steps),
+                    'is_package': False,  # 간소화
+                    'package_steps': [],
+                    'total_steps': 0,
                     'smm_panel_order_id': smm_panel_order_id,
-                    'detailed_service': order[9] if len(order) > 9 else None,
+                    'detailed_service': None,
                     'start_count': 0,
                     'remains': quantity
                 })
                 
             except Exception as order_err:
-                print(f"⚠️ 주문 {i+1} 처리 중 오류: {order_err}")
+                print(f"⚠️ 주문 처리 중 오류: {order_err}")
                 continue
         
         print(f"✅ 주문 처리 완료: {len(order_list)}개")

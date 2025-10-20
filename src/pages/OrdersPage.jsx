@@ -154,29 +154,43 @@ const OrdersPage = () => {
     
     try {
       setLoading(true)
+      console.log('🔍 주문 내역 로드 시작 - user_id:', currentUser.uid)
       const response = await smmpanelApi.getUserOrders(currentUser.uid)
-      console.log('주문 내역 로드:', response)
+      console.log('📊 주문 내역 API 응답:', response)
+      console.log('📊 응답 타입:', typeof response)
+      console.log('📊 orders 배열:', response?.orders)
+      console.log('📊 orders 길이:', response?.orders?.length)
       
-      if (response && response.orders) {
+      if (response && response.orders && Array.isArray(response.orders)) {
+        console.log('✅ 주문 내역 설정:', response.orders)
         setOrders(response.orders)
+        setError(null)
       } else {
+        console.log('⚠️ 주문 내역이 없거나 잘못된 형식')
         setOrders([])
+        setError('주문 내역이 없습니다.')
       }
     } catch (error) {
-      console.error('주문 내역 로드 실패:', error)
+      console.error('❌ 주문 내역 로드 실패:', error)
       setError('주문 내역을 불러오는데 실패했습니다.')
+      setOrders([])
     } finally {
       setLoading(false)
     }
   }
 
   const filterOrders = () => {
+    console.log('🔍 필터링 시작 - orders:', orders)
+    console.log('🔍 선택된 필터:', selectedFilter)
+    
     let filtered = orders
     
     if (selectedFilter !== ORDER_STATUS.ALL) {
       filtered = orders.filter(order => order.status === selectedFilter)
+      console.log('🔍 필터링된 주문:', filtered)
     }
 
+    console.log('🔍 최종 필터링된 주문 수:', filtered.length)
     setFilteredOrders(filtered)
     setCurrentPage(1) // 필터 변경 시 첫 페이지로 이동
   }
