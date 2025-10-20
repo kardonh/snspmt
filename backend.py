@@ -2472,7 +2472,7 @@ def create_order():
         # 임시 주문 ID 생성 (SMM API 호출 후 실제 주문 번호로 업데이트)
         import time
         current_time = datetime.now()
-        temp_order_id = int(time.time() * 1000)  # 밀리초 타임스탬프를 정수로 사용
+        temp_order_id = int(time.time())  # 초 단위 타임스탬프를 정수로 사용 (더 작은 숫자)
         
         # 주문 생성 (임시 ID로)
         if DATABASE_URL.startswith('postgresql://'):
