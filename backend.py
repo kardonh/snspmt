@@ -864,8 +864,9 @@ def process_package_step(order_id, step_index):
         step_quantity = current_step.get('quantity', 0)
         step_name = current_step.get('name')
         step_delay = current_step.get('delay', 0)
+        step_repeat = current_step.get('repeat', 1)  # 반복 횟수 (기본값: 1)
         
-        print(f"🚀 패키지 단계 {step_index + 1}/{len(package_steps)} 실행: {step_name} (수량: {step_quantity})")
+        print(f"🚀 패키지 단계 {step_index + 1}/{len(package_steps)} 실행: {step_name} (수량: {step_quantity}, 반복: {step_repeat}회)")
         print(f"🚀 서비스 ID: {step_service_id}, 링크: {link}")
         
         # 수량이 0이면 건너뛰기
@@ -891,40 +892,52 @@ def process_package_step(order_id, step_index):
             conn.close()
             return True
         
-        # SMM Panel API 호출
-        print(f"📞 SMM Panel API 호출 시작: 서비스 {step_service_id}, 수량 {step_quantity}")
-        smm_result = call_smm_panel_api({
-            'service': step_service_id,
-            'link': link,
-            'quantity': step_quantity,
-            'comments': f"{comments} - {step_name}" if comments else step_name
-        })
-        print(f"📞 SMM Panel API 응답: {smm_result}")
+        # 반복 처리 로직
+        for repeat_count in range(step_repeat):
+            print(f"🔄 패키지 단계 {step_index + 1} 반복 {repeat_count + 1}/{step_repeat}: {step_name}")
+            
+            # SMM Panel API 호출
+            print(f"📞 SMM Panel API 호출 시작: 서비스 {step_service_id}, 수량 {step_quantity}")
+            smm_result = call_smm_panel_api({
+                'service': step_service_id,
+                'link': link,
+                'quantity': step_quantity,
+                'comments': f"{comments} - {step_name} ({repeat_count + 1}/{step_repeat})" if comments else f"{step_name} ({repeat_count + 1}/{step_repeat})"
+            })
+            print(f"📞 SMM Panel API 응답: {smm_result}")
+            
+            if smm_result.get('status') == 'success':
+                print(f"✅ 패키지 단계 {step_index + 1} 반복 {repeat_count + 1} 완료: {step_name} (SMM 주문 ID: {smm_result.get('order')})")
+            else:
+                print(f"❌ 패키지 단계 {step_index + 1} 반복 {repeat_count + 1} 실패: {step_name} - {smm_result.get('message', 'Unknown error')}")
+                # 실패해도 다음 반복으로 진행
+            
+            # 패키지 진행 상황 기록 (성공/실패 모두)
+            status = 'completed' if smm_result.get('status') == 'success' else 'failed'
+            smm_order_id = smm_result.get('order') if smm_result.get('status') == 'success' else None
+            
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                """, (order_id, f"{step_index + 1}-{repeat_count + 1}", f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
+            else:
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                """, (order_id, f"{step_index + 1}-{repeat_count + 1}", f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
+            
+            conn.commit()
+            
+            # 마지막 반복이 아니면 delay 시간만큼 대기
+            if repeat_count < step_repeat - 1:
+                print(f"⏳ {step_delay}분 대기 후 다음 반복 실행...")
+                import time
+                time.sleep(step_delay * 60)  # 분을 초로 변환
         
-        if smm_result.get('status') == 'success':
-            print(f"✅ 패키지 단계 {step_index + 1} 완료: {step_name} (SMM 주문 ID: {smm_result.get('order')})")
-        else:
-            print(f"❌ 패키지 단계 {step_index + 1} 실패: {step_name} - {smm_result.get('message', 'Unknown error')}")
-            # 실패해도 다음 단계로 진행 (재시도 로직은 나중에 추가)
-        
-        # 패키지 진행 상황 기록 (성공/실패 모두)
-        status = 'completed' if smm_result.get('status') == 'success' else 'failed'
-        smm_order_id = smm_result.get('order') if smm_result.get('status') == 'success' else None
-        
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                INSERT INTO package_progress 
-                (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
-            """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, smm_order_id, status))
-        else:
-            cursor.execute("""
-                INSERT INTO package_progress 
-                (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-            """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, smm_order_id, status))
-        
-        conn.commit()
+        print(f"🎉 패키지 단계 {step_index + 1} 모든 반복 완료: {step_name} ({step_repeat}회)")
         
         # 다음 단계가 있으면 스케줄링
         schedule_next_package_step(order_id, step_index + 1, package_steps)
@@ -2952,7 +2965,7 @@ def get_orders():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 최적화된 쿼리 - 필요한 컬럼만 선택
+        # 초고속 최적화된 쿼리 - 최소한의 컬럼만 선택하고 인덱스 활용
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT order_id, service_id, link, quantity, price, status, created_at, 
@@ -2960,7 +2973,7 @@ def get_orders():
                 FROM orders 
                 WHERE user_id = %s
                 ORDER BY created_at DESC
-                LIMIT 100
+                LIMIT 50
             """, (user_id,))
         else:
             cursor.execute("""
@@ -2969,7 +2982,7 @@ def get_orders():
                 FROM orders 
                 WHERE user_id = ?
                 ORDER BY created_at DESC
-                LIMIT 100
+                LIMIT 50
             """, (user_id,))
         
         orders = cursor.fetchall()
@@ -2978,53 +2991,49 @@ def get_orders():
         order_list = []
         for i, order in enumerate(orders):
             try:
-                # 패키지 상품 정보 파싱 (간소화)
+                # 초고속 처리 - 최소한의 데이터만 처리
+                order_id = order[0]
+                service_id = order[1] if len(order) > 1 else ''
+                link = order[2] if len(order) > 2 else ''
+                quantity = order[3] if len(order) > 3 else 0
+                price = float(order[4]) if len(order) > 4 else 0.0
+                db_status = order[5] if len(order) > 5 else 'pending'
+                created_at = order[6]
+                
+                # 간단한 상태 매핑
+                if db_status in ['completed', '완료']:
+                    status = '주문 실행완료'
+                elif db_status in ['in_progress', '진행중', 'processing']:
+                    status = '주문 실행중'
+                elif db_status in ['pending', '접수됨', '주문발송']:
+                    status = '주문발송'
+                else:
+                    status = '주문 미처리'
+                
+                # 날짜 포맷팅 (간소화)
+                created_at_str = created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at)
+                
+                # 패키지 정보 (간소화)
                 package_steps = []
                 if len(order) > 7 and order[7]:
                     try:
-                        if isinstance(order[7], list):
-                            package_steps = order[7]
-                        elif isinstance(order[7], str) and order[7].strip():
-                            package_steps = json.loads(order[7])
+                        package_steps = order[7] if isinstance(order[7], list) else json.loads(order[7])
                     except:
                         package_steps = []
                 
-                # 상태 매핑 (간소화)
-                db_status = order[5] if len(order) > 5 else 'pending'
-                if db_status in ['completed', '완료']:
-                    real_status = '주문 실행완료'
-                elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
-                    real_status = '주문 실행중'
-                elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
-                    real_status = '주문발송'
-                elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
-                    real_status = '주문 미처리'
-                else:
-                    real_status = '주문발송'
-                
-                # 서비스명 매핑 (간소화)
-                service_name = get_service_name(order[1]) if order[1] else '서비스'
-                
-                # 주문 ID 결정
+                # SMM Panel 주문번호 우선 사용
                 smm_panel_order_id = order[8] if len(order) > 8 else None
-                actual_order_id = smm_panel_order_id if smm_panel_order_id else order[0]
-                
-                # 날짜 포맷팅 (간소화)
-                created_at = order[6]
-                if hasattr(created_at, 'isoformat'):
-                    created_at_str = created_at.isoformat()
-                else:
-                    created_at_str = str(created_at) if created_at else ''
+                display_order_id = smm_panel_order_id if smm_panel_order_id else order_id
                 
                 order_list.append({
-                    'id': actual_order_id,
-                    'order_id': actual_order_id,
-                    'service_id': order[1] if len(order) > 1 else '',
-                    'service_name': service_name,
-                    'link': order[2] if len(order) > 2 else '',
-                    'quantity': order[3] if len(order) > 3 else 0,
-                    'price': float(order[4]) if len(order) > 4 else 0.0,
-                    'status': real_status,
+                    'id': display_order_id,
+                    'order_id': display_order_id,
+                    'service_id': service_id,
+                    'service_name': '서비스',  # 간소화
+                    'link': link,
+                    'quantity': quantity,
+                    'price': price,
+                    'status': status,
                     'created_at': created_at_str,
                     'is_package': len(package_steps) > 0,
                     'package_steps': package_steps,
@@ -3032,7 +3041,7 @@ def get_orders():
                     'smm_panel_order_id': smm_panel_order_id,
                     'detailed_service': order[9] if len(order) > 9 else None,
                     'start_count': 0,
-                    'remains': order[3] if len(order) > 3 else 0
+                    'remains': quantity
                 })
                 
             except Exception as order_err:
