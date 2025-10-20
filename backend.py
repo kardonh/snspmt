@@ -3166,6 +3166,14 @@ def kcp_register_transaction():
         import time
         ordr_idxx = f"POINT_{int(time.time())}"
         
+        # 외부 접근 가능한 HTTPS 기반 Ret_URL 구성 (ALB 뒤에서 http로 보이는 문제 방지)
+        fwd_proto = request.headers.get('X-Forwarded-Proto', 'https')
+        fwd_host = request.headers.get('X-Forwarded-Host') or request.host
+        # sociality 도메인은 무조건 https 강제
+        if fwd_host and fwd_host.endswith('sociality.co.kr'):
+            fwd_proto = 'https'
+        external_base = f"{fwd_proto}://{fwd_host}"
+
         # KCP 거래등록 요청 데이터
         kcp_site_cd = get_parameter_value('KCP_SITE_CD', 'ALFCQ')
         register_data = {
@@ -3174,7 +3182,7 @@ def kcp_register_transaction():
             'good_mny': str(int(price)),
             'good_name': good_name,
             'pay_method': pay_method,
-            'Ret_URL': f"{request.host_url}api/points/purchase-kcp/return"
+            'Ret_URL': f"{external_base}/api/points/purchase-kcp/return"
         }
         
         # KCP 거래등록 API 호출
