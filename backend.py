@@ -2473,6 +2473,7 @@ def create_order():
         import time
         current_time = datetime.now()
         temp_order_id = int(time.time())  # 초 단위 타임스탬프를 정수로 사용 (더 작은 숫자)
+        order_id = temp_order_id  # order_id 변수 정의
         
         # 주문 생성 (임시 ID로)
         if DATABASE_URL.startswith('postgresql://'):
