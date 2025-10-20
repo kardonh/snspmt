@@ -2966,11 +2966,11 @@ def get_orders():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 초고속 최적화된 쿼리 - 최소한의 컬럼만 선택
+        # 주문 정보 조회 - 필요한 컬럼 모두 포함
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT order_id, service_id, link, quantity, price, status, created_at, 
-                       smm_panel_order_id
+                       smm_panel_order_id, detailed_service, start_count, remains
                 FROM orders 
                 WHERE user_id = %s
                 ORDER BY created_at DESC
@@ -2979,7 +2979,7 @@ def get_orders():
         else:
             cursor.execute("""
                 SELECT order_id, service_id, link, quantity, price, status, created_at, 
-                       smm_panel_order_id
+                       smm_panel_order_id, detailed_service, start_count, remains
                 FROM orders 
                 WHERE user_id = ?
                 ORDER BY created_at DESC
@@ -2992,7 +2992,7 @@ def get_orders():
         order_list = []
         for order in orders:
             try:
-                # 초고속 처리 - 최소한의 데이터만 처리
+                # 주문 데이터 처리
                 order_id = order[0]
                 service_id = order[1] if len(order) > 1 else ''
                 link = order[2] if len(order) > 2 else ''
@@ -3001,6 +3001,9 @@ def get_orders():
                 db_status = order[5] if len(order) > 5 else 'pending'
                 created_at = order[6]
                 smm_panel_order_id = order[7] if len(order) > 7 else None
+                detailed_service = order[8] if len(order) > 8 else None
+                start_count = order[9] if len(order) > 9 else 0
+                remains = order[10] if len(order) > 10 else quantity
                 
                 # 간단한 상태 매핑
                 if db_status in ['completed', '완료']:
@@ -3022,7 +3025,7 @@ def get_orders():
                     'id': display_order_id,
                     'order_id': display_order_id,
                     'service_id': service_id,
-                    'service_name': '서비스',
+                    'service_name': detailed_service or '서비스',
                     'link': link,
                     'quantity': quantity,
                     'price': price,
@@ -3032,9 +3035,9 @@ def get_orders():
                     'package_steps': [],
                     'total_steps': 0,
                     'smm_panel_order_id': smm_panel_order_id,
-                    'detailed_service': None,
-                    'start_count': 0,
-                    'remains': quantity
+                    'detailed_service': detailed_service,
+                    'start_count': start_count,
+                    'remains': remains
                 })
                 
             except Exception as order_err:
@@ -3157,8 +3160,9 @@ def kcp_register_transaction():
         ordr_idxx = f"POINT_{int(time.time())}"
         
         # KCP 거래등록 요청 데이터
+        kcp_site_cd = get_parameter_value('KCP_SITE_CD', 'ALFCQ')
         register_data = {
-            'site_cd': os.getenv('KCP_SITE_CD', 'ALFCQ'),
+            'site_cd': kcp_site_cd,
             'ordr_idxx': ordr_idxx,
             'good_mny': str(int(price)),
             'good_name': good_name,
@@ -3202,7 +3206,7 @@ def kcp_register_transaction():
                     'purchase_id': purchase_id,
                     'ordr_idxx': ordr_idxx,
                     'kcp_response': kcp_response,
-                    'message': 'KCP 거래등록이 완료되었습니다.'
+                    'message': 'KCP 결제 준비가 완료되었습니다. 결제창을 호출합니다.'
                 }), 200
             else:
                 return jsonify({
@@ -3232,8 +3236,9 @@ def kcp_payment_form():
             return jsonify({'error': '필수 파라미터가 누락되었습니다.'}), 400
         
         # 결제창 호출 데이터 구성
+        kcp_site_cd = get_parameter_value('KCP_SITE_CD', 'ALFCQ')
         payment_form_data = {
-            'site_cd': os.getenv('KCP_SITE_CD', 'ALFCQ'),
+            'site_cd': kcp_site_cd,
             'pay_method': pay_method,
             'currency': '410',  # 원화
             'shop_name': 'SNS PMT',
@@ -3254,7 +3259,7 @@ def kcp_payment_form():
         return jsonify({
             'success': True,
             'payment_form_data': payment_form_data,
-            'message': '결제창 호출 데이터가 생성되었습니다.'
+            'message': '결제창을 호출합니다. 카드 정보를 입력해주세요.'
         }), 200
         
     except Exception as e:
@@ -3336,10 +3341,12 @@ def kcp_payment_approve():
         user_id, amount, price = purchase
         
         # KCP 결제요청 데이터 구성
+        kcp_site_cd = get_parameter_value('KCP_SITE_CD', 'ALFCQ')
+        kcp_cert_info = get_parameter_value('KCP_CERT_INFO', '')
         payment_data = {
             'tran_cd': tran_cd,
-            'kcp_cert_info': os.getenv('KCP_CERT_INFO', ''),
-            'site_cd': os.getenv('KCP_SITE_CD', 'ALFCQ'),
+            'kcp_cert_info': kcp_cert_info,
+            'site_cd': kcp_site_cd,
             'enc_data': enc_data,
             'enc_info': enc_info,
             'ordr_mony': str(int(price)),
@@ -3393,7 +3400,7 @@ def kcp_payment_approve():
                 
                 return jsonify({
                     'success': True,
-                    'message': '포인트 구매가 완료되었습니다.',
+                    'message': '포인트 구매가 성공적으로 완료되었습니다!',
                     'amount': amount,
                     'kcp_response': kcp_response
                 }), 200

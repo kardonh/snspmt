@@ -2074,3 +2074,93 @@
     font-size: 12px;
   }
 }
+
+/* 결제 방식 표시 스타일 */
+.payment-method-section {
+  margin-bottom: 30px;
+  padding: 24px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
+  border-radius: 16px;
+  border: 2px solid #667eea;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.1);
+}
+
+.payment-method-section h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payment-method-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.selected-payment-method {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  background: white;
+  border: 2px solid #667eea;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.payment-method-icon {
+  width: 28px;
+  height: 28px;
+  color: #667eea;
+}
+
+.payment-method-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #495057;
+  flex: 1;
+}
+
+.payment-method-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.payment-method-description {
+  background: rgba(102, 126, 234, 0.05);
+  padding: 16px 20px;
+  border-radius: 12px;
+  border-left: 4px solid #667eea;
+}
+
+.payment-method-description p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #495057;
+  line-height: 1.5;
+}
+
+.payment-method-description p:last-child {
+  margin-bottom: 0;
+}
+
+/* 모바일에서 결제 방식 선택 최적화 */
+@media (max-width: 768px) {
+  .payment-method-options {
+    flex-direction: column;
+  }
+  
+  .payment-method-option {
+    min-width: auto;
+  }
+}

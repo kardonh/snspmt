@@ -100,8 +100,8 @@ const OrderCard = ({ order, onCopyOrderId, onCopyLink, onRefill }) => {
             <span className="detail-value">{order.quantity || 0}</span>
           </div>
           <div className="detail-item">
-            <span className="detail-label">주문전수량:</span>
-            <span className="detail-value">{order.start_count || 0}</span>
+            <span className="detail-label">상품번호:</span>
+            <span className="detail-value">{order.service_id || '-'}</span>
           </div>
           <div className="detail-item">
             <span className="detail-label">주문일시:</span>

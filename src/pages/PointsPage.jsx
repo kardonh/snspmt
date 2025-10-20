@@ -8,22 +8,10 @@ const PointsPage = () => {
   const { currentUser } = useAuth()
   const [userPoints, setUserPoints] = useState(0)
   const [selectedAmount, setSelectedAmount] = useState(0)
-  const [depositorName, setDepositorName] = useState('')
-  const [bankName, setBankName] = useState('')
-  const [receiptType, setReceiptType] = useState('none') // 'tax', 'cash', 'none'
-  const [businessNumber, setBusinessNumber] = useState('')
-  const [businessName, setBusinessName] = useState('')
-  const [representative, setRepresentative] = useState('')
-  const [contactPhone, setContactPhone] = useState('')
-  const [contactEmail, setContactEmail] = useState('')
-  const [cashReceiptPhone, setCashReceiptPhone] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [purchaseHistory, setPurchaseHistory] = useState([])
   const [userInfo, setUserInfo] = useState(null)
-  const [copiedItems, setCopiedItems] = useState({})
-  const [showAccountModal, setShowAccountModal] = useState(false)
-  const [autoFilledFields, setAutoFilledFields] = useState({})
-  const [showAutoFillMessage, setShowAutoFillMessage] = useState(false)
+  const [isKcpLoading, setIsKcpLoading] = useState(false)
 
   const pointPackages = [
     { amount: 5000, price: 5000 },
@@ -42,23 +30,6 @@ const PointsPage = () => {
     }
   }, [currentUser])
 
-  // userInfo가 로드되고 세금계산서가 선택된 경우 자동 입력
-  useEffect(() => {
-    if (userInfo && receiptType === 'tax' && userInfo.accountType === 'business') {
-      setBusinessNumber(userInfo.businessNumber || '')
-      setBusinessName(userInfo.businessName || '')
-      setRepresentative(userInfo.representative || '')
-      setContactPhone(userInfo.contactPhone || '')
-      setContactEmail(userInfo.contactEmail || '')
-    }
-  }, [userInfo, receiptType])
-
-  // userInfo가 로드되면 현금영수증 전화번호 자동 입력
-  useEffect(() => {
-    if (userInfo && userInfo.phoneNumber) {
-      setCashReceiptPhone(userInfo.phoneNumber)
-    }
-  }, [userInfo])
 
   const loadUserPoints = async () => {
     try {
@@ -107,161 +78,95 @@ const PointsPage = () => {
   }
 
 
-  // 복사 기능
-  const handleCopy = async (text, itemType) => {
+
+  // KCP 결제 처리
+  const handleKcpPayment = async () => {
+    if (selectedAmount === 0) {
+      alert('포인트 금액을 선택해주세요.')
+      return
+    }
+
+    setIsKcpLoading(true)
     try {
-      await navigator.clipboard.writeText(text)
-      setCopiedItems(prev => ({ ...prev, [itemType]: true }))
-      
-      // 2초 후 복사 상태 초기화
-      setTimeout(() => {
-        setCopiedItems(prev => ({ ...prev, [itemType]: false }))
-      }, 2000)
-    } catch (err) {
-      console.error('복사 실패:', err)
-      // 폴백: 선택 영역으로 복사
-      const textArea = document.createElement('textarea')
-      textArea.value = text
-      document.body.appendChild(textArea)
-      textArea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textArea)
-      
-      setCopiedItems(prev => ({ ...prev, [itemType]: true }))
-      setTimeout(() => {
-        setCopiedItems(prev => ({ ...prev, [itemType]: false }))
-      }, 2000)
-    }
-  }
-
-  const handleReceiptTypeChange = (type) => {
-    setReceiptType(type)
-    
-    console.log('영수증 타입 변경:', type)
-    console.log('현재 사용자 정보:', userInfo)
-    
-    // 비즈니스 계정이고 세금계산서를 선택한 경우 자동으로 정보 입력
-    if (type === 'tax' && userInfo && userInfo.accountType === 'business') {
-      console.log('비즈니스 계정 자동 입력 시작')
-      
-      // 자동 입력된 필드들 설정
-      const autoFilled = {
-        businessNumber: userInfo.businessNumber || '',
-        businessName: userInfo.businessName || '',
-        representative: userInfo.representative || '',
-        contactPhone: userInfo.contactPhone || '',
-        contactEmail: userInfo.contactEmail || ''
-      }
-      
-      setBusinessNumber(autoFilled.businessNumber)
-      setBusinessName(autoFilled.businessName)
-      setRepresentative(autoFilled.representative)
-      setContactPhone(autoFilled.contactPhone)
-      setContactEmail(autoFilled.contactEmail)
-      
-      // 자동 입력된 필드 표시
-      setAutoFilledFields(autoFilled)
-      
-      // 자동 입력 완료 메시지 표시
-      setShowAutoFillMessage(true)
-      setTimeout(() => {
-        setShowAutoFillMessage(false)
-      }, 3000)
-      
-    } else if (type === 'tax') {
-      console.log('비즈니스 계정이 아님 또는 사용자 정보 없음')
-      console.log('userInfo:', userInfo)
-      console.log('accountType:', userInfo?.accountType)
-      
-      // 자동 입력 필드 초기화
-      setAutoFilledFields({})
-    }
-    
-    // 다른 영수증 타입 선택 시 자동 입력 필드 초기화
-    if (type !== 'tax') {
-      setAutoFilledFields({})
-    }
-  }
-
-  const handlePurchase = async () => {
-    if (!depositorName.trim() || !bankName.trim()) {
-      alert('입금자 명과 은행을 모두 입력해주세요.')
-      return
-    }
-
-    // 세금계산서 선택 시 모든 필수 정보 입력 확인
-    if (receiptType === 'tax' && (!businessNumber.trim() || !businessName.trim() || !representative.trim() || !contactPhone.trim() || !contactEmail.trim())) {
-      alert('세금계산서 발급을 위해 모든 필수 정보를 입력해주세요.')
-      return
-    }
-
-    // 현금영수증 선택 시 전화번호 필수
-    if (receiptType === 'cash' && !cashReceiptPhone.trim()) {
-      alert('현금영수증 발급을 위해 전화번호를 입력해주세요.')
-      return
-    }
-
-    setIsLoading(true)
-    try {
-      const purchaseData = {
-        user_id: currentUser.uid,
-        depositorName: depositorName.trim(),
-        bankName: bankName.trim(),
-        receiptType: receiptType,
-        businessNumber: businessNumber.trim(),
-        businessName: businessName.trim(),
-        representative: representative.trim(),
-        contactPhone: contactPhone.trim(),
-        contactEmail: contactEmail.trim(),
-        cashReceiptPhone: cashReceiptPhone.trim(),
-        amount: selectedAmount,
-        price: pointPackages.find(pkg => pkg.amount === selectedAmount)?.price || selectedAmount,
-        status: 'pending'
-      }
-
-      // 내부 API로 포인트 구매 신청
-      const response = await fetch('/api/points/purchase', {
+      // 1단계: KCP 거래등록
+      const registerResponse = await fetch('/api/points/purchase-kcp/register', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-User-ID': currentUser.uid
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           user_id: currentUser.uid,
           amount: selectedAmount,
           price: pointPackages.find(pkg => pkg.amount === selectedAmount)?.price || selectedAmount,
-          buyer_name: depositorName.trim(),
-          bank_info: bankName.trim()
+          good_name: '포인트 구매',
+          pay_method: 'CARD'
         })
       })
+
+      const registerResult = await registerResponse.json()
       
-      const result = await response.json()
-      
-      if (response.ok && result.purchase_id) {
-        alert('포인트 구매 신청이 완료되었습니다. 관리자 승인 후 포인트가 추가됩니다.')
-        
-        // 계좌 정보 모달 자동으로 열기
-        setShowAccountModal(true)
-        
-        setDepositorName('')
-        setBankName('')
-        setReceiptType('none')
-        setBusinessNumber('')
-        setBusinessName('')
-        setRepresentative('')
-        setContactPhone('')
-        setContactEmail('')
-        setCashReceiptPhone('')
-        loadPurchaseHistory()
-      } else {
-        alert(`구매 신청 중 오류가 발생했습니다: ${result.error || '알 수 없는 오류'}`)
+      if (!registerResult.success) {
+        throw new Error(registerResult.error || 'KCP 거래등록 실패')
       }
+
+      // 2단계: 결제창 호출 데이터 생성
+      const formResponse = await fetch('/api/points/purchase-kcp/payment-form', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ordr_idxx: registerResult.ordr_idxx,
+          approval_key: registerResult.kcp_response.approvalKey,
+          pay_url: registerResult.kcp_response.PayUrl,
+          pay_method: 'CARD',
+          good_mny: String(pointPackages.find(pkg => pkg.amount === selectedAmount)?.price || selectedAmount),
+          buyr_name: userInfo?.displayName || userInfo?.email || '사용자',
+          buyr_mail: userInfo?.email || '',
+          buyr_tel2: userInfo?.phoneNumber || '',
+          shop_user_id: currentUser.uid
+        })
+      })
+
+      const formResult = await formResponse.json()
+      
+      if (!formResult.success) {
+        throw new Error(formResult.error || '결제창 데이터 생성 실패')
+      }
+
+      // 3단계: KCP 결제창 호출
+      const form = document.createElement('form')
+      form.method = 'POST'
+      form.action = formResult.payment_form_data.PayUrl.substring(0, formResult.payment_form_data.PayUrl.lastIndexOf("/")) + "/jsp/encodingFilter/encodingFilter.jsp"
+      form.target = '_blank'
+      
+      Object.keys(formResult.payment_form_data).forEach(key => {
+        const input = document.createElement('input')
+        input.type = 'hidden'
+        input.name = key
+        input.value = formResult.payment_form_data[key]
+        form.appendChild(input)
+      })
+      
+      document.body.appendChild(form)
+      form.submit()
+      document.body.removeChild(form)
+
+      // 폼 초기화
+      setSelectedAmount(0)
+      loadPurchaseHistory()
+
     } catch (error) {
-      console.error('구매 신청 실패:', error)
-      alert('구매 신청 중 오류가 발생했습니다.')
+      console.error('KCP 결제 실패:', error)
+      alert('KCP 결제 중 오류가 발생했습니다: ' + error.message)
     } finally {
-      setIsLoading(false)
+      setIsKcpLoading(false)
     }
+  }
+
+
+  const handlePurchase = () => {
+    handleKcpPayment()
   }
 
   const getSelectedPackage = () => {
@@ -318,196 +223,27 @@ const PointsPage = () => {
         {/* 구매 정보 입력 */}
         <div className="purchase-form">
           <h2>구매 정보 입력</h2>
-          <div className="form-group">
-            <label>
-              <User size={16} />
-              입금자 명
-            </label>
-            <input
-              type="text"
-              value={depositorName}
-              onChange={(e) => setDepositorName(e.target.value)}
-              placeholder="입금자 명을 입력하세요"
-              className="form-input"
-            />
-          </div>
           
-          <div className="form-group">
-            <label>
-              <Building2 size={16} />
-              은행
-            </label>
-            <input
-              type="text"
-              value={bankName}
-              onChange={(e) => setBankName(e.target.value)}
-              placeholder="은행명을 입력하세요 (예: 신한은행)"
-              className="form-input"
-            />
+          {/* 결제 방식 - KCP 카드결제만 사용 */}
+          <div className="payment-method-section">
+            <h3>결제 방식</h3>
+            <div className="payment-method-info">
+              <div className="selected-payment-method">
+                <CreditCard className="payment-method-icon" />
+                <span className="payment-method-label">KCP 카드결제 (즉시충전)</span>
+                <span className="payment-method-badge">추천</span>
+              </div>
+              <div className="payment-method-description">
+                <p>💳 신용카드로 안전하고 빠른 결제</p>
+                <p>⚡ 결제 완료 즉시 포인트 자동 충전</p>
+                <p>🔒 KCP 보안 시스템으로 안전한 결제</p>
+              </div>
+            </div>
           </div>
 
 
-          {/* 자동 입력 완료 메시지 */}
-          {showAutoFillMessage && (
-            <div className="auto-fill-message">
-              <div className="auto-fill-message-content">
-                <div className="auto-fill-icon">✅</div>
-                <div className="auto-fill-text">
-                  <div className="auto-fill-title">비즈니스 정보 자동 입력 완료</div>
-                  <div className="auto-fill-subtitle">회원가입 시 입력한 정보가 자동으로 입력되었습니다.</div>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* 영수증 계산서 선택 */}
-          <div className="receipt-section">
-            <h3>
-              <Receipt size={20} />
-              영수증 계산서
-            </h3>
-            <div className="receipt-options">
-              <label className="receipt-option">
-                <input
-                  type="radio"
-                  name="receiptType"
-                  value="none"
-                  checked={receiptType === 'none'}
-                  onChange={(e) => handleReceiptTypeChange(e.target.value)}
-                />
-                <X className="receipt-option-icon" />
-                <span className="receipt-label">선택안함</span>
-              </label>
-              <label className="receipt-option">
-                <input
-                  type="radio"
-                  name="receiptType"
-                  value="cash"
-                  checked={receiptType === 'cash'}
-                  onChange={(e) => handleReceiptTypeChange(e.target.value)}
-                />
-                <Receipt className="receipt-option-icon" />
-                <span className="receipt-label">현금영수증</span>
-              </label>
-              <label className="receipt-option">
-                <input
-                  type="radio"
-                  name="receiptType"
-                  value="tax"
-                  checked={receiptType === 'tax'}
-                  onChange={(e) => handleReceiptTypeChange(e.target.value)}
-                />
-                <FileText className="receipt-option-icon" />
-                <span className="receipt-label">세금계산서</span>
-              </label>
-            </div>
-          </div>
 
-          {/* 세금계산서 선택 시 추가 정보 */}
-          {receiptType === 'tax' && (
-            <>
-              <div className="form-group">
-                <label>
-                  <User size={16} />
-                  사업자등록번호
-                  {autoFilledFields.businessNumber && (
-                    <span className="auto-fill-badge">자동입력</span>
-                  )}
-                </label>
-                <input
-                  type="text"
-                  value={businessNumber}
-                  onChange={(e) => setBusinessNumber(e.target.value)}
-                  placeholder="사업자등록번호를 입력하세요 (예: 123-45-67890)"
-                  className={`form-input ${autoFilledFields.businessNumber ? 'auto-filled' : ''}`}
-                />
-              </div>
-              <div className="form-group">
-                <label>
-                  <Building2 size={16} />
-                  상호명
-                  {autoFilledFields.businessName && (
-                    <span className="auto-fill-badge">자동입력</span>
-                  )}
-                </label>
-                <input
-                  type="text"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="상호명을 입력하세요"
-                  className={`form-input ${autoFilledFields.businessName ? 'auto-filled' : ''}`}
-                />
-              </div>
-              <div className="form-group">
-                <label>
-                  <User size={16} />
-                  대표자
-                  {autoFilledFields.representative && (
-                    <span className="auto-fill-badge">자동입력</span>
-                  )}
-                </label>
-                <input
-                  type="text"
-                  value={representative}
-                  onChange={(e) => setRepresentative(e.target.value)}
-                  placeholder="대표자명을 입력하세요"
-                  className={`form-input ${autoFilledFields.representative ? 'auto-filled' : ''}`}
-                />
-              </div>
-              <div className="form-group">
-                <label>
-                  <User size={16} />
-                  담당자 연락처
-                  {autoFilledFields.contactPhone && (
-                    <span className="auto-fill-badge">자동입력</span>
-                  )}
-                </label>
-                <input
-                  type="tel"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  placeholder="담당자 연락처를 입력하세요 (예: 010-1234-5678)"
-                  className={`form-input ${autoFilledFields.contactPhone ? 'auto-filled' : ''}`}
-                />
-              </div>
-              <div className="form-group">
-                <label>
-                  <User size={16} />
-                  메일주소
-                  {autoFilledFields.contactEmail && (
-                    <span className="auto-fill-badge">자동입력</span>
-                  )}
-                </label>
-                <input
-                  type="email"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  placeholder="메일주소를 입력하세요"
-                  className={`form-input ${autoFilledFields.contactEmail ? 'auto-filled' : ''}`}
-                />
-              </div>
-            </>
-          )}
-
-          {/* 현금영수증 선택 시 추가 정보 */}
-          {receiptType === 'cash' && (
-            <div className="form-group">
-              <label>
-                <User size={16} />
-                전화번호
-                {userInfo && userInfo.phoneNumber && (
-                  <span className="auto-fill-badge">자동입력됨</span>
-                )}
-              </label>
-              <input
-                type="tel"
-                value={cashReceiptPhone}
-                onChange={(e) => setCashReceiptPhone(e.target.value)}
-                placeholder="현금영수증 발급용 전화번호를 입력하세요 (예: 010-1234-5678)"
-                className={`form-input ${userInfo && userInfo.phoneNumber ? 'auto-filled' : ''}`}
-              />
-            </div>
-          )}
 
           <div className="purchase-summary">
             <div className="summary-item">
@@ -522,10 +258,10 @@ const PointsPage = () => {
 
           <button
             onClick={handlePurchase}
-            disabled={isLoading || selectedAmount === 0 || !depositorName.trim() || !bankName.trim() || (receiptType === 'tax' && (!businessNumber.trim() || !businessName.trim() || !representative.trim() || !contactPhone.trim() || !contactEmail.trim())) || (receiptType === 'cash' && !cashReceiptPhone.trim())}
+            disabled={isLoading || isKcpLoading || selectedAmount === 0}
             className="purchase-btn"
           >
-            {isLoading ? '처리중...' : '포인트 구매 신청'}
+            {isLoading ? '처리중...' : isKcpLoading ? 'KCP 결제 준비중...' : 'KCP 카드결제'}
           </button>
         </div>
 
@@ -548,17 +284,12 @@ const PointsPage = () => {
                     </div>
                   </div>
                   <div className="history-actions">
-                    <button 
-                      className="account-info-btn-small"
-                      onClick={() => setShowAccountModal(true)}
-                      title="입금 계좌 정보 보기"
-                    >
-                      <CreditCard size={16} />
-                    </button>
                     <div className={`history-status ${purchase.status}`}>
                       {purchase.status === 'pending' && '승인 대기중'}
                       {purchase.status === 'approved' && '승인 완료'}
                       {purchase.status === 'rejected' && '승인 거절'}
+                      {purchase.status === 'kcp_registered' && 'KCP 결제 대기중'}
+                      {purchase.status === 'kcp_approved' && 'KCP 결제 완료'}
                     </div>
                   </div>
                 </div>
@@ -569,80 +300,6 @@ const PointsPage = () => {
 
       </div>
 
-      {/* 입금 계좌 정보 모달 */}
-      {showAccountModal && (
-        <div className="modal-overlay" onClick={() => setShowAccountModal(false)}>
-          <div className="modal-content account-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <CreditCard size={24} />
-                💳 입금 계좌 정보
-              </h2>
-              <button 
-                className="modal-close-btn"
-                onClick={() => setShowAccountModal(false)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="modal-body">
-              <div className="modal-info">
-                <p>✅ 포인트 구매 신청이 완료되었습니다!</p>
-                <p>아래 계좌로 입금하시면 30분 내에 자동으로 포인트가 충전됩니다.</p>
-              </div>
-              
-              <div className="account-details">
-                <div className="account-item">
-                  <span className="account-label">은행명</span>
-                  <div className="account-value-with-copy">
-                    <span className="account-value">카카오뱅크</span>
-                    <button 
-                      className={`copy-btn ${copiedItems.bank ? 'copied' : ''}`}
-                      onClick={() => handleCopy('카카오뱅크', 'bank')}
-                      title="은행명 복사"
-                    >
-                      {copiedItems.bank ? <Check size={16} /> : <Copy size={16} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="account-item">
-                  <span className="account-label">계좌번호</span>
-                  <div className="account-value-with-copy">
-                    <span className="account-value">3333-34-9347430</span>
-                    <button 
-                      className={`copy-btn ${copiedItems.account ? 'copied' : ''}`}
-                      onClick={() => handleCopy('3333-34-9347430', 'account')}
-                      title="계좌번호 복사"
-                    >
-                      {copiedItems.account ? <Check size={16} /> : <Copy size={16} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="account-item">
-                  <span className="account-label">예금주</span>
-                  <div className="account-value-with-copy">
-                    <span className="account-value">서동현((템블)tamble)</span>
-                    <button 
-                      className={`copy-btn ${copiedItems.holder ? 'copied' : ''}`}
-                      onClick={() => handleCopy('서동현((템블)tamble)', 'holder')}
-                      title="예금주명 복사"
-                    >
-                      {copiedItems.holder ? <Check size={16} /> : <Copy size={16} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="account-note">
-                <p>※ 충전 신청란의 [입금자명] 과 입금시 [입금자명]이 일치해야 30분내로 자동으로 충전 됩니다.</p>
-                <p>※ 30분내 충전이 안될시 카카오채널(링크)로 문의 해주세요</p>
-                <p>※ 세금계산서 및 현금영수증 필요하시면 꼭 선택 부탁드립니다.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   )
