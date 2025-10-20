@@ -2948,77 +2948,22 @@ def get_orders():
                 smm_panel_order_id = order[8] if len(order) > 8 else None
                 db_status = order[5] if len(order) > 5 else 'unknown'
                 
-                # SMM Panel에서 실시간 상태 확인 (완료되지 않은 주문만)
+                # DB 상태만 사용 (성능 최적화를 위해 SMM API 호출 비활성화)
                 real_status = db_status
                 start_count = 0
                 remains = order[3] if len(order) > 3 else 0  # 초기값은 주문 수량
                 
-                # 최근 3일 이내 주문만 SMM API 호출 (성능 최적화)
-                order_date = order[6] if len(order) > 6 else None
-                is_recent = order_date and (datetime.now() - order_date).days <= 3
-                
-                # SMM Panel 주문 ID가 있고 최근 주문인 경우만 API 호출
-                if smm_panel_order_id and db_status not in ['completed', 'canceled', 'cancelled', 'failed'] and is_recent:
-                    try:
-                        smm_result = call_smm_panel_api({
-                            'action': 'status',
-                            'order': smm_panel_order_id
-                        })
-                        
-                        if smm_result and smm_result.get('status') == 'success':
-                            smm_status = smm_result.get('status_text', '').lower()
-                            start_count = smm_result.get('start_count', 0)
-                            remains = smm_result.get('remains', 0)
-                            
-                            # SMM Panel 상태를 4개 상태로 매핑
-                            if smm_status == 'completed' or remains == 0:
-                                real_status = '주문 실행완료'
-                            elif smm_status == 'in progress' or (start_count > 0 and remains < order[3]):
-                                real_status = '주문 실행중'
-                            elif smm_status == 'pending':
-                                real_status = '주문발송'
-                            elif smm_status == 'partial':
-                                real_status = '주문 실행중'
-                            elif smm_status == 'canceled' or smm_status == 'cancelled':
-                                real_status = '주문 미처리'
-                            else:
-                                real_status = db_status
-                        else:
-                            # SMM API 실패 시 DB 상태 사용
-                            if db_status in ['completed', '완료']:
-                                real_status = '주문 실행완료'
-                            elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
-                                real_status = '주문 실행중'
-                            elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
-                                real_status = '주문발송'
-                            elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
-                                real_status = '주문 미처리'
-                            else:
-                                real_status = '주문발송'
-                    except Exception as e:
-                        # SMM API 오류 시 DB 상태 사용
-                        if db_status in ['completed', '완료']:
-                            real_status = '주문 실행완료'
-                        elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
-                            real_status = '주문 실행중'
-                        elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
-                            real_status = '주문발송'
-                        elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
-                            real_status = '주문 미처리'
-                        else:
-                            real_status = '주문발송'
+                # DB 상태를 4개 상태로 매핑
+                if db_status in ['completed', '완료']:
+                    real_status = '주문 실행완료'
+                elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
+                    real_status = '주문 실행중'
+                elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
+                    real_status = '주문발송'
+                elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
+                    real_status = '주문 미처리'
                 else:
-                    # DB 상태를 4개 상태로 매핑
-                    if db_status in ['completed', '완료']:
-                        real_status = '주문 실행완료'
-                    elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
-                        real_status = '주문 실행중'
-                    elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
-                        real_status = '주문발송'
-                    elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
-                        real_status = '주문 미처리'
-                    else:
-                        real_status = '주문발송'  # 기본값
+                    real_status = '주문발송'  # 기본값
                 
                 # 서비스명 매핑
                 service_name = get_service_name(order[1]) if order[1] else '알 수 없는 서비스'
