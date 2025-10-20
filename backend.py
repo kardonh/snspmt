@@ -2877,16 +2877,16 @@ def get_orders():
                         real_status = db_status
                 else:
                     # DB 상태를 4개 상태로 매핑
-                if db_status in ['completed', '완료']:
-                    real_status = '주문 실행완료'
-                elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
-                    real_status = '주문 실행중'
-                elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
-                    real_status = '주문발송'
-                elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
-                    real_status = '주문 미처리'
-                else:
-                    real_status = '주문발송'  # 기본값
+                    if db_status in ['completed', '완료']:
+                        real_status = '주문 실행완료'
+                    elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
+                        real_status = '주문 실행중'
+                    elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
+                        real_status = '주문발송'
+                    elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
+                        real_status = '주문 미처리'
+                    else:
+                        real_status = '주문발송'  # 기본값
                 
                 # 서비스명 매핑
                 service_name = get_service_name(order[1]) if order[1] else '알 수 없는 서비스'
