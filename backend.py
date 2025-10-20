@@ -551,6 +551,104 @@ def get_smm_panel_services():
             'message': str(e)
         }
 
+# 패키지 상품 분할 발송 처리 함수
+def process_package_delivery(order_id, day_number, package_steps, user_id, link, comments):
+    """패키지 상품 분할 발송 일일 처리 (30일간 하루 400개씩)"""
+    conn = None
+    cursor = None
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 해당 일차 진행 상황 확인
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT id FROM split_delivery_progress 
+                WHERE order_id = %s AND day_number = %s
+            """, (order_id, day_number))
+        else:
+            cursor.execute("""
+                SELECT id FROM split_delivery_progress 
+                WHERE order_id = ? AND day_number = ?
+            """, (order_id, day_number))
+        
+        existing_progress = cursor.fetchone()
+        
+        if not existing_progress:
+            # 새로운 일차 진행 상황 생성
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO split_delivery_progress 
+                    (order_id, day_number, scheduled_date, status, created_at)
+                    VALUES (%s, %s, %s, 'pending', NOW())
+                """, (order_id, day_number, datetime.now().date()))
+            else:
+                cursor.execute("""
+                    INSERT INTO split_delivery_progress 
+                    (order_id, day_number, scheduled_date, status, created_at)
+                    VALUES (?, ?, ?, 'pending', datetime('now'))
+                """, (order_id, day_number, datetime.now().date()))
+        
+        # 패키지 상품의 경우 하루에 400개씩 처리
+        daily_quantity = 400
+        
+        # SMM Panel API 호출 (인스타그램 프로필 방문)
+        smm_result = call_smm_panel_api({
+            'service': 515,  # 인스타그램 프로필 방문
+            'link': link,
+            'quantity': daily_quantity,
+            'comments': f"{comments} (패키지 {day_number}/30일차)"
+        })
+        
+        if smm_result.get('status') == 'success':
+            # 성공 시 진행 상황 업데이트
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE split_delivery_progress 
+                    SET status = 'completed', quantity_delivered = %s, 
+                        smm_panel_order_id = %s, completed_at = NOW()
+                    WHERE order_id = %s AND day_number = %s
+                """, (daily_quantity, smm_result.get('order'), order_id, day_number))
+            else:
+                cursor.execute("""
+                    UPDATE split_delivery_progress 
+                    SET status = 'completed', quantity_delivered = ?, 
+                        smm_panel_order_id = ?, completed_at = datetime('now')
+                    WHERE order_id = ? AND day_number = ?
+                """, (daily_quantity, smm_result.get('order'), order_id, day_number))
+            
+            # 30일이 지나면 주문 상태를 완료로 변경
+            if day_number >= 30:
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        UPDATE orders SET status = 'completed', updated_at = NOW()
+                        WHERE order_id = %s
+                    """, (order_id,))
+                else:
+                    cursor.execute("""
+                        UPDATE orders SET status = 'completed', updated_at = datetime('now')
+                        WHERE order_id = ?
+                    """, (order_id,))
+            
+            conn.commit()
+            print(f"✅ 패키지 상품 분할 발송 완료: {order_id} - {day_number}일차 ({daily_quantity}개)")
+            return True
+        else:
+            print(f"❌ 패키지 상품 SMM API 호출 실패: {order_id} - {day_number}일차")
+            return False
+            
+    except Exception as e:
+        print(f"❌ 패키지 상품 분할 발송 처리 실패: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 # 분할 발송 처리 함수
 def process_split_delivery(order_id, day_number):
     """분할 발송 일일 처리"""
@@ -561,25 +659,38 @@ def process_split_delivery(order_id, day_number):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 분할 주문 정보 조회
+        # 분할 주문 정보 조회 (패키지 상품 포함)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT user_id, service_id, link, split_quantity, comments, split_days
+                SELECT user_id, service_id, link, split_quantity, comments, split_days, package_steps
                 FROM orders 
-                WHERE order_id = %s AND is_split_delivery = TRUE
+                WHERE order_id = %s AND (is_split_delivery = TRUE OR package_steps IS NOT NULL)
             """, (order_id,))
         else:
             cursor.execute("""
-                SELECT user_id, service_id, link, split_quantity, comments, split_days
+                SELECT user_id, service_id, link, split_quantity, comments, split_days, package_steps
                 FROM orders 
-                WHERE order_id = ? AND is_split_delivery = TRUE
+                WHERE order_id = ? AND (is_split_delivery = TRUE OR package_steps IS NOT NULL)
             """, (order_id,))
         
         order = cursor.fetchone()
         if not order:
             return False
         
-        user_id, service_id, link, split_quantity, comments, total_days = order
+        user_id, service_id, link, split_quantity, comments, total_days, package_steps = order
+        
+        # 패키지 상품인 경우 특별 처리
+        if package_steps:
+            try:
+                if isinstance(package_steps, str):
+                    package_steps = json.loads(package_steps)
+                
+                # 패키지 상품의 경우 30일간 하루에 400개씩 처리
+                if len(package_steps) > 0 and package_steps[0].get('id') == 515:  # 인스타그램 프로필 방문
+                    return process_package_delivery(order_id, day_number, package_steps, user_id, link, comments)
+            except Exception as e:
+                print(f"⚠️ 패키지 상품 처리 실패: {e}")
+                return False
         
         # 해당 일차 진행 상황 확인
         if DATABASE_URL.startswith('postgresql://'):
@@ -2449,6 +2560,28 @@ def create_order():
         is_package = len(package_steps) > 0
         print(f"🔍 패키지 상품 확인: is_package={is_package}, package_steps={package_steps}")
         
+        # 패키지 상품인 경우 자동으로 분할 발송 설정 (30일간 하루 400개씩)
+        if is_package and len(package_steps) > 0 and package_steps[0].get('id') == 515:
+            print(f"📦 인스타 계정 상위노출 패키지 - 30일간 분할 발송 설정")
+            is_split_delivery = True
+            split_days = 30
+            split_quantity = 400
+            
+            # 주문 정보 업데이트 (분할 발송 정보 추가)
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE orders SET is_split_delivery = %s, split_days = %s, split_quantity = %s
+                    WHERE order_id = %s
+                """, (True, 30, 400, order_id))
+            else:
+                cursor.execute("""
+                    UPDATE orders SET is_split_delivery = ?, split_days = ?, split_quantity = ?
+                    WHERE order_id = ?
+                """, (True, 30, 400, order_id))
+            
+            conn.commit()
+            print(f"✅ 패키지 상품 분할 발송 설정 완료 - 30일간 하루 400개씩")
+        
         # 예약/분할/패키지 주문 처리
         if is_scheduled and not is_package:
             # 예약 주문 (패키지가 아닌 경우)은 나중에 처리하도록 스케줄링
@@ -2820,18 +2953,72 @@ def get_orders():
                 start_count = 0
                 remains = order[3] if len(order) > 3 else 0  # 초기값은 주문 수량
                 
-                # SMM API 호출 완전 비활성화 - DB 상태만 사용 (성능 최적화)
-                # DB 상태를 4개 상태로 매핑
-                if db_status in ['completed', '완료']:
-                    real_status = '주문 실행완료'
-                elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
-                    real_status = '주문 실행중'
-                elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
-                    real_status = '주문발송'
-                elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
-                    real_status = '주문 미처리'
+                # 최근 3일 이내 주문만 SMM API 호출 (성능 최적화)
+                order_date = order[6] if len(order) > 6 else None
+                is_recent = order_date and (datetime.now() - order_date).days <= 3
+                
+                # SMM Panel 주문 ID가 있고 최근 주문인 경우만 API 호출
+                if smm_panel_order_id and db_status not in ['completed', 'canceled', 'cancelled', 'failed'] and is_recent:
+                    try:
+                        smm_result = call_smm_panel_api({
+                            'action': 'status',
+                            'order': smm_panel_order_id
+                        })
+                        
+                        if smm_result and smm_result.get('status') == 'success':
+                            smm_status = smm_result.get('status_text', '').lower()
+                            start_count = smm_result.get('start_count', 0)
+                            remains = smm_result.get('remains', 0)
+                            
+                            # SMM Panel 상태를 4개 상태로 매핑
+                            if smm_status == 'completed' or remains == 0:
+                                real_status = '주문 실행완료'
+                            elif smm_status == 'in progress' or (start_count > 0 and remains < order[3]):
+                                real_status = '주문 실행중'
+                            elif smm_status == 'pending':
+                                real_status = '주문발송'
+                            elif smm_status == 'partial':
+                                real_status = '주문 실행중'
+                            elif smm_status == 'canceled' or smm_status == 'cancelled':
+                                real_status = '주문 미처리'
+                            else:
+                                real_status = db_status
+                        else:
+                            # SMM API 실패 시 DB 상태 사용
+                            if db_status in ['completed', '완료']:
+                                real_status = '주문 실행완료'
+                            elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
+                                real_status = '주문 실행중'
+                            elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
+                                real_status = '주문발송'
+                            elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
+                                real_status = '주문 미처리'
+                            else:
+                                real_status = '주문발송'
+                    except Exception as e:
+                        # SMM API 오류 시 DB 상태 사용
+                        if db_status in ['completed', '완료']:
+                            real_status = '주문 실행완료'
+                        elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
+                            real_status = '주문 실행중'
+                        elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
+                            real_status = '주문발송'
+                        elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
+                            real_status = '주문 미처리'
+                        else:
+                            real_status = '주문발송'
                 else:
-                    real_status = '주문발송'  # 기본값
+                    # DB 상태를 4개 상태로 매핑
+                    if db_status in ['completed', '완료']:
+                        real_status = '주문 실행완료'
+                    elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
+                        real_status = '주문 실행중'
+                    elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
+                        real_status = '주문발송'
+                    elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
+                        real_status = '주문 미처리'
+                    else:
+                        real_status = '주문발송'  # 기본값
                 
                 # 서비스명 매핑
                 service_name = get_service_name(order[1]) if order[1] else '알 수 없는 서비스'

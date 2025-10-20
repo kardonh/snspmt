@@ -2637,7 +2637,7 @@ const Home = () => {
           )}
 
           {/* 분할 발송 체크박스 - 숨김 처리 */}
-          {false && (
+          {true && (
           <div className="split-delivery-section">
             <div className="split-delivery-checkbox">
               <input
