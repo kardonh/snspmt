@@ -3176,6 +3176,13 @@ def kcp_register_transaction():
 
         # KCP 거래등록 요청 데이터
         kcp_site_cd = get_parameter_value('KCP_SITE_CD', 'ALFCQ')
+        kcp_cert_info = get_parameter_value('KCP_CERT_INFO', '')
+        if not kcp_cert_info or len(kcp_cert_info) < 10:
+            # 필수 인증서 누락 시 명확하게 안내
+            return jsonify({
+                'success': False,
+                'error': 'KCP 거래등록 실패: KCP_CERT_INFO(서비스 인증서) 환경변수를 설정하세요.',
+            }), 400
         register_data = {
             'site_cd': kcp_site_cd,
             'ordr_idxx': ordr_idxx,
@@ -3184,6 +3191,7 @@ def kcp_register_transaction():
             'pay_method': pay_method,
             'currency': '410',  # KRW
             'shop_name': 'SOCIALITY',
+            'kcp_cert_info': kcp_cert_info,
             'Ret_URL': f"{external_base}/api/points/purchase-kcp/return"
         }
         
