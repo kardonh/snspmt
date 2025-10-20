@@ -628,7 +628,7 @@ const Home = () => {
   // 추천서비스 매핑
   if (platform === 'recommended') {
     if (serviceType === 'top_exposure_30days') {
-      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1001) || [])
+      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1005) || [])
     } else if (serviceType === 'recommended_tab_entry') {
       return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1003) || [])
     } else if (serviceType === 'instagram_followers') {
@@ -661,7 +661,7 @@ const Home = () => {
   if (platform === 'top-exposure') {
     const services = instagramDetailedServices.top_exposure || {}
     if (serviceType === 'top_exposure_30days') {
-      return filterValidServices(services.manual?.filter(s => s.id === 1001) || [])
+      return filterValidServices(services.manual?.filter(s => s.id === 1005) || [])
     } else if (serviceType === 'instagram_optimization_30days') {
       return filterValidServices(services.manual?.filter(s => s.id === 1002) || [])
     } else if (serviceType === 'recommended_tab_entry') {
