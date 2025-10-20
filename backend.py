@@ -1541,7 +1541,7 @@ def init_database():
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS split_delivery_progress (
                     id SERIAL PRIMARY KEY,
-                    order_id INTEGER NOT NULL,
+                    order_id VARCHAR(255) NOT NULL,
                     day_number INTEGER NOT NULL,
                     scheduled_date DATE,
                     quantity_delivered INTEGER DEFAULT 0,
@@ -2351,6 +2351,12 @@ def create_order():
         cursor = conn.cursor()
         print("✅ 데이터베이스 연결 성공")
         
+        # 데이터베이스 타입 확인
+        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+            print("🗄️ PostgreSQL 데이터베이스 사용 중 (영구 저장)")
+        else:
+            print("⚠️ SQLite 데이터베이스 사용 중 (로컬 개발용)")
+        
         # 사용자의 추천인 연결 확인
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
@@ -2688,6 +2694,9 @@ def create_order():
         
     except Exception as e:
         print(f"❌ 주문 생성 실패: {str(e)}")
+        print(f"❌ 오류 타입: {type(e).__name__}")
+        import traceback
+        print(f"❌ 스택 트레이스: {traceback.format_exc()}")
         if conn:
             conn.rollback()
         return jsonify({'error': f'주문 생성 실패: {str(e)}'}), 500
