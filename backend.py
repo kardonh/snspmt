@@ -1526,6 +1526,15 @@ def init_database():
                 )
             """)
             
+            # 기존 테이블의 order_id 컬럼 타입을 VARCHAR로 변경 (INTEGER인 경우)
+            try:
+                cursor.execute("""
+                    ALTER TABLE orders ALTER COLUMN order_id TYPE VARCHAR(255)
+                """)
+                print("✅ order_id 컬럼 타입을 VARCHAR로 변경 완료")
+            except Exception as e:
+                print(f"ℹ️ order_id 컬럼 타입 변경 불필요 또는 이미 VARCHAR: {e}")
+            
             # 기존 테이블에 예약/분할 필드 추가 (이미 존재하는 경우 무시)
             try:
                 cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_scheduled BOOLEAN DEFAULT FALSE")
