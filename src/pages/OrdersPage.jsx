@@ -136,10 +136,10 @@ const OrdersPage = () => {
     if (currentUser) {
       loadOrders()
       
-      // 30초마다 주문 상태 업데이트
+      // 60초마다 주문 상태 업데이트 (성능 최적화)
       const interval = setInterval(() => {
         loadOrders()
-      }, 30000)
+      }, 60000)
       
       return () => clearInterval(interval)
     }

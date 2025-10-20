@@ -2921,7 +2921,7 @@ def get_package_progress(order_id):
 # 주문 목록 조회
 @app.route('/api/orders', methods=['GET'])
 def get_orders():
-    """주문 목록 조회"""
+    """주문 목록 조회 (최적화된 버전)"""
     conn = None
     cursor = None
     
@@ -2930,52 +2930,50 @@ def get_orders():
         if not user_id:
             return jsonify({'error': 'user_id가 필요합니다.'}), 400
         
+        print(f"🔍 주문 조회 시작 - user_id: {user_id}")
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # 최적화된 쿼리 - 필요한 컬럼만 선택
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps, smm_panel_order_id, detailed_service
-                FROM orders WHERE user_id = %s
+                SELECT order_id, service_id, link, quantity, price, status, created_at, 
+                       package_steps, smm_panel_order_id, detailed_service
+                FROM orders 
+                WHERE user_id = %s
                 ORDER BY created_at DESC
+                LIMIT 100
             """, (user_id,))
         else:
             cursor.execute("""
-                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps, smm_panel_order_id, detailed_service
-                FROM orders WHERE user_id = ?
+                SELECT order_id, service_id, link, quantity, price, status, created_at, 
+                       package_steps, smm_panel_order_id, detailed_service
+                FROM orders 
+                WHERE user_id = ?
                 ORDER BY created_at DESC
+                LIMIT 100
             """, (user_id,))
         
         orders = cursor.fetchall()
-        # 주문 데이터 처리
+        print(f"📊 조회된 주문 수: {len(orders)}개")
         
         order_list = []
-        for order in orders:
+        for i, order in enumerate(orders):
             try:
-                # 패키지 상품 정보 파싱
+                # 패키지 상품 정보 파싱 (간소화)
                 package_steps = []
-                if len(order) > 7 and order[7]:  # package_steps 컬럼
+                if len(order) > 7 and order[7]:
                     try:
-                        # 이미 list인 경우 그대로 사용, 문자열인 경우 파싱
                         if isinstance(order[7], list):
                             package_steps = order[7]
-                        elif isinstance(order[7], str):
+                        elif isinstance(order[7], str) and order[7].strip():
                             package_steps = json.loads(order[7])
-                        else:
-                            package_steps = []
-                    except Exception as parse_err:
-                        print(f"⚠️ 패키지 정보 파싱 실패: {parse_err}")
+                    except:
                         package_steps = []
                 
-                smm_panel_order_id = order[8] if len(order) > 8 else None
-                db_status = order[5] if len(order) > 5 else 'unknown'
-                
-                # DB 상태만 사용 (성능 최적화를 위해 SMM API 호출 비활성화)
-                real_status = db_status
-                start_count = 0
-                remains = order[3] if len(order) > 3 else 0  # 초기값은 주문 수량
-                
-                # DB 상태를 4개 상태로 매핑
+                # 상태 매핑 (간소화)
+                db_status = order[5] if len(order) > 5 else 'pending'
                 if db_status in ['completed', '완료']:
                     real_status = '주문 실행완료'
                 elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
@@ -2985,45 +2983,55 @@ def get_orders():
                 elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
                     real_status = '주문 미처리'
                 else:
-                    real_status = '주문발송'  # 기본값
+                    real_status = '주문발송'
                 
-                # 서비스명 매핑
-                service_name = get_service_name(order[1]) if order[1] else '알 수 없는 서비스'
+                # 서비스명 매핑 (간소화)
+                service_name = get_service_name(order[1]) if order[1] else '서비스'
                 
-                # SMM Panel 주문 ID가 있으면 그것을 실제 주문 번호로 사용
+                # 주문 ID 결정
+                smm_panel_order_id = order[8] if len(order) > 8 else None
                 actual_order_id = smm_panel_order_id if smm_panel_order_id else order[0]
                 
+                # 날짜 포맷팅 (간소화)
+                created_at = order[6]
+                if hasattr(created_at, 'isoformat'):
+                    created_at_str = created_at.isoformat()
+                else:
+                    created_at_str = str(created_at) if created_at else ''
+                
                 order_list.append({
-                    'id': actual_order_id,  # SMM Panel 주문 ID를 실제 주문 번호로 사용
+                    'id': actual_order_id,
                     'order_id': actual_order_id,
                     'service_id': order[1] if len(order) > 1 else '',
                     'service_name': service_name,
                     'link': order[2] if len(order) > 2 else '',
                     'quantity': order[3] if len(order) > 3 else 0,
                     'price': float(order[4]) if len(order) > 4 else 0.0,
-                    'status': real_status,  # 실시간 상태 사용
-                    'created_at': order[6].isoformat() if len(order) > 6 and hasattr(order[6], 'isoformat') else str(order[6]) if len(order) > 6 else '',
+                    'status': real_status,
+                    'created_at': created_at_str,
                     'is_package': len(package_steps) > 0,
                     'package_steps': package_steps,
                     'total_steps': len(package_steps),
                     'smm_panel_order_id': smm_panel_order_id,
                     'detailed_service': order[9] if len(order) > 9 else None,
-                    'start_count': start_count,
-                    'remains': remains
+                    'start_count': 0,
+                    'remains': order[3] if len(order) > 3 else 0
                 })
+                
             except Exception as order_err:
-                print(f"❌ 주문 처리 중 오류 발생: {order_err}")
-                print(f"❌ 문제가 된 주문 데이터: {order}")
-                # 오류가 발생한 주문은 건너뛰고 계속 진행
+                print(f"⚠️ 주문 {i+1} 처리 중 오류: {order_err}")
                 continue
         
-        # 주문 조회 완료
+        print(f"✅ 주문 처리 완료: {len(order_list)}개")
+        
         return jsonify({
             'orders': order_list
         }), 200
         
     except Exception as e:
         print(f"❌ 주문 조회 오류: {e}")
+        import traceback
+        print(f"❌ 스택 트레이스: {traceback.format_exc()}")
         return jsonify({'error': f'주문 목록 조회 실패: {str(e)}'}), 500
     finally:
         if cursor:

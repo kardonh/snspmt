@@ -11,7 +11,7 @@ const SMM_PANEL_API_URL = 'https://smmpanel.kr/api/v2'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30초로 증가 (대량 주문 처리 고려)
+  timeout: 15000, // 15초로 단축 (주문 조회 최적화)
   headers: {
     'Content-Type': 'application/json',
   }
