@@ -2780,13 +2780,13 @@ def get_orders():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps, smm_panel_order_id, detailed_service, last_status_check
+                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps, smm_panel_order_id, detailed_service
                 FROM orders WHERE user_id = %s
                 ORDER BY created_at DESC
             """, (user_id,))
         else:
             cursor.execute("""
-                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps, smm_panel_order_id, detailed_service, last_status_check
+                SELECT order_id, service_id, link, quantity, price, status, created_at, package_steps, smm_panel_order_id, detailed_service
                 FROM orders WHERE user_id = ?
                 ORDER BY created_at DESC
             """, (user_id,))
@@ -2820,73 +2820,18 @@ def get_orders():
                 start_count = 0
                 remains = order[3] if len(order) > 3 else 0  # 초기값은 주문 수량
                 
-                # 1시간에 한번만 SMM API 호출 (성능 최적화)
-                order_date = order[6] if len(order) > 6 else None
-                last_checked = order[9] if len(order) > 9 else None  # last_status_check 컬럼
-                
-                # 마지막 체크 시간이 1시간 이내면 DB 상태 사용, 아니면 SMM API 호출
-                should_check_smm = False
-                if last_checked:
-                    time_diff = datetime.now() - last_checked
-                    should_check_smm = time_diff.total_seconds() > 3600  # 1시간 = 3600초
+                # SMM API 호출 완전 비활성화 - DB 상태만 사용 (성능 최적화)
+                # DB 상태를 4개 상태로 매핑
+                if db_status in ['completed', '완료']:
+                    real_status = '주문 실행완료'
+                elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
+                    real_status = '주문 실행중'
+                elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
+                    real_status = '주문발송'
+                elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
+                    real_status = '주문 미처리'
                 else:
-                    should_check_smm = True
-                
-                if should_check_smm and smm_panel_order_id and db_status not in ['completed', 'canceled', 'cancelled', 'failed']:
-                    try:
-                        smm_result = call_smm_panel_api({
-                            'action': 'status',
-                            'order': smm_panel_order_id
-                        })
-                        
-                        if smm_result and smm_result.get('status') == 'success':
-                            smm_status = smm_result.get('status_text', '').lower()
-                            start_count = smm_result.get('start_count', 0)
-                            remains = smm_result.get('remains', 0)
-                            
-                            # SMM Panel 상태를 4개 상태로 매핑
-                            if smm_status == 'completed' or remains == 0:
-                                real_status = '주문 실행완료'
-                            elif smm_status == 'in progress' or (start_count > 0 and remains < order[3]):
-                                real_status = '주문 실행중'
-                            elif smm_status == 'pending':
-                                real_status = '주문발송'
-                            elif smm_status == 'partial':
-                                real_status = '주문 실행중'
-                            elif smm_status == 'canceled' or smm_status == 'cancelled':
-                                real_status = '주문 미처리'
-                            else:
-                                real_status = db_status
-                            
-                            # 상태 업데이트 및 마지막 체크 시간 저장
-                            if DATABASE_URL.startswith('postgresql://'):
-                                cursor.execute("""
-                                    UPDATE orders SET status = %s, last_status_check = NOW() 
-                                    WHERE order_id = %s
-                                """, (real_status, order[0]))
-                            else:
-                                cursor.execute("""
-                                    UPDATE orders SET status = ?, last_status_check = CURRENT_TIMESTAMP 
-                                    WHERE order_id = ?
-                                """, (real_status, order[0]))
-                            
-                            conn.commit()
-                        else:
-                            real_status = db_status
-                    except Exception as e:
-                        real_status = db_status
-                else:
-                    # DB 상태를 4개 상태로 매핑
-                    if db_status in ['completed', '완료']:
-                        real_status = '주문 실행완료'
-                    elif db_status in ['in_progress', '진행중', 'processing', 'package_processing']:
-                        real_status = '주문 실행중'
-                    elif db_status in ['pending', '접수됨', '주문발송', 'pending_payment']:
-                        real_status = '주문발송'
-                    elif db_status in ['canceled', 'cancelled', 'failed', '취소', '실패']:
-                        real_status = '주문 미처리'
-                    else:
-                        real_status = '주문발송'  # 기본값
+                    real_status = '주문발송'  # 기본값
                 
                 # 서비스명 매핑
                 service_name = get_service_name(order[1]) if order[1] else '알 수 없는 서비스'
