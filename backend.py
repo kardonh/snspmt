@@ -2588,7 +2588,7 @@ def create_order():
             print(f"ℹ️ 추천인 연결 없음 - 커미션 적립 건너뜀")
         
         conn.commit()
-        print(f"✅ 주문 생성 성공 - 주문 ID: {order_id}")
+        print(f"✅ 주문 생성 성공 - 주문 ID: {temp_order_id}")
         
         # 패키지 상품 여부 확인
         package_steps = data.get('package_steps', [])
