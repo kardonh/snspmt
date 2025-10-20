@@ -14,6 +14,13 @@ from functools import wraps
 from werkzeug.utils import secure_filename
 from flask import send_from_directory
 
+# 안전한 파라미터 조회 유틸 (AWS SSM/Secrets 미사용시 환경변수에서 조회)
+def get_parameter_value(key: str, default: str = "") -> str:
+    try:
+        return os.getenv(key, default)
+    except Exception:
+        return default
+
 # Flask 앱 초기화
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
