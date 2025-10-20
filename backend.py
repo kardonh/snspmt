@@ -1528,12 +1528,36 @@ def init_database():
             
             # 기존 테이블의 order_id 컬럼 타입을 VARCHAR로 변경 (INTEGER인 경우)
             try:
+                # 먼저 기존 컬럼 타입 확인
                 cursor.execute("""
-                    ALTER TABLE orders ALTER COLUMN order_id TYPE VARCHAR(255)
+                    SELECT data_type FROM information_schema.columns 
+                    WHERE table_name = 'orders' AND column_name = 'order_id'
                 """)
-                print("✅ order_id 컬럼 타입을 VARCHAR로 변경 완료")
+                column_info = cursor.fetchone()
+                if column_info:
+                    current_type = column_info[0]
+                    print(f"🔍 현재 order_id 컬럼 타입: {current_type}")
+                    
+                    if current_type == 'integer':
+                        print("⚠️ order_id가 INTEGER 타입입니다. VARCHAR로 변경 중...")
+                        # USING 절을 사용하여 타입 변환
+                        cursor.execute("""
+                            ALTER TABLE orders ALTER COLUMN order_id TYPE VARCHAR(255) USING order_id::VARCHAR(255)
+                        """)
+                        print("✅ order_id 컬럼 타입을 VARCHAR로 변경 완료")
+                    else:
+                        print(f"ℹ️ order_id 컬럼이 이미 {current_type} 타입입니다.")
+                else:
+                    print("⚠️ order_id 컬럼 정보를 찾을 수 없습니다.")
             except Exception as e:
-                print(f"ℹ️ order_id 컬럼 타입 변경 불필요 또는 이미 VARCHAR: {e}")
+                print(f"❌ order_id 컬럼 타입 변경 실패: {e}")
+                # 테이블 재생성 시도
+                try:
+                    print("🔄 테이블 재생성을 시도합니다...")
+                    cursor.execute("DROP TABLE IF EXISTS orders CASCADE")
+                    print("✅ 기존 orders 테이블 삭제 완료")
+                except Exception as drop_error:
+                    print(f"⚠️ 테이블 삭제 실패: {drop_error}")
             
             # 기존 테이블에 예약/분할 필드 추가 (이미 존재하는 경우 무시)
             try:
