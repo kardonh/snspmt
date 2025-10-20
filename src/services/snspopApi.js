@@ -140,7 +140,7 @@ export const smmpanelApi = {
   // 사용자 포인트 차감
   deductUserPoints: (userId, points) => apiClient.put('/points', { userId, points }),
   
-  // 포인트 구매 신청
+  // 포인트 구매 신청 (기존 방식)
   createPurchase: (purchaseData, userId) => {
     const config = {
       headers: {
@@ -148,6 +148,21 @@ export const smmpanelApi = {
       }
     }
     return apiClient.post('/points/purchase', purchaseData, config)
+  },
+  
+  // KCP 표준결제 - 거래등록
+  kcpRegisterTransaction: (purchaseData) => {
+    return apiClient.post('/points/purchase-kcp/register', purchaseData)
+  },
+  
+  // KCP 표준결제 - 결제창 호출 데이터 생성
+  kcpPaymentForm: (formData) => {
+    return apiClient.post('/points/purchase-kcp/payment-form', formData)
+  },
+  
+  // KCP 표준결제 - 결제요청 (승인)
+  kcpPaymentApprove: (approveData) => {
+    return apiClient.post('/points/purchase-kcp/approve', approveData)
   },
   
   // 구매 내역 조회

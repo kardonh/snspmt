@@ -1792,8 +1792,9 @@ def init_database():
                     status TEXT DEFAULT 'pending',
                     buyer_name TEXT,
                     bank_info TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    purchase_id TEXT UNIQUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """)
             
@@ -3121,6 +3122,315 @@ def purchase_points():
         
     except Exception as e:
         return jsonify({'error': f'포인트 구매 신청 실패: {str(e)}'}), 500
+
+# KCP 표준결제 - 거래등록 (Mobile)
+@app.route('/api/points/purchase-kcp/register', methods=['POST'])
+def kcp_register_transaction():
+    """KCP 표준결제 거래등록 (Mobile)"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        amount = data.get('amount')
+        price = data.get('price')
+        good_name = data.get('good_name', '포인트 구매')
+        pay_method = data.get('pay_method', 'CARD')  # CARD, BANK, MOBX, TPNT, GIFT
+        
+        if not user_id or not amount or not price:
+            return jsonify({'error': '필수 정보가 누락되었습니다.'}), 400
+        
+        # 입력 검증
+        try:
+            amount = float(amount)
+            price = float(price)
+        except (ValueError, TypeError):
+            return jsonify({'error': '잘못된 금액 형식입니다.'}), 400
+        
+        # 금액 범위 검증
+        if amount <= 0 or amount > 1000000:
+            return jsonify({'error': '포인트 금액이 범위를 벗어났습니다.'}), 400
+        
+        if price <= 0 or price > 10000000:
+            return jsonify({'error': '결제 금액이 범위를 벗어났습니다.'}), 400
+        
+        # 주문번호 생성 (타임스탬프 기반)
+        import time
+        ordr_idxx = f"POINT_{int(time.time())}"
+        
+        # KCP 거래등록 요청 데이터
+        register_data = {
+            'site_cd': os.getenv('KCP_SITE_CD', 'ALFCQ'),
+            'ordr_idxx': ordr_idxx,
+            'good_mny': str(int(price)),
+            'good_name': good_name,
+            'pay_method': pay_method,
+            'Ret_URL': f"{request.host_url}api/points/purchase-kcp/return"
+        }
+        
+        # KCP 거래등록 API 호출
+        import requests
+        kcp_register_url = 'https://testsmpay.kcp.co.kr/trade/register.do'
+        
+        try:
+            response = requests.post(kcp_register_url, json=register_data, timeout=30)
+            response.raise_for_status()
+            kcp_response = response.json()
+            
+            if kcp_response.get('Code') == '0000':
+                # DB에 거래등록 정보 저장
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at, purchase_id)
+                        VALUES (%s, %s, %s, 'kcp_registered', %s, %s, NOW(), NOW(), %s)
+                        RETURNING id
+                    """, (user_id, amount, price, '', '', ordr_idxx))
+                else:
+                    cursor.execute("""
+                        INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at, purchase_id)
+                        VALUES (?, ?, ?, 'kcp_registered', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)
+                    """, (user_id, amount, price, '', '', ordr_idxx))
+                    cursor.execute("SELECT last_insert_rowid()")
+                
+                purchase_id = cursor.fetchone()[0]
+                conn.commit()
+                conn.close()
+                
+                return jsonify({
+                    'success': True,
+                    'purchase_id': purchase_id,
+                    'ordr_idxx': ordr_idxx,
+                    'kcp_response': kcp_response,
+                    'message': 'KCP 거래등록이 완료되었습니다.'
+                }), 200
+            else:
+                return jsonify({
+                    'error': f'KCP 거래등록 실패: {kcp_response.get("Message", "알 수 없는 오류")}'
+                }), 400
+                
+        except requests.RequestException as e:
+            print(f"❌ KCP 거래등록 API 호출 실패: {e}")
+            return jsonify({'error': 'KCP 거래등록 API 호출에 실패했습니다.'}), 500
+        
+    except Exception as e:
+        print(f"❌ KCP 거래등록 실패: {e}")
+        return jsonify({'error': 'KCP 거래등록에 실패했습니다.'}), 500
+
+# KCP 표준결제 - 결제창 호출 데이터 생성
+@app.route('/api/points/purchase-kcp/payment-form', methods=['POST'])
+def kcp_payment_form():
+    """KCP 표준결제 결제창 호출 데이터 생성"""
+    try:
+        data = request.get_json()
+        ordr_idxx = data.get('ordr_idxx')
+        approval_key = data.get('approval_key')
+        pay_url = data.get('pay_url')
+        pay_method = data.get('pay_method', 'CARD')
+        
+        if not all([ordr_idxx, approval_key, pay_url]):
+            return jsonify({'error': '필수 파라미터가 누락되었습니다.'}), 400
+        
+        # 결제창 호출 데이터 구성
+        payment_form_data = {
+            'site_cd': os.getenv('KCP_SITE_CD', 'ALFCQ'),
+            'pay_method': pay_method,
+            'currency': '410',  # 원화
+            'shop_name': 'SNS PMT',
+            'Ret_URL': f"{request.host_url}api/points/purchase-kcp/return",
+            'approval_key': approval_key,
+            'PayUrl': pay_url,
+            'ordr_idxx': ordr_idxx,
+            'good_name': '포인트 구매',
+            'good_cd': '00',
+            'good_mny': data.get('good_mny', '1000'),
+            'buyr_name': data.get('buyr_name', ''),
+            'buyr_mail': data.get('buyr_mail', ''),
+            'buyr_tel2': data.get('buyr_tel2', ''),
+            'shop_user_id': data.get('shop_user_id', ''),
+            'van_code': data.get('van_code', '')  # 상품권/포인트 결제시 필수
+        }
+        
+        return jsonify({
+            'success': True,
+            'payment_form_data': payment_form_data,
+            'message': '결제창 호출 데이터가 생성되었습니다.'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ KCP 결제창 데이터 생성 실패: {e}")
+        return jsonify({'error': 'KCP 결제창 데이터 생성에 실패했습니다.'}), 500
+
+# KCP 결제창 인증결과 처리 (Ret_URL)
+@app.route('/api/points/purchase-kcp/return', methods=['POST'])
+def kcp_payment_return():
+    """KCP 결제창 인증결과 처리"""
+    try:
+        # KCP에서 전달받은 인증결과 데이터
+        enc_data = request.form.get('enc_data')
+        enc_info = request.form.get('enc_info')
+        tran_cd = request.form.get('tran_cd')
+        ordr_idxx = request.form.get('ordr_idxx')
+        res_cd = request.form.get('res_cd')
+        res_msg = request.form.get('res_msg')
+        
+        print(f"🔍 KCP 결제창 인증결과 수신: {ordr_idxx}")
+        print(f"📊 인증결과: {res_cd} - {res_msg}")
+        
+        if res_cd == '0000' and enc_data and enc_info:
+            # 인증 성공 - 결제요청 진행
+            return jsonify({
+                'success': True,
+                'ordr_idxx': ordr_idxx,
+                'enc_data': enc_data,
+                'enc_info': enc_info,
+                'tran_cd': tran_cd,
+                'message': '인증이 완료되었습니다. 결제를 진행합니다.'
+            }), 200
+        else:
+            # 인증 실패
+            return jsonify({
+                'success': False,
+                'error': f'인증 실패: {res_msg}',
+                'res_cd': res_cd
+            }), 400
+            
+    except Exception as e:
+        print(f"❌ KCP 결제창 인증결과 처리 실패: {e}")
+        return jsonify({'error': '인증결과 처리에 실패했습니다.'}), 500
+
+# KCP 결제요청 (승인)
+@app.route('/api/points/purchase-kcp/approve', methods=['POST'])
+def kcp_payment_approve():
+    """KCP 결제요청 (승인)"""
+    try:
+        data = request.get_json()
+        ordr_idxx = data.get('ordr_idxx')
+        enc_data = data.get('enc_data')
+        enc_info = data.get('enc_info')
+        tran_cd = data.get('tran_cd')
+        
+        if not all([ordr_idxx, enc_data, enc_info, tran_cd]):
+            return jsonify({'error': '필수 파라미터가 누락되었습니다.'}), 400
+        
+        # DB에서 주문 정보 조회
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT user_id, amount, price FROM point_purchases 
+                WHERE purchase_id = %s AND status = 'kcp_registered'
+            """, (ordr_idxx,))
+        else:
+            cursor.execute("""
+                SELECT user_id, amount, price FROM point_purchases 
+                WHERE purchase_id = ? AND status = 'kcp_registered'
+            """, (ordr_idxx,))
+        
+        purchase = cursor.fetchone()
+        if not purchase:
+            conn.close()
+            return jsonify({'error': '주문 정보를 찾을 수 없습니다.'}), 404
+        
+        user_id, amount, price = purchase
+        
+        # KCP 결제요청 데이터 구성
+        payment_data = {
+            'tran_cd': tran_cd,
+            'kcp_cert_info': os.getenv('KCP_CERT_INFO', ''),
+            'site_cd': os.getenv('KCP_SITE_CD', 'ALFCQ'),
+            'enc_data': enc_data,
+            'enc_info': enc_info,
+            'ordr_mony': str(int(price)),
+            'pay_type': 'PACA',  # 신용카드
+            'ordr_no': ordr_idxx
+        }
+        
+        # KCP 결제요청 API 호출
+        import requests
+        kcp_payment_url = 'https://stg-spl.kcp.co.kr/gw/enc/v1/payment'
+        
+        try:
+            response = requests.post(kcp_payment_url, json=payment_data, timeout=30)
+            response.raise_for_status()
+            kcp_response = response.json()
+            
+            print(f"📊 KCP 결제요청 응답: {kcp_response}")
+            
+            if kcp_response.get('res_cd') == '0000':
+                # 결제 성공 - 포인트 추가
+                if DATABASE_URL.startswith('postgresql://'):
+                    # 포인트 추가
+                    cursor.execute("""
+                        INSERT INTO points (user_id, points, description, created_at)
+                        VALUES (%s, %s, '포인트 구매 (KCP)', NOW())
+                    """, (user_id, amount))
+                    
+                    # 구매 상태 업데이트
+                    cursor.execute("""
+                        UPDATE point_purchases 
+                        SET status = 'approved', updated_at = NOW()
+                        WHERE purchase_id = %s
+                    """, (ordr_idxx,))
+                else:
+                    # SQLite 버전
+                    cursor.execute("""
+                        INSERT INTO points (user_id, points, description, created_at)
+                        VALUES (?, ?, '포인트 구매 (KCP)', datetime('now'))
+                    """, (user_id, amount))
+                    
+                    cursor.execute("""
+                        UPDATE point_purchases 
+                        SET status = 'approved', updated_at = datetime('now')
+                        WHERE purchase_id = ?
+                    """, (ordr_idxx,))
+                
+                conn.commit()
+                conn.close()
+                
+                print(f"✅ KCP 포인트 구매 완료: {ordr_idxx} - {amount}포인트")
+                
+                return jsonify({
+                    'success': True,
+                    'message': '포인트 구매가 완료되었습니다.',
+                    'amount': amount,
+                    'kcp_response': kcp_response
+                }), 200
+            else:
+                # 결제 실패
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        UPDATE point_purchases 
+                        SET status = 'failed', updated_at = NOW()
+                        WHERE purchase_id = %s
+                    """, (ordr_idxx,))
+                else:
+                    cursor.execute("""
+                        UPDATE point_purchases 
+                        SET status = 'failed', updated_at = datetime('now')
+                        WHERE purchase_id = ?
+                    """, (ordr_idxx,))
+                
+                conn.commit()
+                conn.close()
+                
+                print(f"❌ KCP 포인트 구매 실패: {ordr_idxx} - {kcp_response.get('res_msg')}")
+                
+                return jsonify({
+                    'success': False,
+                    'error': f'결제 실패: {kcp_response.get("res_msg")}',
+                    'res_cd': kcp_response.get('res_cd')
+                }), 400
+                
+        except requests.RequestException as e:
+            print(f"❌ KCP 결제요청 API 호출 실패: {e}")
+            conn.close()
+            return jsonify({'error': 'KCP 결제요청 API 호출에 실패했습니다.'}), 500
+        
+    except Exception as e:
+        print(f"❌ KCP 결제요청 실패: {e}")
+        return jsonify({'error': 'KCP 결제요청에 실패했습니다.'}), 500
 
 # 관리자 통계
 @app.route('/api/admin/stats', methods=['GET'])
