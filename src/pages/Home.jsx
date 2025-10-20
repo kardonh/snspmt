@@ -252,16 +252,22 @@ const Home = () => {
     // 한국인 패키지 서비스
     korean_package: [
       // 🎯 추천탭 상위노출 (내계정) - 진입단계
-      { id: 1003, name: '🎯 추천탭 상위노출 (내계정) - 진입단계 [3단계 패키지]', price: 20000000, min: 1, max: 1, time: '24-48시간', description: '진입단계 3단계 완전 패키지', package: true, steps: [
+      { id: 1003, name: '🎯 추천탭 상위노출 (내계정) - 진입단계 [4단계 패키지]', price: 20000000, min: 1, max: 1, time: '24-48시간', description: '진입단계 4단계 완전 패키지', package: true, steps: [
         { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 300, delay: 0, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
-        { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', quantity: 3000, delay: 10, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
-        { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' }
+        { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', quantity: 10000, delay: 10, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
+        { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' },
+        { id: 342, name: '4단계: KR 인스타그램 리얼 한국인 랜덤 댓글', quantity: 5, delay: 10, description: '🇰🇷 인스타그램 리얼 한국인 랜덤 댓글💬' }
       ]},
       
       // 🎯 추천탭 상위노출 (내계정) - 유지단계
-      { id: 1004, name: '🎯 추천탭 상위노출 (내계정) - 유지단계 [2단계 패키지]', price: 15000000, min: 1, max: 1, time: '12-24시간', description: '유지단계 2단계 완전 패키지', package: true, steps: [
-        { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 250, delay: 0, description: '[상승단계]:리얼 한국인 좋아요' },
-        { id: 331, name: '2단계: 게시물 노출+도달+홈 [✔연속 유입]', quantity: 3000, delay: 10, description: '[유지단계]:게시물 노출+도달+홈 [✔연속 유입] 작업' }
+      { id: 1004, name: '🎯 추천탭 상위노출 (내계정) - 유지단계 [2단계 패키지]', price: 15000000, min: 1, max: 1, time: '15시간', description: '유지단계 2단계 완전 패키지 (90분 간격)', package: true, steps: [
+        { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [90분당 100개씩 10회]', quantity: 100, delay: 90, description: '[상승단계]:리얼 한국인 좋아요 - 90분 간격 10회 반복' },
+        { id: 331, name: '2단계: 게시물 노출+도달+홈 [90분당 200개씩 10회]', quantity: 200, delay: 90, description: '[유지단계]:게시물 노출+도달+홈 - 90분 간격 10회 반복' }
+      ]},
+      
+      // 인스타 계정 상위노출 [30일]
+      { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 400개씩 30일간', package: true, steps: [
+        { id: 515, name: '인스타그램 프로필 방문', quantity: 400, delay: 0, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' }
       ]}
     ],
     
@@ -592,19 +598,23 @@ const Home = () => {
     top_exposure: {
       manual: [
         // 🎯 추천탭 상위노출 (내계정) - 진입단계
-        { id: 1003, name: '🎯 추천탭 상위노출 (내계정) - 진입단계 [3단계 패키지]', price: 20000000, min: 1, max: 1, time: '24-48시간', description: '진입단계 3단계 완전 패키지', package: true, steps: [
-          { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 300, delay: 0, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
-          { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', quantity: 3000, delay: 10, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
-          { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' }
-        ]},
+      { id: 1003, name: '🎯 추천탭 상위노출 (내계정) - 진입단계 [4단계 패키지]', price: 20000000, min: 1, max: 1, time: '24-48시간', description: '진입단계 4단계 완전 패키지', package: true, steps: [
+        { id: 122, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 300, delay: 0, description: '🇰🇷 인스타그램 한국인 💎💎파워업 좋아요💖💖[💪인.게 최적화↑]' },
+        { id: 329, name: '2단계: 파워 게시물 노출 + 도달 + 기타 유입', quantity: 3000, delay: 10, description: '5️⃣:[등록단계]파워게시물 노출 + 도달 + 홈 유입' },
+        { id: 328, name: '3단계: 파워 게시물 저장 유입', quantity: 1000, delay: 10, description: '4️⃣[등록단계]파워 게시물 저장 유입' },
+        { id: 342, name: '4단계: KR 인스타그램 리얼 한국인 랜덤 댓글', quantity: 5, delay: 10, description: '🇰🇷 인스타그램 리얼 한국인 랜덤 댓글💬' }
+      ]},
         
         // 🎯 추천탭 상위노출 (내계정) - 유지단계
-        { id: 1004, name: '🎯 추천탭 상위노출 (내계정) - 유지단계 [2단계 패키지]', price: 15000000, min: 1, max: 1, time: '12-24시간', description: '유지단계 2단계 완전 패키지', package: true, steps: [
-          { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [진입 단계]', quantity: 250, delay: 0, description: '[상승단계]:리얼 한국인 좋아요' },
-          { id: 331, name: '2단계: 게시물 노출+도달+홈 [✔연속 유입]', quantity: 3000, delay: 10, description: '[유지단계]:게시물 노출+도달+홈 [✔연속 유입] 작업' }
+        { id: 1004, name: '🎯 추천탭 상위노출 (내계정) - 유지단계 [2단계 패키지]', price: 15000000, min: 1, max: 1, time: '15시간', description: '유지단계 2단계 완전 패키지 (90분 간격)', package: true, steps: [
+          { id: 325, name: '1단계: 실제 한국인 게시물 좋아요 [90분당 100개씩 10회]', quantity: 100, delay: 90, description: '[상승단계]:리얼 한국인 좋아요 - 90분 간격 10회 반복' },
+          { id: 331, name: '2단계: 게시물 노출+도달+홈 [90분당 200개씩 10회]', quantity: 200, delay: 90, description: '[유지단계]:게시물 노출+도달+홈 - 90분 간격 10회 반복' }
         ]},
         
         // 인스타 계정 상위노출 [30일]
+        { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 400개씩 30일간', package: true, steps: [
+          { id: 515, name: '인스타그램 프로필 방문', quantity: 400, delay: 0, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' }
+        ]},
         { id: 1001, name: '인스타 계정 상위노출 [30일]', price: 5000000, min: 1, max: 1, time: '30일', description: '인스타그램 계정 상위노출 서비스' },
         
         // 인스타 최적화 계정만들기 [30일]
@@ -2637,7 +2647,7 @@ const Home = () => {
           )}
 
           {/* 분할 발송 체크박스 - 숨김 처리 */}
-          {true && (
+          {false && (
           <div className="split-delivery-section">
             <div className="split-delivery-checkbox">
               <input
