@@ -114,6 +114,7 @@ const PointsPage = () => {
       }
       
       if (!registerResult.success) {
+        console.error('KCP 거래등록 실패 응답:', registerResult)
         throw new Error(registerResult.error || 'KCP 거래등록 실패')
       }
 

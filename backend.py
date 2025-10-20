@@ -3245,17 +3245,21 @@ def kcp_register_transaction():
                     'message': 'KCP 결제 준비가 완료되었습니다. 결제창을 호출합니다.'
                 }), 200
             else:
+                # 실패 원인과 원문 응답을 함께 반환해 프런트에서 표시/로깅 가능하게 함
                 return jsonify({
-                    'error': f'KCP 거래등록 실패: {kcp_response.get("Message", "알 수 없는 오류")}'
+                    'success': False,
+                    'error': f"KCP 거래등록 실패: {kcp_response.get('Message', '알 수 없는 오류')}",
+                    'kcp_response': kcp_response
                 }), 400
                 
         except requests.RequestException as e:
             print(f"❌ KCP 거래등록 API 호출 실패: {e}")
-            return jsonify({'error': 'KCP 거래등록 API 호출에 실패했습니다.'}), 500
+            # 네트워크/타임아웃 등 요청 자체 실패 시 상세 사유 전달
+            return jsonify({'success': False, 'error': f'KCP 거래등록 API 호출 실패: {str(e)}'}), 502
         
     except Exception as e:
         print(f"❌ KCP 거래등록 실패: {e}")
-        return jsonify({'error': 'KCP 거래등록에 실패했습니다.'}), 500
+        return jsonify({'success': False, 'error': f'KCP 거래등록에 실패했습니다: {str(e)}'}), 500
 
 # KCP 표준결제 - 결제창 호출 데이터 생성
 @app.route('/api/points/purchase-kcp/payment-form', methods=['POST'])
