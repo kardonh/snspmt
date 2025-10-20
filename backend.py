@@ -3195,8 +3195,13 @@ def kcp_register_transaction():
         print(f"🔍 KCP 거래등록 데이터: {register_data}")
         
         try:
-            # KCP API는 form-data로 요청해야 함
-            response = requests.post(kcp_register_url, data=register_data, timeout=30)
+            # 해당 엔드포인트는 JSON 포맷을 요구 (S005 예방)
+            response = requests.post(
+                kcp_register_url,
+                json=register_data,
+                headers={"Content-Type": "application/json"},
+                timeout=30,
+            )
             response.raise_for_status()
             
             # 응답 내용 로깅
