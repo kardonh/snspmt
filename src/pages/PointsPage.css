@@ -1562,9 +1562,9 @@
 /* 입금 계좌 정보 버튼 */
 .account-info-btn {
   width: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
+  background: transparent;
+  color: #667eea;
+  border: 2px solid #667eea;
   border-radius: 12px;
   padding: 16px 24px;
   font-size: 16px;
@@ -1579,6 +1579,8 @@
 }
 
 .account-info-btn:hover {
+  background: #667eea;
+  color: white;
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
 }
@@ -1594,29 +1596,26 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 20px;
-  animation: modalFadeIn 0.3s ease-out;
+  animation: modalFadeIn 0.2s ease-out;
 }
 
 .modal-content {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 24px;
-  max-width: 520px;
+  background: white;
+  border-radius: 16px;
+  max-width: 480px;
   width: 100%;
-  max-height: 90vh;
+  max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 
-    0 32px 64px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(255, 255, 255, 0.8),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  border: 2px solid rgba(102, 126, 234, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 1px solid #e5e7eb;
 }
 
 @keyframes modalFadeIn {
@@ -1643,34 +1642,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28px 36px 20px 36px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 24px 24px 0 0;
-  position: relative;
-  overflow: hidden;
-}
-
-.modal-header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  animation: shimmer 3s infinite;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .modal-header h2 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 800;
-  color: white;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  letter-spacing: -0.5px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
 }
 
 @keyframes shimmer {
@@ -1678,31 +1658,29 @@
   100% { left: 100%; }
 }
 
-.modal-close-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: white;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 28px;
+  height: 28px;
 }
 
-.modal-close-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+.close-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .modal-body {
-  padding: 32px 36px 36px 36px;
+  padding: 24px;
 }
 
 .modal-info {
@@ -1747,73 +1725,66 @@
 }
 
 .account-modal .account-details {
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .account-modal .account-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 16px;
-  margin-bottom: 16px;
-  border: 2px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
+  padding: 16px 20px;
+  background: white;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
 }
 
 .account-modal .account-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
 }
 
 .account-modal .account-label {
-  font-weight: 700;
+  font-weight: 600;
   color: #374151;
-  font-size: 15px;
-  letter-spacing: -0.2px;
+  font-size: 14px;
 }
 
 .account-modal .account-value-with-copy {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
 }
 
 .account-modal .account-value {
-  font-weight: 700;
+  font-weight: 600;
   color: #1f2937;
-  font-size: 17px;
+  font-size: 15px;
   font-family: 'Courier New', monospace;
-  letter-spacing: 0.5px;
 }
 
 .account-modal .copy-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #667eea;
   color: white;
   border: none;
-  border-radius: 12px;
-  width: 36px;
-  height: 36px;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transition: all 0.2s ease;
 }
 
 .account-modal .copy-btn:hover {
-  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-  transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  background: #5a67d8;
+  transform: scale(1.05);
 }
 
 .account-modal .copy-btn.copied {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  background: #10b981;
 }
 
 .account-modal .account-note {
@@ -2269,45 +2240,45 @@
 }
 
 .account-modal .modal-info {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  padding: 20px 24px;
-  border-radius: 16px;
-  margin-bottom: 24px;
-  border: 1px solid #bae6fd;
+  background: #f8fafc;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid #e2e8f0;
 }
 
 .account-modal .modal-info p {
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
   font-size: 14px;
-  color: #0369a1;
-  font-weight: 600;
+  color: #475569;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .account-modal .modal-info p:last-child {
   margin-bottom: 0;
   font-size: 13px;
-  color: #0284c7;
+  color: #64748b;
 }
 
 .account-modal .account-note {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  padding: 16px 20px;
-  border-radius: 12px;
+  background: #fef3c7;
+  padding: 12px 16px;
+  border-radius: 8px;
   border: 1px solid #f59e0b;
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .account-modal .account-note p {
-  margin: 0 0 8px 0;
+  margin: 0 0 4px 0;
   font-size: 13px;
   color: #92400e;
-  font-weight: 600;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .account-modal .account-note p:last-child {
