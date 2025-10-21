@@ -514,24 +514,11 @@ const AdminPage = () => {
     }
   }
 
-  // 액션 버튼 텍스트 변환
-  const getActionButtonText = (status) => {
-    switch (status) {
-      case '주문발송':
-        return '주문발송'
-      case '주문 실행중':
-        return '주문 실행중'
-      case '주문 실행완료':
-        return '주문 실행완료'
-      case '주문 미처리':
-        return '주문 미처리'
-      default:
-        return '주문발송'
-    }
-  }
 
-  // 주문 상태 변경
-  const handleOrderStatusChange = async (orderId, newStatus) => {
+  // 강제완료 처리
+  const handleForceComplete = async (orderId) => {
+    if (!confirm('이 주문을 강제완료 처리하시겠습니까?')) return
+    
     try {
       setIsLoading(true)
       const response = await adminFetch(`/api/orders/${orderId}/status`, {
@@ -539,46 +526,21 @@ const AdminPage = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: '주문 실행완료' })
       })
       
       if (response.ok) {
         await loadOrders()
-        alert('주문 상태가 변경되었습니다.')
+        alert('주문이 강제완료 처리되었습니다.')
       } else {
         const errorData = await response.json()
         alert(`오류: ${errorData.error}`)
       }
     } catch (error) {
-      alert('주문 상태 변경 중 오류가 발생했습니다.')
+      alert('강제완료 처리 중 오류가 발생했습니다.')
     } finally {
       setIsLoading(false)
     }
-  }
-
-  // 주문 액션 처리 (4개 상태로 통일)
-  const handleOrderAction = async (orderId) => {
-    // 주문 상태에 따라 다음 단계로 진행
-    const currentOrder = orders.find(order => order.orderId === orderId)
-    if (!currentOrder) return
-
-    let nextStatus
-    switch (currentOrder.status) {
-      case '주문발송':
-        nextStatus = '주문 실행중'  // 주문발송 → 주문 실행중
-        break
-      case '주문 실행중':
-        nextStatus = '주문 실행완료'  // 주문 실행중 → 주문 실행완료
-        break
-      case '주문 실행완료':
-        return // 이미 완료된 주문
-      case '주문 미처리':
-        return // 미처리된 주문
-      default:
-        nextStatus = '주문 실행중'
-    }
-
-    await handleOrderStatusChange(orderId, nextStatus)
   }
 
   // 추천인 데이터 로드
@@ -1190,18 +1152,17 @@ const AdminPage = () => {
                 )}
                 
                 <div className="order-actions-buttons">
-                  <button 
-                    className={`status-btn ${getOrderStatusClass(order.status)}`}
-                    onClick={() => handleOrderStatusChange(order.orderId, 'in_progress')}
-                  >
+                  <span className={`status-badge ${getOrderStatusClass(order.status)}`}>
                     {getOrderStatusText(order.status)}
-                  </button>
-                  <button 
-                    className="action-btn purple"
-                    onClick={() => handleOrderAction(order.orderId)}
-                  >
-                    {getActionButtonText(order.status)}
-                  </button>
+                  </span>
+                  {order.status !== '주문 실행완료' && (
+                    <button 
+                      className="action-btn force-complete"
+                      onClick={() => handleForceComplete(order.orderId)}
+                    >
+                      강제완료
+                    </button>
+                  )}
                 </div>
                 
                 <div className="order-link">

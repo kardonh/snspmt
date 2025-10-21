@@ -478,7 +478,7 @@ const PointsPage = () => {
             
             <div className="modal-body">
               <div className="modal-info">
-                <p>💰 아래 계좌로 입금 후 입금자명과 계좌정보를 입력해주세요</p>
+                <p>💰 아래와 같이 계좌가 개설되어 있음을 확인합니다</p>
                 <p>입금 확인 후 관리자가 승인하여 포인트가 충전됩니다</p>
               </div>
               
@@ -486,10 +486,10 @@ const PointsPage = () => {
                 <div className="account-item">
                   <span className="account-label">예금주</span>
                   <div className="account-value-with-copy">
-                    <span className="account-value">SOCIALITY</span>
+                    <span className="account-value">서동현(탬블(tamble)) 님</span>
                     <button 
                       className="copy-btn"
-                      onClick={() => copyToClipboard('SOCIALITY', '예금주명')}
+                      onClick={() => copyToClipboard('서동현(탬블(tamble)) 님', '예금주명')}
                     >
                       <Copy size={16} />
                     </button>
@@ -497,12 +497,12 @@ const PointsPage = () => {
                 </div>
                 
                 <div className="account-item">
-                  <span className="account-label">은행명</span>
+                  <span className="account-label">계좌종류</span>
                   <div className="account-value-with-copy">
-                    <span className="account-value">국민은행</span>
+                    <span className="account-value">개인사업자통장</span>
                     <button 
                       className="copy-btn"
-                      onClick={() => copyToClipboard('국민은행', '은행명')}
+                      onClick={() => copyToClipboard('개인사업자통장', '계좌종류')}
                     >
                       <Copy size={16} />
                     </button>
@@ -512,14 +512,64 @@ const PointsPage = () => {
                 <div className="account-item">
                   <span className="account-label">계좌번호</span>
                   <div className="account-value-with-copy">
-                    <span className="account-value">123456-78-901234</span>
+                    <span className="account-value">3333-34-9347430</span>
                     <button 
                       className="copy-btn"
-                      onClick={() => copyToClipboard('123456-78-901234', '계좌번호')}
+                      onClick={() => copyToClipboard('3333-34-9347430', '계좌번호')}
                     >
                       <Copy size={16} />
                     </button>
                   </div>
+                </div>
+                
+                <div className="account-item">
+                  <span className="account-label">개설일</span>
+                  <div className="account-value-with-copy">
+                    <span className="account-value">2025.09.01</span>
+                    <button 
+                      className="copy-btn"
+                      onClick={() => copyToClipboard('2025.09.01', '개설일')}
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="account-item">
+                  <span className="account-label">과세구분</span>
+                  <div className="account-value-with-copy">
+                    <span className="account-value">일반과세</span>
+                    <button 
+                      className="copy-btn"
+                      onClick={() => copyToClipboard('일반과세', '과세구분')}
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="account-item">
+                  <span className="account-label">은행명</span>
+                  <div className="account-value-with-copy">
+                    <span className="account-value">(주)카카오뱅크</span>
+                    <button 
+                      className="copy-btn"
+                      onClick={() => copyToClipboard('(주)카카오뱅크', '은행명')}
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="deposit-protection">
+                <div className="protection-logo">
+                  <div className="protection-icon">예금보험공사</div>
+                  <div className="protection-text">보호금융상품</div>
+                  <div className="protection-amount">1인당 최고 1억원</div>
+                </div>
+                <div className="protection-disclaimer">
+                  <p>이 예금은 예금자보호법에 따라 원금과 소정의 이자를 합하여 1인당 "1억원까지"(본 은행의 여타 보호상품과 합산) 보호됩니다.</p>
                 </div>
               </div>
               

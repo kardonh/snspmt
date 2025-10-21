@@ -2306,6 +2306,65 @@
   transform: translateY(0);
 }
 
+/* 예금보험공사 보호 정보 스타일 */
+.deposit-protection {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.protection-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.protection-icon {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.protection-text {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.protection-amount {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #fbbf24;
+}
+
+.protection-disclaimer {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.protection-disclaimer p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #374151;
+  text-align: left;
+}
+
 /* 모바일에서 결제 방식 선택 최적화 */
 @media (max-width: 768px) {
   .payment-method-options {
