@@ -388,14 +388,6 @@ const PointsPage = () => {
               </div>
               
               
-              <button
-                type="button"
-                className="account-info-btn"
-                onClick={() => setShowAccountModal(true)}
-              >
-                <Building2 size={20} />
-                입금 계좌 정보 보기
-              </button>
             </div>
           )}
 
