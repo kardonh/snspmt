@@ -20,6 +20,7 @@ const PointsPage = () => {
   const [companyName, setCompanyName] = useState('')
   const [companyNumber, setCompanyNumber] = useState('')
   const [cashReceiptNumber, setCashReceiptNumber] = useState('')
+  const [showAccountModal, setShowAccountModal] = useState(false)
 
   const pointPackages = [
     { amount: 5000, price: 5000 },
@@ -260,6 +261,22 @@ const PointsPage = () => {
     return found || { amount: 0, price: 0 }
   }
 
+  const copyToClipboard = async (text, type) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      alert(`${type}이 복사되었습니다!`)
+    } catch (err) {
+      // 클립보드 API가 지원되지 않는 경우 대체 방법
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      alert(`${type}이 복사되었습니다!`)
+    }
+  }
+
   return (
     <div className="points-page">
       <div className="points-header">
@@ -385,6 +402,15 @@ const PointsPage = () => {
                   placeholder="예금주명을 입력하세요 (선택사항)"
                 />
               </div>
+              
+              <button
+                type="button"
+                className="account-info-btn"
+                onClick={() => setShowAccountModal(true)}
+              >
+                <Building2 size={20} />
+                입금 계좌 정보 보기
+              </button>
             </div>
           )}
 
@@ -448,6 +474,75 @@ const PointsPage = () => {
 
       </div>
 
+      {/* 계좌 정보 모달 */}
+      {showAccountModal && (
+        <div className="modal-overlay" onClick={() => setShowAccountModal(false)}>
+          <div className="modal-content account-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>입금 계좌 정보</h2>
+              <button 
+                className="close-btn"
+                onClick={() => setShowAccountModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="modal-info">
+                <p>💰 아래 계좌로 입금 후 입금자명과 계좌정보를 입력해주세요</p>
+                <p>입금 확인 후 관리자가 승인하여 포인트가 충전됩니다</p>
+              </div>
+              
+              <div className="account-details">
+                <div className="account-item">
+                  <span className="account-label">예금주</span>
+                  <div className="account-value-with-copy">
+                    <span className="account-value">SOCIALITY</span>
+                    <button 
+                      className="copy-btn"
+                      onClick={() => copyToClipboard('SOCIALITY', '예금주명')}
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="account-item">
+                  <span className="account-label">은행명</span>
+                  <div className="account-value-with-copy">
+                    <span className="account-value">국민은행</span>
+                    <button 
+                      className="copy-btn"
+                      onClick={() => copyToClipboard('국민은행', '은행명')}
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="account-item">
+                  <span className="account-label">계좌번호</span>
+                  <div className="account-value-with-copy">
+                    <span className="account-value">123456-78-901234</span>
+                    <button 
+                      className="copy-btn"
+                      onClick={() => copyToClipboard('123456-78-901234', '계좌번호')}
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="account-note">
+                <p>⚠️ 입금 시 반드시 입금자명을 정확히 입력해주세요</p>
+                <p>입금 확인 후 1-2시간 내에 포인트가 충전됩니다</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
