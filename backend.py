@@ -3214,23 +3214,10 @@ def get_orders():
                 display_order_id = smm_panel_order_id if smm_panel_order_id else order_id
                 
                 # SMM Panel API에서 실제 사용 금액 조회
+                # 사용한 금액은 기본값 0으로 설정 (SMM Panel API 호출 제거로 성능 개선)
                 charge = 0
-                if smm_panel_order_id:
-                    try:
-                        # SMM Panel API로 주문 상태 조회하여 실제 charge 값 가져오기
-                        smm_status = call_smm_panel_api({
-                            'action': 'status',
-                            'order': smm_panel_order_id
-                        })
-                        
-                        if smm_status.get('status') == 'success':
-                            charge = smm_status.get('charge', 0)
-                            print(f"✅ SMM Panel charge 조회 성공: {charge}")
-                        else:
-                            print(f"⚠️ SMM Panel charge 조회 실패: {smm_status.get('message')}")
-                    except Exception as e:
-                        print(f"⚠️ SMM Panel charge 조회 오류: {e}")
-                        charge = 0
+                # SMM Panel API 호출을 제거하여 타임아웃 방지
+                # 필요시 별도 엔드포인트에서 비동기로 처리
                 
                 # 서비스 이름 결정 (우선순위: detailed_service > get_service_name > 기본값)
                 if detailed_service:
