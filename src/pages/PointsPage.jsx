@@ -237,7 +237,8 @@ const PointsPage = () => {
       console.log('🔍 수동 구매 신청 응답:', data)
 
       if (data.success) {
-        alert('포인트 구매 신청이 완료되었습니다. 관리자 승인 후 포인트가 충전됩니다.')
+        // 구매 신청 완료 후 계좌 정보 모달 표시
+        setShowAccountModal(true)
         loadUserPoints()
         loadPurchaseHistory()
         // 폼 초기화
@@ -345,8 +346,8 @@ const PointsPage = () => {
                     <p>🔒 KCP 보안 시스템으로 안전한 결제</p>
                   </div>
                 </div>
-              </div>
-              
+          </div>
+
               <div 
                 className={`payment-method-option ${paymentMethod === 'manual' ? 'selected' : ''}`}
                 onClick={() => setPaymentMethod('manual')}
@@ -465,6 +466,17 @@ const PointsPage = () => {
                       {purchase.status === 'kcp_registered' && 'KCP 결제 대기중'}
                       {purchase.status === 'kcp_approved' && 'KCP 결제 완료'}
                     </div>
+                    {/* 계좌이체 방식인 경우 계좌 정보 보기 버튼 */}
+                    {purchase.status === 'pending' && (
+                      <button
+                        className="account-info-small-btn"
+                        onClick={() => setShowAccountModal(true)}
+                        title="입금 계좌 정보 보기"
+                      >
+                        <Building2 size={16} />
+                        계좌정보
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

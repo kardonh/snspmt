@@ -2316,6 +2316,34 @@
   color: #a16207;
 }
 
+/* 구매 내역 계좌 정보 버튼 */
+.account-info-small-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.3s ease;
+  margin-top: 8px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.account-info-small-btn:hover {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.account-info-small-btn:active {
+  transform: translateY(0);
+}
+
 /* 모바일에서 결제 방식 선택 최적화 */
 @media (max-width: 768px) {
   .payment-method-options {
