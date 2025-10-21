@@ -6119,6 +6119,75 @@ def check_order_status():
     except Exception as e:
         return jsonify({'error': f'주문 상태 확인 실패: {str(e)}'}), 500
 
+# 주문 상태 업데이트 API
+@app.route('/api/orders/<order_id>/status', methods=['PUT'])
+@require_admin_auth
+def update_order_status(order_id):
+    """주문 상태 업데이트 (관리자 전용)"""
+    conn = None
+    cursor = None
+    
+    try:
+        data = request.get_json()
+        new_status = data.get('status')
+        
+        if not new_status:
+            return jsonify({'error': '새로운 상태가 필요합니다.'}), 400
+        
+        print(f"🔄 주문 상태 업데이트 요청: {order_id} -> {new_status}")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 현재 주문 상태 확인
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("SELECT status FROM orders WHERE order_id = %s", (order_id,))
+        else:
+            cursor.execute("SELECT status FROM orders WHERE order_id = ?", (order_id,))
+        
+        result = cursor.fetchone()
+        if not result:
+            return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
+        
+        current_status = result[0]
+        print(f"📊 현재 상태: {current_status} -> {new_status}")
+        
+        # 주문 상태 업데이트
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                UPDATE orders SET status = %s, updated_at = NOW() 
+                WHERE order_id = %s
+            """, (new_status, order_id))
+        else:
+            cursor.execute("""
+                UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP 
+                WHERE order_id = ?
+            """, (new_status, order_id))
+        
+        conn.commit()
+        print(f"✅ 주문 {order_id} 상태가 {new_status}로 업데이트되었습니다.")
+        
+        return jsonify({
+            'success': True,
+            'order_id': order_id,
+            'old_status': current_status,
+            'new_status': new_status,
+            'message': f'주문 상태가 {current_status}에서 {new_status}로 변경되었습니다.'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 주문 상태 업데이트 실패: {str(e)}")
+        import traceback
+        print(f"❌ 스택 트레이스: {traceback.format_exc()}")
+        if conn:
+            conn.rollback()
+        return jsonify({'error': f'주문 상태 업데이트 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 # 공지사항 관리 API
 @app.route('/api/admin/notices', methods=['GET'])
 @require_admin_auth
