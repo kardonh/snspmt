@@ -2978,8 +2978,8 @@ def start_package_processing():
         print(f"🔍 패키지 단계 정보: {package_steps_json}")
         
         # 패키지 주문의 경우 이미 처리 중이거나 완료된 상태일 수 있음
-        # pending_payment 상태도 처리 가능하도록 추가
-        if status not in ['pending', 'pending_payment', 'package_processing', 'completed']:
+        # pending_payment, 주문발송 상태도 처리 가능하도록 추가
+        if status not in ['pending', 'pending_payment', 'package_processing', 'completed', '주문발송']:
             print(f"❌ 주문 {order_id} 상태가 처리 가능한 상태가 아닙니다. 현재 상태: {status}")
             return jsonify({'error': f'주문 상태가 처리할 수 없습니다. 현재 상태: {status}'}), 400
         
@@ -3158,7 +3158,7 @@ def get_orders():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 주문 정보 조회 - 필요한 컬럼 모두 포함
+        # 주문 정보 조회 - 최소한의 컬럼만 조회하여 성능 개선
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT order_id, service_id, link, quantity, price, status, created_at, 
@@ -3166,7 +3166,7 @@ def get_orders():
                 FROM orders 
                 WHERE user_id = %s
                 ORDER BY created_at DESC
-                LIMIT 20
+                LIMIT 10
             """, (user_id,))
         else:
             cursor.execute("""
@@ -3175,7 +3175,7 @@ def get_orders():
                 FROM orders 
                 WHERE user_id = ?
                 ORDER BY created_at DESC
-                LIMIT 20
+                LIMIT 10
             """, (user_id,))
         
         orders = cursor.fetchall()
