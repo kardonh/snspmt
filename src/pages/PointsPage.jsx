@@ -15,11 +15,6 @@ const PointsPage = () => {
   const [paymentMethod, setPaymentMethod] = useState('kcp') // 'kcp' 또는 'manual'
   const [buyerName, setBuyerName] = useState('')
   const [bankInfo, setBankInfo] = useState('')
-  const [depositorName, setDepositorName] = useState('')
-  const [receiptType, setReceiptType] = useState('none')
-  const [companyName, setCompanyName] = useState('')
-  const [companyNumber, setCompanyNumber] = useState('')
-  const [cashReceiptNumber, setCashReceiptNumber] = useState('')
   const [showAccountModal, setShowAccountModal] = useState(false)
 
   const pointPackages = [
@@ -244,7 +239,6 @@ const PointsPage = () => {
         // 폼 초기화
         setBuyerName('')
         setBankInfo('')
-        setDepositorName('')
         setSelectedAmount(0)
       } else {
         alert(`포인트 구매 신청 실패: ${data.error}`)
@@ -393,16 +387,6 @@ const PointsPage = () => {
                 />
               </div>
               
-              <div className="form-group">
-                <label htmlFor="depositorName">예금주명</label>
-                <input
-                  type="text"
-                  id="depositorName"
-                  value={depositorName}
-                  onChange={(e) => setDepositorName(e.target.value)}
-                  placeholder="예금주명을 입력하세요 (선택사항)"
-                />
-              </div>
               
               <button
                 type="button"
