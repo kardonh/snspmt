@@ -2702,27 +2702,30 @@ def create_order():
             real_order_id = int(time.time())
             print(f"📅 예약 주문 - 임시 ID 사용: {real_order_id}")
         
+        # detailed_service 정보 가져오기
+        detailed_service = data.get('detailed_service', '')
+        
         # 주문 생성 (SMM Panel 주문번호 사용)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
                                 discount_amount, referral_code, status, created_at, updated_at,
-                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id)
+                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(),
-                        %s, %s, %s, %s, %s, %s)
+                        %s, %s, %s, %s, %s, %s, %s)
             """, (real_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
                 referral_data[0] if referral_data else None, '주문발송' if not is_scheduled else 'pending_payment',
-                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id))
+                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service))
         else:
             cursor.execute("""
                 INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
                                 discount_amount, referral_code, status, created_at, updated_at,
-                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id)
+                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                        ?, ?, ?, ?, ?, ?)
+                        ?, ?, ?, ?, ?, ?, ?)
             """, (real_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
                 referral_data[0] if referral_data else None, '주문발송' if not is_scheduled else 'pending_payment',
-                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id))
+                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service))
         
         order_id = real_order_id
         print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {user_id}, service_id: {service_id}, price: {final_price}")
@@ -3229,11 +3232,17 @@ def get_orders():
                         print(f"⚠️ SMM Panel charge 조회 오류: {e}")
                         charge = 0
                 
+                # 서비스 이름 결정 (우선순위: detailed_service > get_service_name > 기본값)
+                if detailed_service:
+                    service_name = detailed_service
+                else:
+                    service_name = get_service_name(service_id)
+                
                 order_list.append({
                     'id': display_order_id,
                     'order_id': display_order_id,
                     'service_id': service_id,
-                    'service_name': detailed_service or f'서비스 {service_id}',
+                    'service_name': service_name,
                     'link': link,
                     'quantity': quantity,
                     'price': price,
