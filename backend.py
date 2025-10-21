@@ -1057,6 +1057,169 @@ def reprocess_stuck_package_orders():
         if conn:
             conn.close()
 
+# 주문 상태 업데이트 스케줄 함수
+def schedule_order_status_update(order_id, new_status, delay_minutes):
+    """주문 상태를 지정된 시간 후에 업데이트하도록 스케줄"""
+    import threading
+    import time
+    
+    def update_order_status():
+        time.sleep(delay_minutes * 60)  # 분을 초로 변환
+        
+        conn = None
+        cursor = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # 현재 주문 상태 확인
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("SELECT status FROM orders WHERE order_id = %s", (order_id,))
+            else:
+                cursor.execute("SELECT status FROM orders WHERE order_id = ?", (order_id,))
+            
+            result = cursor.fetchone()
+            if not result:
+                print(f"⚠️ 주문 {order_id}을 찾을 수 없습니다.")
+                return
+            
+            current_status = result[0]
+            
+            # 이미 완료된 주문이면 상태 변경하지 않음
+            if current_status in ['주문 실행완료', 'failed', 'cancelled']:
+                print(f"⚠️ 주문 {order_id}은 이미 {current_status} 상태입니다. 상태 변경을 건너뜁니다.")
+                return
+            
+            # 주문 상태 업데이트
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE orders SET status = %s, updated_at = NOW() 
+                    WHERE order_id = %s
+                """, (new_status, order_id))
+            else:
+                cursor.execute("""
+                    UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE order_id = ?
+                """, (new_status, order_id))
+            
+            conn.commit()
+            print(f"✅ 주문 {order_id} 상태가 {new_status}로 자동 업데이트되었습니다.")
+            
+        except Exception as e:
+            print(f"❌ 주문 {order_id} 상태 업데이트 실패: {e}")
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+    
+    # 백그라운드에서 실행
+    thread = threading.Thread(target=update_order_status)
+    thread.daemon = True
+    thread.start()
+    print(f"📅 주문 {order_id}의 상태가 {delay_minutes}분 후에 '{new_status}'로 변경되도록 스케줄되었습니다.")
+
+# SMM Panel API 상태 확인 및 자동 완료 처리 함수
+def check_and_update_order_status():
+    """SMM Panel API를 통해 주문 상태를 확인하고 자동으로 완료 처리"""
+    conn = None
+    cursor = None
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 주문 실행중 상태인 주문들 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT order_id, smm_panel_order_id, created_at 
+                FROM orders 
+                WHERE status = '주문 실행중' 
+                AND smm_panel_order_id IS NOT NULL
+                AND created_at > NOW() - INTERVAL '25 hours'
+                ORDER BY created_at DESC
+                LIMIT 50
+            """)
+        else:
+            cursor.execute("""
+                SELECT order_id, smm_panel_order_id, created_at 
+                FROM orders 
+                WHERE status = '주문 실행중' 
+                AND smm_panel_order_id IS NOT NULL
+                AND created_at > datetime('now', '-25 hours')
+                ORDER BY created_at DESC
+                LIMIT 50
+            """)
+        
+        orders = cursor.fetchall()
+        print(f"🔍 SMM Panel 상태 확인 대상 주문: {len(orders)}개")
+        
+        for order in orders:
+            order_id, smm_panel_order_id, created_at = order
+            
+            try:
+                # SMM Panel API로 주문 상태 확인
+                import requests
+                smm_api_url = "https://smm-panel.com/api/v2"
+                smm_api_key = os.getenv('SMM_PANEL_API_KEY')
+                
+                if not smm_api_key:
+                    print("⚠️ SMM_PANEL_API_KEY가 설정되지 않았습니다.")
+                    continue
+                
+                # 주문 상태 확인 API 호출
+                status_response = requests.get(f"{smm_api_url}/orders/{smm_panel_order_id}", 
+                                             headers={'Authorization': f'Bearer {smm_api_key}'},
+                                             timeout=10)
+                
+                if status_response.status_code == 200:
+                    status_data = status_response.json()
+                    smm_status = status_data.get('status', '').lower()
+                    
+                    # SMM Panel에서 완료된 경우
+                    if smm_status in ['completed', 'finished', 'done']:
+                        if DATABASE_URL.startswith('postgresql://'):
+                            cursor.execute("""
+                                UPDATE orders SET status = '주문 실행완료', updated_at = NOW() 
+                                WHERE order_id = %s
+                            """, (order_id,))
+                        else:
+                            cursor.execute("""
+                                UPDATE orders SET status = '주문 실행완료', updated_at = CURRENT_TIMESTAMP 
+                                WHERE order_id = ?
+                            """, (order_id,))
+                        
+                        conn.commit()
+                        print(f"✅ 주문 {order_id}이 SMM Panel에서 완료되어 상태가 업데이트되었습니다.")
+                    
+                    # SMM Panel에서 실패한 경우
+                    elif smm_status in ['failed', 'cancelled', 'error']:
+                        if DATABASE_URL.startswith('postgresql://'):
+                            cursor.execute("""
+                                UPDATE orders SET status = 'failed', updated_at = NOW() 
+                                WHERE order_id = %s
+                            """, (order_id,))
+                        else:
+                            cursor.execute("""
+                                UPDATE orders SET status = 'failed', updated_at = CURRENT_TIMESTAMP 
+                                WHERE order_id = ?
+                            """, (order_id,))
+                        
+                        conn.commit()
+                        print(f"❌ 주문 {order_id}이 SMM Panel에서 실패하여 상태가 업데이트되었습니다.")
+                
+            except Exception as e:
+                print(f"⚠️ 주문 {order_id} SMM Panel 상태 확인 실패: {e}")
+                continue
+        
+    except Exception as e:
+        print(f"❌ SMM Panel 상태 확인 중 오류: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 # 예약 주문에서 실제 주문 생성 함수
 def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, quantity, price, package_steps):
     """예약 주문에서 실제 주문 생성"""
@@ -2705,6 +2868,12 @@ def create_order():
                     order_id = real_order_id  # 실제 주문 번호로 업데이트
                     status = '주문발송'
                     message = '주문이 접수되어 진행중입니다.'
+                    
+                    # 2분 후 주문 실행중으로 변경하는 스케줄 설정
+                    schedule_order_status_update(real_order_id, '주문 실행중', 2)  # 2분 후
+                    
+                    # 24시간 후 주문 실행완료로 변경하는 스케줄 설정 (최대 대기시간)
+                    schedule_order_status_update(real_order_id, '주문 실행완료', 1440)  # 24시간 후
                 else:
                     status = 'failed'
                     message = 'SMM Panel API 호출 실패'
@@ -7001,10 +7170,34 @@ def upload_admin_image():
 # 앱 시작 시 자동 초기화
 initialize_app()
 
+# 주기적 SMM Panel 상태 확인 스케줄러
+def start_smm_status_checker():
+    """SMM Panel 상태 확인을 주기적으로 실행하는 스케줄러"""
+    import threading
+    import time
+    
+    def status_checker():
+        while True:
+            try:
+                check_and_update_order_status()
+                time.sleep(300)  # 5분마다 확인
+            except Exception as e:
+                print(f"❌ SMM Panel 상태 확인 스케줄러 오류: {e}")
+                time.sleep(60)  # 오류 시 1분 후 재시도
+    
+    # 백그라운드에서 실행
+    thread = threading.Thread(target=status_checker)
+    thread.daemon = True
+    thread.start()
+    print("🔄 SMM Panel 상태 확인 스케줄러가 시작되었습니다. (5분마다 확인)")
+
 # 스케줄러 시작 (항상 실행)
 scheduler_thread = threading.Thread(target=background_scheduler, daemon=True)
 scheduler_thread.start()
 print("✅ 백그라운드 스케줄러 시작됨")
+
+# SMM Panel 상태 확인 스케줄러 시작
+start_smm_status_checker()
 
 if __name__ == '__main__':
     # 개발 서버 실행
