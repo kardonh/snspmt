@@ -480,15 +480,8 @@ def get_service_name(service_id):
     # SMM Panel에서 받은 실제 서비스명이 있으면 사용, 없으면 매핑에서 찾기
     service_name = service_mapping.get(str(service_id), f'서비스 ID: {service_id}')
     
-    # SMM Panel API에서 서비스 정보를 가져와서 더 정확한 이름 제공
-    try:
-        smm_services = get_smm_panel_services()
-        if smm_services:
-            for service in smm_services:
-                if str(service.get('service')) == str(service_id):
-                    return service.get('name', service_name)
-    except:
-        pass  # SMM API 호출 실패 시 기본 매핑 사용
+    # SMM Panel API 호출 제거로 성능 개선
+    # 기본 매핑만 사용하여 빠른 응답 보장
     
     return service_name
 
