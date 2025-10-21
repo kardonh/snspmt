@@ -12,6 +12,14 @@ const PointsPage = () => {
   const [purchaseHistory, setPurchaseHistory] = useState([])
   const [userInfo, setUserInfo] = useState(null)
   const [isKcpLoading, setIsKcpLoading] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState('kcp') // 'kcp' 또는 'manual'
+  const [buyerName, setBuyerName] = useState('')
+  const [bankInfo, setBankInfo] = useState('')
+  const [depositorName, setDepositorName] = useState('')
+  const [receiptType, setReceiptType] = useState('none')
+  const [companyName, setCompanyName] = useState('')
+  const [companyNumber, setCompanyNumber] = useState('')
+  const [cashReceiptNumber, setCashReceiptNumber] = useState('')
 
   const pointPackages = [
     { amount: 5000, price: 5000 },
@@ -183,7 +191,68 @@ const PointsPage = () => {
 
 
   const handlePurchase = () => {
-    handleKcpPayment()
+    if (paymentMethod === 'kcp') {
+      handleKcpPayment()
+    } else {
+      handleManualPurchase()
+    }
+  }
+
+  const handleManualPurchase = async () => {
+    if (!selectedAmount || selectedAmount <= 0) {
+      alert('포인트 금액을 선택해주세요.')
+      return
+    }
+
+    if (!buyerName.trim()) {
+      alert('입금자명을 입력해주세요.')
+      return
+    }
+
+    if (!bankInfo.trim()) {
+      alert('계좌 정보를 입력해주세요.')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      console.log('🔍 수동 포인트 구매 신청 - 금액:', selectedAmount)
+      
+      const response = await fetch('/api/points/purchase', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: currentUser?.uid || localStorage.getItem('userId') || 'demo_user',
+          amount: selectedAmount,
+          price: selectedAmount,
+          buyer_name: buyerName,
+          bank_info: bankInfo
+        })
+      })
+
+      const data = await response.json()
+      console.log('🔍 수동 구매 신청 응답:', data)
+
+      if (data.success) {
+        alert('포인트 구매 신청이 완료되었습니다. 관리자 승인 후 포인트가 충전됩니다.')
+        loadUserPoints()
+        loadPurchaseHistory()
+        // 폼 초기화
+        setBuyerName('')
+        setBankInfo('')
+        setDepositorName('')
+        setSelectedAmount(0)
+      } else {
+        alert(`포인트 구매 신청 실패: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('❌ 수동 구매 신청 오류:', error)
+      alert(`포인트 구매 신청 중 오류가 발생했습니다: ${error.message}`)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const getSelectedPackage = () => {
@@ -241,22 +310,83 @@ const PointsPage = () => {
         <div className="purchase-form">
           <h2>구매 정보 입력</h2>
           
-          {/* 결제 방식 - KCP 카드결제만 사용 */}
+          {/* 결제 방식 선택 */}
           <div className="payment-method-section">
             <h3>결제 방식</h3>
-            <div className="payment-method-info">
-              <div className="selected-payment-method">
+            <div className="payment-method-options">
+              <div 
+                className={`payment-method-option ${paymentMethod === 'kcp' ? 'selected' : ''}`}
+                onClick={() => setPaymentMethod('kcp')}
+              >
                 <CreditCard className="payment-method-icon" />
-                <span className="payment-method-label">KCP 카드결제 (즉시충전)</span>
-                <span className="payment-method-badge">추천</span>
+                <div className="payment-method-content">
+                  <span className="payment-method-label">KCP 카드결제 (즉시충전)</span>
+                  <span className="payment-method-badge">추천</span>
+                  <div className="payment-method-description">
+                    <p>💳 신용카드로 안전하고 빠른 결제</p>
+                    <p>⚡ 결제 완료 즉시 포인트 자동 충전</p>
+                    <p>🔒 KCP 보안 시스템으로 안전한 결제</p>
+                  </div>
+                </div>
               </div>
-              <div className="payment-method-description">
-                <p>💳 신용카드로 안전하고 빠른 결제</p>
-                <p>⚡ 결제 완료 즉시 포인트 자동 충전</p>
-                <p>🔒 KCP 보안 시스템으로 안전한 결제</p>
+              
+              <div 
+                className={`payment-method-option ${paymentMethod === 'manual' ? 'selected' : ''}`}
+                onClick={() => setPaymentMethod('manual')}
+              >
+                <Building2 className="payment-method-icon" />
+                <div className="payment-method-content">
+                  <span className="payment-method-label">계좌이체 (수동승인)</span>
+                  <div className="payment-method-description">
+                    <p>🏦 계좌이체 후 관리자 승인</p>
+                    <p>⏰ 승인 후 포인트 충전</p>
+                    <p>📋 입금자명과 계좌정보 입력 필요</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* 수동 승인 폼 */}
+          {paymentMethod === 'manual' && (
+            <div className="manual-payment-form">
+              <h3>입금 정보</h3>
+              <div className="form-group">
+                <label htmlFor="buyerName">입금자명 *</label>
+                <input
+                  type="text"
+                  id="buyerName"
+                  value={buyerName}
+                  onChange={(e) => setBuyerName(e.target.value)}
+                  placeholder="입금자명을 입력하세요"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="bankInfo">계좌 정보 *</label>
+                <input
+                  type="text"
+                  id="bankInfo"
+                  value={bankInfo}
+                  onChange={(e) => setBankInfo(e.target.value)}
+                  placeholder="은행명, 계좌번호를 입력하세요"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="depositorName">예금주명</label>
+                <input
+                  type="text"
+                  id="depositorName"
+                  value={depositorName}
+                  onChange={(e) => setDepositorName(e.target.value)}
+                  placeholder="예금주명을 입력하세요 (선택사항)"
+                />
+              </div>
+            </div>
+          )}
 
 
 
@@ -278,7 +408,8 @@ const PointsPage = () => {
             disabled={isLoading || isKcpLoading || selectedAmount === 0}
             className="purchase-btn"
           >
-            {isLoading ? '처리중...' : isKcpLoading ? 'KCP 결제 준비중...' : 'KCP 카드결제'}
+            {isLoading ? '처리중...' : isKcpLoading ? 'KCP 결제 준비중...' : 
+             paymentMethod === 'kcp' ? 'KCP 카드결제' : '포인트 구매 신청'}
           </button>
         </div>
 

@@ -295,12 +295,12 @@ const OrdersPage = () => {
             >
               {ORDER_STATUS_LABELS[ORDER_STATUS.IN_PROGRESS]}
             </button>
-            <button
+              <button
               className={`filter-btn ${selectedFilter === ORDER_STATUS.COMPLETED ? 'active' : ''}`}
               onClick={() => handleFilterChange(ORDER_STATUS.COMPLETED)}
-            >
+              >
               {ORDER_STATUS_LABELS[ORDER_STATUS.COMPLETED]}
-            </button>
+              </button>
           </div>
           <div className="filter-row">
             <button 

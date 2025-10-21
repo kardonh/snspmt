@@ -2154,6 +2154,115 @@
   margin-bottom: 0;
 }
 
+/* 결제 방식 선택 */
+.payment-method-options {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.payment-method-option {
+  flex: 1;
+  border: 2px solid #e1e5e9;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.payment-method-option:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+}
+
+.payment-method-option.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.payment-method-option.selected .payment-method-icon {
+  color: white;
+}
+
+.payment-method-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.payment-method-option .payment-method-label {
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payment-method-option .payment-method-badge {
+  background: #ff6b6b;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.payment-method-option .payment-method-description {
+  margin-top: 8px;
+}
+
+.payment-method-option .payment-method-description p {
+  margin: 4px 0;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* 수동 승인 폼 */
+.manual-payment-form {
+  margin-top: 24px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e1e5e9;
+}
+
+.manual-payment-form h3 {
+  margin: 0 0 16px 0;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.3s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 /* 모바일에서 결제 방식 선택 최적화 */
 @media (max-width: 768px) {
   .payment-method-options {

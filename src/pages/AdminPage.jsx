@@ -1110,25 +1110,25 @@ const AdminPage = () => {
             </button>
           </div>
           
-          <div className="search-bar">
-            <Search size={20} />
-            <input
-              type="text"
+      <div className="search-bar">
+        <Search size={20} />
+        <input
+          type="text"
               placeholder="주문조회"
-              value={tabStates.orders.searchTerm}
-              onChange={(e) => updateSearchTerm('orders', e.target.value)}
-            />
+          value={tabStates.orders.searchTerm}
+          onChange={(e) => updateSearchTerm('orders', e.target.value)}
+        />
             <button className="refresh-btn" onClick={() => loadOrders()}>
               <RefreshCw size={16} />
               새로고침
             </button>
           </div>
         </div>
-      </div>
+          </div>
 
       <div className="orders-list">
-        {filteredOrders.length > 0 ? (
-          filteredOrders.map((order, index) => (
+            {filteredOrders.length > 0 ? (
+              filteredOrders.map((order, index) => (
             <div key={index} className="order-item">
               <div className="order-header">
                 <div className="order-info">
@@ -1212,17 +1212,17 @@ const AdminPage = () => {
                         {order.link}
                       </a>
                     ) : 'N/A'}
-                  </span>
+                    </span>
                 </div>
               </div>
             </div>
-          ))
-        ) : (
+              ))
+            ) : (
           <div className="no-orders">
             <p>{orders.length === 0 ? '주문 데이터를 불러오는 중...' : '검색 결과가 없습니다.'}</p>
           </div>
         )}
-      </div>
+            </div>
                     </div>
   )
 
@@ -1899,7 +1899,7 @@ const AdminPage = () => {
               <div className="form-group">
                 <label>이미지 업로드</label>
                 <div className="image-upload-container">
-                  <input
+                <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => {
@@ -1925,9 +1925,9 @@ const AdminPage = () => {
                       >
                         ×
                       </button>
-                    </div>
+              </div>
                   )}
-                </div>
+              </div>
               </div>
               
               <div className="form-group">
