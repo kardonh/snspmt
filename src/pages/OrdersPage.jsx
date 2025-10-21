@@ -52,7 +52,7 @@ const OrderCard = ({ order, onCopyOrderId, onCopyLink, onRefill }) => {
       <div className="order-header">
         <div className="order-title">
           <span className="service-type">[일반]</span>
-          <span className="service-name">{order.service_name || '서비스명'}</span>
+          <span className="service-name">{order.service_name || order.detailed_service || `서비스 ${order.service_id}`}</span>
           <Plus size={16} className="expand-icon" />
         </div>
         <button className="copy-link-btn" onClick={() => onCopyLink(order.link)}>
@@ -70,7 +70,7 @@ const OrderCard = ({ order, onCopyOrderId, onCopyLink, onRefill }) => {
         <div className="order-details-left">
           <div className="detail-item">
             <span className="detail-label">사용금액 :</span>
-            <span className="detail-value amount">{order.charge || 0}</span>
+            <span className="detail-value amount">{order.charge ? order.charge.toLocaleString() : '0'}</span>
           </div>
           <div className="detail-item">
             <span className="detail-label">남은수량:</span>

@@ -3029,14 +3029,18 @@ def get_orders():
                 # SMM Panel 주문번호 우선 사용
                 display_order_id = smm_panel_order_id if smm_panel_order_id else order_id
                 
+                # 사용한 금액 계산 (주문 수량 * 단가)
+                charge = quantity * (price / 1000) if price > 0 else 0
+                
                 order_list.append({
                     'id': display_order_id,
                     'order_id': display_order_id,
                     'service_id': service_id,
-                    'service_name': detailed_service or '서비스',
+                    'service_name': detailed_service or f'서비스 {service_id}',
                     'link': link,
                     'quantity': quantity,
                     'price': price,
+                    'charge': charge,  # 사용한 금액 추가
                     'status': status,
                     'created_at': created_at_str,
                     'is_package': False,  # 간소화
