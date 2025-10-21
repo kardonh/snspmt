@@ -2662,6 +2662,19 @@ def create_order():
         if not is_scheduled:
             print(f"🚀 일반 주문 - 즉시 SMM Panel API 호출")
             try:
+                # SMM Panel에서 사용 가능한 서비스 목록 확인
+                smm_services_result = get_smm_panel_services()
+                if smm_services_result.get('status') == 'success':
+                    available_service_ids = smm_services_result.get('service_ids', [])
+                    if str(service_id) not in available_service_ids:
+                        print(f"❌ 서비스 ID {service_id}가 SMM Panel에서 사용 불가능합니다.")
+                        print(f"📋 사용 가능한 서비스 ID: {available_service_ids[:10]}...")  # 처음 10개만 표시
+                        return jsonify({'error': f'서비스 ID {service_id}가 SMM Panel에서 사용 불가능합니다. 사용 가능한 서비스를 확인해주세요.'}), 400
+                    else:
+                        print(f"✅ 서비스 ID {service_id} 검증 완료")
+                else:
+                    print(f"⚠️ SMM Panel 서비스 목록 조회 실패, 서비스 ID 검증 건너뜀: {smm_services_result.get('message')}")
+                
                 smm_result = call_smm_panel_api({
                     'service': service_id,
                     'link': link,
@@ -2675,10 +2688,10 @@ def create_order():
                     print(f"✅ SMM Panel 주문 생성 성공: {real_order_id}")
                 else:
                     print(f"❌ SMM Panel API 호출 실패: {smm_result.get('message')}")
-                    return jsonify({'error': 'SMM Panel API 호출 실패'}), 500
+                    return jsonify({'error': f'SMM Panel API 호출 실패: {smm_result.get("message")}'}), 500
             except Exception as e:
                 print(f"❌ SMM Panel API 호출 실패: {e}")
-                return jsonify({'error': 'SMM Panel API 호출 실패'}), 500
+                return jsonify({'error': f'SMM Panel API 호출 실패: {str(e)}'}), 500
         else:
             # 예약 주문은 임시 ID 사용 (나중에 예약 시간에 SMM Panel API 호출)
             real_order_id = int(time.time())
