@@ -2671,32 +2671,15 @@ def create_order():
         split_days = data.get('split_days', 0)
         split_quantity = data.get('split_quantity', 0)
         
-        # 패키지 상품 여부 확인
-        package_steps = data.get('package_steps', [])
-        is_package = len(package_steps) > 0
-        
         # SMM Panel API 호출을 먼저 실행하여 실제 주문번호를 받아옴
         import time
         real_order_id = None
         smm_panel_order_id = None
         
-        # 일반 주문인 경우 즉시 SMM Panel API 호출 (패키지가 아닌 경우만)
-        if not is_scheduled and not is_package:
+        # 일반 주문인 경우 즉시 SMM Panel API 호출
+        if not is_scheduled:
             print(f"🚀 일반 주문 - 즉시 SMM Panel API 호출")
             try:
-                # SMM Panel에서 사용 가능한 서비스 목록 확인
-                smm_services_result = get_smm_panel_services()
-                if smm_services_result.get('status') == 'success':
-                    available_service_ids = smm_services_result.get('service_ids', [])
-                    if str(service_id) not in available_service_ids:
-                        print(f"❌ 서비스 ID {service_id}가 SMM Panel에서 사용 불가능합니다.")
-                        print(f"📋 사용 가능한 서비스 ID: {available_service_ids[:10]}...")  # 처음 10개만 표시
-                        return jsonify({'error': f'서비스 ID {service_id}가 SMM Panel에서 사용 불가능합니다. 사용 가능한 서비스를 확인해주세요.'}), 400
-                    else:
-                        print(f"✅ 서비스 ID {service_id} 검증 완료")
-                else:
-                    print(f"⚠️ SMM Panel 서비스 목록 조회 실패, 서비스 ID 검증 건너뜀: {smm_services_result.get('message')}")
-                
                 smm_result = call_smm_panel_api({
                     'service': service_id,
                     'link': link,
@@ -2710,14 +2693,10 @@ def create_order():
                     print(f"✅ SMM Panel 주문 생성 성공: {real_order_id}")
                 else:
                     print(f"❌ SMM Panel API 호출 실패: {smm_result.get('message')}")
-                    return jsonify({'error': f'SMM Panel API 호출 실패: {smm_result.get("message")}'}), 500
+                    return jsonify({'error': 'SMM Panel API 호출 실패'}), 500
             except Exception as e:
                 print(f"❌ SMM Panel API 호출 실패: {e}")
-                return jsonify({'error': f'SMM Panel API 호출 실패: {str(e)}'}), 500
-        elif is_package:
-            # 패키지 주문은 임시 ID 사용 (패키지 단계별로 개별 처리)
-            real_order_id = int(time.time())
-            print(f"📦 패키지 주문 - 임시 ID 사용: {real_order_id} (패키지 단계별 개별 처리)")
+                return jsonify({'error': 'SMM Panel API 호출 실패'}), 500
         else:
             # 예약 주문은 임시 ID 사용 (나중에 예약 시간에 SMM Panel API 호출)
             real_order_id = int(time.time())
