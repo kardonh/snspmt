@@ -923,6 +923,24 @@ def process_package_step(order_id, step_index):
             status = 'completed' if smm_result.get('status') == 'success' else 'failed'
             smm_order_id = smm_result.get('order') if smm_result.get('status') == 'success' else None
             
+            # SMM Panel에서 받은 실제 주문번호로 order_id 업데이트 (성공한 경우만)
+            if smm_order_id and status == 'completed':
+                print(f"🔄 주문번호 업데이트: {order_id} -> {smm_order_id}")
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        UPDATE orders SET order_id = %s, smm_panel_order_id = %s, updated_at = NOW()
+                        WHERE order_id = %s
+                    """, (smm_order_id, smm_order_id, order_id))
+                else:
+                    cursor.execute("""
+                        UPDATE orders SET order_id = ?, smm_panel_order_id = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE order_id = ?
+                    """, (smm_order_id, smm_order_id, order_id))
+                
+                conn.commit()
+                order_id = smm_order_id  # 다음 단계에서 사용할 주문번호 업데이트
+                print(f"✅ 주문번호 업데이트 완료: {order_id}")
+            
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     INSERT INTO package_progress 
@@ -2652,6 +2670,10 @@ def create_order():
         is_split_delivery = data.get('is_split_delivery', False)
         split_days = data.get('split_days', 0)
         split_quantity = data.get('split_quantity', 0)
+        
+        # 패키지 상품 여부 확인
+        package_steps = data.get('package_steps', [])
+        is_package = len(package_steps) > 0
         
         # SMM Panel API 호출을 먼저 실행하여 실제 주문번호를 받아옴
         import time
