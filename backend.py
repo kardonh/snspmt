@@ -2653,34 +2653,61 @@ def create_order():
         split_days = data.get('split_days', 0)
         split_quantity = data.get('split_quantity', 0)
         
-        # 임시 주문 ID 생성 (SMM API 호출 후 실제 주문 번호로 업데이트)
+        # SMM Panel API 호출을 먼저 실행하여 실제 주문번호를 받아옴
         import time
-        current_time = datetime.now()
-        temp_order_id = int(time.time())  # 초 단위 타임스탬프를 정수로 사용 (더 작은 숫자)
-        order_id = temp_order_id  # order_id 변수 정의
+        real_order_id = None
+        smm_panel_order_id = None
         
-        # 주문 생성 (임시 ID로)
+        # 일반 주문인 경우 즉시 SMM Panel API 호출
+        if not is_scheduled:
+            print(f"🚀 일반 주문 - 즉시 SMM Panel API 호출")
+            try:
+                smm_result = call_smm_panel_api({
+                    'service': service_id,
+                    'link': link,
+                    'quantity': quantity,
+                    'comments': data.get('comments', '')
+                })
+                
+                if smm_result.get('status') == 'success':
+                    real_order_id = smm_result.get('order')
+                    smm_panel_order_id = real_order_id
+                    print(f"✅ SMM Panel 주문 생성 성공: {real_order_id}")
+                else:
+                    print(f"❌ SMM Panel API 호출 실패: {smm_result.get('message')}")
+                    return jsonify({'error': 'SMM Panel API 호출 실패'}), 500
+            except Exception as e:
+                print(f"❌ SMM Panel API 호출 실패: {e}")
+                return jsonify({'error': 'SMM Panel API 호출 실패'}), 500
+        else:
+            # 예약 주문은 임시 ID 사용 (나중에 예약 시간에 SMM Panel API 호출)
+            real_order_id = int(time.time())
+            print(f"📅 예약 주문 - 임시 ID 사용: {real_order_id}")
+        
+        # 주문 생성 (SMM Panel 주문번호 사용)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
                                 discount_amount, referral_code, status, created_at, updated_at,
-                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pending_payment', NOW(), NOW(),
-                        %s, %s, %s, %s, %s)
-            """, (temp_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
-                referral_data[0] if referral_data else None, is_scheduled, scheduled_datetime,
-                is_split_delivery, split_days, split_quantity))
+                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(),
+                        %s, %s, %s, %s, %s, %s)
+            """, (real_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
+                referral_data[0] if referral_data else None, '주문발송' if not is_scheduled else 'pending_payment',
+                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id))
         else:
             cursor.execute("""
                 INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
                                 discount_amount, referral_code, status, created_at, updated_at,
-                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                        ?, ?, ?, ?, ?)
-            """, (temp_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
-                referral_data[0] if referral_data else None, is_scheduled, scheduled_datetime,
-                is_split_delivery, split_days, split_quantity))
-        print(f"✅ 임시 주문 생성 완료 - temp_order_id: {temp_order_id}, user_id: {user_id}, service_id: {service_id}, price: {final_price}")
+                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+                        ?, ?, ?, ?, ?, ?)
+            """, (real_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
+                referral_data[0] if referral_data else None, '주문발송' if not is_scheduled else 'pending_payment',
+                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id))
+        
+        order_id = real_order_id
+        print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {user_id}, service_id: {service_id}, price: {final_price}")
         
         # 추천인이 있는 경우 10% 커미션 포인트 적립
         commission_amount = 0
@@ -2839,48 +2866,15 @@ def create_order():
             status = 'pending'  # 결제 완료 전까지는 pending 상태
             message = f'패키지 주문이 생성되었습니다. 결제 완료 후 {len(package_steps)}단계 순차 처리됩니다.'
         else:
-            # 일반 주문은 즉시 SMM Panel API 호출
-            print(f"🚀 일반 주문 - 즉시 SMM Panel API 호출")
-            try:
-                # SMM Panel API 호출 로직
-                smm_result = call_smm_panel_api({
-                    'service': service_id,
-                    'link': link,
-                    'quantity': quantity,
-                    'comments': data.get('comments', '')
-                })
-                
-                if smm_result.get('status') == 'success':
-                    # SMM Panel에서 받은 실제 주문 번호로 업데이트
-                    real_order_id = smm_result.get('order')
-                    if DATABASE_URL.startswith('postgresql://'):
-                        cursor.execute("""
-                            UPDATE orders SET order_id = %s, smm_panel_order_id = %s, status = '주문발송', updated_at = NOW()
-                            WHERE order_id = %s
-                        """, (real_order_id, real_order_id, temp_order_id))
-                    else:
-                        cursor.execute("""
-                            UPDATE orders SET order_id = ?, smm_panel_order_id = ?, status = '주문발송', updated_at = CURRENT_TIMESTAMP
-                            WHERE order_id = ?
-                        """, (real_order_id, real_order_id, temp_order_id))
-                    
-                    conn.commit()
-                    order_id = real_order_id  # 실제 주문 번호로 업데이트
-                    status = '주문발송'
-                    message = '주문이 접수되어 진행중입니다.'
-                    
-                    # 2분 후 주문 실행중으로 변경하는 스케줄 설정
-                    schedule_order_status_update(real_order_id, '주문 실행중', 2)  # 2분 후
-                    
-                    # 24시간 후 주문 실행완료로 변경하는 스케줄 설정 (최대 대기시간)
-                    schedule_order_status_update(real_order_id, '주문 실행완료', 1440)  # 24시간 후
-                else:
-                    status = 'failed'
-                    message = 'SMM Panel API 호출 실패'
-            except Exception as e:
-                print(f"❌ SMM Panel API 호출 실패: {e}")
-                status = 'failed'
-                message = '주문 처리 중 오류가 발생했습니다.'
+            # 일반 주문은 이미 SMM Panel API 호출 완료됨
+            status = '주문발송'
+            message = '주문이 접수되어 진행중입니다.'
+            
+            # 2분 후 주문 실행중으로 변경하는 스케줄 설정
+            schedule_order_status_update(order_id, '주문 실행중', 2)  # 2분 후
+            
+            # 24시간 후 주문 실행완료로 변경하는 스케줄 설정 (최대 대기시간)
+            schedule_order_status_update(order_id, '주문 실행완료', 1440)  # 24시간 후
         
         return jsonify({
             'success': True,
