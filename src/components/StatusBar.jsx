@@ -14,10 +14,14 @@ const StatusBar = () => {
 
   // 사용자 포인트 조회 함수
   const fetchUserPoints = async () => {
-    if (!currentUser) return
+    if (!currentUser || !currentUser.uid) {
+      console.log('🔍 StatusBar: 사용자 정보 없음, 포인트 조회 건너뜀');
+      return;
+    }
     
     setPointsLoading(true)
     try {
+      console.log('🔍 StatusBar 포인트 조회 시작:', currentUser.uid);
       const response = await fetch(`${window.location.origin}/api/points?user_id=${currentUser.uid}`, {
         method: 'GET',
         headers: {
@@ -56,18 +60,32 @@ const StatusBar = () => {
       fetchUserPoints()
     }
 
+    // 주기적 포인트 확인 (30초마다)
+    const pointsCheckInterval = setInterval(() => {
+      if (currentUser && currentUser.uid) {
+        console.log('🔄 StatusBar: 주기적 포인트 확인');
+        fetchUserPoints()
+      }
+    }, 30000) // 30초마다 확인
+
     // 포인트 업데이트 이벤트 리스너
     const handlePointsUpdate = () => {
-      if (currentUser) {
+      console.log('🔄 StatusBar: pointsUpdated 이벤트 수신');
+      if (currentUser && currentUser.uid) {
+        console.log('🔄 StatusBar: 포인트 업데이트 시작');
         fetchUserPoints()
+      } else {
+        console.log('🔄 StatusBar: 사용자 정보 없음, 포인트 업데이트 건너뜀');
       }
     }
 
     // 포인트 충전 완료 이벤트 리스너
     window.addEventListener('pointsUpdated', handlePointsUpdate)
+    console.log('✅ StatusBar: pointsUpdated 이벤트 리스너 등록됨')
 
     return () => {
       clearInterval(timer)
+      clearInterval(pointsCheckInterval)
       window.removeEventListener('resize', checkIsMobile)
       window.removeEventListener('pointsUpdated', handlePointsUpdate)
     }

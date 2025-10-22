@@ -1029,6 +1029,8 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
         try:
             print(f"⏰ {next_delay}분 대기 시작: {next_step_name}")
             print(f"⏰ 현재 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"⏰ 스레드 ID: {threading.current_thread().ident}")
+            print(f"⏰ 주문 ID: {order_id}, 다음 단계: {next_step_index}")
             
             # 실제 대기 시간을 초 단위로 변환
             wait_seconds = next_delay * 60
@@ -1040,18 +1042,22 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
             
             print(f"⏰ {next_delay}분 대기 완료, 다음 단계 실행: {next_step_name}")
             print(f"⏰ 실행 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"⏰ 스레드 ID: {threading.current_thread().ident}")
             
             # 다음 단계 실행
+            print(f"🚀 process_package_step 호출 시작: order_id={order_id}, step_index={next_step_index}")
             result = process_package_step(order_id, next_step_index)
             print(f"⏰ 다음 단계 실행 결과: {result}")
             
         except Exception as e:
             print(f"❌ 지연 실행 중 오류 발생: {str(e)}")
+            print(f"❌ 스레드 ID: {threading.current_thread().ident}")
+            print(f"❌ 주문 ID: {order_id}, 단계: {next_step_index}")
             import traceback
             traceback.print_exc()
     
-    # 스레드 생성 및 실행 (daemon=True로 변경하여 메인 프로세스 종료 시에도 실행)
-    thread = threading.Thread(target=delayed_next_step, daemon=True, name=f"PackageStep-{order_id}-{next_step_index}")
+    # 스레드 생성 및 실행 (daemon=False로 변경하여 독립적으로 실행)
+    thread = threading.Thread(target=delayed_next_step, daemon=False, name=f"PackageStep-{order_id}-{next_step_index}")
     thread.start()
     print(f"✅ 다음 단계 스레드 시작됨: {next_step_name} ({next_delay}분 후)")
     print(f"✅ 패키지 단계 {next_step_index + 1} 스케줄링 완료 (스레드 ID: {thread.ident})")
@@ -1061,6 +1067,9 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
         print(f"✅ 스레드가 정상적으로 시작됨: {thread.name}")
     else:
         print(f"❌ 스레드 시작 실패: {thread.name}")
+    
+    # 스레드 완료를 기다리지 않고 즉시 반환 (백그라운드 실행)
+    print(f"🔄 백그라운드에서 {next_delay}분 후 실행 예정: {next_step_name}")
 
 # 기존 패키지 주문 재처리 함수
 def reprocess_stuck_package_orders():
@@ -3085,8 +3094,8 @@ def start_package_processing():
             print(f"📦 첫 번째 단계 실행: {package_steps[0] if package_steps else 'None'}")
             process_package_step(order_id, 0)
         
-        # 별도 스레드에서 실행 (daemon=True로 변경하여 메인 프로세스 종료 시 함께 종료)
-        thread = threading.Thread(target=start_package_processing, daemon=True, name=f"PackageStart-{order_id}")
+        # 별도 스레드에서 실행 (daemon=False로 변경하여 독립적으로 실행)
+        thread = threading.Thread(target=start_package_processing, daemon=False, name=f"PackageStart-{order_id}")
         thread.start()
         
         print(f"✅ 패키지 주문 처리 시작됨: {order_id}")

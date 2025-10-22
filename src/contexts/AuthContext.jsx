@@ -266,14 +266,32 @@ export function AuthProvider({ children }) {
         const storedUser = localStorage.getItem('currentUser');
         if (storedUser) {
           const userData = JSON.parse(storedUser);
-          console.log('🔄 localStorage에서 사용자 정보 복원:', userData);
-          setCurrentUser(userData);
-          setLoading(false);
-          isInitialized = true;
-          return true;
+          
+          // 저장된 사용자 데이터 유효성 검증
+          if (userData && userData.uid && typeof userData.uid === 'string') {
+            console.log('🔄 localStorage에서 사용자 정보 복원:', userData);
+            setCurrentUser(userData);
+            setLoading(false);
+            isInitialized = true;
+            return true;
+          } else {
+            console.warn('⚠️ localStorage에 저장된 사용자 데이터가 유효하지 않음:', userData);
+            // 유효하지 않은 데이터 정리
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('firebase_user_id');
+            localStorage.removeItem('firebase_user_email');
+          }
         }
       } catch (error) {
         console.error('사용자 정보 복원 실패:', error);
+        // 오류 발생 시 localStorage 정리
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('firebase_user_id');
+        localStorage.removeItem('firebase_user_email');
       }
       return false;
     };
@@ -290,6 +308,13 @@ export function AuthProvider({ children }) {
       }
       
       if (user) {
+        // Firebase 사용자 객체 유효성 검증
+        if (!user.uid || typeof user.uid !== 'string') {
+          console.error('❌ 유효하지 않은 Firebase 사용자 객체:', user);
+          setCurrentUser(null);
+          return;
+        }
+        
         // Firebase 인증된 사용자 정보로 업데이트
         setCurrentUser(user);
         

@@ -179,8 +179,10 @@ const PointsPage = () => {
       
       // KCP 결제창이 열린 후 주기적으로 포인트 확인
       const checkPointsInterval = setInterval(() => {
+        console.log('🔄 PointsPage: KCP 결제 후 포인트 확인');
         loadUserPoints()
         // 포인트가 증가했으면 이벤트 발생
+        console.log('🔄 PointsPage: KCP 결제 후 pointsUpdated 이벤트 발생');
         window.dispatchEvent(new CustomEvent('pointsUpdated'))
       }, 5000) // 5초마다 확인
       
@@ -250,7 +252,14 @@ const PointsPage = () => {
         loadPurchaseHistory()
         
         // 포인트 업데이트 이벤트 발생
+        console.log('🔄 PointsPage: pointsUpdated 이벤트 발생');
         window.dispatchEvent(new CustomEvent('pointsUpdated'))
+        
+        // 추가 안전장치: 1초 후에도 이벤트 재발생
+        setTimeout(() => {
+          console.log('🔄 PointsPage: pointsUpdated 이벤트 재발생 (1초 후)');
+          window.dispatchEvent(new CustomEvent('pointsUpdated'))
+        }, 1000)
         
         // 폼 초기화
         setBuyerName('')
@@ -494,31 +503,18 @@ const PointsPage = () => {
             
             <div className="modal-body">
               <div className="modal-info">
-                <p>💰 아래와 같이 계좌가 개설되어 있음을 확인합니다</p>
-                <p>입금 확인 후 관리자가 승인하여 포인트가 충전됩니다</p>
+                <p>포인트 구매 신청이 완료되었습니다!</p>
+                <p>아래 계좌로 입금하시면 30분 내에 자동으로 포인트가 충전됩니다.</p>
               </div>
               
               <div className="account-details">
                 <div className="account-item">
-                  <span className="account-label">예금주</span>
+                  <span className="account-label">은행명</span>
                   <div className="account-value-with-copy">
-                    <span className="account-value">서동현(탬블(tamble)) 님</span>
+                    <span className="account-value">카카오뱅크</span>
                     <button 
                       className="copy-btn"
-                      onClick={() => copyToClipboard('서동현(탬블(tamble)) 님', '예금주명')}
-                    >
-                      <Copy size={16} />
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="account-item">
-                  <span className="account-label">계좌종류</span>
-                  <div className="account-value-with-copy">
-                    <span className="account-value">개인사업자통장</span>
-                    <button 
-                      className="copy-btn"
-                      onClick={() => copyToClipboard('개인사업자통장', '계좌종류')}
+                      onClick={() => copyToClipboard('카카오뱅크', '은행명')}
                     >
                       <Copy size={16} />
                     </button>
@@ -539,59 +535,23 @@ const PointsPage = () => {
                 </div>
                 
                 <div className="account-item">
-                  <span className="account-label">개설일</span>
+                  <span className="account-label">예금주</span>
                   <div className="account-value-with-copy">
-                    <span className="account-value">2025.09.01</span>
+                    <span className="account-value">서동현 ((템블) tamble)</span>
                     <button 
                       className="copy-btn"
-                      onClick={() => copyToClipboard('2025.09.01', '개설일')}
+                      onClick={() => copyToClipboard('서동현 ((템블) tamble)', '예금주')}
                     >
                       <Copy size={16} />
                     </button>
                   </div>
-                </div>
-                
-                <div className="account-item">
-                  <span className="account-label">과세구분</span>
-                  <div className="account-value-with-copy">
-                    <span className="account-value">일반과세</span>
-                    <button 
-                      className="copy-btn"
-                      onClick={() => copyToClipboard('일반과세', '과세구분')}
-                    >
-                      <Copy size={16} />
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="account-item">
-                  <span className="account-label">은행명</span>
-                  <div className="account-value-with-copy">
-                    <span className="account-value">(주)카카오뱅크</span>
-                    <button 
-                      className="copy-btn"
-                      onClick={() => copyToClipboard('(주)카카오뱅크', '은행명')}
-                    >
-                      <Copy size={16} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="deposit-protection">
-                <div className="protection-logo">
-                  <div className="protection-icon">예금보험공사</div>
-                  <div className="protection-text">보호금융상품</div>
-                  <div className="protection-amount">1인당 최고 1억원</div>
-                </div>
-                <div className="protection-disclaimer">
-                  <p>이 예금은 예금자보호법에 따라 원금과 소정의 이자를 합하여 1인당 "1억원까지"(본 은행의 여타 보호상품과 합산) 보호됩니다.</p>
                 </div>
               </div>
               
               <div className="account-note">
-                <p>⚠️ 입금 시 반드시 입금자명을 정확히 입력해주세요</p>
-                <p>입금 확인 후 1-2시간 내에 포인트가 충전됩니다</p>
+                <p>※ 충전 신청란의 [입금자명] 과 입금시 [입금자명]이 일치해야 30분내로 자동으로 충전 됩니다.</p>
+                <p>※ 30분내 충전이 안될시 <a href="https://pf.kakao.com/_QqyKn" target="_blank" rel="noopener noreferrer" style={{color: '#FEE500', textDecoration: 'underline'}}>카카오채널</a>로 문의 해주세요</p>
+                <p>※ 세금계산서 및 현금영수증 필요하시면 꼭 선택 부탁드립니다.</p>
               </div>
             </div>
           </div>
