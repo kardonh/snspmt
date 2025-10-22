@@ -6759,6 +6759,170 @@ def migrate_database():
 
 # ==================== 소셜 로그인 API ====================
 
+# 카카오 OAuth 토큰 교환
+@app.route('/api/auth/kakao-token', methods=['POST'])
+def kakao_token():
+    """카카오 인가 코드를 액세스 토큰으로 교환"""
+    try:
+        data = request.get_json()
+        code = data.get('code')
+        redirect_uri = data.get('redirectUri')
+        
+        if not code:
+            return jsonify({
+                'success': False,
+                'error': '인가 코드가 필요합니다.'
+            }), 400
+        
+        # 카카오 토큰 요청
+        token_url = 'https://kauth.kakao.com/oauth/token'
+        token_data = {
+            'grant_type': 'authorization_code',
+            'client_id': get_parameter_value('KAKAO_CLIENT_ID', '5a6e0106e9beafa7bd8199ab3c378ceb'),
+            'redirect_uri': redirect_uri,
+            'code': code
+        }
+        
+        print(f"🔑 카카오 토큰 요청: {token_data}")
+        
+        response = requests.post(token_url, data=token_data)
+        
+        if response.status_code == 200:
+            token_info = response.json()
+            access_token = token_info.get('access_token')
+            
+            if access_token:
+                # 카카오 사용자 정보 조회
+                user_info_url = 'https://kapi.kakao.com/v2/user/me'
+                headers = {'Authorization': f'Bearer {access_token}'}
+                user_response = requests.get(user_info_url, headers=headers)
+                
+                if user_response.status_code == 200:
+                    user_data = user_response.json()
+                    
+                    # 사용자 정보 추출
+                    kakao_id = user_data.get('id')
+                    kakao_account = user_data.get('kakao_account', {})
+                    profile = kakao_account.get('profile', {})
+                    
+                    user_info = {
+                        'id': kakao_id,
+                        'email': kakao_account.get('email'),
+                        'nickname': profile.get('nickname'),
+                        'profile_image': profile.get('profile_image_url'),
+                        'access_token': access_token,
+                        'provider': 'kakao'
+                    }
+                    
+                    print(f"✅ 카카오 사용자 정보 조회 성공: {user_info}")
+                    
+                    return jsonify({
+                        'success': True,
+                        'user': user_info
+                    }), 200
+                else:
+                    print(f"❌ 카카오 사용자 정보 조회 실패: {user_response.status_code}")
+                    return jsonify({
+                        'success': False,
+                        'error': '카카오 사용자 정보 조회에 실패했습니다.'
+                    }), 400
+            else:
+                print(f"❌ 카카오 액세스 토큰 없음")
+                return jsonify({
+                    'success': False,
+                    'error': '카카오 액세스 토큰을 받지 못했습니다.'
+                }), 400
+        else:
+            print(f"❌ 카카오 토큰 요청 실패: {response.status_code} - {response.text}")
+            return jsonify({
+                'success': False,
+                'error': '카카오 토큰 교환에 실패했습니다.'
+            }), 400
+            
+    except Exception as e:
+        print(f"❌ 카카오 토큰 교환 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': '카카오 로그인 처리 중 오류가 발생했습니다.'
+        }), 500
+
+# 카카오 로그인 처리
+@app.route('/api/auth/kakao-login', methods=['POST'])
+def kakao_login():
+    """카카오 로그인 처리"""
+    try:
+        data = request.get_json()
+        
+        kakao_id = data.get('kakaoId')
+        email = data.get('email')
+        nickname = data.get('nickname')
+        profile_image = data.get('profileImage')
+        access_token = data.get('accessToken')
+        
+        if not kakao_id:
+            return jsonify({
+                'success': False,
+                'error': '카카오 ID가 필요합니다.'
+            }), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 기존 사용자 확인 (카카오 ID 또는 이메일로)
+        cursor.execute("""
+            SELECT user_id, email, name, kakao_id, last_login
+            FROM users 
+            WHERE kakao_id = %s OR email = %s
+        """, (kakao_id, email))
+        
+        existing_user = cursor.fetchone()
+        
+        if existing_user:
+            # 기존 사용자 업데이트
+            user_id = existing_user[0]
+            cursor.execute("""
+                UPDATE users 
+                SET kakao_id = %s, profile_image = %s, last_login = NOW(), updated_at = NOW()
+                WHERE user_id = %s
+            """, (kakao_id, profile_image, user_id))
+            
+            print(f"✅ 기존 카카오 사용자 업데이트: {user_id}")
+        else:
+            # 새 사용자 생성
+            user_id = f"kakao_{kakao_id}"
+            cursor.execute("""
+                INSERT INTO users (user_id, email, name, kakao_id, profile_image, last_login, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), NOW())
+            """, (user_id, email, nickname, kakao_id, profile_image))
+            
+            print(f"✅ 새 카카오 사용자 생성: {user_id}")
+        
+        conn.commit()
+        
+        # 사용자 정보 반환
+        user_info = {
+            'user_id': user_id,
+            'email': email,
+            'name': nickname,
+            'kakao_id': kakao_id,
+            'profile_image': profile_image,
+            'provider': 'kakao'
+        }
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'user': user_info
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 카카오 로그인 처리 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': '카카오 로그인 처리 중 오류가 발생했습니다.'
+        }), 500
+
 @app.route('/api/auth/google-login', methods=['POST'])
 def google_login():
     """구글 로그인 처리"""
