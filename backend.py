@@ -924,20 +924,42 @@ def process_package_step(order_id, step_index):
             # SMM Panel에서 받은 실제 주문번호로 order_id 업데이트 (성공한 경우만)
             if smm_order_id and status == 'completed':
                 print(f"🔄 주문번호 업데이트: {order_id} -> {smm_order_id}")
-                if DATABASE_URL.startswith('postgresql://'):
-                    cursor.execute("""
-                        UPDATE orders SET order_id = %s, smm_panel_order_id = %s, updated_at = NOW()
-                        WHERE order_id = %s
-                    """, (smm_order_id, smm_order_id, order_id))
-                else:
-                    cursor.execute("""
-                        UPDATE orders SET order_id = ?, smm_panel_order_id = ?, updated_at = CURRENT_TIMESTAMP
-                        WHERE order_id = ?
-                    """, (smm_order_id, smm_order_id, order_id))
                 
-                conn.commit()
-                order_id = smm_order_id  # 다음 단계에서 사용할 주문번호 업데이트
-                print(f"✅ 주문번호 업데이트 완료: {order_id}")
+                try:
+                    # 1. 먼저 package_progress 테이블의 order_id를 새 주문번호로 업데이트
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
+                            UPDATE package_progress 
+                            SET order_id = %s
+                            WHERE order_id = %s
+                        """, (smm_order_id, order_id))
+                    else:
+                        cursor.execute("""
+                            UPDATE package_progress 
+                            SET order_id = ?
+                            WHERE order_id = ?
+                        """, (smm_order_id, order_id))
+                    
+                    # 2. 그 다음 orders 테이블의 order_id 업데이트
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
+                            UPDATE orders SET order_id = %s, smm_panel_order_id = %s, updated_at = NOW()
+                            WHERE order_id = %s
+                        """, (smm_order_id, smm_order_id, order_id))
+                    else:
+                        cursor.execute("""
+                            UPDATE orders SET order_id = ?, smm_panel_order_id = ?, updated_at = CURRENT_TIMESTAMP
+                            WHERE order_id = ?
+                        """, (smm_order_id, smm_order_id, order_id))
+                    
+                    conn.commit()
+                    order_id = smm_order_id  # 다음 단계에서 사용할 주문번호 업데이트
+                    print(f"✅ 주문번호 업데이트 완료: {order_id}")
+                except Exception as update_error:
+                    print(f"❌ 주문번호 업데이트 실패: {update_error}")
+                    conn.rollback()
+                    # 업데이트 실패 시 원래 order_id 유지
+                    print(f"🔄 원래 주문번호 유지: {order_id}")
             
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""

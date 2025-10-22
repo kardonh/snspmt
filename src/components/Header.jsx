@@ -22,26 +22,31 @@ const Header = () => {
 
   // 사용자 포인트 조회
   const fetchUserPoints = async () => {
-    if (currentUser && currentUser.uid) {
-      setPointsLoading(true)
-      try {
-        console.log('🔍 Header 포인트 조회 시작:', currentUser.uid)
-        const response = await fetch(`${window.location.origin}/api/points?user_id=${currentUser.uid}`)
-        if (response.ok) {
-          const data = await response.json()
-          setUserPoints(data.points || 0)
-          console.log('✅ Header 포인트 조회 성공:', data.points)
-        } else {
-          console.error('❌ Header 포인트 조회 실패:', response.status)
-        }
-      } catch (error) {
-        console.error('❌ Header 포인트 조회 오류:', error)
-        setUserPoints(0)
-      } finally {
-        setPointsLoading(false)
-      }
-    } else {
+    const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+    
+    if (!userId) {
+      console.log('🔍 Header: 사용자 ID 없음, 포인트 조회 건너뜀');
       setUserPoints(0)
+      setPointsLoading(false)
+      return;
+    }
+    
+    setPointsLoading(true)
+    try {
+      console.log('🔍 Header 포인트 조회 시작:', userId)
+      const response = await fetch(`${window.location.origin}/api/points?user_id=${userId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setUserPoints(data.points || 0)
+        console.log('✅ Header 포인트 조회 성공:', data.points)
+      } else {
+        console.error('❌ Header 포인트 조회 실패:', response.status)
+        setUserPoints(0)
+      }
+    } catch (error) {
+      console.error('❌ Header 포인트 조회 오류:', error)
+      setUserPoints(0)
+    } finally {
       setPointsLoading(false)
     }
   }
@@ -52,7 +57,13 @@ const Header = () => {
     // 포인트 업데이트 이벤트 리스너
     const handlePointsUpdate = () => {
       console.log('🔄 Header: pointsUpdated 이벤트 수신');
-      if (currentUser && currentUser.uid) {
+      console.log('🔄 Header: 현재 사용자 정보:', currentUser);
+      console.log('🔄 Header: localStorage userId:', localStorage.getItem('userId'));
+      console.log('🔄 Header: localStorage firebase_user_id:', localStorage.getItem('firebase_user_id'));
+      
+      // 사용자 정보가 있으면 포인트 업데이트
+      const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+      if (userId) {
         console.log('🔄 Header: 포인트 업데이트 시작');
         fetchUserPoints()
       } else {

@@ -255,11 +255,21 @@ const PointsPage = () => {
         console.log('🔄 PointsPage: pointsUpdated 이벤트 발생');
         window.dispatchEvent(new CustomEvent('pointsUpdated'))
         
-        // 추가 안전장치: 1초 후에도 이벤트 재발생
+        // 추가 안전장치: 여러 번 이벤트 발생
         setTimeout(() => {
           console.log('🔄 PointsPage: pointsUpdated 이벤트 재발생 (1초 후)');
           window.dispatchEvent(new CustomEvent('pointsUpdated'))
         }, 1000)
+        
+        setTimeout(() => {
+          console.log('🔄 PointsPage: pointsUpdated 이벤트 재발생 (3초 후)');
+          window.dispatchEvent(new CustomEvent('pointsUpdated'))
+        }, 3000)
+        
+        setTimeout(() => {
+          console.log('🔄 PointsPage: pointsUpdated 이벤트 재발생 (5초 후)');
+          window.dispatchEvent(new CustomEvent('pointsUpdated'))
+        }, 5000)
         
         // 폼 초기화
         setBuyerName('')
