@@ -138,6 +138,17 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
+    // localStorage 정리
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('firebase_user_id');
+    localStorage.removeItem('firebase_user_email');
+    localStorage.removeItem('currentUser');
+    
+    // 사용자 상태 초기화
+    setCurrentUser(null);
+    
+    // Firebase 로그아웃
     return signOut(auth);
   }
 
@@ -247,6 +258,8 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
+    let isInitialized = false;
+    
     // 페이지 로드 시 localStorage에서 사용자 정보 복원
     const restoreUserFromStorage = () => {
       try {
@@ -255,7 +268,8 @@ export function AuthProvider({ children }) {
           const userData = JSON.parse(storedUser);
           console.log('🔄 localStorage에서 사용자 정보 복원:', userData);
           setCurrentUser(userData);
-          setLoading(false); // localStorage에서 복원되면 즉시 로딩 완료
+          setLoading(false);
+          isInitialized = true;
           return true;
         }
       } catch (error) {
@@ -267,36 +281,42 @@ export function AuthProvider({ children }) {
     // 먼저 localStorage에서 사용자 정보 복원 시도
     const userRestored = restoreUserFromStorage();
 
-    // localStorage에서 복원되지 않았을 때만 Firebase 인증 대기
-    if (!userRestored) {
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          // Firebase 인증된 사용자 정보로 업데이트
-          setCurrentUser(user);
-          
-          // 사용자 정보를 localStorage에 저장
-          localStorage.setItem('userId', user.uid);
-          localStorage.setItem('userEmail', user.email);
-          localStorage.setItem('firebase_user_id', user.uid);
-          localStorage.setItem('firebase_user_email', user.email);
-          localStorage.setItem('currentUser', JSON.stringify({
-            uid: user.uid,
+    // Firebase 인증 상태 변경 리스너
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      // 이미 localStorage에서 복원된 경우 Firebase 상태 변경 무시
+      if (isInitialized && userRestored) {
+        console.log('🔄 localStorage에서 이미 복원됨, Firebase 상태 변경 무시');
+        return;
+      }
+      
+      if (user) {
+        // Firebase 인증된 사용자 정보로 업데이트
+        setCurrentUser(user);
+        
+        // 사용자 정보를 localStorage에 저장
+        localStorage.setItem('userId', user.uid);
+        localStorage.setItem('userEmail', user.email);
+        localStorage.setItem('firebase_user_id', user.uid);
+        localStorage.setItem('firebase_user_email', user.email);
+        localStorage.setItem('currentUser', JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName
+        }));
+        
+        try {
+          // 사용자 정보 저장 (기본 정보만)
+          await smmpanelApi.registerUser({
+            user_id: user.uid,
             email: user.email,
-            displayName: user.displayName
-          }));
-          
-          try {
-            // 사용자 정보 저장 (기본 정보만)
-            await smmpanelApi.registerUser({
-              user_id: user.uid,
-              email: user.email,
-              name: user.displayName || user.email.split('@')[0] || '사용자'
-            });
-          } catch (error) {
-            // 오프라인 모드에서는 에러를 무시하고 계속 진행
-          }
-        } else {
-          // Firebase 인증이 없을 때 localStorage에서도 사용자 정보가 없으면 null
+            name: user.displayName || user.email.split('@')[0] || '사용자'
+          });
+        } catch (error) {
+          // 오프라인 모드에서는 에러를 무시하고 계속 진행
+        }
+      } else {
+        // Firebase 인증이 없을 때만 로그아웃 처리
+        if (!userRestored) {
           setCurrentUser(null);
           // 로그아웃 시 localStorage 정리
           localStorage.removeItem('userId');
@@ -305,15 +325,12 @@ export function AuthProvider({ children }) {
           localStorage.removeItem('firebase_user_email');
           localStorage.removeItem('currentUser');
         }
-        
-        setLoading(false);
-      });
+      }
+      
+      setLoading(false);
+    });
 
-      return unsubscribe;
-    } else {
-      // localStorage에서 복원된 경우 Firebase 인증 대기 없이 즉시 완료
-      return () => {};
-    }
+    return unsubscribe;
   }, []);
 
   const openSignupModal = () => {
