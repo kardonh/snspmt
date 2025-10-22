@@ -2558,7 +2558,8 @@ const Home = () => {
             />
           </div>
 
-          {selectedDetailedService && selectedDetailedService.package && selectedDetailedService.steps && (
+          {selectedDetailedService && selectedDetailedService.package && selectedDetailedService.steps && 
+           (selectedDetailedService.id === 1003 || selectedDetailedService.id === 1004 || selectedDetailedService.id === 1002) && (
             <div className="package-steps">
               <h3>📦 패키지 구성</h3>
               <div className="steps-container">

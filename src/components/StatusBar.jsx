@@ -18,20 +18,22 @@ const StatusBar = () => {
     
     setPointsLoading(true)
     try {
-      const response = await fetch(`/api/points?user_id=${currentUser.uid}`, {
+      const response = await fetch(`${window.location.origin}/api/points?user_id=${currentUser.uid}`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await currentUser.getIdToken()}`
+          'Content-Type': 'application/json'
         }
       })
       
       if (response.ok) {
         const data = await response.json()
         setUserPoints(data.points || 0)
+        console.log('✅ StatusBar 포인트 조회 성공:', data.points)
+      } else {
+        console.error('❌ StatusBar 포인트 조회 실패:', response.status)
       }
     } catch (error) {
-      console.error('포인트 조회 실패:', error)
+      console.error('❌ StatusBar 포인트 조회 오류:', error)
     } finally {
       setPointsLoading(false)
     }
@@ -54,9 +56,20 @@ const StatusBar = () => {
       fetchUserPoints()
     }
 
+    // 포인트 업데이트 이벤트 리스너
+    const handlePointsUpdate = () => {
+      if (currentUser) {
+        fetchUserPoints()
+      }
+    }
+
+    // 포인트 충전 완료 이벤트 리스너
+    window.addEventListener('pointsUpdated', handlePointsUpdate)
+
     return () => {
       clearInterval(timer)
       window.removeEventListener('resize', checkIsMobile)
+      window.removeEventListener('pointsUpdated', handlePointsUpdate)
     }
   }, [currentUser])
 

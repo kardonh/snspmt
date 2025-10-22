@@ -3358,20 +3358,37 @@ def purchase_points():
         if price <= 0 or price > 10000000:  # 최대 1천만원
             return jsonify({'error': '결제 금액이 범위를 벗어났습니다.'}), 400
         
-        # 사용자 ID 검증 (SQL 인젝션 방지)
-        if not user_id.replace('_', '').replace('-', '').isalnum():
+        # 사용자 ID 검증 (SQL 인젝션 방지) - 구글/카카오 로그인 사용자도 허용
+        if not user_id.replace('_', '').replace('-', '').replace('google', '').replace('kakao', '').isalnum():
             return jsonify({'error': '잘못된 사용자 ID 형식입니다.'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # 사용자가 포인트 테이블에 있는지 확인하고, 없으면 생성
         if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("SELECT user_id FROM points WHERE user_id = %s", (user_id,))
+            if not cursor.fetchone():
+                cursor.execute("""
+                    INSERT INTO points (user_id, points, created_at, updated_at)
+                    VALUES (%s, 0, NOW(), NOW())
+                """, (user_id,))
+                print(f"✅ 구글/카카오 로그인 사용자 포인트 테이블 생성: {user_id}")
+            
             cursor.execute("""
                 INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at)
                 VALUES (%s, %s, %s, 'pending', %s, %s, NOW(), NOW())
                 RETURNING id
             """, (user_id, amount, price, buyer_name, bank_info))
         else:
+            cursor.execute("SELECT user_id FROM points WHERE user_id = ?", (user_id,))
+            if not cursor.fetchone():
+                cursor.execute("""
+                    INSERT INTO points (user_id, points, created_at, updated_at)
+                    VALUES (?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, (user_id,))
+                print(f"✅ 구글/카카오 로그인 사용자 포인트 테이블 생성: {user_id}")
+            
             cursor.execute("""
                 INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at)
                 VALUES (?, ?, ?, 'pending', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -3406,6 +3423,10 @@ def kcp_register_transaction():
         
         if not user_id or not amount or not price:
             return jsonify({'error': '필수 정보가 누락되었습니다.'}), 400
+        
+        # 구글/카카오 로그인 사용자 ID 검증
+        if not user_id.replace('_', '').replace('-', '').replace('google', '').replace('kakao', '').isalnum():
+            return jsonify({'error': '잘못된 사용자 ID 형식입니다.'}), 400
         
         # 입력 검증
         try:
@@ -6962,15 +6983,15 @@ def google_login():
             if not user_google_id:
                 cursor.execute("""
                     UPDATE users 
-                    SET google_id = %s, last_login = %s
+                    SET google_id = %s, profile_image = %s, last_login = NOW(), updated_at = NOW()
                     WHERE user_id = %s
-                """, (google_id, datetime.now(), user_id))
+                """, (google_id, photo_url, user_id))
             else:
                 cursor.execute("""
                     UPDATE users 
-                    SET last_login = %s
+                    SET profile_image = %s, last_login = NOW(), updated_at = NOW()
                     WHERE user_id = %s
-                """, (datetime.now(), user_id))
+                """, (photo_url, user_id))
             
             conn.commit()
             cursor.close()
@@ -6993,17 +7014,14 @@ def google_login():
             cursor.execute("""
                 INSERT INTO users (
                     user_id, email, name, google_id, profile_image, last_login, created_at, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                user_id, email, display_name, google_id, photo_url, 
-                datetime.now(), datetime.now(), datetime.now()
-            ))
+                ) VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), NOW())
+            """, (user_id, email, display_name, google_id, photo_url))
             
             # 포인트 테이블에도 초기 레코드 생성
             cursor.execute("""
                 INSERT INTO points (user_id, points, created_at, updated_at)
-                VALUES (%s, %s, %s, %s)
-            """, (user_id, 0, datetime.now(), datetime.now()))
+                VALUES (%s, %s, NOW(), NOW())
+            """, (user_id, 0))
             
             conn.commit()
             cursor.close()

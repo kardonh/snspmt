@@ -21,31 +21,50 @@ const Header = () => {
   }
 
   // 사용자 포인트 조회
-  useEffect(() => {
-    const fetchUserPoints = async () => {
-      if (currentUser) {
-        setPointsLoading(true)
-        try {
-          console.log('포인트 조회 시작:', currentUser.uid)
-          const response = await smmpanelApi.getUserPoints(currentUser.uid)
-          console.log('포인트 조회 응답:', response)
-          setUserPoints(response.data?.points || response.points || 0)
-        } catch (error) {
-          console.error('포인트 조회 실패:', error)
-          setUserPoints(0)
-        } finally {
-          setPointsLoading(false)
+  const fetchUserPoints = async () => {
+    if (currentUser) {
+      setPointsLoading(true)
+      try {
+        console.log('포인트 조회 시작:', currentUser.uid)
+        const response = await fetch(`${window.location.origin}/api/points?user_id=${currentUser.uid}`)
+        if (response.ok) {
+          const data = await response.json()
+          setUserPoints(data.points || 0)
+          console.log('✅ Header 포인트 조회 성공:', data.points)
+        } else {
+          console.error('❌ Header 포인트 조회 실패:', response.status)
         }
-      } else {
+      } catch (error) {
+        console.error('❌ Header 포인트 조회 오류:', error)
         setUserPoints(0)
+      } finally {
         setPointsLoading(false)
+      }
+    } else {
+      setUserPoints(0)
+      setPointsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchUserPoints()
+
+    // 포인트 업데이트 이벤트 리스너
+    const handlePointsUpdate = () => {
+      if (currentUser) {
+        fetchUserPoints()
       }
     }
 
-    fetchUserPoints()
+    // 포인트 충전 완료 이벤트 리스너
+    window.addEventListener('pointsUpdated', handlePointsUpdate)
+
+    return () => {
+      window.removeEventListener('pointsUpdated', handlePointsUpdate)
+    }
   }, [currentUser])
 
-  // 로딩 중일 때는 기본 헤더만 표시
+  // 로딩 중일 때는 기본 헤더만 표시 (짧은 시간만)
   if (loading) {
     return (
       <header className="header">
@@ -53,6 +72,20 @@ const Header = () => {
           <Link to="/" className="logo">
             <img src="/logo.png" alt="Sociality" className="header-logo" />
           </Link>
+          <nav className="header-nav">
+            <Link to="/faq" className="nav-link">
+              FAQ
+            </Link>
+          </nav>
+          <div className="header-right">
+            <button 
+              className="member-btn"
+              onClick={() => setIsLoginModalOpen(true)}
+            >
+              <User size={20} />
+              <span>로그인</span>
+            </button>
+          </div>
         </div>
       </header>
     )

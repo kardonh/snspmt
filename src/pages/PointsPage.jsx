@@ -176,6 +176,18 @@ const PointsPage = () => {
       // 폼 초기화
       setSelectedAmount(0)
       loadPurchaseHistory()
+      
+      // KCP 결제창이 열린 후 주기적으로 포인트 확인
+      const checkPointsInterval = setInterval(() => {
+        loadUserPoints()
+        // 포인트가 증가했으면 이벤트 발생
+        window.dispatchEvent(new CustomEvent('pointsUpdated'))
+      }, 5000) // 5초마다 확인
+      
+      // 30초 후 체크 중단
+      setTimeout(() => {
+        clearInterval(checkPointsInterval)
+      }, 30000)
 
     } catch (error) {
       console.error('KCP 결제 실패:', error)
@@ -236,6 +248,10 @@ const PointsPage = () => {
         setShowAccountModal(true)
         loadUserPoints()
         loadPurchaseHistory()
+        
+        // 포인트 업데이트 이벤트 발생
+        window.dispatchEvent(new CustomEvent('pointsUpdated'))
+        
         // 폼 초기화
         setBuyerName('')
         setBankInfo('')
