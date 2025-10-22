@@ -144,7 +144,7 @@ export function AuthProvider({ children }) {
   // 카카오 로그인 함수
   async function kakaoLogin(kakaoUserInfo) {
     try {
-      const response = await fetch('/api/auth/kakao-login', {
+      const response = await fetch(`${window.location.origin}/api/auth/kakao-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

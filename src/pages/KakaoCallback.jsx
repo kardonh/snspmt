@@ -26,7 +26,7 @@ const KakaoCallback = () => {
         }
 
         // 백엔드에 인가 코드 전송하여 토큰 요청
-        const response = await fetch('/api/auth/kakao-token', {
+        const response = await fetch(`${window.location.origin}/api/auth/kakao-token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
