@@ -3,7 +3,7 @@ class KakaoAuth {
   constructor() {
     this.isInitialized = false;
     // 카카오 개발자 콘솔에서 발급받은 JavaScript 키를 입력하세요
-    this.APP_KEY = '5a6e0106e9beafa7bd8199ab3c378ceb'; // JavaScript 키
+    this.APP_KEY = process.env.REACT_APP_KAKAO_APP_KEY || '5a6e0106e9beafa7bd8199ab3c378ceb'; // JavaScript 키
   }
 
 
@@ -56,8 +56,11 @@ class KakaoAuth {
       
       // 카카오 공식 문서에 따른 authorize 방식 사용
       // 이 방식은 리다이렉트를 통해 처리됩니다
+      const redirectUri = window.location.origin + '/kakao-callback';
+      console.log('카카오 로그인 Redirect URI:', redirectUri);
+      
       window.Kakao.Auth.authorize({
-        redirectUri: window.location.origin + '/kakao-callback'
+        redirectUri: redirectUri
       });
       
       // 리다이렉트 방식이므로 여기서는 Promise를 반환하지 않습니다

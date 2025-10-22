@@ -2090,6 +2090,17 @@
   letter-spacing: 0.5px;
 }
 
+.payment-method-badge.maintenance {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
 .payment-method-description {
   background: rgba(102, 126, 234, 0.05);
   padding: 16px 20px;

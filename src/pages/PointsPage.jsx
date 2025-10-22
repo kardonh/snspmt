@@ -333,7 +333,7 @@ const PointsPage = () => {
                 <CreditCard className="payment-method-icon" />
                 <div className="payment-method-content">
                   <span className="payment-method-label">KCP 카드결제 (즉시충전)</span>
-                  <span className="payment-method-badge">추천</span>
+                  <span className="payment-method-badge maintenance">점검중</span>
                   <div className="payment-method-description">
                     <p>💳 신용카드로 안전하고 빠른 결제</p>
                     <p>⚡ 결제 완료 즉시 포인트 자동 충전</p>
