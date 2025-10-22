@@ -939,13 +939,13 @@ def process_package_step(order_id, step_index):
                     INSERT INTO package_progress 
                     (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
-                """, (order_id, f"{step_index + 1}-{repeat_count + 1}", f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
+                """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
             else:
                 cursor.execute("""
                     INSERT INTO package_progress 
                     (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-                """, (order_id, f"{step_index + 1}-{repeat_count + 1}", f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
+                """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
             
             conn.commit()
             
@@ -959,6 +959,7 @@ def process_package_step(order_id, step_index):
         
         # 다음 단계가 있으면 스케줄링
         print(f"🔄 다음 단계 스케줄링 시작: {step_index + 1}/{len(package_steps)}")
+        print(f"🔄 현재 단계: {step_index + 1}, 전체 단계: {len(package_steps)}")
         
         # 다음 단계 정보를 데이터베이스에 미리 기록
         if step_index + 1 < len(package_steps):
@@ -967,25 +968,33 @@ def process_package_step(order_id, step_index):
             next_step_delay = next_step.get('delay', 10)
             
             print(f"📝 다음 단계 정보 기록: {next_step_name} ({next_step_delay}분 후)")
+            print(f"📝 다음 단계 상세 정보: {next_step}")
             
             # 다음 단계 예약 정보를 데이터베이스에 저장
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    INSERT INTO package_progress 
-                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
-                """, (order_id, f"{step_index + 2}-예약", f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled'))
-            else:
-                cursor.execute("""
-                    INSERT INTO package_progress 
-                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-                """, (order_id, f"{step_index + 2}-예약", f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled'))
-            
-            conn.commit()
-            print(f"📝 다음 단계 예약 정보 저장 완료")
+            try:
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        INSERT INTO package_progress 
+                        (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled'))
+                else:
+                    cursor.execute("""
+                        INSERT INTO package_progress 
+                        (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled'))
+                
+                conn.commit()
+                print(f"📝 다음 단계 예약 정보 저장 완료")
+            except Exception as e:
+                print(f"❌ 다음 단계 예약 정보 저장 실패: {e}")
+        else:
+            print(f"🎉 모든 단계 완료! 다음 단계 없음")
         
+        print(f"🔄 schedule_next_package_step 호출 시작")
         schedule_next_package_step(order_id, step_index + 1, package_steps)
+        print(f"🔄 schedule_next_package_step 호출 완료")
         print(f"🔄 다음 단계 스케줄링 완료: {step_index + 1}/{len(package_steps)}")
         
         conn.close()
