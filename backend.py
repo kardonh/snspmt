@@ -958,7 +958,35 @@ def process_package_step(order_id, step_index):
         print(f"🎉 패키지 단계 {step_index + 1} 모든 반복 완료: {step_name} ({step_repeat}회)")
         
         # 다음 단계가 있으면 스케줄링
+        print(f"🔄 다음 단계 스케줄링 시작: {step_index + 1}/{len(package_steps)}")
+        
+        # 다음 단계 정보를 데이터베이스에 미리 기록
+        if step_index + 1 < len(package_steps):
+            next_step = package_steps[step_index + 1]
+            next_step_name = next_step.get('name', f'단계 {step_index + 2}')
+            next_step_delay = next_step.get('delay', 10)
+            
+            print(f"📝 다음 단계 정보 기록: {next_step_name} ({next_step_delay}분 후)")
+            
+            # 다음 단계 예약 정보를 데이터베이스에 저장
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                """, (order_id, f"{step_index + 2}-예약", f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled'))
+            else:
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                """, (order_id, f"{step_index + 2}-예약", f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled'))
+            
+            conn.commit()
+            print(f"📝 다음 단계 예약 정보 저장 완료")
+        
         schedule_next_package_step(order_id, step_index + 1, package_steps)
+        print(f"🔄 다음 단계 스케줄링 완료: {step_index + 1}/{len(package_steps)}")
         
         conn.close()
         return True
@@ -992,22 +1020,32 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
             wait_seconds = next_delay * 60
             print(f"⏰ 대기 시간: {wait_seconds}초 ({next_delay}분)")
             
-            # 1초씩 나누어서 대기 (중간에 중단되지 않도록)
-            for i in range(wait_seconds):
-                time.sleep(1)
-                if i % 60 == 0 and i > 0:  # 매분마다 로그
-                    remaining_minutes = (wait_seconds - i) // 60
-                    print(f"⏰ 남은 시간: {remaining_minutes}분")
+            # 효율적인 대기 방식 사용
+            import time
+            time.sleep(wait_seconds)
             
             print(f"⏰ {next_delay}분 대기 완료, 다음 단계 실행: {next_step_name}")
             print(f"⏰ 실행 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            process_package_step(order_id, next_step_index)
+            
+            # 다음 단계 실행
+            result = process_package_step(order_id, next_step_index)
+            print(f"⏰ 다음 단계 실행 결과: {result}")
+            
         except Exception as e:
             print(f"❌ 지연 실행 중 오류 발생: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
-    thread = threading.Thread(target=delayed_next_step, daemon=False, name=f"PackageStep-{order_id}-{next_step_index}")
+    # 스레드 생성 및 실행 (daemon=True로 변경하여 메인 프로세스 종료 시에도 실행)
+    thread = threading.Thread(target=delayed_next_step, daemon=True, name=f"PackageStep-{order_id}-{next_step_index}")
     thread.start()
     print(f"✅ 패키지 단계 {next_step_index + 1} 스케줄링 완료 (스레드 ID: {thread.ident})")
+    
+    # 스레드가 정상적으로 시작되었는지 확인
+    if thread.is_alive():
+        print(f"✅ 스레드가 정상적으로 시작됨: {thread.name}")
+    else:
+        print(f"❌ 스레드 시작 실패: {thread.name}")
 
 # 기존 패키지 주문 재처리 함수
 def reprocess_stuck_package_orders():
