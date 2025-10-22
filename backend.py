@@ -7503,6 +7503,26 @@ def upload_admin_image():
             'error': str(e)
         }), 500
 
+# SPA 라우팅 지원 - 모든 경로를 index.html로 리다이렉트
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_spa(path):
+    """SPA 라우팅 지원 - 모든 경로를 index.html로 서빙"""
+    # API 경로는 제외
+    if path.startswith('api/'):
+        return jsonify({'error': 'API endpoint not found'}), 404
+    
+    # 정적 파일 경로는 제외
+    if path.startswith('static/') or path.startswith('assets/') or '.' in path:
+        return jsonify({'error': 'Static file not found'}), 404
+    
+    # SPA 라우트인 경우 index.html 서빙
+    try:
+        return app.send_static_file('index.html')
+    except Exception as e:
+        print(f"❌ SPA 라우팅 오류: {e}")
+        return jsonify({'error': 'SPA routing failed'}), 500
+
 # 앱 시작 시 자동 초기화
 initialize_app()
 
