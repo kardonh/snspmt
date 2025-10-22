@@ -93,7 +93,7 @@ const PointsPage = () => {
     setIsKcpLoading(true)
     try {
       // 1단계: KCP 거래등록
-      const registerResponse = await fetch('/api/points/purchase-kcp/register', {
+      const registerResponse = await fetch(`${window.location.origin}/api/points/purchase-kcp/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -123,7 +123,7 @@ const PointsPage = () => {
       }
 
       // 2단계: 결제창 호출 데이터 생성
-      const formResponse = await fetch('/api/points/purchase-kcp/payment-form', {
+      const formResponse = await fetch(`${window.location.origin}/api/points/purchase-kcp/payment-form`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -226,7 +226,7 @@ const PointsPage = () => {
     try {
       console.log('🔍 수동 포인트 구매 신청 - 금액:', selectedAmount)
       
-      const response = await fetch('/api/points/purchase', {
+      const response = await fetch(`${window.location.origin}/api/points/purchase`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

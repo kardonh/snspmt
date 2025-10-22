@@ -268,6 +268,11 @@ def internal_error(error):
 
 @app.errorhandler(Exception)
 def handle_exception(e):
+    # 오류 로깅
+    print(f"❌ 전역 오류 발생: {str(e)}")
+    import traceback
+    print(f"❌ 스택 트레이스: {traceback.format_exc()}")
+    
     # 프로덕션 환경에서는 상세 오류 정보 숨김
     if os.environ.get('FLASK_ENV') == 'production':
         return jsonify({'error': 'Internal Server Error', 'message': '서버 오류가 발생했습니다.'}), 500
@@ -1048,6 +1053,7 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
     # 스레드 생성 및 실행 (daemon=True로 변경하여 메인 프로세스 종료 시에도 실행)
     thread = threading.Thread(target=delayed_next_step, daemon=True, name=f"PackageStep-{order_id}-{next_step_index}")
     thread.start()
+    print(f"✅ 다음 단계 스레드 시작됨: {next_step_name} ({next_delay}분 후)")
     print(f"✅ 패키지 단계 {next_step_index + 1} 스케줄링 완료 (스레드 ID: {thread.ident})")
     
     # 스레드가 정상적으로 시작되었는지 확인
@@ -3079,8 +3085,8 @@ def start_package_processing():
             print(f"📦 첫 번째 단계 실행: {package_steps[0] if package_steps else 'None'}")
             process_package_step(order_id, 0)
         
-        # 별도 스레드에서 실행
-        thread = threading.Thread(target=start_package_processing, daemon=False, name=f"PackageStart-{order_id}")
+        # 별도 스레드에서 실행 (daemon=True로 변경하여 메인 프로세스 종료 시 함께 종료)
+        thread = threading.Thread(target=start_package_processing, daemon=True, name=f"PackageStart-{order_id}")
         thread.start()
         
         print(f"✅ 패키지 주문 처리 시작됨: {order_id}")
@@ -3469,10 +3475,11 @@ def kcp_register_transaction():
         except Exception:
             pass
         if not kcp_cert_info or len(kcp_cert_info) < 60:
+            print(f"❌ KCP 인증서 정보 부족: 길이 {len(kcp_cert_info) if kcp_cert_info else 0}")
             return jsonify({
                 'success': False,
-                'error': 'KCP 거래등록 실패: KCP_CERT_INFO(서비스 인증서)가 비어있거나 너무 짧습니다. PEM 전체를 저장하세요.',
-            }), 400
+                'error': 'KCP 결제 시스템이 준비되지 않았습니다. 잠시 후 다시 시도해주세요.'
+            }), 503
         if not (kcp_cert_info.startswith('-----BEGIN') and 'END CERTIFICATE' in kcp_cert_info):
             return jsonify({
                 'success': False,
@@ -6922,11 +6929,10 @@ def kakao_login():
         
         # 사용자 정보 반환
         user_info = {
-            'user_id': user_id,
+            'uid': user_id,
             'email': email,
-            'name': nickname,
-            'kakao_id': kakao_id,
-            'profile_image': profile_image,
+            'displayName': nickname,
+            'photoURL': profile_image,
             'provider': 'kakao'
         }
         
@@ -6976,7 +6982,6 @@ def google_login():
         existing_user = cursor.fetchone()
         
         if existing_user:
-            # 기존 사용자 업데이트
             user_id, user_email, user_name, user_google_id, last_login = existing_user
             
             # 구글 ID가 없으면 추가
@@ -7299,19 +7304,6 @@ def get_blog_tags():
         }), 500
 
 # ==================== 관리자 블로그 API ====================
-
-def require_admin_auth(f):
-    """관리자 인증 데코레이터"""
-    def decorated_function(*args, **kwargs):
-        admin_token = request.headers.get('X-Admin-Token')
-        if admin_token != 'admin_sociality_2024':
-            return jsonify({
-                'success': False,
-                'error': '관리자 권한이 필요합니다.'
-            }), 403
-        return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
-    return decorated_function
 
 @app.route('/api/blog/posts', methods=['POST'])
 @require_admin_auth

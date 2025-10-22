@@ -139,7 +139,7 @@ const Home = () => {
   const loadSMMServices = async () => {
     setIsLoadingServices(true)
     try {
-      const response = await fetch('/api/smm-panel/services')
+      const response = await fetch(`${window.location.origin}/api/smm-panel/services`)
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
