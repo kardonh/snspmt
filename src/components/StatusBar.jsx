@@ -66,18 +66,20 @@ const StatusBar = () => {
     checkIsMobile()
     window.addEventListener('resize', checkIsMobile)
 
-    // 사용자 포인트 조회
-    if (currentUser) {
+    // 사용자 포인트 조회 (currentUser 또는 localStorage 기반)
+    const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+    if (userId) {
       fetchUserPoints()
     }
 
-    // 주기적 포인트 확인 (30초마다)
+    // 주기적 포인트 확인 (10초마다)
     const pointsCheckInterval = setInterval(() => {
-      if (currentUser && currentUser.uid) {
+      const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+      if (userId) {
         console.log('🔄 StatusBar: 주기적 포인트 확인');
         fetchUserPoints()
       }
-    }, 30000) // 30초마다 확인
+    }, 10000) // 10초마다 확인
 
     // 포인트 업데이트 이벤트 리스너
     const handlePointsUpdate = () => {
@@ -144,7 +146,7 @@ const StatusBar = () => {
               />
             </Link>
             <div className="mobile-user-info">
-              {currentUser ? (
+              {(currentUser || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')) ? (
                 <>
                   <div className="mobile-points-info">
                     <Coins size={16} />
@@ -156,7 +158,7 @@ const StatusBar = () => {
                     충전
                   </Link>
                   <span className="mobile-user-name">
-                    {currentUser.displayName || currentUser.email}
+                    {currentUser?.displayName || currentUser?.email || localStorage.getItem('userEmail') || '사용자'}
                   </span>
                   <button onClick={handleLogout} className="mobile-logout-btn">
                     <LogOut size={16} />
