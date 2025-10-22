@@ -212,9 +212,13 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
       setError('');
       
       console.log('카카오 로그인 시작...');
-      await kakaoAuth.login();
-      // 리다이렉트 방식이므로 여기서는 아무것도 하지 않음
-      // 실제 로그인 처리는 KakaoCallback 페이지에서 처리됨
+      const result = await kakaoAuth.login();
+      
+      if (result && result.success) {
+        console.log('카카오 로그인 리다이렉트 시작:', result.message);
+        // 리다이렉트가 시작되므로 로딩 상태 유지
+        return;
+      }
     } catch (error) {
       console.error('카카오 로그인 오류:', error);
       
@@ -229,9 +233,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
         errorMessage = '네트워크 연결을 확인해주세요.';
       } else if (error.message.includes('취소')) {
         errorMessage = '카카오 로그인이 취소되었습니다.';
-      } else if (error.message.includes('리다이렉트')) {
-        // 리다이렉트 방식이므로 오류가 아님
-        return;
       }
       
       setError(errorMessage);

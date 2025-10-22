@@ -14,12 +14,18 @@ const StatusBar = () => {
 
   // 사용자 포인트 조회 함수
   const fetchUserPoints = async () => {
+    // 사용자 정보 검증 강화
     const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
     
     if (!userId) {
       console.log('🔍 StatusBar: 사용자 ID 없음, 포인트 조회 건너뜀');
       setUserPoints(0)
       return;
+    }
+    
+    // Firebase 사용자 객체 유효성 검증
+    if (currentUser && typeof currentUser.uid !== 'string') {
+      console.log('🔍 StatusBar: 유효하지 않은 사용자 객체, localStorage 사용');
     }
     
     setPointsLoading(true)

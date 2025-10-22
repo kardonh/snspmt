@@ -7044,35 +7044,77 @@ def google_login():
                 'message': '구글 로그인 성공'
             }), 200
         else:
-            # 새 사용자 생성
+            # 새 사용자 생성 (UPSERT 방식으로 중복 이메일 문제 해결)
             user_id = f"google_{google_id}"
             
-            cursor.execute("""
-                INSERT INTO users (
-                    user_id, email, name, google_id, profile_image, last_login, created_at, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), NOW())
-            """, (user_id, email, display_name, google_id, photo_url))
-            
-            # 포인트 테이블에도 초기 레코드 생성
-            cursor.execute("""
-                INSERT INTO points (user_id, points, created_at, updated_at)
-                VALUES (%s, %s, NOW(), NOW())
-            """, (user_id, 0))
-            
-            conn.commit()
-            cursor.close()
-            conn.close()
-            
-            return jsonify({
-                'success': True,
-                'user': {
-                    'uid': user_id,
-                    'email': email,
-                    'displayName': display_name,
-                    'photoURL': photo_url
-                },
-                'message': '구글 회원가입 및 로그인 성공'
-            }), 201
+            try:
+                cursor.execute("""
+                    INSERT INTO users (
+                        user_id, email, name, google_id, profile_image, last_login, created_at, updated_at
+                    ) VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), NOW())
+                """, (user_id, email, display_name, google_id, photo_url))
+                
+                # 포인트 테이블에도 초기 레코드 생성
+                cursor.execute("""
+                    INSERT INTO points (user_id, points, created_at, updated_at)
+                    VALUES (%s, %s, NOW(), NOW())
+                """, (user_id, 0))
+                
+                conn.commit()
+                cursor.close()
+                conn.close()
+                
+                return jsonify({
+                    'success': True,
+                    'user': {
+                        'uid': user_id,
+                        'email': email,
+                        'displayName': display_name,
+                        'photoURL': photo_url
+                    },
+                    'message': '구글 회원가입 및 로그인 성공'
+                }), 201
+                
+            except Exception as insert_error:
+                # 중복 이메일 오류인 경우 기존 사용자로 처리
+                if 'duplicate key value violates unique constraint' in str(insert_error):
+                    print(f"⚠️ 중복 이메일 감지, 기존 사용자로 처리: {email}")
+                    
+                    # 기존 사용자 조회
+                    cursor.execute("""
+                        SELECT user_id, email, name, google_id, last_login
+                        FROM users 
+                        WHERE email = %s
+                    """, (email,))
+                    
+                    existing_user = cursor.fetchone()
+                    if existing_user:
+                        user_id, user_email, user_name, user_google_id, last_login = existing_user
+                        
+                        # 구글 ID 업데이트
+                        cursor.execute("""
+                            UPDATE users 
+                            SET google_id = %s, profile_image = %s, last_login = NOW(), updated_at = NOW()
+                            WHERE user_id = %s
+                        """, (google_id, photo_url, user_id))
+                        
+                        conn.commit()
+                        cursor.close()
+                        conn.close()
+                        
+                        return jsonify({
+                            'success': True,
+                            'user': {
+                                'uid': user_id,
+                                'email': user_email,
+                                'displayName': user_name,
+                                'photoURL': photo_url
+                            },
+                            'message': '구글 로그인 성공 (기존 계정 연결)'
+                        }), 200
+                
+                # 다른 오류인 경우 재발생
+                raise insert_error
             
     except Exception as e:
         print(f"구글 로그인 오류: {e}")

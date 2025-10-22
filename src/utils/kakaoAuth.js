@@ -59,13 +59,14 @@ class KakaoAuth {
       const redirectUri = window.location.origin + '/kakao-callback';
       console.log('카카오 로그인 Redirect URI:', redirectUri);
       
+      // 카카오 로그인 페이지로 리다이렉트
       window.Kakao.Auth.authorize({
         redirectUri: redirectUri
       });
       
-      // 리다이렉트 방식이므로 여기서는 Promise를 반환하지 않습니다
-      // 실제 로그인 처리는 리다이렉트 후 콜백 페이지에서 처리됩니다
-      throw new Error('카카오 로그인은 리다이렉트 방식입니다. 콜백 페이지에서 처리해주세요.');
+      // 리다이렉트가 시작되므로 여기서는 성공으로 처리
+      console.log('카카오 로그인 리다이렉트 시작');
+      return { success: true, message: '카카오 로그인 페이지로 이동합니다.' };
       
     } catch (error) {
       console.error('카카오 로그인 오류:', error);
