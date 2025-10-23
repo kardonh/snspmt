@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { X, LogIn, UserPlus, Mail, Lock, User, Building2, Briefcase, Eye, EyeOff, AlertTriangle, ArrowRight } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import kakaoAuth from '../utils/kakaoAuth'
-import googleAuth from '../utils/googleAuth'
 import './AuthModal.css'
 
 const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
@@ -240,17 +239,14 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
     }
   };
 
-  // 구글 로그인 처리
+  // 구글 로그인 처리 (AuthContext의 googleLogin 사용)
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
       setError('');
       
       console.log('구글 로그인 시작...');
-      const googleUserInfo = await googleAuth.login();
-      console.log('구글 사용자 정보:', googleUserInfo);
-      
-      const user = await googleLogin(googleUserInfo);
+      const user = await googleLogin();
       console.log('로그인 성공:', user);
       
       // 로그인 성공
