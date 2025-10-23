@@ -148,8 +148,8 @@ export function AuthProvider({ children }) {
     // 사용자 상태 초기화
     setCurrentUser(null);
     
-    // Firebase 로그아웃
-    return signOut(auth);
+    // localStorage 기반 로그아웃 (Firebase 호출 제거)
+    return Promise.resolve();
   }
 
   // 카카오 로그인 함수
@@ -263,14 +263,25 @@ export function AuthProvider({ children }) {
     if (!currentUser) {
       throw new Error('사용자가 로그인되지 않았습니다.');
     }
-    return updateProfile(currentUser, updates);
+    // localStorage 기반 프로필 업데이트
+    const updatedUser = { ...currentUser, ...updates };
+    setCurrentUser(updatedUser);
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    return Promise.resolve();
   }
 
   function deleteAccount() {
     if (!currentUser) {
       throw new Error('사용자가 로그인되지 않았습니다.');
     }
-    return deleteUser(currentUser);
+    // localStorage 기반 계정 삭제
+    setCurrentUser(null);
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('firebase_user_id');
+    localStorage.removeItem('firebase_user_email');
+    return Promise.resolve();
   }
 
   useEffect(() => {
