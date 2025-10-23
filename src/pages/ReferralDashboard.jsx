@@ -52,15 +52,7 @@ const ReferralDashboard = () => {
                   localStorage.getItem('firebase_user_email') ||
                   localStorage.getItem('userEmail')
       
-      // 2. Firebase 사용자 정보에서 이메일 가져오기
-      if (!userEmail && window.firebase && window.firebase.auth) {
-        const currentUser = window.firebase.auth().currentUser
-        if (currentUser && currentUser.email) {
-          userEmail = currentUser.email
-          localStorage.setItem('userEmail', userEmail)
-          console.log('✅ Firebase에서 이메일 가져옴:', userEmail)
-        }
-      }
+      // 2. Firebase 의존성 제거됨 - localStorage만 사용
       
       // 3. AuthContext에서 이메일 가져오기
       if (!userEmail) {
