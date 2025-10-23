@@ -22,7 +22,8 @@ const Header = () => {
 
   // 사용자 포인트 조회
   const fetchUserPoints = async () => {
-    const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+    // localStorage 우선 사용 (Firebase 인증 우회)
+    const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid
     
     if (!userId) {
       console.log('🔍 Header: 사용자 ID 없음, 포인트 조회 건너뜀');
@@ -37,8 +38,14 @@ const Header = () => {
       const response = await fetch(`${window.location.origin}/api/points?user_id=${userId}`)
       if (response.ok) {
         const data = await response.json()
-        setUserPoints(data.points || 0)
-        console.log('✅ Header 포인트 조회 성공:', data.points)
+        const points = data.points || 0
+        setUserPoints(points)
+        console.log('✅ Header 포인트 조회 성공:', points)
+        
+        // 강제 리렌더링을 위한 상태 업데이트
+        setTimeout(() => {
+          setUserPoints(points)
+        }, 100)
       } else {
         console.error('❌ Header 포인트 조회 실패:', response.status)
         setUserPoints(0)

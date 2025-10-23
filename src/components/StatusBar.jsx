@@ -14,8 +14,8 @@ const StatusBar = () => {
 
   // 사용자 포인트 조회 함수
   const fetchUserPoints = async () => {
-    // 사용자 정보 검증 강화
-    const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+    // localStorage 우선 사용 (Firebase 인증 우회)
+    const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid
     
     if (!userId) {
       console.log('🔍 StatusBar: 사용자 ID 없음, 포인트 조회 건너뜀');
@@ -23,7 +23,7 @@ const StatusBar = () => {
       return;
     }
     
-    // Firebase 사용자 객체 유효성 검증
+    // Firebase 사용자 객체가 있더라도 localStorage 우선 사용
     if (currentUser && typeof currentUser.uid !== 'string') {
       console.log('🔍 StatusBar: 유효하지 않은 사용자 객체, localStorage 사용');
     }
@@ -40,8 +40,14 @@ const StatusBar = () => {
       
       if (response.ok) {
         const data = await response.json()
-        setUserPoints(data.points || 0)
-        console.log('✅ StatusBar 포인트 조회 성공:', data.points)
+        const points = data.points || 0
+        setUserPoints(points)
+        console.log('✅ StatusBar 포인트 조회 성공:', points)
+        
+        // 강제 리렌더링을 위한 상태 업데이트
+        setTimeout(() => {
+          setUserPoints(points)
+        }, 100)
       } else {
         console.error('❌ StatusBar 포인트 조회 실패:', response.status)
         setUserPoints(0)
@@ -91,14 +97,7 @@ const StatusBar = () => {
       initializePoints()
     }
 
-    // 주기적 포인트 확인 (10초마다)
-    const pointsCheckInterval = setInterval(() => {
-      const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
-      if (userId) {
-        console.log('🔄 StatusBar: 주기적 포인트 확인');
-        fetchUserPoints()
-      }
-    }, 10000) // 10초마다 확인
+    // 주기적 포인트 확인 제거 (페이지 이동 시에만 조회)
 
     // 포인트 업데이트 이벤트 리스너
     const handlePointsUpdate = () => {
@@ -180,7 +179,6 @@ const StatusBar = () => {
 
     return () => {
       clearInterval(timer)
-      clearInterval(pointsCheckInterval)
       window.removeEventListener('resize', checkIsMobile)
       window.removeEventListener('pointsUpdated', handlePointsUpdate)
       window.removeEventListener('storage', forcePointsUpdate)
@@ -233,6 +231,8 @@ const StatusBar = () => {
                     <span className="mobile-points-amount">
                       {pointsLoading ? '로딩...' : `${userPoints.toLocaleString()}P`}
                     </span>
+                    {/* 디버깅용 로그 */}
+                    {console.log('🔍 StatusBar 렌더링 - userPoints:', userPoints, 'pointsLoading:', pointsLoading)}
                   </div>
                   <Link to="/points" className="mobile-charge-btn">
                     충전

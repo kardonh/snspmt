@@ -324,9 +324,15 @@ export function AuthProvider({ children }) {
           return;
         }
         
-        // Firebase 사용자 객체의 메서드 존재 여부 확인
-        if (typeof user.getIdToken !== 'function') {
-          console.error('❌ Firebase 사용자 객체에 getIdToken 메서드가 없습니다:', user);
+        // Firebase 사용자 객체의 메서드 존재 여부 확인 (안전하게 처리)
+        try {
+          if (typeof user.getIdToken !== 'function') {
+            console.error('❌ Firebase 사용자 객체에 getIdToken 메서드가 없습니다:', user);
+            setCurrentUser(null);
+            return;
+          }
+        } catch (error) {
+          console.error('❌ Firebase 사용자 객체 검증 중 오류:', error);
           setCurrentUser(null);
           return;
         }
