@@ -375,7 +375,7 @@ const PointsPage = () => {
                     <p style={{ color: '#ff6b6b', fontWeight: 'bold' }}>⚠️ 현재 점검 중으로 이용 불가</p>
                   </div>
                 </div>
-              </div>
+          </div>
 
               <div 
                 className={`payment-method-option ${paymentMethod === 'manual' ? 'selected' : ''}`}
