@@ -174,6 +174,14 @@ export function AuthProvider({ children }) {
         if (data.success) {
           // 카카오 로그인 성공 시 사용자 정보 설정
           setCurrentUser(data.user);
+          
+          // localStorage에 사용자 정보 저장
+          localStorage.setItem('userId', data.user.uid);
+          localStorage.setItem('userEmail', data.user.email);
+          localStorage.setItem('firebase_user_id', data.user.uid);
+          localStorage.setItem('firebase_user_email', data.user.email);
+          localStorage.setItem('currentUser', JSON.stringify(data.user));
+          
           return data.user;
         } else {
           throw new Error(data.message || '카카오 로그인에 실패했습니다.');
@@ -220,6 +228,14 @@ export function AuthProvider({ children }) {
           if (data.success) {
             // 구글 로그인 성공 시 사용자 정보 설정
             setCurrentUser(data.user);
+            
+            // localStorage에 사용자 정보 저장
+            localStorage.setItem('userId', data.user.uid);
+            localStorage.setItem('userEmail', data.user.email);
+            localStorage.setItem('firebase_user_id', data.user.uid);
+            localStorage.setItem('firebase_user_email', data.user.email);
+            localStorage.setItem('currentUser', JSON.stringify(data.user));
+            
             return data.user;
           } else {
             throw new Error(data.message || '구글 로그인에 실패했습니다.');
@@ -308,74 +324,11 @@ export function AuthProvider({ children }) {
     // 먼저 localStorage에서 사용자 정보 복원 시도
     const userRestored = restoreUserFromStorage();
 
-    // Firebase 인증 상태 변경 리스너
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      // 이미 localStorage에서 복원된 경우 Firebase 상태 변경 무시
-      if (isInitialized && userRestored) {
-        console.log('🔄 localStorage에서 이미 복원됨, Firebase 상태 변경 무시');
-        return;
-      }
-      
-      if (user) {
-        // Firebase 사용자 객체 유효성 검증 강화
-        if (!user || !user.uid || typeof user.uid !== 'string' || !user.email) {
-          console.error('❌ 유효하지 않은 Firebase 사용자 객체:', user);
-          setCurrentUser(null);
-          return;
-        }
-        
-        // Firebase 사용자 객체의 메서드 존재 여부 확인 (안전하게 처리)
-        try {
-          if (typeof user.getIdToken !== 'function') {
-            console.error('❌ Firebase 사용자 객체에 getIdToken 메서드가 없습니다:', user);
-            setCurrentUser(null);
-            return;
-          }
-        } catch (error) {
-          console.error('❌ Firebase 사용자 객체 검증 중 오류:', error);
-          setCurrentUser(null);
-          return;
-        }
-        
-        // Firebase 인증된 사용자 정보로 업데이트
-        setCurrentUser(user);
-        
-        // 사용자 정보를 localStorage에 저장
-        localStorage.setItem('userId', user.uid);
-        localStorage.setItem('userEmail', user.email);
-        localStorage.setItem('firebase_user_id', user.uid);
-        localStorage.setItem('firebase_user_email', user.email);
-        localStorage.setItem('currentUser', JSON.stringify({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName
-        }));
-        
-        try {
-          // 사용자 정보 저장 (기본 정보만)
-          await smmpanelApi.registerUser({
-            user_id: user.uid,
-            email: user.email,
-            name: user.displayName || user.email.split('@')[0] || '사용자'
-          });
-        } catch (error) {
-          // 오프라인 모드에서는 에러를 무시하고 계속 진행
-        }
-      } else {
-        // Firebase 인증이 없을 때만 로그아웃 처리
-        if (!userRestored) {
-          setCurrentUser(null);
-          // 로그아웃 시 localStorage 정리
-          localStorage.removeItem('userId');
-          localStorage.removeItem('userEmail');
-          localStorage.removeItem('firebase_user_id');
-          localStorage.removeItem('firebase_user_email');
-          localStorage.removeItem('currentUser');
-        }
-      }
-      
-      setLoading(false);
-    });
+    // Firebase 인증 상태 변경 리스너 (비활성화)
+    // localStorage 기반 인증만 사용하여 Firebase 오류 방지
+    const unsubscribe = () => {
+      console.log('🔄 Firebase 인증 리스너 비활성화 - localStorage 기반 인증 사용');
+    };
 
     return unsubscribe;
   }, []);
