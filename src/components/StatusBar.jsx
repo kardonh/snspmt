@@ -66,10 +66,29 @@ const StatusBar = () => {
     checkIsMobile()
     window.addEventListener('resize', checkIsMobile)
 
-    // 사용자 포인트 조회 (currentUser 또는 localStorage 기반)
-    const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
-    if (userId) {
-      fetchUserPoints()
+    // 자동 로그인 시 포인트 조회 지연 처리
+    const initializePoints = () => {
+      const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+      console.log('🔍 StatusBar 초기화 - currentUser:', currentUser);
+      console.log('🔍 StatusBar 초기화 - localStorage userId:', localStorage.getItem('userId'));
+      console.log('🔍 StatusBar 초기화 - localStorage firebase_user_id:', localStorage.getItem('firebase_user_id'));
+      
+      if (userId) {
+        console.log('🔍 StatusBar: 사용자 ID 발견, 포인트 조회 시작');
+        fetchUserPoints()
+      } else {
+        console.log('🔍 StatusBar: 사용자 ID 없음, 포인트 조회 건너뜀');
+        setUserPoints(0)
+      }
+    }
+
+    // 즉시 실행
+    initializePoints()
+    
+    // currentUser가 변경될 때도 실행 (자동 로그인 완료 시)
+    if (currentUser) {
+      console.log('🔍 StatusBar: currentUser 변경 감지, 포인트 조회 재시도');
+      initializePoints()
     }
 
     // 주기적 포인트 확인 (10초마다)
@@ -98,15 +117,76 @@ const StatusBar = () => {
       }
     }
 
+    // 강제 포인트 업데이트 함수
+    const forcePointsUpdate = () => {
+      console.log('🔄 StatusBar: 강제 포인트 업데이트');
+      const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+      if (userId) {
+        fetchUserPoints()
+      }
+    }
+
     // 포인트 충전 완료 이벤트 리스너
     window.addEventListener('pointsUpdated', handlePointsUpdate)
     console.log('✅ StatusBar: pointsUpdated 이벤트 리스너 등록됨')
+    
+    // 추가 이벤트 리스너들
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'userId' || e.key === 'firebase_user_id') {
+        console.log('🔄 StatusBar: localStorage 변경 감지, 포인트 업데이트');
+        forcePointsUpdate()
+      }
+    })
+    
+    // 포커스 이벤트 리스너 (탭 전환 시 포인트 업데이트)
+    window.addEventListener('focus', () => {
+      console.log('🔄 StatusBar: 윈도우 포커스, 포인트 업데이트');
+      forcePointsUpdate()
+    })
+    
+    // 가시성 변경 이벤트 리스너
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        console.log('🔄 StatusBar: 페이지 가시성 변경, 포인트 업데이트');
+        forcePointsUpdate()
+      }
+    })
+    
+    // 자동 로그인 완료 감지를 위한 추가 이벤트 리스너
+    const handleAutoLoginComplete = () => {
+      console.log('🔄 StatusBar: 자동 로그인 완료 감지');
+      setTimeout(() => {
+        const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+        if (userId) {
+          console.log('🔄 StatusBar: 자동 로그인 후 포인트 조회');
+          fetchUserPoints()
+        }
+      }, 1000) // 1초 후 실행
+    }
+    
+    // 자동 로그인 완료 이벤트 리스너
+    window.addEventListener('autoLoginComplete', handleAutoLoginComplete)
+    
+    // 페이지 로드 완료 후 추가 확인
+    if (document.readyState === 'complete') {
+      setTimeout(() => {
+        const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+        if (userId && userPoints === 0) {
+          console.log('🔄 StatusBar: 페이지 로드 완료 후 포인트 조회');
+          fetchUserPoints()
+        }
+      }, 2000) // 2초 후 실행
+    }
 
     return () => {
       clearInterval(timer)
       clearInterval(pointsCheckInterval)
       window.removeEventListener('resize', checkIsMobile)
       window.removeEventListener('pointsUpdated', handlePointsUpdate)
+      window.removeEventListener('storage', forcePointsUpdate)
+      window.removeEventListener('focus', forcePointsUpdate)
+      document.removeEventListener('visibilitychange', forcePointsUpdate)
+      window.removeEventListener('autoLoginComplete', handleAutoLoginComplete)
     }
   }, [currentUser])
 

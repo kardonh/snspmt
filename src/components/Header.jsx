@@ -52,7 +52,29 @@ const Header = () => {
   }
 
   useEffect(() => {
-    fetchUserPoints()
+    // 자동 로그인 시 포인트 조회 지연 처리
+    const initializePoints = () => {
+      const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+      console.log('🔍 Header 초기화 - currentUser:', currentUser);
+      console.log('🔍 Header 초기화 - localStorage userId:', localStorage.getItem('userId'));
+      
+      if (userId) {
+        console.log('🔍 Header: 사용자 ID 발견, 포인트 조회 시작');
+        fetchUserPoints()
+      } else {
+        console.log('🔍 Header: 사용자 ID 없음, 포인트 조회 건너뜀');
+        setUserPoints(0)
+      }
+    }
+
+    // 즉시 실행
+    initializePoints()
+    
+    // currentUser가 변경될 때도 실행 (자동 로그인 완료 시)
+    if (currentUser) {
+      console.log('🔍 Header: currentUser 변경 감지, 포인트 조회 재시도');
+      initializePoints()
+    }
 
     // 포인트 업데이트 이벤트 리스너
     const handlePointsUpdate = () => {
@@ -74,9 +96,43 @@ const Header = () => {
     // 포인트 충전 완료 이벤트 리스너
     window.addEventListener('pointsUpdated', handlePointsUpdate)
     console.log('✅ Header: pointsUpdated 이벤트 리스너 등록됨')
+    
+    // 강제 포인트 업데이트 함수
+    const forcePointsUpdate = () => {
+      console.log('🔄 Header: 강제 포인트 업데이트');
+      const userId = currentUser?.uid || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')
+      if (userId) {
+        fetchUserPoints()
+      }
+    }
+    
+    // 추가 이벤트 리스너들
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'userId' || e.key === 'firebase_user_id') {
+        console.log('🔄 Header: localStorage 변경 감지, 포인트 업데이트');
+        forcePointsUpdate()
+      }
+    })
+    
+    // 포커스 이벤트 리스너 (탭 전환 시 포인트 업데이트)
+    window.addEventListener('focus', () => {
+      console.log('🔄 Header: 윈도우 포커스, 포인트 업데이트');
+      forcePointsUpdate()
+    })
+    
+    // 가시성 변경 이벤트 리스너
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        console.log('🔄 Header: 페이지 가시성 변경, 포인트 업데이트');
+        forcePointsUpdate()
+      }
+    })
 
     return () => {
       window.removeEventListener('pointsUpdated', handlePointsUpdate)
+      window.removeEventListener('storage', forcePointsUpdate)
+      window.removeEventListener('focus', forcePointsUpdate)
+      document.removeEventListener('visibilitychange', forcePointsUpdate)
     }
   }, [currentUser])
 

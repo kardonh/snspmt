@@ -2101,6 +2101,28 @@
   100% { opacity: 1; }
 }
 
+/* 비활성화된 결제 방법 스타일 */
+.payment-method-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #f5f5f5;
+  border: 2px dashed #ccc;
+}
+
+.payment-method-option.disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.payment-method-option.disabled .payment-method-icon {
+  color: #999;
+}
+
+.payment-method-option.disabled .payment-method-label {
+  color: #666;
+}
+
 .payment-method-description {
   background: rgba(102, 126, 234, 0.05);
   padding: 16px 20px;

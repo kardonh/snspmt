@@ -12,7 +12,7 @@ const PointsPage = () => {
   const [purchaseHistory, setPurchaseHistory] = useState([])
   const [userInfo, setUserInfo] = useState(null)
   const [isKcpLoading, setIsKcpLoading] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState('kcp') // 'kcp' 또는 'manual'
+  const [paymentMethod, setPaymentMethod] = useState('manual') // 'kcp' 또는 'manual'
   const [buyerName, setBuyerName] = useState('')
   const [bankInfo, setBankInfo] = useState('')
   const [showAccountModal, setShowAccountModal] = useState(false)
@@ -251,7 +251,7 @@ const PointsPage = () => {
         loadUserPoints()
         loadPurchaseHistory()
         
-        // 포인트 업데이트 이벤트 발생
+        // 포인트 업데이트 이벤트 발생 (즉시)
         console.log('🔄 PointsPage: pointsUpdated 이벤트 발생');
         window.dispatchEvent(new CustomEvent('pointsUpdated'))
         
@@ -270,6 +270,21 @@ const PointsPage = () => {
           console.log('🔄 PointsPage: pointsUpdated 이벤트 재발생 (5초 후)');
           window.dispatchEvent(new CustomEvent('pointsUpdated'))
         }, 5000)
+        
+        // 추가 이벤트 발생 (더 많은 시점)
+        setTimeout(() => {
+          console.log('🔄 PointsPage: pointsUpdated 이벤트 재발생 (10초 후)');
+          window.dispatchEvent(new CustomEvent('pointsUpdated'))
+        }, 10000)
+        
+        // localStorage 변경 이벤트도 발생
+        const currentUserId = currentUser?.uid || localStorage.getItem('userId') || 'demo_user'
+        localStorage.setItem('lastPointsUpdate', Date.now().toString())
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'lastPointsUpdate',
+          newValue: Date.now().toString(),
+          url: window.location.href
+        }))
         
         // 폼 초기화
         setBuyerName('')
@@ -362,8 +377,8 @@ const PointsPage = () => {
             <h3>결제 방식</h3>
             <div className="payment-method-options">
               <div 
-                className={`payment-method-option ${paymentMethod === 'kcp' ? 'selected' : ''}`}
-                onClick={() => setPaymentMethod('kcp')}
+                className="payment-method-option disabled"
+                style={{ opacity: 0.5, cursor: 'not-allowed' }}
               >
                 <CreditCard className="payment-method-icon" />
                 <div className="payment-method-content">
@@ -373,9 +388,10 @@ const PointsPage = () => {
                     <p>💳 신용카드로 안전하고 빠른 결제</p>
                     <p>⚡ 결제 완료 즉시 포인트 자동 충전</p>
                     <p>🔒 KCP 보안 시스템으로 안전한 결제</p>
+                    <p style={{ color: '#ff6b6b', fontWeight: 'bold' }}>⚠️ 현재 점검 중으로 이용 불가</p>
                   </div>
                 </div>
-          </div>
+              </div>
 
               <div 
                 className={`payment-method-option ${paymentMethod === 'manual' ? 'selected' : ''}`}
@@ -384,6 +400,7 @@ const PointsPage = () => {
                 <Building2 className="payment-method-icon" />
                 <div className="payment-method-content">
                   <span className="payment-method-label">계좌이체 (수동승인)</span>
+                  <span className="payment-method-badge" style={{ background: '#4CAF50', color: 'white' }}>추천</span>
                   <div className="payment-method-description">
                     <p>🏦 계좌이체 후 관리자 승인</p>
                     <p>⏰ 승인 후 포인트 충전</p>
@@ -443,11 +460,11 @@ const PointsPage = () => {
 
           <button
             onClick={handlePurchase}
-            disabled={isLoading || isKcpLoading || selectedAmount === 0}
+            disabled={isLoading || isKcpLoading || selectedAmount === 0 || paymentMethod === 'kcp'}
             className="purchase-btn"
           >
             {isLoading ? '처리중...' : isKcpLoading ? 'KCP 결제 준비중...' : 
-             paymentMethod === 'kcp' ? 'KCP 카드결제' : '포인트 구매 신청'}
+             paymentMethod === 'kcp' ? 'KCP 카드결제 (점검중)' : '포인트 구매 신청'}
           </button>
         </div>
 

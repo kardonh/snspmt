@@ -273,6 +273,15 @@ def handle_exception(e):
     import traceback
     print(f"❌ 스택 트레이스: {traceback.format_exc()}")
     
+    # MethodNotAllowed 오류에 대한 특별 처리
+    if hasattr(e, 'code') and e.code == 405:
+        print(f"❌ 405 Method Not Allowed: {request.method} {request.path}")
+        return jsonify({
+            'error': 'Method not allowed',
+            'message': f'{request.method} method is not allowed for {request.path}',
+            'type': 'MethodNotAllowed'
+        }), 405
+    
     # 프로덕션 환경에서는 상세 오류 정보 숨김
     if os.environ.get('FLASK_ENV') == 'production':
         return jsonify({'error': 'Internal Server Error', 'message': '서버 오류가 발생했습니다.'}), 500
@@ -595,15 +604,20 @@ def process_package_delivery(order_id, day_number, package_steps, user_id, link,
                     VALUES (?, ?, ?, 'pending', datetime('now'))
                 """, (order_id, day_number, datetime.now().date()))
         
-        # 패키지 상품의 경우 하루에 400개씩 처리
-        daily_quantity = 400
+        # 패키지 단계에서 서비스 정보 추출
+        service_id = 515  # 기본값
+        daily_quantity = 400  # 기본값
         
-        # SMM Panel API 호출 (인스타그램 프로필 방문)
+        if package_steps and len(package_steps) > 0:
+            service_id = package_steps[0].get('id', 515)
+            daily_quantity = package_steps[0].get('quantity', 400)
+        
+        # SMM Panel API 호출
         smm_result = call_smm_panel_api({
-            'service': 515,  # 인스타그램 프로필 방문
+            'service': service_id,
             'link': link,
             'quantity': daily_quantity,
-            'comments': f"{comments} (패키지 {day_number}/30일차)"
+            'comments': f"{comments} (패키지 분할 {day_number}/30일차)"
         })
         
         if smm_result.get('status') == 'success':
@@ -1020,9 +1034,18 @@ def process_package_step(order_id, step_index):
             print(f"🎉 모든 단계 완료! 다음 단계 없음")
         
         print(f"🔄 schedule_next_package_step 호출 시작")
+        print(f"🔄 현재 단계: {step_index + 1}, 다음 단계: {step_index + 2}, 총 단계: {len(package_steps)}")
         schedule_next_package_step(order_id, step_index + 1, package_steps)
         print(f"🔄 schedule_next_package_step 호출 완료")
         print(f"🔄 다음 단계 스케줄링 완료: {step_index + 1}/{len(package_steps)}")
+        
+        # 스레드 상태 확인
+        import threading
+        active_threads = threading.active_count()
+        print(f"🔄 현재 활성 스레드 수: {active_threads}")
+        for thread in threading.enumerate():
+            if 'PackageStep' in thread.name:
+                print(f"🔄 패키지 스레드 발견: {thread.name} (활성: {thread.is_alive()})")
         
         conn.close()
         return True
@@ -1078,8 +1101,8 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
             import traceback
             traceback.print_exc()
     
-    # 스레드 생성 및 실행 (daemon=False로 변경하여 독립적으로 실행)
-    thread = threading.Thread(target=delayed_next_step, daemon=False, name=f"PackageStep-{order_id}-{next_step_index}")
+    # 스레드 생성 및 실행 (daemon=True로 변경하여 메인 프로세스와 독립적으로 실행)
+    thread = threading.Thread(target=delayed_next_step, daemon=True, name=f"PackageStep-{order_id}-{next_step_index}")
     thread.start()
     print(f"✅ 다음 단계 스레드 시작됨: {next_step_name} ({next_delay}분 후)")
     print(f"✅ 패키지 단계 {next_step_index + 1} 스케줄링 완료 (스레드 ID: {thread.ident})")
@@ -1092,6 +1115,10 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
     
     # 스레드 완료를 기다리지 않고 즉시 반환 (백그라운드 실행)
     print(f"🔄 백그라운드에서 {next_delay}분 후 실행 예정: {next_step_name}")
+    
+    # 스레드가 정상적으로 실행되도록 잠시 대기
+    import time
+    time.sleep(0.1)
 
 # 기존 패키지 주문 재처리 함수
 def reprocess_stuck_package_orders():
@@ -2965,12 +2992,44 @@ def create_order():
             
             conn.commit()
             
-            # 모든 패키지 주문은 결제 완료 후에만 처리되도록 변경
-            print(f"📦 패키지 주문 생성 완료 - 결제 완료 후 처리 예정")
+            # 패키지 주문 즉시 처리 시작
+            print(f"📦 패키지 주문 즉시 처리 시작: {order_id}")
             print(f"📦 주문 ID: {order_id}, 사용자: {user_id}, 단계 수: {len(package_steps)}")
             
-            status = 'pending'  # 결제 완료 전까지는 pending 상태
-            message = f'패키지 주문이 생성되었습니다. 결제 완료 후 {len(package_steps)}단계 순차 처리됩니다.'
+            # 주문 상태를 package_processing으로 변경
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE orders SET status = 'package_processing', updated_at = NOW()
+                    WHERE order_id = %s
+                """, (order_id,))
+            else:
+                cursor.execute("""
+                    UPDATE orders SET status = 'package_processing', updated_at = CURRENT_TIMESTAMP
+                    WHERE order_id = ?
+                """, (order_id,))
+            
+            conn.commit()
+            
+            # 첫 번째 단계 처리 시작
+            def start_package_processing():
+                print(f"📦 패키지 주문 {order_id} 처리 시작")
+                print(f"📦 첫 번째 단계 실행: {package_steps[0] if package_steps else 'None'}")
+                process_package_step(order_id, 0)
+            
+            # 별도 스레드에서 실행
+            thread = threading.Thread(target=start_package_processing, daemon=True, name=f"PackageStart-{order_id}")
+            thread.start()
+            
+            # 스레드가 정상적으로 시작되었는지 확인
+            import time
+            time.sleep(0.1)
+            if thread.is_alive():
+                print(f"✅ 패키지 시작 스레드 정상 실행: {thread.name}")
+            else:
+                print(f"❌ 패키지 시작 스레드 실패: {thread.name}")
+            
+            status = 'package_processing'  # 패키지 처리 중 상태
+            message = f'패키지 주문이 생성되었습니다. ({len(package_steps)}단계 순차 처리 중)'
         else:
             # 일반 주문은 이미 SMM Panel API 호출 완료됨
             status = '주문발송'
@@ -3116,9 +3175,17 @@ def start_package_processing():
             print(f"📦 첫 번째 단계 실행: {package_steps[0] if package_steps else 'None'}")
             process_package_step(order_id, 0)
         
-        # 별도 스레드에서 실행 (daemon=False로 변경하여 독립적으로 실행)
-        thread = threading.Thread(target=start_package_processing, daemon=False, name=f"PackageStart-{order_id}")
+        # 별도 스레드에서 실행 (daemon=True로 변경하여 메인 프로세스와 독립적으로 실행)
+        thread = threading.Thread(target=start_package_processing, daemon=True, name=f"PackageStart-{order_id}")
         thread.start()
+        
+        # 스레드가 정상적으로 시작되었는지 확인
+        import time
+        time.sleep(0.1)
+        if thread.is_alive():
+            print(f"✅ 패키지 시작 스레드 정상 실행: {thread.name}")
+        else:
+            print(f"❌ 패키지 시작 스레드 실패: {thread.name}")
         
         print(f"✅ 패키지 주문 처리 시작됨: {order_id}")
         
@@ -3148,72 +3215,75 @@ def get_package_progress(order_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # 패키지 진행 상황 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at
                 FROM package_progress 
                 WHERE order_id = %s
-                ORDER BY step_number ASC
+                ORDER BY step_number ASC, created_at ASC
             """, (order_id,))
         else:
             cursor.execute("""
                 SELECT step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at
                 FROM package_progress 
                 WHERE order_id = ?
-                ORDER BY step_number ASC
+                ORDER BY step_number ASC, created_at ASC
             """, (order_id,))
         
         progress_data = cursor.fetchall()
         
-        # 주문 정보도 함께 조회
+        # 주문 정보도 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT order_id, status, package_steps, created_at
-                FROM orders 
+                SELECT status, package_steps FROM orders 
                 WHERE order_id = %s
             """, (order_id,))
         else:
             cursor.execute("""
-                SELECT order_id, status, package_steps, created_at
-                FROM orders 
+                SELECT status, package_steps FROM orders 
                 WHERE order_id = ?
             """, (order_id,))
         
-        order_data = cursor.fetchone()
+        order_info = cursor.fetchone()
         
-        if not order_data:
+        if not order_info:
             return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
         
-        # 패키지 단계 정보 파싱
-        package_steps = []
-        if order_data[2]:  # package_steps 컬럼
-            try:
-                package_steps = json.loads(order_data[2])
-            except:
+        order_status, package_steps_json = order_info
+        
+        # package_steps 파싱
+        try:
+            if isinstance(package_steps_json, list):
+                package_steps = package_steps_json
+            elif isinstance(package_steps_json, str):
+                package_steps = json.loads(package_steps_json)
+            else:
                 package_steps = []
+        except:
+            package_steps = []
         
         # 진행 상황 데이터 포맷팅
         progress_list = []
         for row in progress_data:
+            step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at = row
             progress_list.append({
-                'step_number': row[0],
-                'step_name': row[1],
-                'service_id': row[2],
-                'quantity': row[3],
-                'smm_panel_order_id': row[4],
-                'status': row[5],
-                'created_at': row[6].isoformat() if row[6] else None
+                'step_number': step_number,
+                'step_name': step_name,
+                'service_id': service_id,
+                'quantity': quantity,
+                'smm_panel_order_id': smm_panel_order_id,
+                'status': status,
+                'created_at': created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at)
             })
         
         return jsonify({
             'success': True,
             'order_id': order_id,
-            'order_status': order_data[1],
-            'package_steps': package_steps,
-            'progress': progress_list,
+            'order_status': order_status,
             'total_steps': len(package_steps),
-            'completed_steps': len([p for p in progress_list if p['status'] == 'completed']),
-            'skipped_steps': len([p for p in progress_list if p['status'] == 'skipped'])
+            'progress': progress_list,
+            'package_steps': package_steps
         }), 200
         
     except Exception as e:
@@ -5575,7 +5645,7 @@ def serve_static(filename):
     except:
         return "File not found", 404
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def serve_index():
     """메인 페이지 서빙"""
     try:
@@ -7569,8 +7639,7 @@ def upload_admin_image():
         }), 500
 
 # SPA 라우팅 지원 - 모든 경로를 index.html로 리다이렉트
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
+@app.route('/<path:path>', methods=['GET', 'POST'])
 def serve_spa(path):
     """SPA 라우팅 지원 - 모든 경로를 index.html로 서빙"""
     # API 경로는 제외

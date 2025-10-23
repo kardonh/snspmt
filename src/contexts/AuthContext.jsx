@@ -273,6 +273,15 @@ export function AuthProvider({ children }) {
             setCurrentUser(userData);
             setLoading(false);
             isInitialized = true;
+            
+            // 자동 로그인 완료 이벤트 발생
+            setTimeout(() => {
+              console.log('🔄 자동 로그인 완료 이벤트 발생');
+              window.dispatchEvent(new CustomEvent('autoLoginComplete', {
+                detail: { user: userData }
+              }));
+            }, 500);
+            
             return true;
           } else {
             console.warn('⚠️ localStorage에 저장된 사용자 데이터가 유효하지 않음:', userData);
