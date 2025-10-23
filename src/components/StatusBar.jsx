@@ -43,11 +43,6 @@ const StatusBar = () => {
         const points = data.points || 0
         setUserPoints(points)
         console.log('✅ StatusBar 포인트 조회 성공:', points)
-        
-        // 강제 리렌더링을 위한 상태 업데이트
-        setTimeout(() => {
-          setUserPoints(points)
-        }, 100)
       } else {
         console.error('❌ StatusBar 포인트 조회 실패:', response.status)
         setUserPoints(0)
@@ -226,7 +221,6 @@ const StatusBar = () => {
             <div className="mobile-user-info">
               {(() => {
                 const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid;
-                console.log('🔍 StatusBar 조건 확인 - userId:', userId, 'currentUser:', currentUser);
                 return userId;
               })() ? (
                 <>
@@ -235,8 +229,6 @@ const StatusBar = () => {
                     <span className="mobile-points-amount">
                       {pointsLoading ? '로딩...' : `${userPoints.toLocaleString()}P`}
                     </span>
-                    {/* 디버깅용 로그 */}
-                    {console.log('🔍 StatusBar 렌더링 - userPoints:', userPoints, 'pointsLoading:', pointsLoading)}
                   </div>
                   <Link to="/points" className="mobile-charge-btn">
                     충전

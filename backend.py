@@ -1035,9 +1035,20 @@ def process_package_step(order_id, step_index):
         
         print(f"🔄 schedule_next_package_step 호출 시작")
         print(f"🔄 현재 단계: {step_index + 1}, 다음 단계: {step_index + 2}, 총 단계: {len(package_steps)}")
-        schedule_next_package_step(order_id, step_index + 1, package_steps)
-        print(f"🔄 schedule_next_package_step 호출 완료")
-        print(f"🔄 다음 단계 스케줄링 완료: {step_index + 1}/{len(package_steps)}")
+        
+        # 다음 단계가 존재하는지 확인
+        if step_index + 1 < len(package_steps):
+            print(f"✅ 다음 단계 존재 확인: {step_index + 2}/{len(package_steps)}")
+            try:
+                schedule_next_package_step(order_id, step_index + 1, package_steps)
+                print(f"✅ schedule_next_package_step 호출 완료")
+                print(f"✅ 다음 단계 스케줄링 완료: {step_index + 1}/{len(package_steps)}")
+            except Exception as e:
+                print(f"❌ schedule_next_package_step 호출 실패: {e}")
+                import traceback
+                print(f"❌ 스케줄링 오류 스택: {traceback.format_exc()}")
+        else:
+            print(f"🎉 모든 단계 완료! 다음 단계 없음 (현재: {step_index + 1}, 총: {len(package_steps)})")
         
         # 스레드 상태 확인
         import threading
@@ -1108,10 +1119,26 @@ def schedule_next_package_step(order_id, next_step_index, package_steps):
     print(f"✅ 패키지 단계 {next_step_index + 1} 스케줄링 완료 (스레드 ID: {thread.ident})")
     
     # 스레드가 정상적으로 시작되었는지 확인
+    import time
+    time.sleep(0.1)  # 스레드 시작을 위한 짧은 대기
+    
     if thread.is_alive():
         print(f"✅ 스레드가 정상적으로 시작됨: {thread.name}")
+        print(f"✅ 스레드 상태: 활성 (ID: {thread.ident})")
     else:
         print(f"❌ 스레드 시작 실패: {thread.name}")
+        print(f"❌ 스레드 상태: 비활성 (ID: {thread.ident})")
+        
+        # 스레드 재시작 시도
+        print(f"🔄 스레드 재시작 시도...")
+        retry_thread = threading.Thread(target=delayed_next_step, daemon=True, name=f"PackageStep-Retry-{order_id}-{next_step_index}")
+        retry_thread.start()
+        time.sleep(0.1)
+        
+        if retry_thread.is_alive():
+            print(f"✅ 재시작 성공: {retry_thread.name}")
+        else:
+            print(f"❌ 재시작 실패: {retry_thread.name}")
     
     # 스레드 완료를 기다리지 않고 즉시 반환 (백그라운드 실행)
     print(f"🔄 백그라운드에서 {next_delay}분 후 실행 예정: {next_step_name}")
@@ -2941,7 +2968,8 @@ def create_order():
         print(f"🔍 패키지 상품 확인: is_package={is_package}, package_steps={package_steps}")
         
         # 패키지 상품인 경우 자동으로 분할 발송 설정 (30일간 하루 400개씩)
-        if is_package and len(package_steps) > 0 and package_steps[0].get('id') == 515:
+        # 인스타 계정 상위노출 [30일] 패키지 (서비스 ID 515 또는 주문 ID 1005)
+        if is_package and len(package_steps) > 0 and (package_steps[0].get('id') == 515 or service_id == 1005):
             print(f"📦 인스타 계정 상위노출 패키지 - 30일간 분할 발송 설정")
             is_split_delivery = True
             split_days = 30

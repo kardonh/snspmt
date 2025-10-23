@@ -255,27 +255,11 @@ const PointsPage = () => {
         console.log('🔄 PointsPage: pointsUpdated 이벤트 발생');
         window.dispatchEvent(new CustomEvent('pointsUpdated'))
         
-        // 추가 안전장치: 여러 번 이벤트 발생
-        setTimeout(() => {
-          console.log('🔄 PointsPage: pointsUpdated 이벤트 재발생 (1초 후)');
-          window.dispatchEvent(new CustomEvent('pointsUpdated'))
-        }, 1000)
-        
+        // 단일 지연 업데이트 (3초 후)
         setTimeout(() => {
           console.log('🔄 PointsPage: pointsUpdated 이벤트 재발생 (3초 후)');
           window.dispatchEvent(new CustomEvent('pointsUpdated'))
         }, 3000)
-        
-        setTimeout(() => {
-          console.log('🔄 PointsPage: pointsUpdated 이벤트 재발생 (5초 후)');
-          window.dispatchEvent(new CustomEvent('pointsUpdated'))
-        }, 5000)
-        
-        // 추가 이벤트 발생 (더 많은 시점)
-        setTimeout(() => {
-          console.log('🔄 PointsPage: pointsUpdated 이벤트 재발생 (10초 후)');
-          window.dispatchEvent(new CustomEvent('pointsUpdated'))
-        }, 10000)
         
         // localStorage 변경 이벤트도 발생
         const currentUserId = currentUser?.uid || localStorage.getItem('userId') || 'demo_user'
