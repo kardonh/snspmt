@@ -38,11 +38,10 @@ const Sidebar = ({ onClose }) => {
     
     setPointsLoading(true)
     try {
-      const response = await fetch(`/api/points?user_id=${currentUser.uid}`, {
+      const response = await fetch(`${window.location.origin}/api/points?user_id=${currentUser.uid}`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await currentUser.getIdToken()}`
+          'Content-Type': 'application/json'
         }
       })
       
