@@ -267,8 +267,8 @@ export function AuthProvider({ children }) {
         if (storedUser) {
           const userData = JSON.parse(storedUser);
           
-          // 저장된 사용자 데이터 유효성 검증
-          if (userData && userData.uid && typeof userData.uid === 'string') {
+          // 저장된 사용자 데이터 유효성 검증 강화
+          if (userData && userData.uid && typeof userData.uid === 'string' && userData.email) {
             console.log('🔄 localStorage에서 사용자 정보 복원:', userData);
             setCurrentUser(userData);
             setLoading(false);
@@ -317,9 +317,16 @@ export function AuthProvider({ children }) {
       }
       
       if (user) {
-        // Firebase 사용자 객체 유효성 검증
-        if (!user.uid || typeof user.uid !== 'string') {
+        // Firebase 사용자 객체 유효성 검증 강화
+        if (!user || !user.uid || typeof user.uid !== 'string' || !user.email) {
           console.error('❌ 유효하지 않은 Firebase 사용자 객체:', user);
+          setCurrentUser(null);
+          return;
+        }
+        
+        // Firebase 사용자 객체의 메서드 존재 여부 확인
+        if (typeof user.getIdToken !== 'function') {
+          console.error('❌ Firebase 사용자 객체에 getIdToken 메서드가 없습니다:', user);
           setCurrentUser(null);
           return;
         }
