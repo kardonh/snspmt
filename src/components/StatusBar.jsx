@@ -224,7 +224,11 @@ const StatusBar = () => {
               />
             </Link>
             <div className="mobile-user-info">
-              {currentUser ? (
+              {(() => {
+                const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid;
+                console.log('🔍 StatusBar 조건 확인 - userId:', userId, 'currentUser:', currentUser);
+                return userId;
+              })() ? (
                 <>
                   <div className="mobile-points-info">
                     <Coins size={16} />
