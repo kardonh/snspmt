@@ -224,7 +224,7 @@ const StatusBar = () => {
               />
             </Link>
             <div className="mobile-user-info">
-              {(currentUser || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')) ? (
+              {currentUser ? (
                 <>
                   <div className="mobile-points-info">
                     <Coins size={16} />
