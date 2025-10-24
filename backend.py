@@ -7018,43 +7018,64 @@ def auth_login():
                 'error': '이메일과 비밀번호를 입력해주세요.'
             }), 400
         
-        # 데이터베이스에서 사용자 확인
+        # DATABASE_URL 확인
+        if not DATABASE_URL:
+            print("❌ DATABASE_URL이 설정되지 않았습니다.")
+            return jsonify({
+                'success': False,
+                'error': '데이터베이스 연결 설정이 없습니다.'
+            }), 500
+        
+        print(f"🔍 로그인 시도 - 이메일: {email}, DATABASE_URL: {DATABASE_URL[:20]}...")
+        
+        # 데이터베이스에서 사용자 확인테
         if DATABASE_URL.startswith('postgresql://'):
-            conn = psycopg2.connect(DATABASE_URL)
-            cursor = conn.cursor()
-            
-            # 사용자 조회
-            cursor.execute("""
-                SELECT user_id, email, display_name, photo_url, created_at
-                FROM users 
-                WHERE email = %s
-            """, (email,))
-            
-            user = cursor.fetchone()
-            
-            if user:
-                user_data = {
-                    'uid': user[0],
-                    'email': user[1],
-                    'displayName': user[2] or user[1].split('@')[0],
-                    'photoURL': user[3],
-                    'createdAt': user[4].isoformat() if user[4] else None
-                }
+            try:
+                print("🔍 PostgreSQL 연결 시도...")
+                conn = psycopg2.connect(DATABASE_URL)
+                cursor = conn.cursor()
                 
-                cursor.close()
-                conn.close()
+                # 사용자 조회
+                cursor.execute("""
+                    SELECT user_id, email, display_name, photo_url, created_at
+                    FROM users 
+                    WHERE email = %s
+                """, (email,))
                 
-                return jsonify({
-                    'success': True,
-                    'user': user_data
-                })
-            else:
-                cursor.close()
-                conn.close()
+                user = cursor.fetchone()
+                print(f"🔍 사용자 조회 결과: {user}")
+                
+                if user:
+                    user_data = {
+                        'uid': user[0],
+                        'email': user[1],
+                        'displayName': user[2] or user[1].split('@')[0],
+                        'photoURL': user[3],
+                        'createdAt': user[4].isoformat() if user[4] else None
+                    }
+                    
+                    cursor.close()
+                    conn.close()
+                    
+                    print(f"✅ 로그인 성공: {user_data['uid']}")
+                    return jsonify({
+                        'success': True,
+                        'user': user_data
+                    })
+                else:
+                    cursor.close()
+                    conn.close()
+                    print("❌ 사용자를 찾을 수 없습니다.")
+                    return jsonify({
+                        'success': False,
+                        'error': '등록되지 않은 이메일입니다.'
+                    }), 401
+            except Exception as db_error:
+                print(f"❌ 데이터베이스 연결 오류: {db_error}")
                 return jsonify({
                     'success': False,
-                    'error': '등록되지 않은 이메일입니다.'
-                }), 401
+                    'error': f'데이터베이스 연결 오류: {str(db_error)}'
+                }), 500
         else:
             # SQLite 사용 시
             conn = sqlite3.connect('orders.db')
