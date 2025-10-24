@@ -97,9 +97,14 @@ const StatusBar = () => {
 
   const handleLogout = async () => {
     try {
-      await logout()
-      alert('로그아웃되었습니다.')
-      navigate('/')
+      if (typeof logout === 'function') {
+        await logout()
+        alert('로그아웃되었습니다.')
+        navigate('/')
+      } else {
+        console.error('logout 함수가 정의되지 않았습니다.')
+        alert('로그아웃 함수를 찾을 수 없습니다.')
+      }
     } catch (error) {
       console.error('로그아웃 실패:', error)
       alert('로그아웃 중 오류가 발생했습니다.')
