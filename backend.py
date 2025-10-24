@@ -935,13 +935,13 @@ def process_package_step(order_id, step_index):
         status = 'completed' if smm_result.get('status') == 'success' else 'failed'
         smm_order_id = smm_result.get('order') if smm_result.get('status') == 'success' else None
         
-            # SMM Panel에서 받은 실제 주문번호로 order_id 업데이트 (성공한 경우만)
-            if smm_order_id and status == 'completed':
-                print(f"🔄 주문번호 업데이트: {order_id} -> {smm_order_id}")
-                
-                try:
-                    # 1. 먼저 package_progress 테이블의 order_id를 새 주문번호로 업데이트
-                    if DATABASE_URL.startswith('postgresql://'):
+        # SMM Panel에서 받은 실제 주문번호로 order_id 업데이트 (성공한 경우만)
+        if smm_order_id and status == 'completed':
+            print(f"🔄 주문번호 업데이트: {order_id} -> {smm_order_id}")
+            
+            try:
+                # 1. 먼저 package_progress 테이블의 order_id를 새 주문번호로 업데이트
+                if DATABASE_URL.startswith('postgresql://'):
                         cursor.execute("""
                             UPDATE package_progress 
                             SET order_id = %s
