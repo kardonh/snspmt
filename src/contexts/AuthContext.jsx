@@ -131,16 +131,20 @@ export function AuthProvider({ children }) {
 
   // 구글 로그인
   function googleLogin() {
-    return new Promise((resolve, reject) => {
-      // 구글 클라이언트 ID 확인 (런타임에 환경 변수에서 가져오기)
-      const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || 
-                            window.REACT_APP_GOOGLE_CLIENT_ID ||
-                            '123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com';
-      
-      if (!googleClientId) {
-        reject(new Error('Google Client ID가 설정되지 않았습니다.'));
-        return;
-      }
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 런타임에 서버에서 환경 변수 가져오기
+        const response = await fetch(`${window.location.origin}/api/config`);
+        const config = await response.json();
+        
+        const googleClientId = config.googleClientId || 
+                              process.env.REACT_APP_GOOGLE_CLIENT_ID ||
+                              '123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com';
+        
+        if (!googleClientId) {
+          reject(new Error('Google Client ID가 설정되지 않았습니다.'));
+          return;
+        }
       
       try {
         // 구글 로그인 팝업

@@ -2413,6 +2413,27 @@ def health_check():
             'database': 'disconnected'
         }), 500
 
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """프론트엔드 설정 정보 반환"""
+    try:
+        return jsonify({
+            'googleClientId': os.environ.get('REACT_APP_GOOGLE_CLIENT_ID', ''),
+            'kakaoAppKey': os.environ.get('REACT_APP_KAKAO_APP_KEY', ''),
+            'firebaseApiKey': os.environ.get('VITE_FIREBASE_API_KEY', ''),
+            'firebaseAuthDomain': os.environ.get('VITE_FIREBASE_AUTH_DOMAIN', ''),
+            'firebaseProjectId': os.environ.get('VITE_FIREBASE_PROJECT_ID', ''),
+            'firebaseStorageBucket': os.environ.get('VITE_FIREBASE_STORAGE_BUCKET', ''),
+            'firebaseMessagingSenderId': os.environ.get('VITE_FIREBASE_MESSAGING_SENDER_ID', ''),
+            'firebaseAppId': os.environ.get('VITE_FIREBASE_APP_ID', ''),
+            'firebaseMeasurementId': os.environ.get('VITE_FIREBASE_MEASUREMENT_ID', '')
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': '설정 정보를 가져올 수 없습니다.',
+            'message': str(e)
+        }), 500
+
 @app.route('/api/deployment-status', methods=['GET'])
 def deployment_status():
     """배포 상태 확인"""
