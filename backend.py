@@ -989,12 +989,12 @@ def process_package_step(order_id, step_index):
                 """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
         
         conn.commit()
-            
-            # 마지막 반복이 아니면 delay 시간만큼 대기
-            if repeat_count < step_repeat - 1:
-                print(f"⏳ {step_delay}분 대기 후 다음 반복 실행...")
-                import time
-                time.sleep(step_delay * 60)  # 분을 초로 변환
+        
+        # 마지막 반복이 아니면 delay 시간만큼 대기
+        if repeat_count < step_repeat - 1:
+            print(f"⏳ {step_delay}분 대기 후 다음 반복 실행...")
+            import time
+            time.sleep(step_delay * 60)  # 분을 초로 변환
         
         print(f"🎉 패키지 단계 {step_index + 1} 모든 반복 완료: {step_name} ({step_repeat}회)")
         
@@ -1040,7 +1040,7 @@ def process_package_step(order_id, step_index):
         if step_index + 1 < len(package_steps):
             print(f"✅ 다음 단계 존재 확인: {step_index + 2}/{len(package_steps)}")
             try:
-        schedule_next_package_step(order_id, step_index + 1, package_steps)
+                schedule_next_package_step(order_id, step_index + 1, package_steps)
                 print(f"✅ schedule_next_package_step 호출 완료")
                 print(f"✅ 다음 단계 스케줄링 완료: {step_index + 1}/{len(package_steps)}")
             except Exception as e:
@@ -3025,18 +3025,18 @@ def create_order():
             print(f"📦 주문 ID: {order_id}, 사용자: {user_id}, 단계 수: {len(package_steps)}")
             
             # 주문 상태를 package_processing으로 변경
-                    if DATABASE_URL.startswith('postgresql://'):
-                        cursor.execute("""
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
                     UPDATE orders SET status = 'package_processing', updated_at = NOW()
-                            WHERE order_id = %s
+                    WHERE order_id = %s
                 """, (order_id,))
-                    else:
-                        cursor.execute("""
+            else:
+                cursor.execute("""
                     UPDATE orders SET status = 'package_processing', updated_at = CURRENT_TIMESTAMP
-                            WHERE order_id = ?
+                    WHERE order_id = ?
                 """, (order_id,))
-                    
-                    conn.commit()
+                
+            conn.commit()
             
             # 첫 번째 단계 처리 시작
             def start_package_processing():
@@ -3053,7 +3053,7 @@ def create_order():
             time.sleep(0.1)
             if thread.is_alive():
                 print(f"✅ 패키지 시작 스레드 정상 실행: {thread.name}")
-                else:
+            else:
                 print(f"❌ 패키지 시작 스레드 실패: {thread.name}")
             
             status = 'package_processing'  # 패키지 처리 중 상태
@@ -3288,8 +3288,8 @@ def get_package_progress(order_id):
                 package_steps = json.loads(package_steps_json)
             else:
                 package_steps = []
-            except:
-                package_steps = []
+        except:
+            package_steps = []
         
         # 진행 상황 데이터 포맷팅
         progress_list = []
@@ -3387,7 +3387,7 @@ def get_orders():
                     status = '주문 실행중'
                 elif db_status in ['pending', '접수됨', '주문발송']:
                     status = '주문발송'
-                        else:
+                else:
                     status = '주문 미처리'
                 
                 # 날짜 포맷팅 (간소화)

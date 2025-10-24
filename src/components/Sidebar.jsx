@@ -34,11 +34,16 @@ const Sidebar = ({ onClose }) => {
 
   // 사용자 포인트 조회 함수
   const fetchUserPoints = async () => {
-    if (!currentUser) return
+    const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid
+    
+    if (!userId) {
+      setUserPoints(0)
+      return
+    }
     
     setPointsLoading(true)
     try {
-      const response = await fetch(`${window.location.origin}/api/points?user_id=${currentUser.uid}`, {
+      const response = await fetch(`${window.location.origin}/api/points?user_id=${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -48,9 +53,12 @@ const Sidebar = ({ onClose }) => {
       if (response.ok) {
         const data = await response.json()
         setUserPoints(data.points || 0)
+      } else {
+        setUserPoints(0)
       }
     } catch (error) {
       console.error('포인트 조회 실패:', error)
+      setUserPoints(0)
     } finally {
       setPointsLoading(false)
     }
@@ -80,6 +88,11 @@ const Sidebar = ({ onClose }) => {
     }
   }
 
+  // 포인트 업데이트 이벤트 핸들러
+  const handlePointsUpdate = () => {
+    fetchUserPoints()
+  }
+
   // 사용자가 로그인했을 때 포인트 조회 및 추천인 코드 확인
   useEffect(() => {
     if (currentUser) {
@@ -88,6 +101,33 @@ const Sidebar = ({ onClose }) => {
     } else {
       setUserPoints(0)
       setHasReferralCode(false)
+    }
+
+    // 포인트 업데이트 이벤트 리스너
+    window.addEventListener('pointsUpdated', handlePointsUpdate)
+    
+    // storage 이벤트 리스너 (다른 탭에서 로그인/로그아웃 시)
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'userId' || e.key === 'firebase_user_id') {
+        fetchUserPoints()
+      }
+    })
+    
+    // 포커스 이벤트 리스너 (탭 전환 시)
+    window.addEventListener('focus', fetchUserPoints)
+    
+    // 가시성 변경 이벤트 리스너
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        fetchUserPoints()
+      }
+    })
+
+    return () => {
+      window.removeEventListener('pointsUpdated', handlePointsUpdate)
+      window.removeEventListener('storage', fetchUserPoints)
+      window.removeEventListener('focus', fetchUserPoints)
+      document.removeEventListener('visibilitychange', fetchUserPoints)
     }
   }, [currentUser])
 
@@ -163,17 +203,17 @@ const Sidebar = ({ onClose }) => {
 
       {/* User Status */}
       <div className="user-status">
-        {currentUser ? (
+        {(currentUser || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')) ? (
           <div className="user-info">
-            <span className="user-name">{currentUser.displayName || currentUser.email}</span>
-            {currentUser && (
-              <div className="user-points">
-                <Coins size={16} className="points-icon" />
-                <span className="points-text">
-                  {pointsLoading ? '로딩중...' : `${userPoints.toLocaleString()}P`}
-                </span>
-              </div>
-            )}
+            <span className="user-name">
+              {currentUser?.displayName || currentUser?.email || localStorage.getItem('userEmail') || '사용자'}
+            </span>
+            <div className="user-points">
+              <Coins size={16} className="points-icon" />
+              <span className="points-text">
+                {pointsLoading ? '로딩중...' : `${userPoints.toLocaleString()}P`}
+              </span>
+            </div>
             <button onClick={handleSignOut} className="logout-btn">로그아웃</button>
           </div>
         ) : (
