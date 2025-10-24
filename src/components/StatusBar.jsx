@@ -56,7 +56,7 @@ const StatusBar = () => {
     }, 1000)
 
     const checkIsMobile = () => {
-      setIsMobile(window.innerWidth <= 768)
+      setIsMobile(window.innerWidth <= 480)
     }
     
     checkIsMobile()
