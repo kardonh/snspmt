@@ -148,21 +148,8 @@ export function AuthProvider({ children }) {
         if (popup.closed) {
           clearInterval(checkClosed);
           // 팝업이 닫혔지만 실제 인증은 서버에서 처리됨
-          // 여기서는 임시 사용자 데이터 생성
-          const userData = {
-            uid: 'google_' + Date.now(),
-            email: 'user@example.com',
-            displayName: 'Google User',
-            photoURL: null
-          };
-
-          localStorage.setItem('currentUser', JSON.stringify(userData));
-          localStorage.setItem('userId', userData.uid);
-          localStorage.setItem('firebase_user_id', userData.uid);
-          localStorage.setItem('userEmail', userData.email);
-          
-          setCurrentUser(userData);
-          resolve(userData);
+          // 서버에서 처리되므로 여기서는 에러 반환
+          reject(new Error('구글 로그인은 서버에서 처리됩니다.'));
         }
       }, 1000);
     });
@@ -171,21 +158,8 @@ export function AuthProvider({ children }) {
   // 카카오 로그인
   function kakaoLogin() {
     return new Promise((resolve, reject) => {
-      // 카카오 로그인은 별도 처리
-      const userData = {
-        uid: 'kakao_' + Date.now(),
-        email: 'user@kakao.com',
-        displayName: 'Kakao User',
-        photoURL: null
-      };
-
-      localStorage.setItem('currentUser', JSON.stringify(userData));
-      localStorage.setItem('userId', userData.uid);
-      localStorage.setItem('firebase_user_id', userData.uid);
-      localStorage.setItem('userEmail', userData.email);
-      
-      setCurrentUser(userData);
-      resolve(userData);
+      // 카카오 로그인은 서버에서 처리되므로 여기서는 에러 반환
+      reject(new Error('카카오 로그인은 서버에서 처리됩니다.'));
     });
   }
 
@@ -245,12 +219,6 @@ export function AuthProvider({ children }) {
     setShowOrderMethodModal(false);
   };
 
-  // 카카오 로그인 (임시 구현)
-  function kakaoLogin() {
-    return new Promise((resolve, reject) => {
-      reject(new Error('카카오 로그인은 현재 지원되지 않습니다.'));
-    });
-  }
 
   const value = {
     currentUser,

@@ -7018,21 +7018,79 @@ def auth_login():
                 'error': '이메일과 비밀번호를 입력해주세요.'
             }), 400
         
-        # 간단한 인증 (실제로는 해시된 비밀번호 확인)
-        # 여기서는 임시로 이메일만 확인
-        user_id = f"user_{hash(email) % 1000000}"
-        
-        user_data = {
-            'uid': user_id,
-            'email': email,
-            'displayName': email.split('@')[0],
-            'photoURL': None
-        }
-        
-        return jsonify({
-            'success': True,
-            'user': user_data
-        })
+        # 데이터베이스에서 사용자 확인
+        if DATABASE_URL.startswith('postgresql://'):
+            conn = psycopg2.connect(DATABASE_URL)
+            cursor = conn.cursor()
+            
+            # 사용자 조회
+            cursor.execute("""
+                SELECT user_id, email, display_name, photo_url, created_at
+                FROM users 
+                WHERE email = %s
+            """, (email,))
+            
+            user = cursor.fetchone()
+            
+            if user:
+                user_data = {
+                    'uid': user[0],
+                    'email': user[1],
+                    'displayName': user[2] or user[1].split('@')[0],
+                    'photoURL': user[3],
+                    'createdAt': user[4].isoformat() if user[4] else None
+                }
+                
+                cursor.close()
+                conn.close()
+                
+                return jsonify({
+                    'success': True,
+                    'user': user_data
+                })
+            else:
+                cursor.close()
+                conn.close()
+                return jsonify({
+                    'success': False,
+                    'error': '등록되지 않은 이메일입니다.'
+                }), 401
+        else:
+            # SQLite 사용 시
+            conn = sqlite3.connect('orders.db')
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT user_id, email, display_name, photo_url, created_at
+                FROM users 
+                WHERE email = ?
+            """, (email,))
+            
+            user = cursor.fetchone()
+            
+            if user:
+                user_data = {
+                    'uid': user[0],
+                    'email': user[1],
+                    'displayName': user[2] or user[1].split('@')[0],
+                    'photoURL': user[3],
+                    'createdAt': user[4]
+                }
+                
+                cursor.close()
+                conn.close()
+                
+                return jsonify({
+                    'success': True,
+                    'user': user_data
+                })
+            else:
+                cursor.close()
+                conn.close()
+                return jsonify({
+                    'success': False,
+                    'error': '등록되지 않은 이메일입니다.'
+                }), 401
         
     except Exception as e:
         print(f"❌ 로그인 오류: {e}")
