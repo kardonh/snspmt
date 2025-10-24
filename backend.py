@@ -7003,6 +7003,44 @@ def kakao_token():
             'error': '카카오 로그인 처리 중 오류가 발생했습니다.'
         }), 500
 
+# 일반 로그인 처리
+@app.route('/api/auth/login', methods=['POST'])
+def auth_login():
+    """일반 로그인 처리"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not email or not password:
+            return jsonify({
+                'success': False,
+                'error': '이메일과 비밀번호를 입력해주세요.'
+            }), 400
+        
+        # 간단한 인증 (실제로는 해시된 비밀번호 확인)
+        # 여기서는 임시로 이메일만 확인
+        user_id = f"user_{hash(email) % 1000000}"
+        
+        user_data = {
+            'uid': user_id,
+            'email': email,
+            'displayName': email.split('@')[0],
+            'photoURL': None
+        }
+        
+        return jsonify({
+            'success': True,
+            'user': user_data
+        })
+        
+    except Exception as e:
+        print(f"❌ 로그인 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': '로그인 처리 중 오류가 발생했습니다.'
+        }), 500
+
 # 카카오 로그인 처리
 @app.route('/api/auth/kakao-login', methods=['POST'])
 def kakao_login():

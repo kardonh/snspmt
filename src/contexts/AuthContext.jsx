@@ -95,22 +95,37 @@ export function AuthProvider({ children }) {
 
   // 로그인 (이메일/비밀번호)
   function login(email, password) {
-    return new Promise((resolve, reject) => {
-      // 실제로는 서버에서 인증해야 하지만, 여기서는 간단히 처리
-      const userData = {
-        uid: 'user_' + Date.now(),
-        email: email,
-        displayName: email.split('@')[0],
-        photoURL: null
-      };
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 서버에서 로그인 인증
+        const response = await fetch(`${window.location.origin}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
 
-      localStorage.setItem('currentUser', JSON.stringify(userData));
-      localStorage.setItem('userId', userData.uid);
-      localStorage.setItem('firebase_user_id', userData.uid);
-      localStorage.setItem('userEmail', email);
-      
-      setCurrentUser(userData);
-      resolve(userData);
+        if (response.ok) {
+          const result = await response.json();
+          const userData = result.user;
+          
+          // localStorage에 저장
+          localStorage.setItem('currentUser', JSON.stringify(userData));
+          localStorage.setItem('userId', userData.uid);
+          localStorage.setItem('firebase_user_id', userData.uid);
+          localStorage.setItem('userEmail', email);
+          
+          setCurrentUser(userData);
+          resolve(userData);
+        } else {
+          const errorData = await response.json();
+          reject(new Error(errorData.error || '로그인에 실패했습니다.'));
+        }
+      } catch (error) {
+        console.error('로그인 오류:', error);
+        reject(new Error('로그인 중 오류가 발생했습니다.'));
+      }
     });
   }
 
