@@ -145,8 +145,7 @@ export function AuthProvider({ children }) {
           reject(new Error('Google Client ID가 설정되지 않았습니다.'));
           return;
         }
-      
-      try {
+        
         // 구글 로그인 팝업
         const googleAuthUrl = `https://accounts.google.com/oauth/authorize?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(window.location.origin)}&response_type=code&scope=openid%20email%20profile`;
         
