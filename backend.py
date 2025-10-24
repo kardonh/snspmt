@@ -7058,7 +7058,7 @@ def auth_login():
                 
                 # 사용자 조회
                 cursor.execute("""
-                    SELECT user_id, email, display_name, photo_url, created_at
+                    SELECT user_id, email, name, profile_image, created_at
                     FROM users 
                     WHERE email = %s
                 """, (email,))
@@ -7103,7 +7103,7 @@ def auth_login():
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT user_id, email, display_name, photo_url, created_at
+                SELECT user_id, email, name, profile_image, created_at
                 FROM users 
                 WHERE email = ?
             """, (email,))

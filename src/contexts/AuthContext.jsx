@@ -62,7 +62,7 @@ export function AuthProvider({ children }) {
       // 사용자 ID 생성 (간단한 UUID 형태)
       const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
       
-      const userData = {
+          const userData = {
         uid: userId,
         email: email,
         displayName: username,
@@ -70,14 +70,14 @@ export function AuthProvider({ children }) {
         user_id: userId,
         name: username,
         phoneNumber: businessInfo?.phoneNumber || ''
-      };
-      
-      if (businessInfo && businessInfo.accountType === 'business') {
-        Object.assign(userData, {
-          accountType: businessInfo.accountType,
-          businessNumber: businessInfo.businessNumber,
-          businessName: businessInfo.businessName,
-          representative: businessInfo.representative,
+          };
+          
+          if (businessInfo && businessInfo.accountType === 'business') {
+            Object.assign(userData, {
+              accountType: businessInfo.accountType,
+              businessNumber: businessInfo.businessNumber,
+              businessName: businessInfo.businessName,
+              representative: businessInfo.representative,
           businessAddress: businessInfo.businessAddress
         });
       }
@@ -99,8 +99,8 @@ export function AuthProvider({ children }) {
       try {
         // 서버에서 로그인 인증
         const response = await fetch(`${window.location.origin}/api/auth/login`, {
-          method: 'POST',
-          headers: {
+                method: 'POST',
+                headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ email, password })
@@ -125,8 +125,8 @@ export function AuthProvider({ children }) {
       } catch (error) {
         console.error('로그인 오류:', error);
         reject(new Error('로그인 중 오류가 발생했습니다.'));
-      }
-    });
+        }
+      });
   }
 
   // 구글 로그인
@@ -156,19 +156,29 @@ export function AuthProvider({ children }) {
           return;
         }
         
-        const checkClosed = setInterval(() => {
-          try {
-            if (popup.closed) {
-              clearInterval(checkClosed);
-              // 팝업이 닫혔지만 실제 인증은 서버에서 처리됨
-              // 서버에서 처리되므로 여기서는 에러 반환
-              reject(new Error('구글 로그인은 서버에서 처리됩니다.'));
-            }
-          } catch (error) {
+        // COOP 정책으로 인해 window.closed 사용 불가
+        // 팝업에서 메시지를 받는 방식으로 변경
+        const messageHandler = (event) => {
+          if (event.origin !== window.location.origin) return;
+          
+          if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+            window.removeEventListener('message', messageHandler);
             clearInterval(checkClosed);
-            reject(new Error('구글 로그인 팝업 처리 중 오류가 발생했습니다.'));
+            resolve(event.data.user);
+          } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
+            window.removeEventListener('message', messageHandler);
+            clearInterval(checkClosed);
+            reject(new Error(event.data.error || '구글 로그인 실패'));
           }
-        }, 1000);
+        };
+        
+        window.addEventListener('message', messageHandler);
+        
+        // 30초 후 타임아웃
+        const checkClosed = setTimeout(() => {
+          window.removeEventListener('message', messageHandler);
+          reject(new Error('구글 로그인 시간이 초과되었습니다.'));
+        }, 30000);
       } catch (error) {
         reject(new Error('구글 로그인 초기화 중 오류가 발생했습니다.'));
       }
@@ -208,9 +218,9 @@ export function AuthProvider({ children }) {
   function deleteAccount() {
     return new Promise((resolve) => {
       localStorage.removeItem('currentUser');
-      localStorage.removeItem('userId');
+        localStorage.removeItem('userId');
       localStorage.removeItem('firebase_user_id');
-      localStorage.removeItem('userEmail');
+        localStorage.removeItem('userEmail');
       setCurrentUser(null);
       resolve();
     });

@@ -161,14 +161,14 @@ const Sidebar = ({ onClose }) => {
   const handleSignOut = async () => {
     try {
       if (typeof logout === 'function') {
-        await logout()
-        alert('로그아웃되었습니다. 게스트 모드로 전환됩니다.')
-        // 모바일에서 사이드바가 열려있다면 닫기
-        if (onClose) {
-          onClose()
-        }
-        // 홈페이지로 리다이렉트
-        navigate('/')
+      await logout()
+      alert('로그아웃되었습니다. 게스트 모드로 전환됩니다.')
+      // 모바일에서 사이드바가 열려있다면 닫기
+      if (onClose) {
+        onClose()
+      }
+      // 홈페이지로 리다이렉트
+      navigate('/')
       } else {
         console.error('logout 함수가 정의되지 않았습니다.')
         alert('로그아웃 함수를 찾을 수 없습니다.')
@@ -213,12 +213,12 @@ const Sidebar = ({ onClose }) => {
             <span className="user-name">
               {currentUser?.displayName || currentUser?.email || localStorage.getItem('userEmail') || '사용자'}
             </span>
-            <div className="user-points">
-              <Coins size={16} className="points-icon" />
-              <span className="points-text">
-                {pointsLoading ? '로딩중...' : `${userPoints.toLocaleString()}P`}
-              </span>
-            </div>
+              <div className="user-points">
+                <Coins size={16} className="points-icon" />
+                <span className="points-text">
+                  {pointsLoading ? '로딩중...' : `${userPoints.toLocaleString()}P`}
+                </span>
+              </div>
             <button onClick={handleSignOut} className="logout-btn">로그아웃</button>
           </div>
         ) : (
@@ -250,17 +250,17 @@ const Sidebar = ({ onClose }) => {
               <span className="sidebar-item-text">{name}</span>
             </a>
           ) : (
-            <Link
-              key={id}
-              to={path}
-              className={`sidebar-item ${location.pathname === path ? 'active' : ''}`}
-              onClick={handleMenuItemClick}
-            >
-              <div className="sidebar-item-icon" style={{ color }}>
-                <Icon size={20} />
-              </div>
-              <span className="sidebar-item-text">{name}</span>
-            </Link>
+          <Link
+            key={id}
+            to={path}
+            className={`sidebar-item ${location.pathname === path ? 'active' : ''}`}
+            onClick={handleMenuItemClick}
+          >
+            <div className="sidebar-item-icon" style={{ color }}>
+              <Icon size={20} />
+            </div>
+            <span className="sidebar-item-text">{name}</span>
+          </Link>
           )
         ))}
         
