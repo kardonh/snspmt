@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { CheckCircle, LogOut, Coins, User } from 'lucide-react'
+import { CheckCircle, LogOut, Coins } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
 import './StatusBar.css'
@@ -174,7 +174,7 @@ const StatusBar = () => {
         </>
       )}
 
-      {/* 데스크톱 사이드바 */}
+      {/* 데스크톱 상태바 */}
       {!isMobile && (
         <div className="status-bar">
           <div className="status-info">
@@ -182,47 +182,6 @@ const StatusBar = () => {
               <CheckCircle size={16} />
               <span>{formatTime(currentTime)}</span>
             </div>
-            
-            {userId ? (
-              <div className="user-section">
-                <div className="user-info">
-                  <User size={16} />
-                  <span className="user-name">{userName}</span>
-                </div>
-                
-                <div className="points-section">
-                  <div className="points-info">
-                    <Coins size={16} />
-                    <span className="points-amount">
-                      {pointsLoading ? '로딩...' : `${userPoints.toLocaleString()}P`}
-                    </span>
-                  </div>
-                  <Link to="/points" className="charge-btn">
-                    충전
-                  </Link>
-                </div>
-                
-                <button onClick={handleLogout} className="logout-btn">
-                  <LogOut size={16} />
-                  로그아웃
-                </button>
-              </div>
-            ) : (
-              <div className="auth-section">
-                <button 
-                  className="login-btn"
-                  onClick={openLoginModal}
-                >
-                  로그인
-                </button>
-                <button 
-                  className="signup-btn"
-                  onClick={openSignupModal}
-                >
-                  회원가입
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}

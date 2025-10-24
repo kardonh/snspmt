@@ -175,13 +175,37 @@
   }
 }
 
-/* 데스크톱 (1200px 초과) - 상태바 숨김 */
+/* 데스크톱 (1200px 초과) - 상태바 표시 */
 @media (min-width: 1201px) {
-  .status-content {
-    display: none !important;
-  }
   .status-bar {
-    padding: 0;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    width: 100%;
+  }
+  
+  .status-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .time-display {
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 }
 
