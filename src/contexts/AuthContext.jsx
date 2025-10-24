@@ -132,8 +132,15 @@ export function AuthProvider({ children }) {
   // 구글 로그인
   function googleLogin() {
     return new Promise((resolve, reject) => {
+      // 구글 클라이언트 ID 확인
+      const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+      if (!googleClientId) {
+        reject(new Error('Google Client ID가 설정되지 않았습니다.'));
+        return;
+      }
+      
       // 구글 로그인 팝업
-      const googleAuthUrl = `https://accounts.google.com/oauth/authorize?client_id=${process.env.REACT_APP_GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin)}&response_type=code&scope=openid%20email%20profile`;
+      const googleAuthUrl = `https://accounts.google.com/oauth/authorize?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(window.location.origin)}&response_type=code&scope=openid%20email%20profile`;
       
       const popup = window.open(googleAuthUrl, 'googleAuth', 'width=500,height=600');
       
@@ -237,6 +244,13 @@ export function AuthProvider({ children }) {
   const closeOrderMethodModal = () => {
     setShowOrderMethodModal(false);
   };
+
+  // 카카오 로그인 (임시 구현)
+  function kakaoLogin() {
+    return new Promise((resolve, reject) => {
+      reject(new Error('카카오 로그인은 현재 지원되지 않습니다.'));
+    });
+  }
 
   const value = {
     currentUser,
