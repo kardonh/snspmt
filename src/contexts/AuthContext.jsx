@@ -139,19 +139,33 @@ export function AuthProvider({ children }) {
         return;
       }
       
-      // 구글 로그인 팝업
-      const googleAuthUrl = `https://accounts.google.com/oauth/authorize?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(window.location.origin)}&response_type=code&scope=openid%20email%20profile`;
-      
-      const popup = window.open(googleAuthUrl, 'googleAuth', 'width=500,height=600');
-      
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed);
-          // 팝업이 닫혔지만 실제 인증은 서버에서 처리됨
-          // 서버에서 처리되므로 여기서는 에러 반환
-          reject(new Error('구글 로그인은 서버에서 처리됩니다.'));
+      try {
+        // 구글 로그인 팝업
+        const googleAuthUrl = `https://accounts.google.com/oauth/authorize?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(window.location.origin)}&response_type=code&scope=openid%20email%20profile`;
+        
+        const popup = window.open(googleAuthUrl, 'googleAuth', 'width=500,height=600');
+        
+        if (!popup) {
+          reject(new Error('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.'));
+          return;
         }
-      }, 1000);
+        
+        const checkClosed = setInterval(() => {
+          try {
+            if (popup.closed) {
+              clearInterval(checkClosed);
+              // 팝업이 닫혔지만 실제 인증은 서버에서 처리됨
+              // 서버에서 처리되므로 여기서는 에러 반환
+              reject(new Error('구글 로그인은 서버에서 처리됩니다.'));
+            }
+          } catch (error) {
+            clearInterval(checkClosed);
+            reject(new Error('구글 로그인 팝업 처리 중 오류가 발생했습니다.'));
+          }
+        }, 1000);
+      } catch (error) {
+        reject(new Error('구글 로그인 초기화 중 오류가 발생했습니다.'));
+      }
     });
   }
 
@@ -231,11 +245,13 @@ export function AuthProvider({ children }) {
     updateUserProfile,
     deleteAccount,
     showAuthModal,
+    setShowAuthModal,
     authModalMode,
     openLoginModal,
     openSignupModal,
     closeAuthModal,
     showOrderMethodModal,
+    setShowOrderMethodModal,
     openOrderMethodModal,
     closeOrderMethodModal
   };
