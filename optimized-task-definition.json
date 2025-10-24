@@ -67,6 +67,10 @@
                 {
                     "name": "TMPDIR",
                     "value": "/tmp"
+                },
+                {
+                    "name": "VITE_API_BASE_URL",
+                    "value": "https://sociality.co.kr/api"
                 }
             ],
             "environmentFiles": [],

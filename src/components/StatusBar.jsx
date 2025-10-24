@@ -127,56 +127,16 @@ const StatusBar = () => {
 
   return (
     <>
-      {/* 모바일 헤더 */}
+      {/* 모바일 상태바 (파란색) */}
       {isMobile && (
-        <>
-          <div className="mobile-header">
-            <Link to="/" className="mobile-logo">
-              <img 
-                src="/logo.png" 
-                alt="Sociality" 
-                className="mobile-header-logo"
-                style={{ cursor: 'pointer' }}
-              />
-            </Link>
-            <div className="mobile-user-info">
-              {userId ? (
-                <>
-                  <div className="mobile-points-info">
-                    <Coins size={16} />
-                    <span className="mobile-points-amount">
-                      {pointsLoading ? '로딩...' : `${userPoints.toLocaleString()}P`}
-                    </span>
-                  </div>
-                  <Link to="/points" className="mobile-charge-btn">
-                    충전
-                  </Link>
-                  <span className="mobile-user-name">
-                    {userName}
-                  </span>
-                  <button onClick={handleLogout} className="mobile-logout-btn">
-                    <LogOut size={16} />
-                  </button>
-                </>
-              ) : (
-                <div className="mobile-auth-buttons">
-                  <button 
-                    className="mobile-login-btn"
-                    onClick={openLoginModal}
-                  >
-                    로그인
-                  </button>
-                  <button 
-                    className="mobile-signup-btn"
-                    onClick={openSignupModal}
-                  >
-                    회원가입
-                  </button>
-                </div>
-              )}
+        <div className="status-bar mobile-status-bar">
+          <div className="status-info">
+            <div className="time-display">
+              <CheckCircle size={16} />
+              <span>{formatTime(currentTime)}</span>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* 데스크톱 상태바 */}
