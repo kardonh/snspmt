@@ -1,21 +1,24 @@
-/* 모바일 상태바 스타일 */
+/* 모바일 상태바 스타일 - 최상위 우선순위 */
 .mobile-status-bar {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
-  padding: 12px 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 14px;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  width: 100%;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  color: white !important;
+  padding: 12px 20px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1000 !important;
+  width: 100% !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-height: 48px !important;
 }
 
 .mobile-logo {
@@ -320,18 +323,7 @@
   font-size: 13px;
 }
 
-/* 모바일 상태바 */
-.mobile-status-bar {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
-  padding: 8px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 500;
-  box-shadow: 0 1px 4px rgba(59, 130, 246, 0.2);
-}
+/* 모바일 상태바 중복 제거됨 - 위의 .mobile-status-bar 사용 */
 
 .mobile-status-indicator {
   display: flex;
@@ -350,12 +342,43 @@
   font-size: 11px;
 }
 
-@media (min-width: 1200px) {
+/* 데스크톱에서 모바일 요소 숨김 */
+@media (min-width: 1201px) {
   .mobile-header {
-    display: none;
+    display: none !important;
   }
   
   .mobile-status-bar {
-    display: none;
+    display: none !important;
+  }
+}
+
+/* 모바일에서 데스크톱 상태바 숨김, 모바일 상태바만 표시 */
+@media (max-width: 1200px) {
+  .status-bar:not(.mobile-status-bar) {
+    display: none !important;
+  }
+  
+  .mobile-status-bar {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  .status-info {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  
+  .time-display {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    color: white !important;
+  }
+  
+  .time-display svg {
+    color: #10b981 !important;
   }
 }

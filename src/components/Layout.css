@@ -6,6 +6,7 @@
 .layout-content {
   display: flex;
   min-height: calc(100vh - 60px);
+  padding-top: 60px; /* StatusBar 높이만큼 여백 */
 }
 
 .main-content {
@@ -62,6 +63,10 @@
 }
 
 @media (max-width: 1200px) {
+  .layout-content {
+    padding-top: 60px !important; /* StatusBar 높이만큼 여백 */
+  }
+  
   .main-content.sidebar-open,
   .main-content.sidebar-closed {
     width: 600px;
@@ -90,6 +95,7 @@
   
   .layout-content {
     flex-direction: column;
+    padding-top: 60px !important; /* StatusBar 높이만큼 여백 */
   }
   
   .main-content {
