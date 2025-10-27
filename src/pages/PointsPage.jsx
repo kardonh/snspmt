@@ -139,6 +139,8 @@ const PointsPage = () => {
       
       if (!registerResult.success) {
         console.error('KCP 거래등록 실패 응답:', registerResult)
+        console.error('KCP 응답 상세:', registerResult.kcp_raw || '응답 없음')
+        alert(`KCP 결제 실패: ${registerResult.error || 'KCP 거래등록 실패'}`)
         throw new Error(registerResult.error || 'KCP 거래등록 실패')
       }
 
@@ -212,8 +214,13 @@ const PointsPage = () => {
       }, 30000)
 
     } catch (error) {
-      console.error('KCP 결제 실패:', error)
-      alert('KCP 결제 중 오류가 발생했습니다: ' + error.message)
+      console.error('❌ KCP 결제 실패:', error)
+      console.error('❌ KCP 결제 실패 상세:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response
+      })
+      alert(`KCP 결제 중 오류가 발생했습니다: ${error.message}`)
     } finally {
       setIsKcpLoading(false)
     }
