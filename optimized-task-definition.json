@@ -46,7 +46,7 @@
                 },
                 {
                     "name": "VITE_FIREBASE_API_KEY",
-                    "value": "AIzaSyB8zSBVAJ1NsCxBaBCIVBRITt7k-uRebEg"
+                    "value": "AIzaSyB8zSBVAJ1NsCxBaBClVBRlTt7k-uRebEg"
                 },
                 {
                     "name": "REACT_APP_GOOGLE_CLIENT_ID",

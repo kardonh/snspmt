@@ -1,5 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import smmpanelApi from '../services/snspopApi';
+import { auth } from '../firebase/config';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  updateProfile
+} from 'firebase/auth';
 
 const AuthContext = createContext();
 
@@ -18,22 +28,44 @@ export function AuthProvider({ children }) {
   const [authModalMode, setAuthModalMode] = useState('login');
   const [showOrderMethodModal, setShowOrderMethodModal] = useState(false);
 
-  // localStorage 기반 인증 상태 복원
+  // Firebase 인증 상태 감지
   useEffect(() => {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Firebase 사용자 정보를 현재 사용자로 설정
+        const userData = {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          provider: user.providerData[0]?.providerId || 'firebase'
+        };
+        
         setCurrentUser(userData);
-        console.log('✅ 사용자 정보 복원:', userData);
-      } catch (error) {
-        console.error('❌ 사용자 정보 파싱 오류:', error);
+        
+        // localStorage에도 저장
+        localStorage.setItem('currentUser', JSON.stringify(userData));
+        localStorage.setItem('userId', user.uid);
+        localStorage.setItem('firebase_user_id', user.uid);
+        localStorage.setItem('userEmail', user.email);
+        
+        console.log('🔥 Firebase 사용자 로그인:', userData);
+      } else {
+        // 로그아웃 상태
+        setCurrentUser(null);
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('firebase_user_id');
+        localStorage.removeItem('userEmail');
+        
+        console.log('🔥 Firebase 사용자 로그아웃');
       }
-    }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // 회원가입 (이메일/비밀번호) - localStorage 기반
+  // 회원가입 (이메일/비밀번호)
   function signup(email, password, username, businessInfo = null) {
     return new Promise((resolve, reject) => {
       if (!email || !password || !username) {
@@ -41,40 +73,51 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // 간단한 사용자 ID 생성
-      const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      const userData = {
-        uid: userId,
-        email: email,
-        displayName: username,
-        photoURL: null,
-        provider: 'local',
-        phoneNumber: businessInfo?.phoneNumber || ''
-      };
-      
-      if (businessInfo && businessInfo.accountType === 'business') {
-        Object.assign(userData, {
-          accountType: businessInfo.accountType,
-          businessNumber: businessInfo.businessNumber,
-          businessName: businessInfo.businessName,
-          representative: businessInfo.representative,
-          businessAddress: businessInfo.businessAddress
-        });
-      }
+      createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+          
+          // 사용자 프로필 업데이트
+          return updateProfile(user, {
+            displayName: username,
+            photoURL: null
+          }).then(() => {
+            // 추가 사용자 정보를 localStorage에 저장
+            const userData = {
+              uid: user.uid,
+              email: user.email,
+              displayName: username,
+              photoURL: null,
+              provider: 'firebase',
+              phoneNumber: businessInfo?.phoneNumber || ''
+            };
+            
+            if (businessInfo && businessInfo.accountType === 'business') {
+              Object.assign(userData, {
+                accountType: businessInfo.accountType,
+                businessNumber: businessInfo.businessNumber,
+                businessName: businessInfo.businessName,
+                representative: businessInfo.representative,
+                businessAddress: businessInfo.businessAddress
+              });
+            }
 
-      // localStorage에 저장
-      localStorage.setItem('currentUser', JSON.stringify(userData));
-      localStorage.setItem('userId', userId);
-      localStorage.setItem('firebase_user_id', userId);
-      localStorage.setItem('userEmail', email);
-      
-      setCurrentUser(userData);
-      resolve(userData);
+            localStorage.setItem('currentUser', JSON.stringify(userData));
+            localStorage.setItem('userId', user.uid);
+            localStorage.setItem('firebase_user_id', user.uid);
+            localStorage.setItem('userEmail', user.email);
+            
+            resolve(userData);
+          });
+        })
+        .catch((error) => {
+          console.error('회원가입 오류:', error);
+          reject(new Error(error.message));
+        });
     });
   }
 
-  // 로그인 (이메일/비밀번호) - localStorage 기반
+  // 로그인 (이메일/비밀번호)
   function login(email, password) {
     return new Promise((resolve, reject) => {
       if (!email || !password) {
@@ -82,81 +125,60 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // 간단한 사용자 ID 생성 (실제로는 서버에서 검증해야 함)
-      const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      const userData = {
-        uid: userId,
-        email: email,
-        displayName: email.split('@')[0], // 이메일에서 사용자명 추출
-        photoURL: null,
-        provider: 'local'
-      };
+      signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+          
+          const userData = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            provider: 'firebase'
+          };
 
-      localStorage.setItem('currentUser', JSON.stringify(userData));
-      localStorage.setItem('userId', userId);
-      localStorage.setItem('firebase_user_id', userId);
-      localStorage.setItem('userEmail', email);
-      
-      setCurrentUser(userData);
-      resolve(userData);
+          localStorage.setItem('currentUser', JSON.stringify(userData));
+          localStorage.setItem('userId', user.uid);
+          localStorage.setItem('firebase_user_id', user.uid);
+          localStorage.setItem('userEmail', user.email);
+          
+          resolve(userData);
+        })
+        .catch((error) => {
+          console.error('로그인 오류:', error);
+          reject(new Error(error.message));
+        });
     });
   }
 
-  // 구글 로그인 - 팝업 기반
+  // 구글 로그인
   function googleLogin() {
     return new Promise((resolve, reject) => {
-      try {
-        // 구글 로그인 팝업 열기
-        const popup = window.open(
-          `https://accounts.google.com/oauth/authorize?client_id=${process.env.REACT_APP_GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin + '/api/auth/google-callback')}&response_type=code&scope=email profile`,
-          'google-login',
-          'width=500,height=600,scrollbars=yes,resizable=yes'
-        );
-
-        if (!popup) {
-          reject(new Error('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.'));
-          return;
-        }
-
-        // 팝업에서 메시지 수신 대기
-        const messageHandler = (event) => {
-          if (event.origin !== window.location.origin) return;
+      const provider = new GoogleAuthProvider();
+      
+      signInWithPopup(auth, provider)
+        .then((result) => {
+          const user = result.user;
           
-          if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
-            const userData = event.data.user;
-            
-            localStorage.setItem('currentUser', JSON.stringify(userData));
-            localStorage.setItem('userId', userData.uid);
-            localStorage.setItem('firebase_user_id', userData.uid);
-            localStorage.setItem('userEmail', userData.email);
-            
-            setCurrentUser(userData);
-            window.removeEventListener('message', messageHandler);
-            popup.close();
-            resolve(userData);
-          } else if (event.data.type === 'GOOGLE_LOGIN_ERROR') {
-            window.removeEventListener('message', messageHandler);
-            popup.close();
-            reject(new Error(event.data.error));
-          }
-        };
+          const userData = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            provider: 'google.com'
+          };
 
-        window.addEventListener('message', messageHandler);
-
-        // 팝업 타임아웃
-        setTimeout(() => {
-          window.removeEventListener('message', messageHandler);
-          if (!popup.closed) {
-            popup.close();
-            reject(new Error('로그인 시간이 초과되었습니다.'));
-          }
-        }, 60000); // 60초
-
-      } catch (error) {
-        console.error('구글 로그인 오류:', error);
-        reject(new Error('구글 로그인 초기화 중 오류가 발생했습니다.'));
-      }
+          localStorage.setItem('currentUser', JSON.stringify(userData));
+          localStorage.setItem('userId', user.uid);
+          localStorage.setItem('firebase_user_id', user.uid);
+          localStorage.setItem('userEmail', user.email);
+          
+          resolve(userData);
+        })
+        .catch((error) => {
+          console.error('구글 로그인 오류:', error);
+          reject(new Error(error.message));
+        });
     });
   }
 
@@ -185,20 +207,28 @@ export function AuthProvider({ children }) {
     });
   }
 
-  // 로그아웃 - localStorage 기반
+  // 로그아웃
   function logout() {
     return new Promise((resolve) => {
-      // localStorage 정리
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('userId');
-      localStorage.removeItem('firebase_user_id');
-      localStorage.removeItem('userEmail');
-      
-      // 상태 초기화
-      setCurrentUser(null);
-      
-      console.log('✅ 로그아웃 완료');
-      resolve();
+      signOut(auth)
+        .then(() => {
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('firebase_user_id');
+          localStorage.removeItem('userEmail');
+          setCurrentUser(null);
+          resolve();
+        })
+        .catch((error) => {
+          console.error('로그아웃 오류:', error);
+          // 에러가 있어도 로컬 상태는 정리
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('firebase_user_id');
+          localStorage.removeItem('userEmail');
+          setCurrentUser(null);
+          resolve();
+        });
     });
   }
 
