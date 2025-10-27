@@ -1,5 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import smmpanelApi from '../services/snspopApi';
+import { auth } from '../firebase/config';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  updateProfile
+} from 'firebase/auth';
 
 const AuthContext = createContext();
 
@@ -18,239 +28,190 @@ export function AuthProvider({ children }) {
   const [authModalMode, setAuthModalMode] = useState('login');
   const [showOrderMethodModal, setShowOrderMethodModal] = useState(false);
 
-  // localStorage에서 사용자 정보 복원
+  // Firebase 인증 상태 감지
   useEffect(() => {
-    const restoreUserFromStorage = () => {
-      try {
-        const userData = localStorage.getItem('currentUser');
-        if (userData) {
-          const parsedUser = JSON.parse(userData);
-          if (parsedUser && parsedUser.uid && typeof parsedUser.uid === 'string') {
-            setCurrentUser(parsedUser);
-            console.log('🔄 localStorage에서 사용자 정보 복원:', parsedUser);
-          } else {
-            console.log('❌ 유효하지 않은 사용자 데이터, localStorage 클리어');
-            localStorage.removeItem('currentUser');
-            localStorage.removeItem('userId');
-            localStorage.removeItem('firebase_user_id');
-            localStorage.removeItem('userEmail');
-            setCurrentUser(null);
-          }
-        }
-      } catch (error) {
-        console.error('❌ localStorage 파싱 오류:', error);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Firebase 사용자 정보를 현재 사용자로 설정
+        const userData = {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          provider: user.providerData[0]?.providerId || 'firebase'
+        };
+        
+        setCurrentUser(userData);
+        
+        // localStorage에도 저장
+        localStorage.setItem('currentUser', JSON.stringify(userData));
+        localStorage.setItem('userId', user.uid);
+        localStorage.setItem('firebase_user_id', user.uid);
+        localStorage.setItem('userEmail', user.email);
+        
+        console.log('🔥 Firebase 사용자 로그인:', userData);
+      } else {
+        // 로그아웃 상태
+        setCurrentUser(null);
         localStorage.removeItem('currentUser');
         localStorage.removeItem('userId');
         localStorage.removeItem('firebase_user_id');
         localStorage.removeItem('userEmail');
-        setCurrentUser(null);
+        
+        console.log('🔥 Firebase 사용자 로그아웃');
       }
-    };
+    });
 
-    restoreUserFromStorage();
+    return () => unsubscribe();
   }, []);
 
   // 회원가입 (이메일/비밀번호)
   function signup(email, password, username, businessInfo = null) {
     return new Promise((resolve, reject) => {
-      // 간단한 유효성 검사
       if (!email || !password || !username) {
         reject(new Error('모든 필드를 입력해주세요.'));
         return;
       }
 
-      // 사용자 ID 생성 (간단한 UUID 형태)
-      const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      
-          const userData = {
-        uid: userId,
-        email: email,
-        displayName: username,
-        photoURL: null,
-        user_id: userId,
-        name: username,
-        phoneNumber: businessInfo?.phoneNumber || ''
-          };
+      createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
           
-          if (businessInfo && businessInfo.accountType === 'business') {
-            Object.assign(userData, {
-              accountType: businessInfo.accountType,
-              businessNumber: businessInfo.businessNumber,
-              businessName: businessInfo.businessName,
-              representative: businessInfo.representative,
-          businessAddress: businessInfo.businessAddress
-        });
-      }
+          // 사용자 프로필 업데이트
+          return updateProfile(user, {
+            displayName: username,
+            photoURL: null
+          }).then(() => {
+            // 추가 사용자 정보를 localStorage에 저장
+            const userData = {
+              uid: user.uid,
+              email: user.email,
+              displayName: username,
+              photoURL: null,
+              provider: 'firebase',
+              phoneNumber: businessInfo?.phoneNumber || ''
+            };
+            
+            if (businessInfo && businessInfo.accountType === 'business') {
+              Object.assign(userData, {
+                accountType: businessInfo.accountType,
+                businessNumber: businessInfo.businessNumber,
+                businessName: businessInfo.businessName,
+                representative: businessInfo.representative,
+                businessAddress: businessInfo.businessAddress
+              });
+            }
 
-      // localStorage에 저장
-      localStorage.setItem('currentUser', JSON.stringify(userData));
-      localStorage.setItem('userId', userId);
-      localStorage.setItem('firebase_user_id', userId);
-      localStorage.setItem('userEmail', email);
-      
-      setCurrentUser(userData);
-      resolve(userData);
+            localStorage.setItem('currentUser', JSON.stringify(userData));
+            localStorage.setItem('userId', user.uid);
+            localStorage.setItem('firebase_user_id', user.uid);
+            localStorage.setItem('userEmail', user.email);
+            
+            resolve(userData);
+          });
+        })
+        .catch((error) => {
+          console.error('회원가입 오류:', error);
+          reject(new Error(error.message));
+        });
     });
   }
 
   // 로그인 (이메일/비밀번호)
   function login(email, password) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // 서버에서 로그인 인증
-        const response = await fetch(`${window.location.origin}/api/auth/login`, {
-                method: 'POST',
-                headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ email, password })
-        });
+    return new Promise((resolve, reject) => {
+      if (!email || !password) {
+        reject(new Error('이메일과 비밀번호를 입력해주세요.'));
+        return;
+      }
 
-        if (response.ok) {
-          const result = await response.json();
-          const userData = result.user;
+      signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
           
-          // localStorage에 저장
+          const userData = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            provider: 'firebase'
+          };
+
           localStorage.setItem('currentUser', JSON.stringify(userData));
-          localStorage.setItem('userId', userData.uid);
-          localStorage.setItem('firebase_user_id', userData.uid);
-          localStorage.setItem('userEmail', email);
+          localStorage.setItem('userId', user.uid);
+          localStorage.setItem('firebase_user_id', user.uid);
+          localStorage.setItem('userEmail', user.email);
           
-          setCurrentUser(userData);
           resolve(userData);
-        } else {
-          const errorData = await response.json();
-          reject(new Error(errorData.error || '로그인에 실패했습니다.'));
-        }
-      } catch (error) {
-        console.error('로그인 오류:', error);
-        reject(new Error('로그인 중 오류가 발생했습니다.'));
-        }
-      });
+        })
+        .catch((error) => {
+          console.error('로그인 오류:', error);
+          reject(new Error(error.message));
+        });
+    });
   }
 
   // 구글 로그인
   function googleLogin() {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // 런타임에 서버에서 환경 변수 가져오기
-        const response = await fetch(`${window.location.origin}/api/config`);
-        const config = await response.json();
-        
-        const googleClientId = config.googleClientId || 
-                              process.env.REACT_APP_GOOGLE_CLIENT_ID;
-        
-        if (!googleClientId || googleClientId === '123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com') {
-          reject(new Error('Google Client ID가 올바르게 설정되지 않았습니다. 관리자에게 문의해주세요.'));
-          return;
-        }
-        
-        // 구글 로그인 팝업 - 콜백 URL을 /api/auth/google-callback으로 설정
-        const redirectUri = `${window.location.origin}/api/auth/google-callback`;
-        const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid%20email%20profile`;
-        
-        const popup = window.open(googleAuthUrl, 'googleAuth', 'width=500,height=600');
-        
-        if (!popup) {
-          reject(new Error('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.'));
-          return;
-        }
-        
-        // COOP 정책으로 인해 window.closed 사용 불가
-        // 팝업에서 메시지를 받는 방식으로 변경
-        const messageHandler = (event) => {
-          if (event.origin !== window.location.origin) return;
+    return new Promise((resolve, reject) => {
+      const provider = new GoogleAuthProvider();
+      
+      signInWithPopup(auth, provider)
+        .then((result) => {
+          const user = result.user;
           
-          if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-            window.removeEventListener('message', messageHandler);
-            clearTimeout(checkClosed);
-            
-            // 구글에서 받은 사용자 정보를 백엔드에 전송하여 로그인 처리
-            const googleUser = event.data.user;
-            console.log('구글 사용자 정보 받음:', googleUser);
-            
-            // 백엔드에 구글 로그인 요청
-            fetch(`${window.location.origin}/api/auth/google-login`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                googleId: googleUser.googleId,
-                email: googleUser.email,
-                displayName: googleUser.displayName,
-                photoURL: googleUser.photoURL,
-                emailVerified: googleUser.emailVerified,
-                accessToken: googleUser.accessToken
-              })
-            })
-            .then(response => response.json())
-            .then(data => {
-              if (data.success) {
-                console.log('구글 로그인 성공:', data.user);
-                resolve(data.user);
-              } else {
-                reject(new Error(data.error || '구글 로그인 처리 실패'));
-              }
-            })
-            .catch(error => {
-              console.error('구글 로그인 백엔드 처리 오류:', error);
-              reject(new Error('구글 로그인 처리 중 오류가 발생했습니다.'));
-            });
-          } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
-            window.removeEventListener('message', messageHandler);
-            clearTimeout(checkClosed);
-            reject(new Error(event.data.error || '구글 로그인 실패'));
-          }
-        };
-        
-        window.addEventListener('message', messageHandler);
-        
-        // 30초 후 타임아웃
-        const checkClosed = setTimeout(() => {
-          window.removeEventListener('message', messageHandler);
-          reject(new Error('구글 로그인 시간이 초과되었습니다.'));
-        }, 30000);
-      } catch (error) {
-        reject(new Error('구글 로그인 초기화 중 오류가 발생했습니다.'));
-      }
+          const userData = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            provider: 'google.com'
+          };
+
+          localStorage.setItem('currentUser', JSON.stringify(userData));
+          localStorage.setItem('userId', user.uid);
+          localStorage.setItem('firebase_user_id', user.uid);
+          localStorage.setItem('userEmail', user.email);
+          
+          resolve(userData);
+        })
+        .catch((error) => {
+          console.error('구글 로그인 오류:', error);
+          reject(new Error(error.message));
+        });
     });
   }
 
   // 카카오 로그인
   function kakaoLogin() {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // 카카오 SDK가 로드되었는지 확인
-        if (!window.Kakao || !window.Kakao.Auth) {
-          reject(new Error('카카오 SDK가 로드되지 않았습니다.'));
-          return;
-        }
-
-        // 카카오 로그인 실행
-        window.Kakao.Auth.authorize({
-          redirectUri: `${window.location.origin}/kakao-callback`,
-          scope: 'profile_nickname,account_email'
-        });
-        
-        // 카카오 로그인은 리다이렉트 방식이므로 여기서는 성공으로 처리
-        resolve({ message: '카카오 로그인 페이지로 이동합니다.' });
-      } catch (error) {
-        console.error('카카오 로그인 오류:', error);
-        reject(new Error('카카오 로그인 중 오류가 발생했습니다.'));
-      }
+    return new Promise((resolve, reject) => {
+      // 카카오 로그인은 서버에서 처리되므로 여기서는 에러 반환
+      reject(new Error('카카오 로그인은 서버에서 처리됩니다.'));
     });
   }
 
   // 로그아웃
   function logout() {
     return new Promise((resolve) => {
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('userId');
-      localStorage.removeItem('firebase_user_id');
-      localStorage.removeItem('userEmail');
-      setCurrentUser(null);
-      resolve();
+      signOut(auth)
+        .then(() => {
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('firebase_user_id');
+          localStorage.removeItem('userEmail');
+          setCurrentUser(null);
+          resolve();
+        })
+        .catch((error) => {
+          console.error('로그아웃 오류:', error);
+          // 에러가 있어도 로컬 상태는 정리
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('firebase_user_id');
+          localStorage.removeItem('userEmail');
+          setCurrentUser(null);
+          resolve();
+        });
     });
   }
 
@@ -301,7 +262,6 @@ export function AuthProvider({ children }) {
 
   const value = {
     currentUser,
-    setCurrentUser,
     loading,
     signup,
     login,
