@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getAnalytics } from 'firebase/analytics';
 
-// Firebase 설정
+// Firebase 설정 - 환경 변수 우선, 없으면 기본값 사용
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyB8zSBVAJ1NsCxBaBCIVBRITt7k-uRebEg",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "snssmm-61f6c.firebaseapp.com",
@@ -13,9 +13,32 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:474049215478:web:d2460177482aaed45b65d7"
 };
 
+console.log('🔥 Firebase 설정:', {
+  apiKey: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 10)}...` : 'undefined',
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId
+});
+
 // Firebase 초기화
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const analytics = getAnalytics(app);
+let app, auth, analytics;
+
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  
+  // Analytics는 선택적으로 초기화 (오류 방지)
+  try {
+    analytics = getAnalytics(app);
+    console.log('✅ Firebase Analytics 초기화 성공');
+  } catch (analyticsError) {
+    console.warn('⚠️ Firebase Analytics 초기화 실패:', analyticsError.message);
+    analytics = null;
+  }
+  
+  console.log('✅ Firebase 초기화 성공');
+} catch (error) {
+  console.error('❌ Firebase 초기화 실패:', error);
+  throw error;
+}
 
 export { app, analytics, auth };

@@ -161,14 +161,14 @@ const Sidebar = ({ onClose }) => {
   const handleSignOut = async () => {
     try {
       if (typeof logout === 'function') {
-        await logout()
-        alert('로그아웃되었습니다. 게스트 모드로 전환됩니다.')
-        // 모바일에서 사이드바가 열려있다면 닫기
-        if (onClose) {
-          onClose()
-        }
-        // 홈페이지로 리다이렉트
-        navigate('/')
+      await logout()
+      alert('로그아웃되었습니다. 게스트 모드로 전환됩니다.')
+      // 모바일에서 사이드바가 열려있다면 닫기
+      if (onClose) {
+        onClose()
+      }
+      // 홈페이지로 리다이렉트
+      navigate('/')
       } else {
         console.error('logout 함수가 정의되지 않았습니다.')
         alert('로그아웃 함수를 찾을 수 없습니다.')
