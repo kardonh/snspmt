@@ -3747,7 +3747,8 @@ def kcp_register_transaction():
                 return jsonify({
                     'success': False,
                     'error': f"KCP 거래등록 실패: {kcp_response.get('Message', '알 수 없는 오류')}",
-                    'kcp_response': kcp_response
+                    'kcp_response': kcp_response,
+                    'kcp_raw': str(kcp_response)
                 }), 400
                 
         except requests.RequestException as e:
@@ -3767,7 +3768,13 @@ def kcp_register_transaction():
         
     except Exception as e:
         print(f"❌ KCP 거래등록 실패: {e}")
-        return jsonify({'success': False, 'error': f'KCP 거래등록에 실패했습니다: {str(e)}'}), 500
+        import traceback
+        print(f"❌ KCP 거래등록 실패 상세: {traceback.format_exc()}")
+        return jsonify({
+            'success': False, 
+            'error': f'KCP 거래등록에 실패했습니다: {str(e)}',
+            'kcp_raw': str(e)
+        }), 500
 
 # KCP 표준결제 - 결제창 호출 데이터 생성
 @app.route('/api/points/purchase-kcp/payment-form', methods=['POST'])

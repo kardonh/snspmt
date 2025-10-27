@@ -139,9 +139,12 @@ const PointsPage = () => {
       
       if (!registerResult.success) {
         console.error('KCP 거래등록 실패 응답:', registerResult)
-        console.error('KCP 응답 상세:', registerResult.kcp_raw || '응답 없음')
-        alert(`KCP 결제 실패: ${registerResult.error || 'KCP 거래등록 실패'}`)
-        throw new Error(registerResult.error || 'KCP 거래등록 실패')
+        console.error('KCP 응답 상세:', registerResult.kcp_raw || registerResult.kcp_response || '응답 없음')
+        const errorMsg = registerResult.error || 'KCP 거래등록 실패'
+        const errorDetails = registerResult.kcp_raw || registerResult.kcp_response || ''
+        console.error('KCP 오류 상세:', errorDetails)
+        alert(`KCP 결제 실패: ${errorMsg}\n\n상세: ${errorDetails}`)
+        throw new Error(errorMsg)
       }
 
       // 2단계: 결제창 호출 데이터 생성
