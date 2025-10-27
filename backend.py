@@ -948,8 +948,8 @@ def process_package_step(order_id, step_index):
                 (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
                     """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
-            
-            conn.commit()
+        
+        conn.commit()
             
             # 마지막 반복이 아니면 delay 시간만큼 대기
             if repeat_count < step_repeat - 1:
@@ -1042,7 +1042,7 @@ def process_package_step(order_id, step_index):
         if step_index + 1 < len(package_steps):
             print(f"✅ 다음 단계 존재 확인: {step_index + 2}/{len(package_steps)}")
             try:
-                schedule_next_package_step(order_id, step_index + 1, package_steps)
+        schedule_next_package_step(order_id, step_index + 1, package_steps)
                 print(f"✅ schedule_next_package_step 호출 완료")
                 print(f"✅ 다음 단계 스케줄링 완료: {step_index + 1}/{len(package_steps)}")
             except Exception as e:
@@ -3052,18 +3052,18 @@ def create_order():
             print(f"📦 주문 ID: {order_id}, 사용자: {user_id}, 단계 수: {len(package_steps)}")
             
             # 주문 상태를 package_processing으로 변경
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
                     UPDATE orders SET status = 'package_processing', updated_at = NOW()
-                    WHERE order_id = %s
+                            WHERE order_id = %s
                 """, (order_id,))
-            else:
-                cursor.execute("""
+                    else:
+                        cursor.execute("""
                     UPDATE orders SET status = 'package_processing', updated_at = CURRENT_TIMESTAMP
-                    WHERE order_id = ?
+                            WHERE order_id = ?
                 """, (order_id,))
-            
-            conn.commit()
+                    
+                    conn.commit()
             
             # 첫 번째 단계 처리 시작
             def start_package_processing():
@@ -3080,7 +3080,7 @@ def create_order():
             time.sleep(0.1)
             if thread.is_alive():
                 print(f"✅ 패키지 시작 스레드 정상 실행: {thread.name}")
-            else:
+                else:
                 print(f"❌ 패키지 시작 스레드 실패: {thread.name}")
             
             status = 'package_processing'  # 패키지 처리 중 상태
@@ -3174,15 +3174,11 @@ def start_package_processing():
         
         print(f"🔍 주문 상세 정보: ID={order_id_db}, 사용자={user_id}, 상태={status}")
         print(f"🔍 패키지 단계 정보: {package_steps_json}")
-        print(f"🔍 상태 타입: {type(status)}, 상태 값: '{status}'")
         
         # 패키지 주문의 경우 이미 처리 중이거나 완료된 상태일 수 있음
         # pending_payment, 주문발송 상태도 처리 가능하도록 추가
-        allowed_statuses = ['pending', 'pending_payment', 'package_processing', 'completed', '주문발송', 'order_sent']
-        print(f"🔍 허용된 상태 목록: {allowed_statuses}")
-        
-        if status not in allowed_statuses:
-            print(f"❌ 주문 {order_id} 상태가 처리 가능한 상태가 아닙니다. 현재 상태: '{status}' (타입: {type(status)})")
+        if status not in ['pending', 'pending_payment', 'package_processing', 'completed', '주문발송']:
+            print(f"❌ 주문 {order_id} 상태가 처리 가능한 상태가 아닙니다. 현재 상태: {status}")
             return jsonify({'error': f'주문 상태가 처리할 수 없습니다. 현재 상태: {status}'}), 400
         
         # 이미 처리 중인 경우 성공으로 처리
@@ -3206,14 +3202,8 @@ def start_package_processing():
             print(f"❌ 패키지 단계 파싱 실패: {e}")
             return jsonify({'error': '패키지 단계 정보가 올바르지 않습니다.'}), 400
         
-        # 분할 발송 패키지인 경우 즉시 처리하지 않음
         if not package_steps or len(package_steps) == 0:
-            print(f"ℹ️ 주문 {order_id}는 분할 발송 패키지입니다. 즉시 처리하지 않습니다.")
-            return jsonify({
-                'success': True,
-                'message': '분할 발송 패키지는 매일 자동으로 처리됩니다.',
-                'is_split_delivery': True
-            }), 200
+            return jsonify({'error': '패키지 단계 정보가 없습니다.'}), 400
         
         print(f"📦 패키지 주문 처리 시작: {order_id}")
         print(f"📦 사용자: {user_id}, 링크: {link}")
@@ -3325,8 +3315,8 @@ def get_package_progress(order_id):
                 package_steps = json.loads(package_steps_json)
             else:
                 package_steps = []
-        except:
-            package_steps = []
+            except:
+                package_steps = []
         
         # 진행 상황 데이터 포맷팅
         progress_list = []
@@ -3424,7 +3414,7 @@ def get_orders():
                     status = '주문 실행중'
                 elif db_status in ['pending', '접수됨', '주문발송']:
                     status = '주문발송'
-                else:
+                        else:
                     status = '주문 미처리'
                 
                 # 날짜 포맷팅 (간소화)
@@ -6970,22 +6960,16 @@ def kakao_token():
         
         # 카카오 토큰 요청
         token_url = 'https://kauth.kakao.com/oauth/token'
-        kakao_client_id = os.getenv('KAKAO_CLIENT_ID', '5a6e0106e9beafa7bd8199ab3c378ceb')
         token_data = {
             'grant_type': 'authorization_code',
-            'client_id': kakao_client_id,
+            'client_id': get_parameter_value('KAKAO_CLIENT_ID', '5a6e0106e9beafa7bd8199ab3c378ceb'),
             'redirect_uri': redirect_uri,
             'code': code
         }
         
         print(f"🔑 카카오 토큰 요청: {token_data}")
-        print(f"🔑 카카오 클라이언트 ID: {kakao_client_id}")
-        print(f"🔑 리다이렉트 URI: {redirect_uri}")
-        print(f"🔑 인가 코드: {code[:10]}...")
         
         response = requests.post(token_url, data=token_data)
-        print(f"🔑 카카오 토큰 응답 상태: {response.status_code}")
-        print(f"🔑 카카오 토큰 응답 내용: {response.text}")
         
         if response.status_code == 200:
             token_info = response.json()
@@ -7212,16 +7196,22 @@ def kakao_login():
                 VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), NOW())
             """, (user_id, email, nickname, kakao_id, profile_image))
             
+            # 포인트 테이블에도 초기 레코드 생성
+            cursor.execute("""
+                INSERT INTO points (user_id, points, created_at, updated_at)
+                VALUES (%s, %s, NOW(), NOW())
+            """, (user_id, 0))
+            
             print(f"✅ 새 카카오 사용자 생성: {user_id}")
         
         conn.commit()
         
         # 사용자 정보 반환
         user_info = {
-            'uid': user_id,
+            'id': user_id,  # KakaoCallback.jsx에서 user.id로 접근하므로 'id' 사용
             'email': email,
-            'displayName': nickname,
-            'photoURL': profile_image,
+            'nickname': nickname,  # KakaoCallback.jsx에서 user.nickname으로 접근하므로 'nickname' 사용
+            'profile_image': profile_image,  # KakaoCallback.jsx에서 user.profile_image로 접근하므로 'profile_image' 사용
             'provider': 'kakao'
         }
         
