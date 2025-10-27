@@ -1,9 +1,9 @@
 // Firebase 설정
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getAnalytics } from 'firebase/analytics';
 
 // Firebase 설정 - 환경 변수 우선, 없으면 기본값 사용
+// Analytics는 제외됨 (API 키 문제로 인한 오류 방지)
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyB8zSBVAJ1NsCxBaBCIVBRITt7k-uRebEg",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "snssmm-61f6c.firebaseapp.com",
@@ -19,23 +19,16 @@ console.log('🔥 Firebase 설정:', {
   projectId: firebaseConfig.projectId
 });
 
-// Firebase 초기화
+// Firebase 초기화 (Analytics 제외 - API 키 오류 방지)
 let app, auth, analytics;
 
 try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   
-  // Analytics는 선택적으로 초기화 (오류 방지)
-  try {
-    analytics = getAnalytics(app);
-    console.log('✅ Firebase Analytics 초기화 성공');
-  } catch (analyticsError) {
-    console.warn('⚠️ Firebase Analytics 초기화 실패:', analyticsError.message);
-    analytics = null;
-  }
-  
-  console.log('✅ Firebase 초기화 성공');
+  // Analytics는 비활성화 (API 키 오류 방지)
+  analytics = null;
+  console.log('✅ Firebase 초기화 성공 (Analytics 비활성화)');
 } catch (error) {
   console.error('❌ Firebase 초기화 실패:', error);
   throw error;
