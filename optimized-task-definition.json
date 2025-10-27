@@ -53,6 +53,10 @@
                     "value": "474049215478-vcn59k76bhskmnuvj5melhe1hllmasfe.apps.googleusercontent.com"
                 },
                 {
+                    "name": "GOOGLE_CLIENT_SECRET",
+                    "value": "GOCSPX-실제구글클라이언트시크릿을여기에입력하세요"
+                },
+                {
                     "name": "VITE_FIREBASE_AUTH_DOMAIN",
                     "value": "snssmm-61f6c.firebaseapp.com"
                 },

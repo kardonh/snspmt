@@ -2419,8 +2419,11 @@ def health_check():
 def get_config():
     """프론트엔드 설정 정보 반환"""
     try:
+        google_client_id = os.environ.get('REACT_APP_GOOGLE_CLIENT_ID', '')
+        print(f"🔍 구글 클라이언트 ID 확인: {google_client_id}")
+        
         return jsonify({
-            'googleClientId': os.environ.get('REACT_APP_GOOGLE_CLIENT_ID', ''),
+            'googleClientId': google_client_id,
             'kakaoAppKey': os.environ.get('REACT_APP_KAKAO_APP_KEY', ''),
             'firebaseApiKey': os.environ.get('VITE_FIREBASE_API_KEY', ''),
             'firebaseAuthDomain': os.environ.get('VITE_FIREBASE_AUTH_DOMAIN', ''),
@@ -2431,6 +2434,7 @@ def get_config():
             'firebaseMeasurementId': os.environ.get('VITE_FIREBASE_MEASUREMENT_ID', '')
         }), 200
     except Exception as e:
+        print(f"❌ 설정 정보 조회 오류: {e}")
         return jsonify({
             'error': '설정 정보를 가져올 수 없습니다.',
             'message': str(e)
@@ -7237,16 +7241,83 @@ def google_callback():
                 </script>
             """
         
-        # 임시로 코드를 프론트엔드로 전달 (실제로는 여기서 토큰 교환 필요)
-        return f"""
-            <script>
-                window.opener.postMessage({{
-                    type: 'GOOGLE_AUTH_SUCCESS',
-                    code: '{code}'
-                }}, window.location.origin);
-                window.close();
-            </script>
-        """
+        # 구글에서 사용자 정보 가져오기
+        try:
+            # 환경 변수에서 구글 클라이언트 정보 가져오기
+            google_client_id = os.getenv('REACT_APP_GOOGLE_CLIENT_ID')
+            google_client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+            
+            if not google_client_id or not google_client_secret:
+                raise Exception('구글 클라이언트 설정이 없습니다.')
+            
+            # 1. Authorization code를 access token으로 교환
+            token_url = 'https://oauth2.googleapis.com/token'
+            token_data = {
+                'client_id': google_client_id,
+                'client_secret': google_client_secret,
+                'code': code,
+                'grant_type': 'authorization_code',
+                'redirect_uri': f'{request.url_root}api/auth/google-callback'
+            }
+            
+            token_response = requests.post(token_url, data=token_data)
+            token_result = token_response.json()
+            
+            if 'error' in token_result:
+                raise Exception(f'토큰 교환 실패: {token_result.get("error_description", "Unknown error")}')
+            
+            access_token = token_result.get('access_token')
+            if not access_token:
+                raise Exception('액세스 토큰을 받지 못했습니다.')
+            
+            # 2. 액세스 토큰으로 사용자 정보 가져오기
+            user_info_url = 'https://www.googleapis.com/oauth2/v2/userinfo'
+            headers = {'Authorization': f'Bearer {access_token}'}
+            user_response = requests.get(user_info_url, headers=headers)
+            user_data = user_response.json()
+            
+            if 'error' in user_data:
+                raise Exception(f'사용자 정보 조회 실패: {user_data.get("error_description", "Unknown error")}')
+            
+            # 사용자 정보 추출
+            google_id = user_data.get('id')
+            email = user_data.get('email')
+            display_name = user_data.get('name')
+            photo_url = user_data.get('picture')
+            email_verified = user_data.get('verified_email', False)
+            
+            if not google_id or not email:
+                raise Exception('구글 사용자 정보가 불완전합니다.')
+            
+            # 사용자 정보를 프론트엔드로 전달
+            return f"""
+                <script>
+                    window.opener.postMessage({{
+                        type: 'GOOGLE_AUTH_SUCCESS',
+                        user: {{
+                            googleId: '{google_id}',
+                            email: '{email}',
+                            displayName: '{display_name or ''}',
+                            photoURL: '{photo_url or ''}',
+                            emailVerified: {str(email_verified).lower()},
+                            accessToken: '{access_token}'
+                        }}
+                    }}, window.location.origin);
+                    window.close();
+                </script>
+            """
+            
+        except Exception as auth_error:
+            print(f"❌ 구글 인증 처리 오류: {auth_error}")
+            return f"""
+                <script>
+                    window.opener.postMessage({{
+                        type: 'GOOGLE_AUTH_ERROR',
+                        error: '구글 인증 처리 실패: {str(auth_error)}'
+                    }}, window.location.origin);
+                    window.close();
+                </script>
+            """
         
     except Exception as e:
         print(f"❌ 구글 콜백 오류: {e}")

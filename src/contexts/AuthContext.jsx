@@ -138,11 +138,10 @@ export function AuthProvider({ children }) {
         const config = await response.json();
         
         const googleClientId = config.googleClientId || 
-                              process.env.REACT_APP_GOOGLE_CLIENT_ID ||
-                              '123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com';
+                              process.env.REACT_APP_GOOGLE_CLIENT_ID;
         
-        if (!googleClientId) {
-          reject(new Error('Google Client ID가 설정되지 않았습니다.'));
+        if (!googleClientId || googleClientId === '123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com') {
+          reject(new Error('Google Client ID가 올바르게 설정되지 않았습니다. 관리자에게 문의해주세요.'));
           return;
         }
         
@@ -164,11 +163,43 @@ export function AuthProvider({ children }) {
           
           if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
             window.removeEventListener('message', messageHandler);
-            clearInterval(checkClosed);
-            resolve(event.data.user);
+            clearTimeout(checkClosed);
+            
+            // 구글에서 받은 사용자 정보를 백엔드에 전송하여 로그인 처리
+            const googleUser = event.data.user;
+            console.log('구글 사용자 정보 받음:', googleUser);
+            
+            // 백엔드에 구글 로그인 요청
+            fetch(`${window.location.origin}/api/auth/google-login`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                googleId: googleUser.googleId,
+                email: googleUser.email,
+                displayName: googleUser.displayName,
+                photoURL: googleUser.photoURL,
+                emailVerified: googleUser.emailVerified,
+                accessToken: googleUser.accessToken
+              })
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                console.log('구글 로그인 성공:', data.user);
+                resolve(data.user);
+              } else {
+                reject(new Error(data.error || '구글 로그인 처리 실패'));
+              }
+            })
+            .catch(error => {
+              console.error('구글 로그인 백엔드 처리 오류:', error);
+              reject(new Error('구글 로그인 처리 중 오류가 발생했습니다.'));
+            });
           } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
             window.removeEventListener('message', messageHandler);
-            clearInterval(checkClosed);
+            clearTimeout(checkClosed);
             reject(new Error(event.data.error || '구글 로그인 실패'));
           }
         };
