@@ -3646,10 +3646,10 @@ def kcp_register_transaction():
                 'success': False,
                 'error': 'KCP 결제 시스템이 준비되지 않았습니다. 잠시 후 다시 시도해주세요.'
             }), 503
-        if not (kcp_cert_info.startswith('-----BEGIN') and 'END CERTIFICATE' in kcp_cert_info):
+        if not (kcp_cert_info.startswith('-----BEGIN') and ('END CERTIFICATE' in kcp_cert_info or 'END ENCRYPTED PRIVATE KEY' in kcp_cert_info)):
             return jsonify({
                 'success': False,
-                'error': 'KCP 거래등록 실패: KCP_CERT_INFO 형식 오류(PEM 구분자 누락). BEGIN/END CERTIFICATE 포함해 저장하세요.',
+                'error': 'KCP 거래등록 실패: KCP_CERT_INFO 형식 오류(PEM 구분자 누락). BEGIN/END CERTIFICATE 또는 BEGIN/END ENCRYPTED PRIVATE KEY 포함해 저장하세요.',
             }), 400
         register_data = {
             'site_cd': kcp_site_cd,
