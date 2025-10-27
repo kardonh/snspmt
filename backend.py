@@ -914,29 +914,51 @@ def process_package_step(order_id, step_index):
         # 반복 처리 로직
         for repeat_count in range(step_repeat):
             print(f"🔄 패키지 단계 {step_index + 1} 반복 {repeat_count + 1}/{step_repeat}: {step_name}")
-        
-        # SMM Panel API 호출
-        print(f"📞 SMM Panel API 호출 시작: 서비스 {step_service_id}, 수량 {step_quantity}")
-        smm_result = call_smm_panel_api({
-            'service': step_service_id,
-            'link': link,
-            'quantity': step_quantity,
+            
+            # SMM Panel API 호출
+            print(f"📞 SMM Panel API 호출 시작: 서비스 {step_service_id}, 수량 {step_quantity}")
+            smm_result = call_smm_panel_api({
+                'service': step_service_id,
+                'link': link,
+                'quantity': step_quantity,
                 'comments': f"{comments} - {step_name} ({repeat_count + 1}/{step_repeat})" if comments else f"{step_name} ({repeat_count + 1}/{step_repeat})"
-        })
-        print(f"📞 SMM Panel API 응답: {smm_result}")
-        
-        if smm_result.get('status') == 'success':
+            })
+            print(f"📞 SMM Panel API 응답: {smm_result}")
+            
+            if smm_result.get('status') == 'success':
                 print(f"✅ 패키지 단계 {step_index + 1} 반복 {repeat_count + 1} 완료: {step_name} (SMM 주문 ID: {smm_result.get('order')})")
-        else:
+            else:
                 print(f"❌ 패키지 단계 {step_index + 1} 반복 {repeat_count + 1} 실패: {step_name} - {smm_result.get('message', 'Unknown error')}")
                 # 실패해도 다음 반복으로 진행
-        
-        # 패키지 진행 상황 기록 (성공/실패 모두)
-        status = 'completed' if smm_result.get('status') == 'success' else 'failed'
-        smm_order_id = smm_result.get('order') if smm_result.get('status') == 'success' else None
-        
-        # SMM Panel에서 받은 실제 주문번호로 order_id 업데이트 (성공한 경우만)
-        if smm_order_id and status == 'completed':
+            
+            # 패키지 진행 상황 기록 (성공/실패 모두)
+            status = 'completed' if smm_result.get('status') == 'success' else 'failed'
+            smm_order_id = smm_result.get('order') if smm_result.get('status') == 'success' else None
+            
+            # 패키지 진행 상황을 DB에 기록
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
+            else:
+                cursor.execute("""
+                    INSERT INTO package_progress 
+                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
+            
+            conn.commit()
+            
+            # 마지막 반복이 아니면 delay 시간만큼 대기
+            if repeat_count < step_repeat - 1:
+                print(f"⏳ {step_delay}분 대기 후 다음 반복 실행...")
+                import time
+                time.sleep(step_delay * 60)  # 분을 초로 변환
+            
+            # SMM Panel에서 받은 실제 주문번호로 order_id 업데이트 (성공한 경우만)
+            if smm_order_id and status == 'completed':
             print(f"🔄 주문번호 업데이트: {order_id} -> {smm_order_id}")
             
             try:
@@ -974,28 +996,8 @@ def process_package_step(order_id, step_index):
                 conn.rollback()
                 # 업데이트 실패 시 원래 order_id 유지
                 print(f"🔄 원래 주문번호 유지: {order_id}")
-            
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                INSERT INTO package_progress 
-                (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
-                """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
-        else:
-            cursor.execute("""
-                INSERT INTO package_progress 
-                (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-                """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
         
-        conn.commit()
-        
-        # 마지막 반복이 아니면 delay 시간만큼 대기
-        if repeat_count < step_repeat - 1:
-            print(f"⏳ {step_delay}분 대기 후 다음 반복 실행...")
-            import time
-            time.sleep(step_delay * 60)  # 분을 초로 변환
-        
+        # 반복이 끝난 후 다음 단계로 진행
         print(f"🎉 패키지 단계 {step_index + 1} 모든 반복 완료: {step_name} ({step_repeat}회)")
         
         # 다음 단계가 있으면 스케줄링
