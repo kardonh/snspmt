@@ -73,11 +73,19 @@ const PointsPage = () => {
 
   const loadUserInfo = async () => {
     try {
-              const response = await smmpanelApi.getUserInfo(currentUser.uid)
+      const userId = currentUser?.uid || localStorage.getItem('userId')
+      if (!userId) {
+        console.log('사용자 ID가 없어 사용자 정보 조회를 건너뜁니다.')
+        return
+      }
+      
+      const response = await smmpanelApi.getUserInfo(userId)
       console.log('사용자 정보 로드:', response)
       setUserInfo(response.user || null)
     } catch (error) {
-      console.error('사용자 정보 조회 실패:', error)
+      console.log('사용자 정보 조회 실패 (무시됨):', error.message)
+      // 사용자 정보 조회 실패는 무시하고 계속 진행
+      setUserInfo(null)
     }
   }
 
@@ -375,7 +383,7 @@ const PointsPage = () => {
                     <p style={{ color: '#4CAF50', fontWeight: 'bold' }}>✅ 즉시 충전 가능</p>
                   </div>
                 </div>
-              </div>
+          </div>
 
               <div 
                 className={`payment-method-option ${paymentMethod === 'manual' ? 'selected' : ''}`}
