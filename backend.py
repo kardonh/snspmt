@@ -3176,8 +3176,9 @@ def start_package_processing():
         print(f"🔍 패키지 단계 정보: {package_steps_json}")
         
         # 패키지 주문의 경우 이미 처리 중이거나 완료된 상태일 수 있음
-        # pending_payment, 주문발송 상태도 처리 가능하도록 추가
-        if status not in ['pending', 'pending_payment', 'package_processing', 'completed', '주문발송']:
+        # 더 많은 상태를 처리 가능하도록 허용
+        allowed_statuses = ['pending', 'pending_payment', 'package_processing', 'completed', '주문발송', '주문 실행중', '주문 실행완료', 'in_progress', 'processing']
+        if status not in allowed_statuses:
             print(f"❌ 주문 {order_id} 상태가 처리 가능한 상태가 아닙니다. 현재 상태: {status}")
             return jsonify({'error': f'주문 상태가 처리할 수 없습니다. 현재 상태: {status}'}), 400
         
@@ -3203,7 +3204,13 @@ def start_package_processing():
             return jsonify({'error': '패키지 단계 정보가 올바르지 않습니다.'}), 400
         
         if not package_steps or len(package_steps) == 0:
-            return jsonify({'error': '패키지 단계 정보가 없습니다.'}), 400
+            # split delivery 패키지의 경우 (package_steps가 None 또는 빈 배열)
+            print(f"📦 Split delivery 패키지 주문: {order_id}")
+            return jsonify({
+                'success': True,
+                'message': 'Split delivery 패키지는 매일 자동으로 처리됩니다.',
+                'status': 'split_delivery'
+            }), 200
         
         print(f"📦 패키지 주문 처리 시작: {order_id}")
         print(f"📦 사용자: {user_id}, 링크: {link}")
