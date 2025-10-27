@@ -7217,6 +7217,47 @@ def kakao_login():
             'error': '카카오 로그인 처리 중 오류가 발생했습니다.'
         }), 500
 
+@app.route('/api/auth/google-callback', methods=['GET'])
+def google_callback():
+    """구글 OAuth 콜백 처리"""
+    try:
+        # Authorization code 받기
+        code = request.args.get('code')
+        
+        if not code:
+            return """
+                <script>
+                    window.opener.postMessage({
+                        type: 'GOOGLE_AUTH_ERROR',
+                        error: '인증 코드가 없습니다.'
+                    }, window.location.origin);
+                    window.close();
+                </script>
+            """
+        
+        # 임시로 코드를 프론트엔드로 전달 (실제로는 여기서 토큰 교환 필요)
+        return f"""
+            <script>
+                window.opener.postMessage({{
+                    type: 'GOOGLE_AUTH_SUCCESS',
+                    code: '{code}'
+                }}, window.location.origin);
+                window.close();
+            </script>
+        """
+        
+    except Exception as e:
+        print(f"❌ 구글 콜백 오류: {e}")
+        return """
+            <script>
+                window.opener.postMessage({
+                    type: 'GOOGLE_AUTH_ERROR',
+                    error: '구글 로그인 처리 중 오류가 발생했습니다.'
+                }, window.location.origin);
+                window.close();
+            </script>
+        """
+
 @app.route('/api/auth/google-login', methods=['POST'])
 def google_login():
     """구글 로그인 처리"""

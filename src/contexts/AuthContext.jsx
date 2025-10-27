@@ -146,8 +146,9 @@ export function AuthProvider({ children }) {
           return;
         }
         
-        // 구글 로그인 팝업
-        const googleAuthUrl = `https://accounts.google.com/oauth/authorize?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(window.location.origin)}&response_type=code&scope=openid%20email%20profile`;
+        // 구글 로그인 팝업 - 콜백 URL을 /api/auth/google-callback으로 설정
+        const redirectUri = `${window.location.origin}/api/auth/google-callback`;
+        const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid%20email%20profile`;
         
         const popup = window.open(googleAuthUrl, 'googleAuth', 'width=500,height=600');
         
