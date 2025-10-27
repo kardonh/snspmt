@@ -3537,7 +3537,8 @@ def purchase_points():
         
         # 사용자가 포인트 테이블에 있는지 확인하고, 없으면 생성
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("SELECT user_id FROM points WHERE user_id = %s", (user_id_str,))
+            # PostgreSQL에서는 명시적 타입 캐스팅 사용
+            cursor.execute("SELECT user_id FROM points WHERE user_id::text = %s", (user_id_str,))
             if not cursor.fetchone():
                 cursor.execute("""
                     INSERT INTO points (user_id, points, created_at, updated_at)
