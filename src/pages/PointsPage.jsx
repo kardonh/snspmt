@@ -361,21 +361,21 @@ const PointsPage = () => {
             <h3>결제 방식</h3>
             <div className="payment-method-options">
               <div 
-                className="payment-method-option disabled"
-                style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                className={`payment-method-option ${paymentMethod === 'kcp' ? 'selected' : ''}`}
+                onClick={() => setPaymentMethod('kcp')}
               >
                 <CreditCard className="payment-method-icon" />
                 <div className="payment-method-content">
                   <span className="payment-method-label">KCP 카드결제 (즉시충전)</span>
-                  <span className="payment-method-badge maintenance">점검중</span>
+                  <span className="payment-method-badge recommended">추천</span>
                   <div className="payment-method-description">
                     <p>💳 신용카드로 안전하고 빠른 결제</p>
                     <p>⚡ 결제 완료 즉시 포인트 자동 충전</p>
                     <p>🔒 KCP 보안 시스템으로 안전한 결제</p>
-                    <p style={{ color: '#ff6b6b', fontWeight: 'bold' }}>⚠️ 현재 점검 중으로 이용 불가</p>
+                    <p style={{ color: '#4CAF50', fontWeight: 'bold' }}>✅ 즉시 충전 가능</p>
                   </div>
                 </div>
-          </div>
+              </div>
 
               <div 
                 className={`payment-method-option ${paymentMethod === 'manual' ? 'selected' : ''}`}
@@ -444,11 +444,11 @@ const PointsPage = () => {
 
           <button
             onClick={handlePurchase}
-            disabled={isLoading || isKcpLoading || selectedAmount === 0 || paymentMethod === 'kcp'}
+            disabled={isLoading || isKcpLoading || selectedAmount === 0}
             className="purchase-btn"
           >
             {isLoading ? '처리중...' : isKcpLoading ? 'KCP 결제 준비중...' : 
-             paymentMethod === 'kcp' ? 'KCP 카드결제 (점검중)' : '포인트 구매 신청'}
+             paymentMethod === 'kcp' ? 'KCP 카드결제' : '포인트 구매 신청'}
           </button>
         </div>
 
