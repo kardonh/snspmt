@@ -6960,16 +6960,22 @@ def kakao_token():
         
         # 카카오 토큰 요청
         token_url = 'https://kauth.kakao.com/oauth/token'
+        kakao_client_id = os.getenv('KAKAO_CLIENT_ID', '5a6e0106e9beafa7bd8199ab3c378ceb')
         token_data = {
             'grant_type': 'authorization_code',
-            'client_id': get_parameter_value('KAKAO_CLIENT_ID', '5a6e0106e9beafa7bd8199ab3c378ceb'),
+            'client_id': kakao_client_id,
             'redirect_uri': redirect_uri,
             'code': code
         }
         
         print(f"🔑 카카오 토큰 요청: {token_data}")
+        print(f"🔑 카카오 클라이언트 ID: {kakao_client_id}")
+        print(f"🔑 리다이렉트 URI: {redirect_uri}")
+        print(f"🔑 인가 코드: {code[:10]}...")
         
         response = requests.post(token_url, data=token_data)
+        print(f"🔑 카카오 토큰 응답 상태: {response.status_code}")
+        print(f"🔑 카카오 토큰 응답 내용: {response.text}")
         
         if response.status_code == 200:
             token_info = response.json()

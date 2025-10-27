@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import kakaoAuth from '../utils/kakaoAuth';
 
 const KakaoCallback = () => {
   const navigate = useNavigate();
-  const { kakaoLogin } = useAuth();
+  const { setCurrentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -40,8 +39,25 @@ const KakaoCallback = () => {
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
-            // 로그인 성공
-            await kakaoLogin(data.user);
+            // 로그인 성공 - 사용자 정보 저장
+            const user = data.user;
+            const userInfo = {
+              uid: user.id,
+              email: user.email,
+              displayName: user.nickname,
+              photoURL: user.profile_image,
+              provider: 'kakao'
+            };
+            
+            setCurrentUser(userInfo);
+            localStorage.setItem('currentUser', JSON.stringify(userInfo));
+            localStorage.setItem('userId', user.id);
+            localStorage.setItem('firebase_user_id', user.id);
+            localStorage.setItem('userEmail', user.email);
+            
+            // 포인트 업데이트 이벤트 발생
+            window.dispatchEvent(new CustomEvent('pointsUpdated'));
+            
             navigate('/');
           } else {
             throw new Error(data.message || '카카오 로그인에 실패했습니다.');
@@ -59,7 +75,7 @@ const KakaoCallback = () => {
     };
 
     handleKakaoCallback();
-  }, [navigate, kakaoLogin]);
+  }, [navigate, setCurrentUser]);
 
   if (loading) {
     return (

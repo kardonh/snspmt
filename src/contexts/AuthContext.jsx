@@ -219,9 +219,26 @@ export function AuthProvider({ children }) {
 
   // 카카오 로그인
   function kakaoLogin() {
-    return new Promise((resolve, reject) => {
-      // 카카오 로그인은 서버에서 처리되므로 여기서는 에러 반환
-      reject(new Error('카카오 로그인은 서버에서 처리됩니다.'));
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 카카오 SDK가 로드되었는지 확인
+        if (!window.Kakao || !window.Kakao.Auth) {
+          reject(new Error('카카오 SDK가 로드되지 않았습니다.'));
+          return;
+        }
+
+        // 카카오 로그인 실행
+        window.Kakao.Auth.authorize({
+          redirectUri: `${window.location.origin}/kakao-callback`,
+          scope: 'profile_nickname,account_email'
+        });
+        
+        // 카카오 로그인은 리다이렉트 방식이므로 여기서는 성공으로 처리
+        resolve({ message: '카카오 로그인 페이지로 이동합니다.' });
+      } catch (error) {
+        console.error('카카오 로그인 오류:', error);
+        reject(new Error('카카오 로그인 중 오류가 발생했습니다.'));
+      }
     });
   }
 
