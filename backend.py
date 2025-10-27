@@ -3528,7 +3528,8 @@ def purchase_points():
             return jsonify({'error': '결제 금액이 범위를 벗어났습니다.'}), 400
         
         # 사용자 ID 검증 (SQL 인젝션 방지) - 구글/카카오 로그인 사용자도 허용
-        if not user_id.replace('_', '').replace('-', '').replace('google', '').replace('kakao', '').isalnum():
+        user_id_str = str(user_id)  # 정수일 수 있으므로 문자열로 변환
+        if not user_id_str.replace('_', '').replace('-', '').replace('google', '').replace('kakao', '').isalnum():
             return jsonify({'error': '잘못된 사용자 ID 형식입니다.'}), 400
         
         conn = get_db_connection()
@@ -3594,7 +3595,8 @@ def kcp_register_transaction():
             return jsonify({'error': '필수 정보가 누락되었습니다.'}), 400
         
         # 구글/카카오 로그인 사용자 ID 검증
-        if not user_id.replace('_', '').replace('-', '').replace('google', '').replace('kakao', '').isalnum():
+        user_id_str = str(user_id)  # 정수일 수 있으므로 문자열로 변환
+        if not user_id_str.replace('_', '').replace('-', '').replace('google', '').replace('kakao', '').isalnum():
             return jsonify({'error': '잘못된 사용자 ID 형식입니다.'}), 400
         
         # 입력 검증
