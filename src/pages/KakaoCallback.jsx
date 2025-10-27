@@ -48,13 +48,13 @@ const KakaoCallback = () => {
               photoURL: user.profile_image,
               provider: 'kakao'
             };
-            
+
             setCurrentUser(userInfo);
             localStorage.setItem('currentUser', JSON.stringify(userInfo));
             localStorage.setItem('userId', user.id);
             localStorage.setItem('firebase_user_id', user.id);
             localStorage.setItem('userEmail', user.email);
-            
+
             // 포인트 업데이트 이벤트 발생
             window.dispatchEvent(new CustomEvent('pointsUpdated'));
             
