@@ -75,6 +75,14 @@
                 {
                     "name": "VITE_API_BASE_URL",
                     "value": "https://sociality.co.kr/api"
+                },
+                {
+                    "name": "KCP_SITE_CD",
+                    "value": "ALFCQ"
+                },
+                {
+                    "name": "KCP_CERT_PASSWORD",
+                    "value": "Thtufflxl01!"
                 }
             ],
             "environmentFiles": [],
