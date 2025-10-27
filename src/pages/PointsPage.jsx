@@ -79,6 +79,18 @@ const PointsPage = () => {
         return
       }
       
+      // 카카오/구글 로그인 사용자의 경우 currentUser에서 직접 정보 사용
+      if (currentUser && (currentUser.provider === 'kakao' || currentUser.provider === 'google.com')) {
+        console.log('카카오/구글 로그인 사용자 - currentUser에서 정보 사용:', currentUser)
+        setUserInfo({
+          name: currentUser.displayName,
+          email: currentUser.email,
+          profile_image: currentUser.photoURL
+        })
+        return
+      }
+      
+      // 일반 사용자의 경우 API 호출
       const response = await smmpanelApi.getUserInfo(userId)
       console.log('사용자 정보 로드:', response)
       setUserInfo(response.user || null)
