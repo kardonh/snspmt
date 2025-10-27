@@ -3174,11 +3174,15 @@ def start_package_processing():
         
         print(f"🔍 주문 상세 정보: ID={order_id_db}, 사용자={user_id}, 상태={status}")
         print(f"🔍 패키지 단계 정보: {package_steps_json}")
+        print(f"🔍 상태 타입: {type(status)}, 상태 값: '{status}'")
         
         # 패키지 주문의 경우 이미 처리 중이거나 완료된 상태일 수 있음
         # pending_payment, 주문발송 상태도 처리 가능하도록 추가
-        if status not in ['pending', 'pending_payment', 'package_processing', 'completed', '주문발송']:
-            print(f"❌ 주문 {order_id} 상태가 처리 가능한 상태가 아닙니다. 현재 상태: {status}")
+        allowed_statuses = ['pending', 'pending_payment', 'package_processing', 'completed', '주문발송', 'order_sent']
+        print(f"🔍 허용된 상태 목록: {allowed_statuses}")
+        
+        if status not in allowed_statuses:
+            print(f"❌ 주문 {order_id} 상태가 처리 가능한 상태가 아닙니다. 현재 상태: '{status}' (타입: {type(status)})")
             return jsonify({'error': f'주문 상태가 처리할 수 없습니다. 현재 상태: {status}'}), 400
         
         # 이미 처리 중인 경우 성공으로 처리
