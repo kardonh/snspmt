@@ -234,7 +234,14 @@ const PointsPage = () => {
       return
     }
 
-    if (!buyerName.trim()) {
+    // 카카오/구글 로그인 사용자의 경우 buyerName 자동 설정
+    let finalBuyerName = buyerName.trim()
+    if (!finalBuyerName && currentUser && (currentUser.provider === 'kakao' || currentUser.provider === 'google.com')) {
+      finalBuyerName = currentUser.displayName || '소셜로그인사용자'
+      console.log('🔍 카카오/구글 로그인 사용자 - 자동 이름 설정:', finalBuyerName)
+    }
+
+    if (!finalBuyerName) {
       alert('입금자명을 입력해주세요.')
       return
     }
@@ -247,6 +254,7 @@ const PointsPage = () => {
     setIsLoading(true)
     try {
       console.log('🔍 수동 포인트 구매 신청 - 금액:', selectedAmount)
+      console.log('🔍 입금자명:', finalBuyerName)
       
       const response = await fetch(`${window.location.origin}/api/points/purchase`, {
         method: 'POST',
@@ -257,7 +265,7 @@ const PointsPage = () => {
           user_id: currentUser?.uid || localStorage.getItem('userId') || 'demo_user',
           amount: selectedAmount,
           price: selectedAmount,
-          buyer_name: buyerName,
+          buyer_name: finalBuyerName,
           bank_info: bankInfo
         })
       })

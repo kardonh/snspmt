@@ -3537,32 +3537,32 @@ def purchase_points():
         
         # 사용자가 포인트 테이블에 있는지 확인하고, 없으면 생성
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("SELECT user_id FROM points WHERE user_id = %s", (user_id,))
+            cursor.execute("SELECT user_id FROM points WHERE user_id = %s", (user_id_str,))
             if not cursor.fetchone():
                 cursor.execute("""
                     INSERT INTO points (user_id, points, created_at, updated_at)
                     VALUES (%s, 0, NOW(), NOW())
-                """, (user_id,))
-                print(f"✅ 구글/카카오 로그인 사용자 포인트 테이블 생성: {user_id}")
+                """, (user_id_str,))
+                print(f"✅ 구글/카카오 로그인 사용자 포인트 테이블 생성: {user_id_str}")
             
             cursor.execute("""
                 INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at)
                 VALUES (%s, %s, %s, 'pending', %s, %s, NOW(), NOW())
                 RETURNING id
-            """, (user_id, amount, price, buyer_name, bank_info))
+            """, (user_id_str, amount, price, buyer_name, bank_info))
         else:
-            cursor.execute("SELECT user_id FROM points WHERE user_id = ?", (user_id,))
+            cursor.execute("SELECT user_id FROM points WHERE user_id = ?", (user_id_str,))
             if not cursor.fetchone():
                 cursor.execute("""
                     INSERT INTO points (user_id, points, created_at, updated_at)
                     VALUES (?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                """, (user_id,))
-                print(f"✅ 구글/카카오 로그인 사용자 포인트 테이블 생성: {user_id}")
+                """, (user_id_str,))
+                print(f"✅ 구글/카카오 로그인 사용자 포인트 테이블 생성: {user_id_str}")
             
             cursor.execute("""
                 INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at)
                 VALUES (?, ?, ?, 'pending', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """, (user_id, amount, price, buyer_name, bank_info))
+            """, (user_id_str, amount, price, buyer_name, bank_info))
             cursor.execute("SELECT last_insert_rowid()")
         
         purchase_id = cursor.fetchone()[0]
