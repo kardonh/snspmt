@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { CheckCircle, LogOut, Coins } from 'lucide-react'
+import { CheckCircle, LogOut, Coins, Search } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
 import './StatusBar.css'
@@ -127,7 +127,50 @@ const StatusBar = () => {
 
   return (
     <>
-      {/* 모바일 상태바 (파란색) */}
+      {/* 모바일 헤더 (원래 있던 상단바 - 로고, OP, 충전 버튼) */}
+      {isMobile && (
+        <div className="mobile-head">
+          <Link to="/" className="mobile-logo-link">
+            <img 
+              src="/logo.png" 
+              alt="SOCIALITY" 
+              className="mobile-header-logo"
+            />
+            <span className="mobile-logo-text">SOCIALITY.</span>
+          </Link>
+          
+          <div className="mobile-header-right">
+            {userId ? (
+              <>
+                <div className="mobile-op-display">
+                  <Search size={16} />
+                  <span>OP</span>
+                </div>
+                <Link to="/points" className="mobile-charge-btn-header">
+                  충전
+                </Link>
+                <button
+                  className="mobile-menu-btn"
+                  title="메뉴"
+                >
+                  →
+                </button>
+              </>
+            ) : (
+              <div className="mobile-header-auth">
+                <button
+                  className="mobile-login-btn-header"
+                  onClick={openLoginModal}
+                >
+                  로그인
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* 모바일 상태바 (파란색 - 시간 표시) */}
       {isMobile && (
         <div className="status-bar mobile-status-bar">
           <div className="status-info">

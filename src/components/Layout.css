@@ -64,7 +64,7 @@
 
 @media (max-width: 1200px) {
   .layout-content {
-    padding-top: 60px !important; /* StatusBar 높이만큼 여백 */
+    padding-top: 104px !important; /* 모바일 헤더(56px) + 상태바(48px) 높이만큼 여백 */
   }
   
   .main-content.sidebar-open,
