@@ -184,6 +184,13 @@ const StatusBar = () => {
               <CheckCircle size={16} />
               <span>{formatTime(currentTime)}</span>
             </div>
+            <div className="status-user-display">
+              {userId ? (
+                <span>{userName}고객님</span>
+              ) : (
+                <span>게스트</span>
+              )}
+            </div>
           </div>
         </div>
       )}

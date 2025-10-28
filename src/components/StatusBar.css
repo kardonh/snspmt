@@ -193,9 +193,8 @@
 .mobile-status-bar .status-info {
   display: flex !important;
   align-items: center !important;
-  gap: 12px !important;
-  width: 100% !important;
   justify-content: space-between !important;
+  width: 100% !important;
   padding: 0 4px !important;
 }
 
@@ -204,6 +203,13 @@
   align-items: center !important;
   gap: 6px !important;
   color: white !important;
+}
+
+.mobile-status-bar .status-user-display {
+  color: white !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
 }
 
 .mobile-status-bar .time-display svg {
@@ -656,9 +662,18 @@
   .mobile-status-bar .status-info {
     display: flex !important;
     align-items: center !important;
-    gap: 8px !important;
+    justify-content: space-between !important;
     width: 100% !important;
-    justify-content: center !important;
+    padding: 0 16px !important;
+  }
+  
+  .mobile-status-bar .status-user-display {
+    display: flex !important;
+    align-items: center !important;
+    color: white !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
   }
   
   .mobile-status-bar .time-display {
