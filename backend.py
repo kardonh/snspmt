@@ -1000,6 +1000,41 @@ def process_package_step(order_id, step_index):
         # 반복이 끝난 후 다음 단계로 진행
         print(f"🎉 패키지 단계 {step_index + 1} 모든 반복 완료: {step_name} ({step_repeat}회)")
         
+        # 인스타 계정 상위노출 패키지인 경우 24시간 후 다시 반복
+        if step_service_id == 515 and step_repeat == 30:
+            # 30번 반복 중 현재 몇 번째인지 확인
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    SELECT COUNT(*) FROM package_progress 
+                    WHERE order_id = %s AND step_number = %s AND status = 'completed'
+                """, (order_id, step_index + 1))
+            else:
+                cursor.execute("""
+                    SELECT COUNT(*) FROM package_progress 
+                    WHERE order_id = ? AND step_number = ? AND status = 'completed'
+                """, (order_id, step_index + 1))
+            
+            completed_count = cursor.fetchone()[0]
+            print(f"📊 현재 완료된 반복 횟수: {completed_count}/{step_repeat}")
+            
+            # 아직 30번 반복이 완료되지 않았으면 24시간 후 재예약
+            if completed_count < step_repeat:
+                next_scheduled_datetime = (datetime.now() + timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        UPDATE orders SET is_scheduled = TRUE, scheduled_datetime = %s, updated_at = NOW()
+                        WHERE order_id = %s
+                    """, (next_scheduled_datetime, order_id))
+                else:
+                    cursor.execute("""
+                        UPDATE orders SET is_scheduled = 1, scheduled_datetime = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE order_id = ?
+                    """, (next_scheduled_datetime, order_id))
+                conn.commit()
+                print(f"⏰ 다음 반복 예약: {next_scheduled_datetime} (24시간 후)")
+                conn.close()
+                return True
+        
         # 다음 단계가 있으면 스케줄링
         print(f"🔄 다음 단계 스케줄링 시작: {step_index + 1}/{len(package_steps)}")
         print(f"🔄 현재 단계: {step_index + 1}, 전체 단계: {len(package_steps)}")
@@ -2994,28 +3029,33 @@ def create_order():
         is_package = len(package_steps) > 0
         print(f"🔍 패키지 상품 확인: is_package={is_package}, package_steps={package_steps}")
         
-        # 패키지 상품인 경우 24시간 후 일괄 처리 설정
+        # 패키지 상품인 경우 24시간 후 반복 처리 설정 (30번 반복)
         # 인스타 계정 상위노출 [30일] 패키지 (서비스 ID 515 또는 주문 ID 1005)
         if is_package and len(package_steps) > 0 and (package_steps[0].get('id') == 515 or service_id == 1005):
-            print(f"📦 인스타 계정 상위노출 패키지 - 24시간 후 일괄 처리 설정")
-            # 24시간 후 예약 처리
+            print(f"📦 인스타 계정 상위노출 패키지 - 24시간 후 반복 처리 설정 (30번 반복)")
+            # 반복 횟수 설정 (30번)
+            if package_steps and len(package_steps) > 0:
+                package_steps[0]['repeat'] = 30
+                print(f"📦 패키지 단계 반복 횟수 설정: 30번")
+            
+            # 24시간 후 첫 예약 처리
             scheduled_datetime = (datetime.now() + timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
             is_scheduled = True
             
-            # 주문 정보 업데이트 (예약 처리 정보 추가)
+            # 주문 정보 업데이트 (예약 처리 정보 및 반복 횟수 추가)
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    UPDATE orders SET is_scheduled = %s, scheduled_datetime = %s
+                    UPDATE orders SET is_scheduled = %s, scheduled_datetime = %s, package_steps = %s
                     WHERE order_id = %s
-                """, (True, scheduled_datetime, order_id))
+                """, (True, scheduled_datetime, json.dumps(package_steps), order_id))
             else:
                 cursor.execute("""
-                    UPDATE orders SET is_scheduled = ?, scheduled_datetime = ?
+                    UPDATE orders SET is_scheduled = ?, scheduled_datetime = ?, package_steps = ?
                     WHERE order_id = ?
-                """, (True, scheduled_datetime, order_id))
+                """, (True, scheduled_datetime, json.dumps(package_steps), order_id))
             
             conn.commit()
-            print(f"✅ 패키지 상품 예약 발송 설정 완료 - 24시간 후 일괄 처리")
+            print(f"✅ 패키지 상품 예약 발송 설정 완료 - 24시간 후부터 30번 반복 처리")
         
         # 예약/분할/패키지 주문 처리
         if is_scheduled and not is_package:
@@ -6718,23 +6758,60 @@ def cron_process_scheduled_orders():
             # 패키지 상품인 경우 패키지 처리 시작
             if package_steps and len(package_steps) > 0:
                 print(f"📦 패키지 주문 처리 시작: {len(package_steps)}단계")
-                # 패키지 처리 시작
+                
+                # 반복 횟수 확인
+                current_step = package_steps[0]
+                step_repeat = current_step.get('repeat', 1)
+                step_service_id = current_step.get('id')
+                
+                # 이미 완료된 반복 횟수 확인
                 if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
-                        UPDATE orders SET status = 'package_processing', updated_at = NOW()
-                        WHERE order_id = %s
+                        SELECT COUNT(*) FROM package_progress 
+                        WHERE order_id = %s AND step_number = 1 AND status = 'completed'
                     """, (order_id,))
                 else:
                     cursor.execute("""
-                        UPDATE orders SET status = 'package_processing', updated_at = CURRENT_TIMESTAMP
-                        WHERE order_id = ?
+                        SELECT COUNT(*) FROM package_progress 
+                        WHERE order_id = ? AND step_number = 1 AND status = 'completed'
                     """, (order_id,))
-                conn.commit()
                 
-                # 패키지 첫 번째 단계 처리
-                process_package_step(order_id, 0)
-                processed_count += 1
-                print(f"✅ 예약 패키지 주문 {order_id} 처리 시작")
+                completed_count = cursor.fetchone()[0]
+                print(f"📊 현재 완료된 반복 횟수: {completed_count}/{step_repeat}")
+                
+                # 반복이 모두 완료되었으면 처리 완료
+                if completed_count >= step_repeat and step_repeat == 30:
+                    print(f"🎉 패키지 주문 {order_id} 모든 반복 완료 (30/30)")
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
+                            UPDATE orders SET status = 'completed', is_scheduled = FALSE, updated_at = NOW()
+                            WHERE order_id = %s
+                        """, (order_id,))
+                    else:
+                        cursor.execute("""
+                            UPDATE orders SET status = 'completed', is_scheduled = 0, updated_at = CURRENT_TIMESTAMP
+                            WHERE order_id = ?
+                        """, (order_id,))
+                    conn.commit()
+                    processed_count += 1
+                else:
+                    # 패키지 처리 시작
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
+                            UPDATE orders SET status = 'package_processing', updated_at = NOW()
+                            WHERE order_id = %s
+                        """, (order_id,))
+                    else:
+                        cursor.execute("""
+                            UPDATE orders SET status = 'package_processing', updated_at = CURRENT_TIMESTAMP
+                            WHERE order_id = ?
+                        """, (order_id,))
+                    conn.commit()
+                    
+                    # 패키지 첫 번째 단계 처리
+                    process_package_step(order_id, 0)
+                    processed_count += 1
+                    print(f"✅ 예약 패키지 주문 {order_id} 처리 시작")
             else:
                 # 일반 주문인 경우 SMM Panel API 호출
                 print(f"🚀 일반 예약 주문 - SMM Panel API 호출")
