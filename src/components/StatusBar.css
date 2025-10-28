@@ -25,9 +25,10 @@
 .mobile-status-bar .status-info {
   display: flex !important;
   align-items: center !important;
-  gap: 8px !important;
+  gap: 12px !important;
   width: 100% !important;
-  justify-content: center !important;
+  justify-content: space-between !important;
+  padding: 0 4px !important;
 }
 
 .mobile-status-bar .time-display {
@@ -41,6 +42,86 @@
   color: #10b981 !important;
   width: 16px !important;
   height: 16px !important;
+}
+
+.mobile-status-bar .mobile-user-info {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.mobile-status-bar .mobile-points-info {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  padding: 4px 8px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.mobile-status-bar .mobile-points-info svg {
+  color: #fbbf24 !important;
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.mobile-status-bar .mobile-points-amount {
+  color: white !important;
+}
+
+.mobile-status-bar .mobile-user-name {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: white !important;
+  max-width: 100px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.mobile-status-bar .mobile-logout-btn {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 6px !important;
+  color: white !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+}
+
+.mobile-status-bar .mobile-logout-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.mobile-status-bar .mobile-auth-buttons {
+  display: flex !important;
+  gap: 6px !important;
+}
+
+.mobile-status-bar .mobile-login-btn,
+.mobile-status-bar .mobile-signup-btn {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  border-radius: 8px !important;
+  border: none !important;
+  cursor: pointer !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+}
+
+.mobile-status-bar .mobile-login-btn {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #3b82f6 !important;
+}
+
+.mobile-status-bar .mobile-signup-btn {
+  background: rgba(16, 185, 129, 0.9) !important;
+  color: white !important;
 }
 
 .mobile-logo {
@@ -418,4 +499,5 @@
     width: 16px !important;
     height: 16px !important;
   }
+}
 }
