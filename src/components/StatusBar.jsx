@@ -164,6 +164,12 @@ const StatusBar = () => {
                 >
                   로그인
                 </button>
+                <button
+                  className="mobile-signup-btn-header"
+                  onClick={openSignupModal}
+                >
+                  회원가입
+                </button>
               </div>
             )}
           </div>
