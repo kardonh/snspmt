@@ -266,8 +266,37 @@ const Home = () => {
       ]},
       
       // 인스타 계정 상위노출 [30일]
-      { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 400개씩 30일간', package: true, steps: [
-        { id: 515, name: '인스타그램 프로필 방문', quantity: 400, delay: 0, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' }
+      { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 1개씩 30일간', package: true, steps: [
+        { id: 515, name: '인스타그램 프로필 방문 (1일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (2일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (3일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (4일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (5일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (6일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (7일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (8일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (9일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (10일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (11일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (12일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (13일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (14일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (15일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (16일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (17일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (18일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (19일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (20일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (21일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (22일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (23일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (24일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (25일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (26일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (27일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (28일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (29일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+        { id: 515, name: '인스타그램 프로필 방문 (30일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' }
       ]}
     ],
     
@@ -612,8 +641,37 @@ const Home = () => {
         ]},
         
         // 인스타 계정 상위노출 [30일]
-        { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 400개씩 30일간', package: true, steps: [
-          { id: 515, name: '인스타그램 프로필 방문', quantity: 400, delay: 0, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' }
+        { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 1개씩 30일간', package: true, steps: [
+          { id: 515, name: '인스타그램 프로필 방문 (1일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (2일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (3일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (4일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (5일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (6일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (7일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (8일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (9일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (10일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (11일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (12일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (13일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (14일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (15일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (16일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (17일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (18일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (19일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (20일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (21일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (22일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (23일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (24일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (25일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (26일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (27일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (28일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (29일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' },
+          { id: 515, name: '인스타그램 프로필 방문 (30일차)', quantity: 1, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 24시간 후 처리' }
         ]},
         { id: 1001, name: '인스타 계정 상위노출 [30일]', price: 5000000, min: 1, max: 1, time: '30일', description: '인스타그램 계정 상위노출 서비스' },
         
