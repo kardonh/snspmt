@@ -136,7 +136,6 @@ const StatusBar = () => {
               alt="SOCIALITY" 
               className="mobile-header-logo"
             />
-            <span className="mobile-logo-text">SOCIALITY.</span>
           </Link>
           
           <div className="mobile-header-right">
@@ -146,14 +145,19 @@ const StatusBar = () => {
                   <Search size={16} />
                   <span>OP</span>
                 </div>
+                <div className="mobile-points-display">
+                  <Coins size={16} />
+                  <span>{pointsLoading ? '...' : userPoints.toLocaleString()}P</span>
+                </div>
                 <Link to="/points" className="mobile-charge-btn-header">
                   충전
                 </Link>
                 <button
-                  className="mobile-menu-btn"
-                  title="메뉴"
+                  className="mobile-logout-btn-header"
+                  onClick={handleLogout}
+                  title="로그아웃"
                 >
-                  →
+                  <LogOut size={18} />
                 </button>
               </>
             ) : (
