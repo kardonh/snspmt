@@ -2994,28 +2994,28 @@ def create_order():
         is_package = len(package_steps) > 0
         print(f"🔍 패키지 상품 확인: is_package={is_package}, package_steps={package_steps}")
         
-        # 패키지 상품인 경우 자동으로 분할 발송 설정 (30일간 하루 400개씩)
+        # 패키지 상품인 경우 24시간 후 일괄 처리 설정
         # 인스타 계정 상위노출 [30일] 패키지 (서비스 ID 515 또는 주문 ID 1005)
         if is_package and len(package_steps) > 0 and (package_steps[0].get('id') == 515 or service_id == 1005):
-            print(f"📦 인스타 계정 상위노출 패키지 - 30일간 분할 발송 설정")
-            is_split_delivery = True
-            split_days = 30
-            split_quantity = 400
+            print(f"📦 인스타 계정 상위노출 패키지 - 24시간 후 일괄 처리 설정")
+            # 24시간 후 예약 처리
+            scheduled_datetime = (datetime.now() + timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
+            is_scheduled = True
             
-            # 주문 정보 업데이트 (분할 발송 정보 추가)
+            # 주문 정보 업데이트 (예약 처리 정보 추가)
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    UPDATE orders SET is_split_delivery = %s, split_days = %s, split_quantity = %s
+                    UPDATE orders SET is_scheduled = %s, scheduled_datetime = %s
                     WHERE order_id = %s
-                """, (True, 30, 400, order_id))
+                """, (True, scheduled_datetime, order_id))
             else:
                 cursor.execute("""
-                    UPDATE orders SET is_split_delivery = ?, split_days = ?, split_quantity = ?
+                    UPDATE orders SET is_scheduled = ?, scheduled_datetime = ?
                     WHERE order_id = ?
-                """, (True, 30, 400, order_id))
+                """, (True, scheduled_datetime, order_id))
             
             conn.commit()
-            print(f"✅ 패키지 상품 분할 발송 설정 완료 - 30일간 하루 400개씩")
+            print(f"✅ 패키지 상품 예약 발송 설정 완료 - 24시간 후 일괄 처리")
         
         # 예약/분할/패키지 주문 처리
         if is_scheduled and not is_package:
@@ -3023,6 +3023,11 @@ def create_order():
             print(f"📅 예약 주문 - 즉시 처리하지 않음")
             status = 'scheduled'
             message = '예약 주문이 생성되었습니다.'
+        elif is_scheduled and is_package and (service_id == 1005 or (package_steps and len(package_steps) > 0 and package_steps[0].get('id') == 515)):
+            # 인스타 계정 상위노출 패키지는 24시간 후 예약 처리
+            print(f"📅 인스타 계정 상위노출 패키지 - 24시간 후 예약 처리")
+            status = 'scheduled'
+            message = '예약 주문이 생성되었습니다. 24시간 후 처리됩니다.'
         elif is_split_delivery:
             # 분할 주문은 나중에 처리하도록 스케줄링
             print(f"📅 분할 주문 - 즉시 처리하지 않음")
@@ -6668,46 +6673,25 @@ def cron_process_scheduled_orders():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 현재 시간이 지난 예약 주문 조회 (scheduled_orders 테이블에서)
+        # 현재 시간이 지난 예약 주문 조회 (orders 테이블에서도 조회)
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print(f"🔍 예약 주문 조회 중... (현재 시간: {current_time})")
         
-        # 먼저 모든 pending 예약 주문을 확인
+        # orders 테이블에서 예약 주문 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime, status
-                FROM scheduled_orders 
-                WHERE status = 'pending'
-                ORDER BY scheduled_datetime ASC
-            """)
-        else:
-            cursor.execute("""
-                SELECT id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime, status
-                FROM scheduled_orders 
-                WHERE status = 'pending'
-                ORDER BY scheduled_datetime ASC
-            """)
-        
-        all_pending_orders = cursor.fetchall()
-        print(f"🔍 모든 pending 예약 주문: {len(all_pending_orders)}개")
-        
-        for order in all_pending_orders:
-            order_id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime, status = order
-            print(f"🔍 예약 주문: ID={order_id}, 예약시간={scheduled_datetime}, 상태={status}, 현재시간={current_time}")
-        
-        # 현재 시간이 지난 예약 주문만 조회
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime
-                FROM scheduled_orders 
-                WHERE status = 'pending'
+                SELECT order_id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime
+                FROM orders 
+                WHERE is_scheduled = TRUE 
+                AND status IN ('scheduled', 'pending')
                 AND scheduled_datetime <= NOW()
             """)
         else:
             cursor.execute("""
-                SELECT id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime
-                FROM scheduled_orders 
-                WHERE status = 'pending'
+                SELECT order_id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime
+                FROM orders 
+                WHERE is_scheduled = 1 
+                AND status IN ('scheduled', 'pending')
                 AND scheduled_datetime <= datetime('now')
             """)
         
@@ -6726,35 +6710,58 @@ def cron_process_scheduled_orders():
             link = order[3]
             quantity = order[4]
             price = order[5]
-            package_steps = json.loads(order[6]) if order[6] else []
+            package_steps_json = order[6]
+            package_steps = json.loads(package_steps_json) if package_steps_json else []
             
-            print(f"🔄 예약 주문 처리 중: ID {order_id}, 사용자 {user_id}")
+            print(f"🔄 예약 주문 처리 중: ID {order_id}, 사용자 {user_id}, 패키지: {len(package_steps)}단계")
             
-            # 실제 주문 생성
-            success = create_actual_order_from_scheduled(
-                order_id, user_id, service_id, link, quantity, price, package_steps
-            )
-            
-            if success:
-                # 예약 주문 상태를 처리 완료로 변경
+            # 패키지 상품인 경우 패키지 처리 시작
+            if package_steps and len(package_steps) > 0:
+                print(f"📦 패키지 주문 처리 시작: {len(package_steps)}단계")
+                # 패키지 처리 시작
                 if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
-                        UPDATE scheduled_orders 
-                        SET status = 'completed', processed_at = NOW()
-                        WHERE id = %s
+                        UPDATE orders SET status = 'package_processing', updated_at = NOW()
+                        WHERE order_id = %s
                     """, (order_id,))
                 else:
                     cursor.execute("""
-                        UPDATE scheduled_orders 
-                        SET status = 'completed', processed_at = datetime('now')
-                        WHERE id = ?
+                        UPDATE orders SET status = 'package_processing', updated_at = CURRENT_TIMESTAMP
+                        WHERE order_id = ?
                     """, (order_id,))
-                
                 conn.commit()
+                
+                # 패키지 첫 번째 단계 처리
+                process_package_step(order_id, 0)
                 processed_count += 1
-                print(f"✅ 예약 주문 {order_id} 처리 완료")
+                print(f"✅ 예약 패키지 주문 {order_id} 처리 시작")
             else:
-                print(f"❌ 예약 주문 {order_id} 처리 실패")
+                # 일반 주문인 경우 SMM Panel API 호출
+                print(f"🚀 일반 예약 주문 - SMM Panel API 호출")
+                smm_result = call_smm_panel_api({
+                    'service': service_id,
+                    'link': link,
+                    'quantity': quantity,
+                    'comments': f'Scheduled order {order_id}'
+                })
+                
+                if smm_result.get('status') == 'success':
+                    # SMM Panel 주문 ID 저장
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
+                            UPDATE orders SET smm_panel_order_id = %s, status = 'processing', updated_at = NOW()
+                            WHERE order_id = %s
+                        """, (smm_result.get('order'), order_id))
+                    else:
+                        cursor.execute("""
+                            UPDATE orders SET smm_panel_order_id = ?, status = 'processing', updated_at = CURRENT_TIMESTAMP
+                            WHERE order_id = ?
+                        """, (smm_result.get('order'), order_id))
+                    conn.commit()
+                    processed_count += 1
+                    print(f"✅ 일반 예약 주문 {order_id} 처리 완료: SMM 주문 ID {smm_result.get('order')}")
+                else:
+                    print(f"❌ 일반 예약 주문 {order_id} 처리 실패: {smm_result.get('message')}")
         
         conn.close()
         
