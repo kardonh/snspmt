@@ -14,11 +14,33 @@
   top: 0 !important;
   left: 0 !important;
   right: 0 !important;
-  z-index: 1000 !important;
+  z-index: 10000 !important;
   width: 100% !important;
   visibility: visible !important;
   opacity: 1 !important;
   min-height: 48px !important;
+  max-width: 100vw !important;
+}
+
+.mobile-status-bar .status-info {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  justify-content: center !important;
+}
+
+.mobile-status-bar .time-display {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  color: white !important;
+}
+
+.mobile-status-bar .time-display svg {
+  color: #10b981 !important;
+  width: 16px !important;
+  height: 16px !important;
 }
 
 .mobile-logo {
@@ -357,28 +379,43 @@
 @media (max-width: 1200px) {
   .status-bar:not(.mobile-status-bar) {
     display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
   }
   
   .mobile-status-bar {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    z-index: 10000 !important;
   }
   
-  .status-info {
+  .mobile-status-bar .status-info {
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
+    width: 100% !important;
+    justify-content: center !important;
   }
   
-  .time-display {
+  .mobile-status-bar .time-display {
     display: flex !important;
     align-items: center !important;
     gap: 6px !important;
     color: white !important;
   }
   
-  .time-display svg {
+  .mobile-status-bar .time-display svg {
     color: #10b981 !important;
+    width: 16px !important;
+    height: 16px !important;
   }
 }
