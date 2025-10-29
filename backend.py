@@ -1451,7 +1451,7 @@ def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, 
                 if drip_data and drip_data[0] and drip_data[1]:
                     runs = drip_data[0] if drip_data[0] else 1
                     interval = drip_data[1] if drip_data[1] else 0
-                    print(f애"📅 Drip-feed 예약 주문 감지: runs={runs}, interval={interval}")
+                    print(f"📅 Drip-feed 예약 주문 감지: runs={runs}, interval={interval}")
             except Exception as e:
                 print(f"⚠️ Drip-feed 정보 조회 실패 (기본값 사용): {e}")
             
