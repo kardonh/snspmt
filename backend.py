@@ -211,25 +211,48 @@ def create_scheduled_order():
         
         # 예약 주문 저장
         package_steps = data.get('package_steps', [])
-        print(f"🔍 예약 주문 저장: 사용자={user_id}, 서비스={service_id}, 예약시간={scheduled_datetime}, 패키지단계={len(package_steps)}개")
+        runs = data.get('runs', 1)  # Drip-feed: 기본값 1
+        interval = data.get('interval', 0)  # Drip-feed: 기본값 0
+        print(f"🔍 예약 주문 저장: 사용자={user_id}, 서비스={service_id}, 예약시간={scheduled_datetime}, 패키지단계={len(package_steps)}개, runs={runs}, interval={interval}")
+        
+        # runs와 interval 컬럼 존재 여부 확인 후 추가
+        try:
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name='scheduled_orders' AND column_name='runs'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE scheduled_orders ADD COLUMN runs INTEGER DEFAULT 1")
+                    cursor.execute("ALTER TABLE scheduled_orders ADD COLUMN interval INTEGER DEFAULT 0")
+                    print("✅ scheduled_orders 테이블에 runs, interval 컬럼 추가 완료")
+            else:
+                cursor.execute("PRAGMA table_info(scheduled_orders)")
+                columns = [col[1] for col in cursor.fetchall()]
+                if 'runs' not in columns:
+                    cursor.execute("ALTER TABLE scheduled_orders ADD COLUMN runs INTEGER DEFAULT 1")
+                    cursor.execute("ALTER TABLE scheduled_orders ADD COLUMN interval INTEGER DEFAULT 0")
+                    print("✅ scheduled_orders 테이블에 runs, interval 컬럼 추가 완료")
+        except Exception as e:
+            print(f"⚠️ runs/interval 컬럼 추가 실패 (이미 존재할 수 있음): {e}")
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 INSERT INTO scheduled_orders 
-                (user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, package_steps)
-                VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), %s)
+                (user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, package_steps, runs, interval)
+                VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), %s, %s, %s)
             """, (
                 user_id, service_id, link, quantity, price, scheduled_datetime,
-                json.dumps(package_steps)
+                json.dumps(package_steps), runs, interval
             ))
         else:
             cursor.execute("""
                 INSERT INTO scheduled_orders 
-                (user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, package_steps)
-                VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), ?)
+                (user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, package_steps, runs, interval)
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), ?, ?, ?)
             """, (
                 user_id, service_id, link, quantity, price, scheduled_datetime,
-                json.dumps(package_steps)
+                json.dumps(package_steps), runs, interval
             ))
         
         conn.commit()
@@ -344,8 +367,8 @@ def call_smm_panel_api(order_data):
                 'service': order_data.get('service'),
                 'link': order_data.get('link'),
                 'quantity': order_data.get('quantity'),
-                'runs': 1,
-                'interval': 0,
+                'runs': order_data.get('runs', 1),  # Drip-feed: 반복 횟수
+                'interval': order_data.get('interval', 0),  # Drip-feed: 간격(분 단위)
                 'comments': order_data.get('comments', ''),
                 'username': '',
                 'min': 0,
@@ -1414,13 +1437,31 @@ def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, 
             print(f"📦 패키지 주문 처리 시작: {len(package_steps)}단계")
             process_package_step(new_order_id, 0)
         else:
-            # 일반 주문인 경우 SMM Panel API 호출
+            # 일반 주문인 경우 SMM Panel API 호출 (drip-feed 지원)
             print(f"🚀 일반 예약 주문 - SMM Panel API 호출")
+            # scheduled_orders 테이블에서 runs와 interval 조회 (있으면 drip-feed 주문)
+            runs = 1
+            interval = 0
+            try:
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("SELECT runs, interval FROM scheduled_orders WHERE id = %s", (scheduled_id,))
+                else:
+                    cursor.execute("SELECT runs, interval FROM scheduled_orders WHERE id = ?", (scheduled_id,))
+                drip_data = cursor.fetchone()
+                if drip_data and drip_data[0] and drip_data[1]:
+                    runs = drip_data[0] if drip_data[0] else 1
+                    interval = drip_data[1] if drip_data[1] else 0
+                    print(f애"📅 Drip-feed 예약 주문 감지: runs={runs}, interval={interval}")
+            except Exception as e:
+                print(f"⚠️ Drip-feed 정보 조회 실패 (기본값 사용): {e}")
+            
             smm_result = call_smm_panel_api({
                 'service': service_id,
                 'link': link,
                 'quantity': quantity,
-                'comments': f'Scheduled order from {scheduled_id}'
+                'comments': f'Scheduled order from {scheduled_id}',
+                'runs': runs,  # Drip-feed 지원
+                'interval': interval  # Drip-feed 지원
             })
             
             if smm_result.get('status') == 'success':
@@ -2846,7 +2887,9 @@ def create_order():
                     'service': service_id,
                     'link': link,
                     'quantity': quantity,
-                    'comments': data.get('comments', '')
+                    'comments': data.get('comments', ''),
+                    'runs': data.get('runs', 1),  # Drip-feed: 30일간 하루에 1번씩 → runs: 30, interval: 1440
+                    'interval': data.get('interval', 0)  # interval 단위: 분 (1440 = 24시간)
                 })
                 
                 if smm_result.get('status') == 'success':

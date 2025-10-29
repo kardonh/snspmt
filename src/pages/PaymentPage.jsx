@@ -133,6 +133,9 @@ const PaymentPage = () => {
         console.log('📅 예약 발송 주문 - 예약 주문 API 호출')
         console.log('📅 예약 시간:', `${orderData.scheduledDate} ${orderData.scheduledTime}`)
         
+        // Drip-feed 상품인 경우 체크
+        const isDripFeedScheduled = orderData.detailedService?.drip_feed === true
+        
         const scheduledOrderResponse = await fetch('/api/scheduled-orders', {
           method: 'POST',
           headers: {
@@ -141,12 +144,14 @@ const PaymentPage = () => {
           },
           body: JSON.stringify({
             user_id: orderData.userId || orderData.user_id,
-            service_id: orderData.detailedService?.id || orderData.detailedService?.smmkings_id,
+            service_id: isDripFeedScheduled ? (orderData.detailedService?.smmkings_id || orderData.detailedService?.id) : (orderData.detailedService?.id || orderData.detailedService?.smmkings_id),
             link: orderData.link,
-            quantity: orderData.quantity,
+            quantity: isDripFeedScheduled ? (orderData.detailedService?.drip_quantity || orderData.quantity) : orderData.quantity,
             total_price: finalPrice,
             scheduled_datetime: `${orderData.scheduledDate} ${orderData.scheduledTime}`,
-            package_steps: orderData.detailedService?.package && orderData.detailedService?.steps ? orderData.detailedService.steps.map(step => ({
+            runs: isDripFeedScheduled ? (orderData.detailedService?.runs || 1) : 1,
+            interval: isDripFeedScheduled ? (orderData.detailedService?.interval || 0) : 0,
+            package_steps: !isDripFeedScheduled && orderData.detailedService?.package && orderData.detailedService?.steps ? orderData.detailedService.steps.map(step => ({
               ...step,
               quantity: step.quantity || 0
             })) : []
@@ -164,6 +169,13 @@ const PaymentPage = () => {
         return
       }
 
+      // Drip-feed 상품인 경우 runs와 interval 설정
+      const isDripFeed = orderData.detailedService?.drip_feed === true
+      const dripFeedRuns = isDripFeed ? (orderData.detailedService?.runs || 1) : 1
+      const dripFeedInterval = isDripFeed ? (orderData.detailedService?.interval || 0) : 0
+      const dripFeedQuantity = isDripFeed ? (orderData.detailedService?.drip_quantity || orderData.quantity) : orderData.quantity
+      const dripFeedServiceId = isDripFeed ? (orderData.detailedService?.smmkings_id || orderData.detailedService?.id) : (orderData.detailedService?.id || orderData.detailedService?.smmkings_id)
+
       const orderResponse = await fetch('/api/orders', {
         method: 'POST',
         headers: {
@@ -175,9 +187,11 @@ const PaymentPage = () => {
           platform: orderData.platform,
           service: orderData.service,
           detailed_service: orderData.detailedService?.name || orderData.service_name,
-          service_id: orderData.detailedService?.id || orderData.detailedService?.smmkings_id,
+          service_id: dripFeedServiceId || orderData.detailedService?.id || orderData.detailedService?.smmkings_id,
           link: orderData.link,
-          quantity: orderData.quantity,
+          quantity: dripFeedQuantity,
+          runs: dripFeedRuns,  // Drip-feed 상품: 30일간 하루에 1번씩 → runs: 30, interval: 1440
+          interval: dripFeedInterval,  // interval 단위: 분 (1440 = 24시간)
           comments: orderData.comments || '',
           explanation: orderData.explanation || '',
           total_price: finalPrice,
@@ -187,7 +201,7 @@ const PaymentPage = () => {
           is_split_delivery: orderData.isSplitDelivery || false,
           split_days: orderData.splitDays || null,
           split_quantity: orderData.dailyQuantity || null,
-          package_steps: orderData.detailedService?.package && orderData.detailedService?.steps ? orderData.detailedService.steps.map(step => ({
+          package_steps: !isDripFeed && orderData.detailedService?.package && orderData.detailedService?.steps ? orderData.detailedService.steps.map(step => ({
             ...step,
             quantity: step.quantity || 0  // 각 단계별 수량 보장
           })) : [],

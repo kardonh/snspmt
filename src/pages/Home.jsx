@@ -162,8 +162,8 @@ const Home = () => {
       const detailedServices = getDetailedServices(selectedPlatform, selectedService)
       if (detailedServices && detailedServices.length > 0) {
         setSelectedDetailedService(detailedServices[0])
-        // 패키지 상품은 수량을 1로 고정
-        if (detailedServices[0].package) {
+        // 패키지 상품 또는 drip-feed 상품은 수량을 1로 고정
+        if (detailedServices[0].package || detailedServices[0].drip_feed) {
           setQuantity(1)
         } else {
         setQuantity(detailedServices[0].min)
@@ -265,39 +265,8 @@ const Home = () => {
         { id: 331, name: '2단계: 게시물 노출+도달+홈 [90분당 200개씩 10회]', quantity: 200, delay: 90, repeat: 10, description: '[유지단계]:게시물 노출+도달+홈 - 90분 간격 10회 반복' }
       ]},
       
-      // 인스타 계정 상위노출 [30일]
-      { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 400개씩 30일간', package: true, steps: [
-        { id: 515, name: '인스타그램 프로필 방문 (1일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (2일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (3일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (4일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (5일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (6일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (7일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (8일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (9일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (10일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (11일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (12일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (13일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (14일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (15일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (16일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (17일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (18일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (19일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (20일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (21일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (22일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (23일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (24일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (25일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (26일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (27일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (28일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (29일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-        { id: 515, name: '인스타그램 프로필 방문 (30일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' }
-      ]}
+      // 인스타 계정 상위노출 [30일] - Drip-feed 방식 사용 (runs: 30, interval: 1440)
+      { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 400개씩 30일간', smmkings_id: 515, drip_feed: true, runs: 30, interval: 1440, drip_quantity: 400 }
     ],
     
     // 커스텀/이모지 댓글 서비스
@@ -640,39 +609,8 @@ const Home = () => {
           { id: 331, name: '2단계: 게시물 노출+도달+홈 [90분당 200개씩 10회]', quantity: 200, delay: 90, repeat: 10, description: '[유지단계]:게시물 노출+도달+홈 - 90분 간격 10회 반복' }
         ]},
         
-        // 인스타 계정 상위노출 [30일]
-        { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 400개씩 30일간', package: true, steps: [
-          { id: 515, name: '인스타그램 프로필 방문 (1일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (2일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (3일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (4일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (5일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (6일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (7일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (8일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (9일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (10일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (11일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (12일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (13일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (14일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (15일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (16일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (17일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (18일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (19일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (20일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (21일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (22일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (23일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (24일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (25일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (26일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (27일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (28일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (29일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' },
-          { id: 515, name: '인스타그램 프로필 방문 (30일차)', quantity: 400, delay: 1440, description: '🌐인스타그램 프로필 방문][좋아요x] 하루에 400개씩 30일간' }
-        ]},
+        // 인스타 계정 상위노출 [30일] - Drip-feed 방식 사용 (runs: 30, interval: 1440)
+        { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 400개씩 30일간', smmkings_id: 515, drip_feed: true, runs: 30, interval: 1440, drip_quantity: 400 },
         { id: 1001, name: '인스타 계정 상위노출 [30일]', price: 5000000, min: 1, max: 1, time: '30일', description: '인스타그램 계정 상위노출 서비스' },
         
         // 인스타 최적화 계정만들기 [30일]
@@ -1309,9 +1247,9 @@ const Home = () => {
     
     let basePrice = 0
     
-    // 패키지 상품인 경우 수량과 상관없이 고정 가격
-    if (selectedDetailedService && selectedDetailedService.package) {
-      basePrice = selectedDetailedService.price / 1000  // 패키지 전체 가격
+    // 패키지 상품 또는 drip-feed 상품인 경우 수량과 상관없이 고정 가격
+    if (selectedDetailedService && (selectedDetailedService.package || selectedDetailedService.drip_feed)) {
+      basePrice = selectedDetailedService.price / 1000  // 패키지/드립피드 전체 가격
     } else if (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp' || selectedPlatform === 'top-exposure') {
       // 일반 상품의 경우 수량에 따라 가격 계산
       basePrice = (selectedDetailedService.price / 1000) * quantity
@@ -1370,8 +1308,8 @@ const Home = () => {
     const detailedServices = getDetailedServices(selectedPlatform, serviceId)
     if (detailedServices && detailedServices.length > 0) {
       setSelectedDetailedService(detailedServices[0])
-      // 패키지 상품은 수량을 1로 고정
-      if (detailedServices[0].package) {
+      // 패키지 상품 또는 drip-feed 상품은 수량을 1로 고정
+      if (detailedServices[0].package || detailedServices[0].drip_feed) {
         setQuantity(1)
       } else {
         setQuantity(0)
@@ -1381,8 +1319,8 @@ const Home = () => {
 
   const handleDetailedServiceSelect = (detailedService) => {
     setSelectedDetailedService(detailedService)
-    // 패키지 상품은 수량을 1로 고정, 일반 상품은 0으로 초기화
-    if (detailedService.package) {
+    // 패키지 상품 또는 drip-feed 상품은 수량을 1로 고정, 일반 상품은 0으로 초기화
+    if (detailedService.package || detailedService.drip_feed) {
       setQuantity(1)
     } else {
       setQuantity(0)
@@ -2136,14 +2074,24 @@ const Home = () => {
       const safeLink = (link || '').trim()
       const safeComments = (comments || '').trim()
       
+      // Drip-feed 상품인 경우 runs와 interval 설정
+      const isDripFeed = selectedDetailedService?.drip_feed === true
+      const dripFeedRuns = isDripFeed ? (selectedDetailedService?.runs || 1) : 1
+      const dripFeedInterval = isDripFeed ? (selectedDetailedService?.interval || 0) : 0
+      const dripFeedQuantity = isDripFeed ? (selectedDetailedService?.drip_quantity || safeQuantity) : safeQuantity
+      
+      // Drip-feed 상품인 경우 서비스 ID와 수량 설정
+      const finalServiceId = isDripFeed ? (selectedDetailedService?.smmkings_id || selectedDetailedService?.id || safeServiceId) : safeServiceId
+      const finalQuantity = isDripFeed ? dripFeedQuantity : safeQuantity
+
       const orderData = {
         user_id: userId,
-        service_id: safeServiceId,
+        service_id: finalServiceId,
         link: safeLink,
-        quantity: safeQuantity,
+        quantity: finalQuantity,
         price: safeTotalPrice,
-        runs: 1,
-        interval: 0,
+        runs: dripFeedRuns,  // Drip-feed 상품: 30일간 하루에 1번씩 → runs: 30, interval: 1440
+        interval: dripFeedInterval,  // interval 단위: 분 (1440 = 24시간)
         comments: safeComments,
         username: '',
         min: 0,
@@ -2155,8 +2103,8 @@ const Home = () => {
         use_coupon: selectedDiscountCoupon && selectedDiscountCoupon.discount > 0,
         coupon_id: selectedDiscountCoupon && selectedDiscountCoupon.id !== 'no_discount' ? selectedDiscountCoupon.id : null,
         coupon_discount: selectedDiscountCoupon ? selectedDiscountCoupon.discount : 0,
-        // 패키지 상품 정보
-        package_steps: selectedDetailedService?.package && selectedDetailedService?.steps ? selectedDetailedService.steps.map(step => ({
+        // 패키지 상품 정보 (drip-feed가 아닌 경우만)
+        package_steps: !isDripFeed && selectedDetailedService?.package && selectedDetailedService?.steps ? selectedDetailedService.steps.map(step => ({
           ...step,
           quantity: step.quantity || 0  // 각 단계별 수량 보장
         })) : [],
@@ -2544,8 +2492,8 @@ const Home = () => {
             )}
           </div>
           
-          {/* Quantity Selection - 패키지 상품이 아닐 때만 표시 */}
-          {selectedDetailedService && !selectedDetailedService.package && (
+          {/* Quantity Selection - 패키지 상품 또는 drip-feed 상품이 아닐 때만 표시 */}
+          {selectedDetailedService && !selectedDetailedService.package && !selectedDetailedService.drip_feed && (
           <div className="form-group">
               <label className="quantity-label">수량 선택</label>
             <input

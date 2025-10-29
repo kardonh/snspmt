@@ -74,30 +74,30 @@ export function AuthProvider({ children }) {
       }
 
       createUserWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
+      .then((userCredential) => {
           const user = userCredential.user;
           
           // 사용자 프로필 업데이트
           return updateProfile(user, {
             displayName: username,
             photoURL: null
-          }).then(() => {
+        }).then(() => {
             // 추가 사용자 정보를 localStorage에 저장
-            const userData = {
+          const userData = {
               uid: user.uid,
               email: user.email,
               displayName: username,
               photoURL: null,
               provider: 'firebase',
               phoneNumber: businessInfo?.phoneNumber || ''
-            };
-            
-            if (businessInfo && businessInfo.accountType === 'business') {
-              Object.assign(userData, {
-                accountType: businessInfo.accountType,
-                businessNumber: businessInfo.businessNumber,
-                businessName: businessInfo.businessName,
-                representative: businessInfo.representative,
+          };
+          
+          if (businessInfo && businessInfo.accountType === 'business') {
+            Object.assign(userData, {
+              accountType: businessInfo.accountType,
+              businessNumber: businessInfo.businessNumber,
+              businessName: businessInfo.businessName,
+              representative: businessInfo.representative,
                 businessAddress: businessInfo.businessAddress
               });
             }
@@ -126,7 +126,7 @@ export function AuthProvider({ children }) {
       }
 
       signInWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
+      .then((userCredential) => {
           const user = userCredential.user;
           
           const userData = {
@@ -203,8 +203,8 @@ export function AuthProvider({ children }) {
       } catch (error) {
         console.error('카카오 로그인 오류:', error);
         reject(new Error('카카오 로그인 초기화 중 오류가 발생했습니다.'));
-      }
-    });
+        }
+      });
   }
 
   // 로그아웃
