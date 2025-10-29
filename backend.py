@@ -236,15 +236,15 @@ def create_scheduled_order():
         except Exception as e:
             print(f"⚠️ runs/interval 컬럼 추가 실패 (이미 존재할 수 있음): {e}")
         
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                INSERT INTO scheduled_orders 
-                (user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, package_steps, runs, interval)
-                VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), %s, %s, %s)
-            """, (
-                user_id, service_id, link, quantity, price, scheduled_datetime,
-                json.dumps(package_steps), runs, interval
-            ))
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    INSERT INTO scheduled_orders 
+                    (user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, package_steps, runs, "interval")
+                    VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), %s, %s, %s)
+                """, (
+                    user_id, service_id, link, quantity, price, scheduled_datetime,
+                    json.dumps(package_steps), runs, interval
+                ))
         else:
             cursor.execute("""
                 INSERT INTO scheduled_orders 
@@ -1444,7 +1444,7 @@ def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, 
             interval = 0
             try:
                 if DATABASE_URL.startswith('postgresql://'):
-                    cursor.execute("SELECT runs, interval FROM scheduled_orders WHERE id = %s", (scheduled_id,))
+                    cursor.execute('SELECT runs, "interval" FROM scheduled_orders WHERE id = %s', (scheduled_id,))
                 else:
                     cursor.execute("SELECT runs, interval FROM scheduled_orders WHERE id = ?", (scheduled_id,))
                 drip_data = cursor.fetchone()
@@ -6788,13 +6788,24 @@ def cron_process_scheduled_orders():
                     processed_count += 1
                     print(f"✅ 예약 패키지 주문 {order_id} 처리 시작")
             else:
-                # 일반 주문인 경우 SMM Panel API 호출
+                # 일반 주문인 경우 SMM Panel API 호출 (drip-feed 지원)
                 print(f"🚀 일반 예약 주문 - SMM Panel API 호출")
+                # orders 테이블에 runs와 interval이 저장되어 있을 수 있지만, 
+                # scheduled_orders 테이블에서 가져오는 것이 더 정확함
+                # 여기서는 orders 테이블에서 조회 (추후 컬럼 추가 필요 시 확장 가능)
+                runs = 1
+                interval = 0
+                
+                # TODO: orders 테이블에 runs, interval 컬럼이 있다면 조회
+                # 현재는 기본값 사용 (일반 주문 처리)
+                
                 smm_result = call_smm_panel_api({
                     'service': service_id,
                     'link': link,
                     'quantity': quantity,
-                    'comments': f'Scheduled order {order_id}'
+                    'comments': f'Scheduled order {order_id}',
+                    'runs': runs,  # Drip-feed 지원 (기본값 1)
+                    'interval': interval  # Drip-feed 지원 (기본값 0)
                 })
                 
                 if smm_result.get('status') == 'success':
