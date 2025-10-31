@@ -610,7 +610,7 @@ const Home = () => {
         ]},
         
         // 인스타 계정 상위노출 [30일] - Drip-feed 방식 사용 (runs: 30, interval: 1440)
-        { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 400개씩 30일간', smmkings_id: 515, drip_feed: true, runs: 30, interval: 1440, drip_quantity: 400 },
+        { id: 1005, name: '인스타 계정 상위노출 [30일]', price: 150000000, min: 1, max: 1, time: '30일', description: '인스타그램 프로필 방문 하루 400개씩 30일간', smmkings_id: 611, drip_feed: true, runs: 30, interval: 1440, drip_quantity: 400 },
         { id: 1001, name: '인스타 계정 상위노출 [30일]', price: 5000000, min: 1, max: 1, time: '30일', description: '인스타그램 계정 상위노출 서비스' },
         
         // 인스타 최적화 계정만들기 [30일]
