@@ -361,6 +361,22 @@ def call_smm_panel_api(order_data):
             }
         else:
             # 주문 생성일 경우
+            # 인스타그램 프로필 링크에서 username 추출
+            username = ''
+            link = order_data.get('link', '')
+            if link:
+                import re
+                # 인스타그램 URL에서 username 추출
+                # 예: https://www.instagram.com/username/ 또는 https://instagram.com/username
+                instagram_pattern = r'instagram\.com/([^/?\s]+)'
+                match = re.search(instagram_pattern, link)
+                if match:
+                    username = match.group(1).rstrip('/')
+                    print(f"📌 인스타그램 username 추출: {username}")
+            
+            # order_data에서 직접 전달된 username이 있으면 우선 사용
+            username = order_data.get('username', username)
+            
             payload = {
                 'key': SMMPANEL_API_KEY,
                 'action': 'add',
@@ -370,7 +386,7 @@ def call_smm_panel_api(order_data):
                 'runs': order_data.get('runs', 1),  # Drip-feed: 반복 횟수
                 'interval': order_data.get('interval', 0),  # Drip-feed: 간격(분 단위)
                 'comments': order_data.get('comments', ''),
-                'username': '',
+                'username': username,  # 추출한 username 사용
                 'min': 0,
                 'max': 0,
                 'posts': 0,
@@ -2775,7 +2791,7 @@ def create_order():
             print("⚠️ SQLite 데이터베이스 사용 중 (로컬 개발용)")
         
         # 사용자의 추천인 연결 확인
-        if DATABASE_URL.startswith('postgresql://'):
+        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT referral_code, referrer_email FROM user_referral_connections 
                 WHERE user_id = %s
@@ -2798,7 +2814,7 @@ def create_order():
             print(f"🎫 쿠폰 사용 요청 - 쿠폰 ID: {coupon_id_from_request}")
             
             # 쿠폰 유효성 확인
-            if DATABASE_URL.startswith('postgresql://'):
+            if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     SELECT id, discount_value, referral_code FROM coupons 
                     WHERE id = %s AND user_id = %s AND is_used = false 
@@ -2820,7 +2836,7 @@ def create_order():
                 print(f"✅ 쿠폰 적용 - 할인율: {discount_value}%, 할인액: {discount_amount}원, 최종가격: {final_price}원")
                 
                 # 쿠폰 사용 처리
-                if DATABASE_URL.startswith('postgresql://'):
+                if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
                         UPDATE coupons SET is_used = true, used_at = NOW() 
                         WHERE id = %s
@@ -2834,7 +2850,7 @@ def create_order():
                 print(f"✅ 쿠폰 사용 처리 완료 - 쿠폰 ID: {coupon_id}")
                 
                 # 사용자의 추천인 연결 정보 조회 (커미션 적립용)
-                if DATABASE_URL.startswith('postgresql://'):
+                if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
                         SELECT referral_code, referrer_email FROM user_referral_connections 
                         WHERE user_id = %s
@@ -2850,7 +2866,7 @@ def create_order():
                 print(f"⚠️ 유효한 쿠폰을 찾을 수 없음 - 쿠폰 ID: {coupon_id_from_request}")
         else:
             # 쿠폰 미사용 시 추천인 연결 확인
-            if DATABASE_URL.startswith('postgresql://'):
+            if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     SELECT referral_code, referrer_email FROM user_referral_connections 
                     WHERE user_id = %s
@@ -2915,7 +2931,7 @@ def create_order():
         detailed_service = data.get('detailed_service', '')
         
         # 주문 생성 (SMM Panel 주문번호 사용)
-        if DATABASE_URL.startswith('postgresql://'):
+        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
                                 discount_amount, referral_code, status, created_at, updated_at,
@@ -2949,7 +2965,7 @@ def create_order():
                 print(f"💰 커미션 계산 - 추천인: {referrer_email}, 구매금액: {final_price}, 커미션: {commission_amount}")
                 
                 # 기존 커미션 테이블에 기록
-                if DATABASE_URL.startswith('postgresql://'):
+                if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
                         INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
                                                 commission_amount, commission_rate, created_at)
@@ -2965,7 +2981,7 @@ def create_order():
                 print(f"✅ 커미션 기록 완료 - 추천인: {referrer_email}, 커미션: {commission_amount}")
                 
                 # 커미션 포인트 적립 처리
-                if DATABASE_URL.startswith('postgresql://'):
+                if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
                     # 추천인 포인트 계정이 있는지 확인
                     cursor.execute("SELECT id FROM commission_points WHERE referrer_email = %s", (referrer_email,))
                     existing_account = cursor.fetchone()
@@ -3054,7 +3070,7 @@ def create_order():
             print(f"📦 패키지 단계 상세: {json.dumps(package_steps, indent=2, ensure_ascii=False)}")
             
             # 패키지 단계 정보를 JSON으로 저장 (상태는 pending으로 유지)
-            if DATABASE_URL.startswith('postgresql://'):
+            if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     UPDATE orders SET package_steps = %s, updated_at = NOW()
                     WHERE order_id = %s
@@ -3072,7 +3088,7 @@ def create_order():
             print(f"📦 주문 ID: {order_id}, 사용자: {user_id}, 단계 수: {len(package_steps)}")
             
             # 주문 상태를 package_processing으로 변경
-            if DATABASE_URL.startswith('postgresql://'):
+            if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     UPDATE orders SET status = 'package_processing', updated_at = NOW()
                     WHERE order_id = %s
