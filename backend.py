@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import Flask, request, jsonify
@@ -364,15 +365,18 @@ def call_smm_panel_api(order_data):
             # 인스타그램 프로필 링크에서 username 추출
             username = ''
             link = order_data.get('link', '')
-            if link:
-                import re
-                # 인스타그램 URL에서 username 추출
-                # 예: https://www.instagram.com/username/ 또는 https://instagram.com/username
-                instagram_pattern = r'instagram\.com/([^/?\s]+)'
-                match = re.search(instagram_pattern, link)
-                if match:
-                    username = match.group(1).rstrip('/')
-                    print(f"📌 인스타그램 username 추출: {username}")
+            try:
+                if link:
+                    # 인스타그램 URL에서 username 추출
+                    # 예: https://www.instagram.com/username/ 또는 https://instagram.com/username
+                    instagram_pattern = r'instagram\.com/([^/?\s]+)'
+                    match = re.search(instagram_pattern, link)
+                    if match:
+                        username = match.group(1).rstrip('/')
+                        print(f"📌 인스타그램 username 추출: {username}")
+            except Exception as username_extract_error:
+                print(f"⚠️ username 추출 중 오류 발생 (무시하고 계속 진행): {username_extract_error}")
+                username = ''
             
             # order_data에서 직접 전달된 username이 있으면 우선 사용
             username = order_data.get('username', username)
@@ -3052,6 +3056,10 @@ def create_order():
         package_steps = data.get('package_steps', [])
         is_package = len(package_steps) > 0
         print(f"🔍 패키지 상품 확인: is_package={is_package}, package_steps={package_steps}")
+        
+        # 응답 변수 초기화
+        status = '주문발송'  # 기본값
+        message = '주문이 접수되어 진행중입니다.'  # 기본값
         
         # 예약/분할/패키지 주문 처리
         if is_scheduled and not is_package:
