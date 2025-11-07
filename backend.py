@@ -3777,8 +3777,13 @@ def purchase_points():
                     email_exists = cursor.fetchone()
                     
                     if email_exists:
-                        # 이메일이 이미 사용 중이면 고유한 이메일 생성
-                        user_email = f"{user_id_str.replace('@', '_at_').replace('/', '_').replace('\\', '_')[:150]}_{int(time.time())}@temp.local"
+                        alt_id = (
+                            user_id_str
+                            .replace('@', '_at_')
+                            .replace('/', '_')
+                            .replace('\\', '_')
+                        )
+                        user_email = f"{alt_id[:150]}_{int(time.time())}@temp.local"
                         print(f"⚠️ 이메일 충돌 감지, 고유 이메일 생성: {user_email}", flush=True)
                     
                     # 사용자 생성 (이메일 충돌 방지를 위해 고유 이메일 사용)
@@ -3794,7 +3799,13 @@ def purchase_points():
                         error_str = str(insert_error).lower()
                         if 'unique' in error_str or 'duplicate' in error_str or 'violates unique constraint' in error_str:
                             # 이메일 충돌이 발생한 경우, 더 고유한 이메일로 재시도
-                            user_email = f"{user_id_str.replace('@', '_at_').replace('/', '_').replace('\\', '_')[:120]}_{int(time.time() * 1000)}@temp.local"
+                            alt_id = (
+                                user_id_str
+                                .replace('@', '_at_')
+                                .replace('/', '_')
+                                .replace('\\', '_')
+                            )
+                            user_email = f"{alt_id[:120]}_{int(time.time() * 1000)}@temp.local"
                             print(f"⚠️ 이메일 충돌 발생, 재시도: {user_email}", flush=True)
                             cursor.execute("""
                                 INSERT INTO users (user_id, email, name, created_at, updated_at)
