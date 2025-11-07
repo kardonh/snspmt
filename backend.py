@@ -4694,7 +4694,8 @@ def get_user(user_id):
             sys.stdout.flush()
             
             # email이 NOT NULL이므로 기본값 설정 (유효한 이메일 형식)
-            default_email = f"{user_id.replace('@', '_at_').replace('/', '_').replace('\\', '_')[:200]}@temp.local"
+            sanitized_user = user_id.replace('@', '_at_').replace('/', '_').replace('\\', '_')
+            default_email = f"{sanitized_user[:200]}@temp.local"
             
             try:
                 if DATABASE_URL.startswith('postgresql://'):
