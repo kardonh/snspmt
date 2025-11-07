@@ -17,6 +17,103 @@ DATABASE_URL = os.environ.get('DATABASE_URL', '')
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL 환경 변수가 설정되어 있지 않습니다. Render의 환경 변수 설정에서 DATABASE_URL을 지정하세요.")
 
+
+def ensure_base_tables():
+    """마이그레이션 전에 필수 테이블이 존재하도록 보장합니다."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        if not DATABASE_URL.startswith('postgresql://'):
+            raise ValueError("지원하지 않는 데이터베이스 URL입니다. PostgreSQL만 지원합니다.")
+
+        # users 테이블
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                user_id VARCHAR(255) PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                display_name VARCHAR(255),
+                google_id VARCHAR(255),
+                kakao_id VARCHAR(255),
+                profile_image TEXT,
+                last_login TIMESTAMP,
+                last_activity TIMESTAMP DEFAULT NOW(),
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+            """
+        )
+
+        # orders 테이블
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orders (
+                order_id VARCHAR(255) PRIMARY KEY,
+                user_id VARCHAR(255) NOT NULL,
+                user_email VARCHAR(255),
+                service_id VARCHAR(255) NOT NULL,
+                platform VARCHAR(255),
+                service_name VARCHAR(255),
+                service_type VARCHAR(255),
+                service_platform VARCHAR(255),
+                service_quantity INTEGER,
+                service_link TEXT,
+                link TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                price DECIMAL(10,2) NOT NULL,
+                total_price DECIMAL(10,2),
+                amount DECIMAL(10,2),
+                discount_amount DECIMAL(10,2) DEFAULT 0,
+                referral_code VARCHAR(50),
+                status VARCHAR(50) DEFAULT 'pending',
+                external_order_id VARCHAR(255),
+                remarks TEXT,
+                comments TEXT,
+                is_scheduled BOOLEAN DEFAULT FALSE,
+                scheduled_datetime TIMESTAMP,
+                is_split_delivery BOOLEAN DEFAULT FALSE,
+                split_days INTEGER DEFAULT 0,
+                split_quantity INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+            """
+        )
+
+        # point_purchases 테이블
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS point_purchases (
+                id SERIAL PRIMARY KEY,
+                purchase_id VARCHAR(255) UNIQUE,
+                user_id VARCHAR(255) NOT NULL,
+                user_email VARCHAR(255),
+                amount INTEGER NOT NULL,
+                price DECIMAL(10,2) NOT NULL,
+                status VARCHAR(50) DEFAULT 'pending',
+                depositor_name VARCHAR(255),
+                buyer_name VARCHAR(255),
+                bank_name VARCHAR(255),
+                bank_info TEXT,
+                receipt_type VARCHAR(50),
+                business_info TEXT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+            """
+        )
+
+        conn.commit()
+        print("✅ 기본 테이블 확인 완료")
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ 기본 테이블 생성 실패: {e}")
+        raise
+    finally:
+        conn.close()
+
 def get_db_connection():
     """데이터베이스 연결을 가져옵니다."""
     try:
@@ -125,6 +222,9 @@ def run_migrations():
     """모든 마이그레이션을 실행합니다."""
     print("🚀 데이터베이스 마이그레이션 시작")
     
+    # 기본 테이블 존재 여부 확인
+    ensure_base_tables()
+
     # 마이그레이션 테이블 생성
     create_migration_table()
     
