@@ -3753,7 +3753,13 @@ def purchase_points():
         if DATABASE_URL.startswith('postgresql://'):
             # PostgreSQL: user_id는 VARCHAR이므로 타입 캐스팅 불필요
             # email이 NOT NULL이므로 기본값 설정
-            user_email = data.get('user_email', '') or f"{user_id_str.replace('@', '_at_').replace('/', '_').replace('\\', '_')[:200]}@temp.local"
+            sanitized_user_id = (
+                user_id_str
+                .replace('@', '_at_')
+                .replace('/', '_')
+                .replace('\\', '_')
+            )
+            user_email = data.get('user_email', '') or f"{sanitized_user_id[:200]}@temp.local"
             
             # 사용자 생성/확인 (ON CONFLICT로 중복 방지 - 원자적 연산)
             # 같은 트랜잭션 내에서 사용자와 points를 모두 생성해야 외래 키 제약 조건 통과
@@ -3837,7 +3843,8 @@ def purchase_points():
                 raise Exception(f"데이터베이스 작업 실패: {db_error}")
         else:
             # SQLite: 사용자가 users 테이블에 있는지 확인하고, 없으면 생성
-            user_email = data.get('user_email', '') or f"{user_id_str.replace('@', '_at_').replace('/', '_').replace('\\', '_')[:200]}@temp.local"
+            sanitized_user_id = user_id_str.replace('@', '_at_').replace('/', '_').replace('\\', '_')
+            user_email = data.get('user_email', '') or f"{sanitized_user_id[:200]}@temp.local"
             
             # 사용자 생성/확인 (INSERT OR IGNORE로 중복 방지)
             cursor.execute("""
