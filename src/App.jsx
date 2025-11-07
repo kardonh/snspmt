@@ -37,25 +37,25 @@ function App() {
               <NoticeProvider>
                 <div className="App">
                   <Layout>
-                  <Suspense fallback={<LoadingSpinner message="페이지를 로딩하는 중..." size="large" />}>
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/payment/:platform" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
-                      <Route path="/order-complete/:orderId" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
-                      <Route path="/order-complete" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
-                      <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
-                      <Route path="/points" element={<ProtectedRoute><PointsPage /></ProtectedRoute>} />
-                      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-                      <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
-                      <Route path="/referral" element={<ProtectedRoute><ReferralDashboard /></ProtectedRoute>} />
-                      <Route path="/faq" element={<FAQPage />} />
+                <Suspense fallback={<LoadingSpinner message="페이지를 로딩하는 중..." size="large" />}>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/payment/:platform" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
+                    <Route path="/order-complete/:orderId" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
+                    <Route path="/order-complete" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
+                    <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+                    <Route path="/points" element={<ProtectedRoute><PointsPage /></ProtectedRoute>} />
+                    <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                    <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+                    <Route path="/referral" element={<ProtectedRoute><ReferralDashboard /></ProtectedRoute>} />
+                    <Route path="/faq" element={<FAQPage />} />
                       <Route path="/blog" element={<BlogPage />} />
                       <Route path="/blog/:id" element={<BlogDetailPage />} />
                       <Route path="/admin/blog" element={<ProtectedRoute><AdminBlogPage /></ProtectedRoute>} />
                       <Route path="/kakao-callback" element={<KakaoCallback />} />
-                    </Routes>
-                  </Suspense>
-                </Layout>
+                  </Routes>
+                </Suspense>
+              </Layout>
               </div>
               </NoticeProvider>
             </GuestProvider>

@@ -71,8 +71,8 @@ const StatusBar = () => {
     // storage 이벤트 리스너 (다른 탭에서 로그인/로그아웃 시)
     window.addEventListener('storage', (e) => {
       if (e.key === 'userId' || e.key === 'firebase_user_id') {
-        fetchUserPoints()
-      }
+      fetchUserPoints()
+    }
     })
     
     // 포커스 이벤트 리스너 (탭 전환 시)
@@ -98,9 +98,9 @@ const StatusBar = () => {
   const handleLogout = async () => {
     try {
       if (typeof logout === 'function') {
-        await logout()
-        alert('로그아웃되었습니다.')
-        navigate('/')
+      await logout()
+      alert('로그아웃되었습니다.')
+      navigate('/')
       } else {
         console.error('logout 함수가 정의되지 않았습니다.')
         alert('로그아웃 함수를 찾을 수 없습니다.')
@@ -131,51 +131,51 @@ const StatusBar = () => {
       {isMobile && (
         <div className="mobile-head">
           <Link to="/" className="mobile-logo-link">
-            <img 
-              src="/logo.png" 
+              <img 
+                src="/logo.png" 
               alt="SOCIALITY" 
-              className="mobile-header-logo"
-            />
-          </Link>
+                className="mobile-header-logo"
+              />
+            </Link>
           
           <div className="mobile-header-right">
             {userId ? (
-              <>
+                <>
                 <div className="mobile-points-display">
-                  <Coins size={16} />
+                    <Coins size={16} />
                   <span>{pointsLoading ? '...' : userPoints.toLocaleString()}P</span>
-                </div>
+                  </div>
                 <Link to="/points" className="mobile-charge-btn-header">
-                  충전
-                </Link>
+                    충전
+                  </Link>
                 <button
                   className="mobile-logout-btn-header"
                   onClick={handleLogout}
                   title="로그아웃"
                 >
                   <LogOut size={18} />
-                </button>
-              </>
-            ) : (
+                  </button>
+                </>
+              ) : (
               <div className="mobile-header-auth">
-                <button
+                  <button 
                   className="mobile-login-btn-header"
-                  onClick={openLoginModal}
-                >
+                    onClick={openLoginModal}
+                  >
                   로그인
-                </button>
-                <button
+                  </button>
+                  <button 
                   className="mobile-signup-btn-header"
-                  onClick={openSignupModal}
-                >
+                    onClick={openSignupModal}
+                  >
                   회원가입
-                </button>
-              </div>
-            )}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
       )}
-      
+          
       {/* 모바일 상태바 (파란색 - 시간 표시) */}
       {isMobile && (
         <div className="status-bar mobile-status-bar">
@@ -194,15 +194,15 @@ const StatusBar = () => {
           </div>
         </div>
       )}
-
+      
       {/* 데스크톱 상태바 */}
       {!isMobile && (
         <div className="status-bar">
           <div className="status-info">
             <div className="time-display">
-              <CheckCircle size={16} />
+            <CheckCircle size={16} />
               <span>{formatTime(currentTime)}</span>
-            </div>
+          </div>
           </div>
         </div>
       )}

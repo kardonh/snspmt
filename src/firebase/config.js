@@ -27,9 +27,9 @@ try {
   auth = getAuth(app);
   
   // Analytics 초기화 (올바른 API 키로 정상 작동)
-  analytics = getAnalytics(app);
+      analytics = getAnalytics(app);
   console.log('✅ Firebase 초기화 성공 (Analytics 포함)');
-} catch (error) {
+  } catch (error) {
   console.error('❌ Firebase 초기화 실패:', error);
   throw error;
 }

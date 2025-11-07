@@ -11,8 +11,11 @@ import sqlite3
 import tempfile
 from datetime import datetime
 
-# 데이터베이스 연결 설정
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:Snspmt2024!@snspmt-cluste.cluster-cvmiee0q0zhs.ap-northeast-2.rds.amazonaws.com:5432/snspmt')
+# 데이터베이스 연결 설정 (환경 변수 필수)
+DATABASE_URL = os.environ.get('DATABASE_URL', '')
+
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL 환경 변수가 설정되어 있지 않습니다. Render의 환경 변수 설정에서 DATABASE_URL을 지정하세요.")
 
 def get_db_connection():
     """데이터베이스 연결을 가져옵니다."""

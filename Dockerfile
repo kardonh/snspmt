@@ -1,5 +1,5 @@
-# Use AWS ECR Public Gallery Python image to avoid Docker Hub rate limits
-FROM public.ecr.aws/docker/library/python:3.11-slim
+# Use a lightweight Python base image
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
@@ -44,5 +44,5 @@ EXPOSE 8000
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
 
-# Run the application with Flask development server (final solution for read-only filesystem)
-CMD ["python", "-c", "from backend import app; app.run(host='0.0.0.0', port=8000, debug=False, threaded=True)"]
+# Start the application with Gunicorn (respects PORT env on Render)
+CMD ["sh", "-c", "python migrate_database.py && gunicorn backend:app --bind 0.0.0.0:${PORT:-8000} --workers 3 --timeout 120"]

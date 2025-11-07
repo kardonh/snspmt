@@ -215,7 +215,7 @@ const PointsPage = () => {
       setTimeout(() => {
         clearInterval(checkPointsInterval)
       }, 30000)
-
+      
     } catch (error) {
       console.error('❌ KCP 결제 실패:', error)
       console.error('❌ KCP 결제 실패 상세:', {
@@ -279,7 +279,7 @@ const PointsPage = () => {
           bank_info: bankInfo
         })
       })
-
+      
       const data = await response.json()
       console.log('🔍 수동 구매 신청 응답:', data)
 

@@ -216,45 +216,71 @@ def create_scheduled_order():
         interval = data.get('interval', 0)  # Drip-feed: 기본값 0
         print(f"🔍 예약 주문 저장: 사용자={user_id}, 서비스={service_id}, 예약시간={scheduled_datetime}, 패키지단계={len(package_steps)}개, runs={runs}, interval={interval}")
         
-        # runs와 interval 컬럼 존재 여부 확인 후 추가
-        try:
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    SELECT column_name FROM information_schema.columns 
-                    WHERE table_name='scheduled_orders' AND column_name='runs'
-                """)
-                if not cursor.fetchone():
-                    cursor.execute("ALTER TABLE scheduled_orders ADD COLUMN runs INTEGER DEFAULT 1")
-                    cursor.execute("ALTER TABLE scheduled_orders ADD COLUMN interval INTEGER DEFAULT 0")
-                    print("✅ scheduled_orders 테이블에 runs, interval 컬럼 추가 완료")
-            else:
-                cursor.execute("PRAGMA table_info(scheduled_orders)")
-                columns = [col[1] for col in cursor.fetchall()]
-                if 'runs' not in columns:
-                    cursor.execute("ALTER TABLE scheduled_orders ADD COLUMN runs INTEGER DEFAULT 1")
-                    cursor.execute("ALTER TABLE scheduled_orders ADD COLUMN interval INTEGER DEFAULT 0")
-                    print("✅ scheduled_orders 테이블에 runs, interval 컬럼 추가 완료")
-        except Exception as e:
-            print(f"⚠️ runs/interval 컬럼 추가 실패 (이미 존재할 수 있음): {e}")
+        # order_id 생성
+        import time
+        order_id = f"ORDER_{int(time.time())}_{user_id[:8]}"
         
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    INSERT INTO scheduled_orders 
-                    (user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, package_steps, runs, "interval")
-                    VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), %s, %s, %s)
-                """, (
-                    user_id, service_id, link, quantity, price, scheduled_datetime,
-                    json.dumps(package_steps), runs, interval
-                ))
+        # orders 테이블에 예약 주문 저장
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                INSERT INTO orders 
+                (order_id, user_id, service_id, link, quantity, price, status, is_scheduled, scheduled_datetime, package_steps, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, 'scheduled', TRUE, %s, %s, NOW(), NOW())
+            """, (
+                order_id, user_id, service_id, link, quantity, price, scheduled_datetime,
+                json.dumps(package_steps) if package_steps else None
+            ))
+            
+            # package_steps가 있으면 execution_progress에 예약 정보 저장
+            if package_steps and len(package_steps) > 0:
+                for idx, step in enumerate(package_steps):
+                    step_delay = step.get('delay', 0)
+                    scheduled_time = scheduled_datetime
+                    if idx > 0:
+                        # 누적 delay 계산
+                        from datetime import datetime, timedelta
+                        if isinstance(scheduled_datetime, str):
+                            scheduled_time = datetime.fromisoformat(scheduled_datetime.replace('Z', '+00:00'))
+                        scheduled_time = scheduled_time + timedelta(minutes=step_delay)
+                    
+                    cursor.execute("""
+                        INSERT INTO execution_progress 
+                        (order_id, exec_type, step_number, step_name, service_id, quantity, scheduled_datetime, status, created_at)
+                        VALUES (%s, 'package', %s, %s, %s, %s, %s, 'scheduled', NOW())
+                        ON CONFLICT (order_id, exec_type, step_number) DO NOTHING
+                    """, (
+                        order_id, idx + 1, step.get('name', f'단계 {idx + 1}'),
+                        step.get('id'), step.get('quantity', 0), scheduled_time
+                    ))
         else:
             cursor.execute("""
-                INSERT INTO scheduled_orders 
-                (user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, package_steps, runs, interval)
-                VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), ?, ?, ?)
+                INSERT INTO orders 
+                (order_id, user_id, service_id, link, quantity, price, status, is_scheduled, scheduled_datetime, package_steps, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'scheduled', 1, ?, ?, datetime('now'), datetime('now'))
             """, (
-                user_id, service_id, link, quantity, price, scheduled_datetime,
-                json.dumps(package_steps), runs, interval
+                order_id, user_id, service_id, link, quantity, price, scheduled_datetime,
+                json.dumps(package_steps) if package_steps else None
             ))
+            
+            # package_steps가 있으면 execution_progress에 예약 정보 저장
+            if package_steps and len(package_steps) > 0:
+                for idx, step in enumerate(package_steps):
+                    step_delay = step.get('delay', 0)
+                    scheduled_time = scheduled_datetime
+                    if idx > 0:
+                        from datetime import datetime, timedelta
+                        if isinstance(scheduled_datetime, str):
+                            scheduled_time = datetime.fromisoformat(scheduled_datetime.replace('Z', '+00:00'))
+                        scheduled_time = scheduled_time + timedelta(minutes=step_delay)
+                    
+                    cursor.execute("""
+                        INSERT INTO execution_progress 
+                        (order_id, exec_type, step_number, step_name, service_id, quantity, scheduled_datetime, status, created_at)
+                        VALUES (?, 'package', ?, ?, ?, ?, ?, 'scheduled', datetime('now'))
+                    """, (
+                        order_id, idx + 1, step.get('name', f'단계 {idx + 1}'),
+                        step.get('id'), step.get('quantity', 0), scheduled_time
+                    ))
         
         conn.commit()
         
@@ -264,7 +290,8 @@ def create_scheduled_order():
         return jsonify({
             'success': True,
             'message': f'예약 발송이 설정되었습니다. ({scheduled_datetime}에 처리됩니다)',
-            'scheduled_datetime': scheduled_datetime
+            'scheduled_datetime': scheduled_datetime,
+            'order_id': order_id
         }), 200
         
     except Exception as e:
@@ -284,6 +311,35 @@ def robots():
 # 전역 오류 처리
 @app.errorhandler(404)
 def not_found(error):
+    import sys
+    import traceback
+    # 사용자 정보 조회 라우트는 404를 반환하지 않음
+    if request.path.startswith('/api/users/'):
+        # /api/users/ 이후의 모든 경로를 user_id로 추출
+        user_id = request.path.replace('/api/users/', '', 1).rstrip('/')
+        print(f"🔍 404 핸들러에서 사용자 정보 조회 시도 - 경로: {request.path}, user_id: {user_id}", flush=True)
+        sys.stdout.flush()
+        try:
+            # 직접 get_user 함수 호출
+            result = get_user(user_id)
+            print(f"✅ 404 핸들러에서 get_user 호출 성공 - user_id: {user_id}", flush=True)
+            sys.stdout.flush()
+            return result
+        except Exception as e:
+            error_msg = f"❌ 404 핸들러에서 get_user 호출 실패: {e}"
+            print(error_msg, file=sys.stderr, flush=True)
+            traceback.print_exc(file=sys.stderr)
+            sys.stderr.flush()
+            # 최소한 기본 사용자 정보라도 반환
+            return jsonify({
+                'user_id': user_id,
+                'email': None,
+                'name': None,
+                'created_at': None,
+                'message': '사용자 정보를 조회할 수 없습니다.'
+            }), 200
+    print(f"❌ 404 오류 - 경로: {request.path}, 메서드: {request.method}", flush=True)
+    sys.stdout.flush()
     return jsonify({'error': 'Not Found', 'message': '요청한 리소스를 찾을 수 없습니다.'}), 404
 
 @app.errorhandler(500)
@@ -546,6 +602,12 @@ def get_service_name(service_id):
 def get_smm_panel_services():
     """SMM Panel에서 사용 가능한 서비스 목록 조회"""
     try:
+        if not SMMPANEL_API_KEY:
+            return {
+                'status': 'error',
+                'message': 'SMMPANEL_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요.'
+            }
+        
         smm_panel_url = 'https://smmpanel.kr/api/v2'
         
         payload = {
@@ -597,15 +659,31 @@ def get_smm_panel_services():
                     'status': 'error',
                     'message': f'Unexpected response format: {type(result)}'
                 }
-        else:
+        elif response.status_code == 401:
             return {
                 'status': 'error',
-                'message': f'HTTP {response.status_code}'
+                'message': f'Invalid API key (HTTP {response.status_code})'
             }
+        else:
+            try:
+                error_detail = response.json()
+                error_msg = error_detail.get('error', f'HTTP {response.status_code}')
+            except:
+                error_msg = f'HTTP {response.status_code}: {response.text[:200]}'
+            
+            return {
+                'status': 'error',
+                'message': error_msg
+            }
+    except requests.exceptions.RequestException as e:
+        return {
+            'status': 'error',
+            'message': f'네트워크 오류: {str(e)}'
+        }
     except Exception as e:
         return {
             'status': 'error',
-            'message': str(e)
+            'message': f'예상치 못한 오류: {str(e)}'
         }
 
 # 패키지 상품 분할 발송 처리 함수
@@ -667,17 +745,17 @@ def process_package_delivery(order_id, day_number, package_steps, user_id, link,
             # 성공 시 진행 상황 업데이트
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    UPDATE split_delivery_progress 
-                    SET status = 'completed', quantity_delivered = %s, 
+                    UPDATE execution_progress 
+                    SET status = 'completed', quantity = %s, 
                         smm_panel_order_id = %s, completed_at = NOW()
-                    WHERE order_id = %s AND day_number = %s
+                    WHERE order_id = %s AND exec_type = 'package' AND step_number = %s
                 """, (daily_quantity, smm_result.get('order'), order_id, day_number))
             else:
                 cursor.execute("""
-                    UPDATE split_delivery_progress 
-                    SET status = 'completed', quantity_delivered = ?, 
+                    UPDATE execution_progress 
+                    SET status = 'completed', quantity = ?, 
                         smm_panel_order_id = ?, completed_at = datetime('now')
-                    WHERE order_id = ? AND day_number = ?
+                    WHERE order_id = ? AND exec_type = 'package' AND step_number = ?
                 """, (daily_quantity, smm_result.get('order'), order_id, day_number))
             
             # 30일이 지나면 주문 상태를 완료로 변경
@@ -795,17 +873,17 @@ def process_split_delivery(order_id, day_number):
             # 성공 시 진행 상황 업데이트
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    UPDATE split_delivery_progress 
-                    SET status = 'completed', quantity_delivered = %s, 
+                    UPDATE execution_progress 
+                    SET status = 'completed', quantity = %s, 
                         smm_panel_order_id = %s, completed_at = NOW()
-                    WHERE order_id = %s AND day_number = %s
+                    WHERE order_id = %s AND exec_type = 'package' AND step_number = %s
                 """, (split_quantity, smm_result.get('order'), order_id, day_number))
             else:
                 cursor.execute("""
-                    UPDATE split_delivery_progress 
-                    SET status = 'completed', quantity_delivered = ?, 
+                    UPDATE execution_progress 
+                    SET status = 'completed', quantity = ?, 
                         smm_panel_order_id = ?, completed_at = datetime('now')
-                    WHERE order_id = ? AND day_number = ?
+                    WHERE order_id = ? AND exec_type = 'package' AND step_number = ?
                 """, (split_quantity, smm_result.get('order'), order_id, day_number))
             
             
@@ -828,15 +906,15 @@ def process_split_delivery(order_id, day_number):
             # 실패 시 상태 업데이트
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    UPDATE split_delivery_progress 
+                    UPDATE execution_progress 
                     SET status = 'failed', error_message = %s, failed_at = NOW()
-                    WHERE order_id = %s AND day_number = %s
+                    WHERE order_id = %s AND exec_type = 'package' AND step_number = %s
                 """, (smm_result.get('message', 'Unknown error'), order_id, day_number))
             else:
                 cursor.execute("""
-                    UPDATE split_delivery_progress 
+                    UPDATE execution_progress 
                     SET status = 'failed', error_message = ?, failed_at = datetime('now')
-                    WHERE order_id = ? AND day_number = ?
+                    WHERE order_id = ? AND exec_type = 'package' AND step_number = ?
                 """, (smm_result.get('message', 'Unknown error'), order_id, day_number))
             
             conn.commit()
@@ -937,15 +1015,17 @@ def process_package_step(order_id, step_index):
             # 건너뛴 단계도 진행 상황에 기록
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    INSERT INTO package_progress 
-                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, 'skipped', NOW())
+                    INSERT INTO execution_progress 
+                    (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (%s, 'package', %s, %s, %s, %s, %s, 'skipped', NOW())
+                    ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
+                    SET step_name=EXCLUDED.step_name, status=EXCLUDED.status
                 """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
             else:
                 cursor.execute("""
-                    INSERT INTO package_progress 
-                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, 'skipped', datetime('now'))
+                    INSERT INTO execution_progress 
+                    (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (?, 'package', ?, ?, ?, ?, ?, 'skipped', datetime('now'))
                 """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
             conn.commit()
             
@@ -981,15 +1061,18 @@ def process_package_step(order_id, step_index):
             # 패키지 진행 상황을 DB에 기록
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    INSERT INTO package_progress 
-                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    INSERT INTO execution_progress 
+                    (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (%s, 'package', %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
+                    SET step_name=EXCLUDED.step_name, service_id=EXCLUDED.service_id, quantity=EXCLUDED.quantity, 
+                        smm_panel_order_id=EXCLUDED.smm_panel_order_id, status=EXCLUDED.status
                 """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
             else:
                 cursor.execute("""
-                    INSERT INTO package_progress 
-                    (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    INSERT INTO execution_progress 
+                    (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                    VALUES (?, 'package', ?, ?, ?, ?, ?, ?, datetime('now'))
                 """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
             
             conn.commit()
@@ -1002,15 +1085,15 @@ def process_package_step(order_id, step_index):
                     # 1. 먼저 package_progress 테이블의 order_id를 새 주문번호로 업데이트
                     if DATABASE_URL.startswith('postgresql://'):
                         cursor.execute("""
-                            UPDATE package_progress 
+                            UPDATE execution_progress 
                             SET order_id = %s
-                            WHERE order_id = %s
+                            WHERE order_id = %s AND exec_type = 'package'
                         """, (smm_order_id, order_id))
                     else:
                         cursor.execute("""
-                            UPDATE package_progress 
+                            UPDATE execution_progress 
                             SET order_id = ?
-                            WHERE order_id = ?
+                            WHERE order_id = ? AND exec_type = 'package'
                         """, (smm_order_id, order_id))
                     
                     # 2. 그 다음 orders 테이블의 order_id 업데이트
@@ -1060,16 +1143,18 @@ def process_package_step(order_id, step_index):
             try:
                 if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
-                        INSERT INTO package_progress 
-                        (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
-                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled'))
+                        INSERT INTO execution_progress 
+                        (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, scheduled_datetime, created_at)
+                        VALUES (%s, 'package', %s, %s, %s, %s, %s, %s, NOW() + INTERVAL '%s minutes', NOW())
+                        ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
+                        SET step_name=EXCLUDED.step_name, scheduled_datetime=EXCLUDED.scheduled_datetime, status=EXCLUDED.status
+                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled', next_step.get('delay', 1440)))
                 else:
                     cursor.execute("""
-                        INSERT INTO package_progress 
-                        (order_id, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled'))
+                        INSERT INTO execution_progress 
+                        (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, scheduled_datetime, created_at)
+                        VALUES (?, 'package', ?, ?, ?, ?, ?, ?, datetime('now', '+' || ? || ' minutes'), datetime('now'))
+                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled', next_step.get('delay', 1440)))
                 
                 conn.commit()
                 print(f"📝 다음 단계 예약 정보 저장 완료")
@@ -1459,21 +1544,15 @@ def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, 
         else:
             # 일반 주문인 경우 SMM Panel API 호출 (drip-feed 지원)
             print(f"🚀 일반 예약 주문 - SMM Panel API 호출")
-            # scheduled_orders 테이블에서 runs와 interval 조회 (있으면 drip-feed 주문)
+            # orders 테이블에서 주문 정보 조회 (drip-feed 정보는 package_steps에서 확인)
             runs = 1
             interval = 0
-            try:
-                if DATABASE_URL.startswith('postgresql://'):
-                    cursor.execute('SELECT runs, "interval" FROM scheduled_orders WHERE id = %s', (scheduled_id,))
-                else:
-                    cursor.execute("SELECT runs, interval FROM scheduled_orders WHERE id = ?", (scheduled_id,))
-                drip_data = cursor.fetchone()
-                if drip_data and drip_data[0] and drip_data[1]:
-                    runs = drip_data[0] if drip_data[0] else 1
-                    interval = drip_data[1] if drip_data[1] else 0
-                    print(f"📅 Drip-feed 예약 주문 감지: runs={runs}, interval={interval}")
-            except Exception as e:
-                print(f"⚠️ Drip-feed 정보 조회 실패 (기본값 사용): {e}")
+            # package_steps가 있으면 첫 번째 단계의 repeat 정보 사용
+            if package_steps and len(package_steps) > 0:
+                first_step = package_steps[0]
+                runs = first_step.get('repeat', 1)
+                interval = first_step.get('delay', 0)
+                print(f"📅 Drip-feed 예약 주문 감지: runs={runs}, interval={interval}")
             
             smm_result = call_smm_panel_api({
                 'service': service_id,
@@ -1597,20 +1676,6 @@ def process_scheduled_order(order_id):
         if conn:
             conn.close()
 
-# AWS Secrets Manager 시도 (선택사항)
-try:
-    from aws_secrets_manager import get_database_url, get_smmpanel_api_key
-    aws_db_url = get_database_url()
-    aws_api_key = get_smmpanel_api_key()
-    if aws_db_url and aws_db_url != DATABASE_URL:
-        DATABASE_URL = aws_db_url
-    if aws_api_key and aws_api_key != SMMPANEL_API_KEY:
-        SMMPANEL_API_KEY = aws_api_key
-except ImportError as e:
-    pass
-except Exception as e:
-    pass
-
 # 프로덕션 환경에서는 로그 최소화
 if os.environ.get('FLASK_ENV') != 'production':
     pass
@@ -1642,26 +1707,52 @@ def get_db_connection():
             conn.row_factory = sqlite3.Row  # 딕셔너리 형태로 결과 반환
             return conn
     except psycopg2.Error as e:
-        # SQLite 폴백 시도
-        try:
-            db_path = os.path.join(os.getcwd(), 'data', 'snspmt.db')
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)  # 디렉토리 생성
-            conn = sqlite3.connect(db_path, timeout=30)
-            conn.row_factory = sqlite3.Row
-            return conn
-        except Exception as fallback_error:
-            raise fallback_error
+        print(f"❌ PostgreSQL 연결 실패: {e}")
+        raise
     except Exception as e:
         raise e
 
 def init_database():
     """데이터베이스 테이블을 초기화합니다."""
+    conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
         # PostgreSQL인지 SQLite인지 확인
         is_postgresql = DATABASE_URL.startswith('postgresql://')
+        
+        # 트랜잭션 중단 시 복구를 위한 헬퍼 함수
+        def safe_execute(sql, params=None, commit_after=False):
+            """안전하게 SQL 실행 (오류 발생 시 롤백 후 재시도)"""
+            try:
+                if params:
+                    cursor.execute(sql, params)
+                else:
+                    cursor.execute(sql)
+                if commit_after:
+                    conn.commit()
+                return True
+            except Exception as e:
+                error_str = str(e).lower()
+                # 트랜잭션 중단 오류인 경우 롤백 후 재시도
+                if 'current transaction is aborted' in error_str or 'aborted' in error_str:
+                    try:
+                        conn.rollback()
+                        # 롤백 후 재시도
+                        if params:
+                            cursor.execute(sql, params)
+                        else:
+                            cursor.execute(sql)
+                        if commit_after:
+                            conn.commit()
+                        return True
+                    except Exception as retry_error:
+                        print(f"⚠️ 재시도 실패 (무시): {retry_error}")
+                        return False
+                else:
+                    # 다른 오류는 무시 (이미 존재하는 경우 등)
+                    return False
         
         if is_postgresql:
             # PostgreSQL 테이블 생성
@@ -1681,15 +1772,41 @@ def init_database():
                 )
             """)
             
-            # 기존 테이블에 컬럼 추가 (PostgreSQL)
-            try:
-                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)")
-                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS kakao_id VARCHAR(255)")
-                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image TEXT")
-                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP")
-                print("✅ 사용자 테이블 컬럼 추가 완료 (PostgreSQL)")
-            except Exception as e:
-                print(f"⚠️ 사용자 테이블 컬럼 추가 실패 (이미 존재할 수 있음): {e}")
+            # 기존 테이블에 컬럼 추가 (PostgreSQL) - 각 컬럼을 개별적으로 시도
+            # CREATE TABLE IF NOT EXISTS로 테이블이 새로 생성되면 컬럼이 이미 존재하므로 무시됨
+            def safe_add_column(column_name, column_type):
+                """컬럼이 없으면 추가 (이미 존재하면 무시)"""
+                try:
+                    cursor.execute("""
+                        SELECT EXISTS (
+                            SELECT 1 
+                            FROM information_schema.columns 
+                            WHERE table_name = 'users' 
+                            AND column_name = %s
+                        )
+                    """, (column_name,))
+                    exists = cursor.fetchone()[0]
+                    if not exists:
+                        cursor.execute(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}")
+                        return True
+                except Exception as e:
+                    # 컬럼 추가 실패 (이미 존재하거나 다른 오류) - 무시
+                    pass
+                return False
+            
+            added_cols = []
+            if safe_add_column('google_id', 'VARCHAR(255)'):
+                added_cols.append('google_id')
+            if safe_add_column('kakao_id', 'VARCHAR(255)'):
+                added_cols.append('kakao_id')
+            if safe_add_column('profile_image', 'TEXT'):
+                added_cols.append('profile_image')
+            if safe_add_column('last_login', 'TIMESTAMP'):
+                added_cols.append('last_login')
+            if added_cols:
+                print(f"✅ 사용자 테이블 컬럼 추가 완료 (PostgreSQL): {', '.join(added_cols)}")
+            else:
+                print("✅ 사용자 테이블 컬럼 확인 완료 (모든 컬럼 존재)")
             
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS points (
@@ -1789,73 +1906,91 @@ def init_database():
                 )
             """)
             
-            # 사용자 추천인 코드 연결 테이블 생성 (기존 데이터 보존)
+            # commission_ledger 테이블 생성 (통합: commission_points, commission_payments, commissions 대체)
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS user_referral_connections (
-                    id SERIAL PRIMARY KEY,
-                    user_id VARCHAR(255) NOT NULL,
+                CREATE TABLE IF NOT EXISTS commission_ledger (
+                    ledger_id SERIAL PRIMARY KEY,
                     referral_code VARCHAR(50) NOT NULL,
-                    referrer_email VARCHAR(255) NOT NULL,
-                    created_at TIMESTAMP DEFAULT NOW()
-                )
-            """)
-            
-            # 커미션 환급 내역 테이블 생성 (기존 데이터 보존)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS commission_payments (
-                    id SERIAL PRIMARY KEY,
-                    referrer_email VARCHAR(255) NOT NULL,
+                    referrer_user_id VARCHAR(255) NOT NULL,
+                    referred_user_id VARCHAR(255),
+                    order_id VARCHAR(255),
+                    event VARCHAR(50) NOT NULL CHECK (event IN ('earn','payout','adjust','reverse')),
+                    base_amount DECIMAL(10,2),
+                    commission_rate DECIMAL(5,4),
                     amount DECIMAL(10,2) NOT NULL,
-                    payment_method VARCHAR(50) DEFAULT 'bank_transfer',
+                    status VARCHAR(50) NOT NULL DEFAULT 'confirmed' CHECK (status IN ('pending','confirmed','cancelled')),
                     notes TEXT,
-                    paid_at TIMESTAMP DEFAULT NOW()
+                    external_ref VARCHAR(100),
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    confirmed_at TIMESTAMP,
+                    CONSTRAINT fk_ledger_code FOREIGN KEY (referral_code) REFERENCES referral_codes(code),
+                    CONSTRAINT fk_ledger_owner FOREIGN KEY (referrer_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                    CONSTRAINT fk_ledger_refer FOREIGN KEY (referred_user_id) REFERENCES users(user_id),
+                    CONSTRAINT fk_ledger_order FOREIGN KEY (order_id) REFERENCES orders(order_id)
                 )
+            """)
+            print("✅ commission_ledger 테이블 생성 완료 (통합 테이블)")
+            
+            # commission_ledger 인덱스 생성
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_code_time ON commission_ledger(referral_code, created_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_owner_time ON commission_ledger(referrer_user_id, created_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_event_time ON commission_ledger(event, created_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_order ON commission_ledger(order_id)")
+            print("✅ commission_ledger 인덱스 생성 완료")
+            
+            # orders.referral_code 외래 키 제약 조건 추가
+            try:
+                cursor.execute("""
+                    SELECT constraint_name 
+                    FROM information_schema.table_constraints 
+                    WHERE table_name='orders' AND constraint_name='fk_orders_referral_code'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("""
+                        ALTER TABLE orders 
+                        ADD CONSTRAINT fk_orders_referral_code 
+                        FOREIGN KEY (referral_code) REFERENCES referral_codes(code)
+                    """)
+                    print("✅ orders.referral_code 외래 키 제약 조건 추가 완료")
+            except Exception as e:
+                print(f"⚠️ orders.referral_code 외래 키 추가 실패 (이미 존재할 수 있음): {e}")
+            
+            # commission_ledger 트리거 함수 생성 (referral_codes.total_commission 자동 동기화)
+            cursor.execute("""
+                CREATE OR REPLACE FUNCTION sync_referral_commission()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                  UPDATE referral_codes
+                     SET total_commission = (
+                       SELECT COALESCE(SUM(amount), 0)
+                       FROM commission_ledger
+                       WHERE referral_code = COALESCE(NEW.referral_code, OLD.referral_code)
+                         AND status='confirmed'
+                     )
+                   WHERE code = COALESCE(NEW.referral_code, OLD.referral_code);
+                  
+                  RETURN COALESCE(NEW, OLD);
+                END;
+                $$ LANGUAGE plpgsql;
             """)
             
-            # 추천인 커미션 포인트 테이블 생성
+            # commission_ledger 트리거 생성
+            cursor.execute("DROP TRIGGER IF EXISTS trg_commission_ai ON commission_ledger")
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS commission_points (
-                    id SERIAL PRIMARY KEY,
-                    referrer_email VARCHAR(255) NOT NULL,
-                    referrer_name VARCHAR(255),
-                    total_earned DECIMAL(10,2) DEFAULT 0,
-                    total_paid DECIMAL(10,2) DEFAULT 0,
-                    current_balance DECIMAL(10,2) DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW()
-                )
+                CREATE TRIGGER trg_commission_ai AFTER INSERT ON commission_ledger
+                FOR EACH ROW EXECUTE FUNCTION sync_referral_commission()
             """)
-            
-            # 커미션 포인트 거래 내역 테이블 생성
+            cursor.execute("DROP TRIGGER IF EXISTS trg_commission_au ON commission_ledger")
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS commission_point_transactions (
-                    id SERIAL PRIMARY KEY,
-                    referrer_email VARCHAR(255) NOT NULL,
-                    transaction_type VARCHAR(50) NOT NULL,
-                    amount DECIMAL(10,2) NOT NULL,
-                    balance_after DECIMAL(10,2) NOT NULL,
-                    description TEXT,
-                    created_at TIMESTAMP DEFAULT NOW()
-                )
+                CREATE TRIGGER trg_commission_au AFTER UPDATE ON commission_ledger
+                FOR EACH ROW EXECUTE FUNCTION sync_referral_commission()
             """)
-            
-            # 환급 신청 테이블 생성
+            cursor.execute("DROP TRIGGER IF EXISTS trg_commission_ad ON commission_ledger")
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS commission_withdrawal_requests (
-                    id SERIAL PRIMARY KEY,
-                    referrer_email VARCHAR(255) NOT NULL,
-                    referrer_name VARCHAR(255),
-                    bank_name VARCHAR(255) NOT NULL,
-                    account_number VARCHAR(255) NOT NULL,
-                    account_holder VARCHAR(255) NOT NULL,
-                    amount DECIMAL(10,2) NOT NULL,
-                    status VARCHAR(50) DEFAULT 'pending',
-                    admin_notes TEXT,
-                    requested_at TIMESTAMP DEFAULT NOW(),
-                    processed_at TIMESTAMP,
-                    processed_by VARCHAR(255)
-                )
+                CREATE TRIGGER trg_commission_ad AFTER DELETE ON commission_ledger
+                FOR EACH ROW EXECUTE FUNCTION sync_referral_commission()
             """)
+            print("✅ commission_ledger 트리거 생성 완료 (referral_codes.total_commission 자동 동기화)")
             
             # 공지사항 테이블 생성
             cursor.execute("""
@@ -1921,157 +2056,175 @@ def init_database():
                 )
             """)
             
-        # order_id 컬럼 타입 확인 (기존 INTEGER 유지)
-        try:
-            cursor.execute("""
-                SELECT data_type FROM information_schema.columns 
-                WHERE table_name = 'orders' AND column_name = 'order_id'
-            """)
-            column_info = cursor.fetchone()
-            if column_info:
-                current_type = column_info[0]
-                print(f"🔍 현재 order_id 컬럼 타입: {current_type}")
-                print(f"ℹ️ order_id 컬럼 타입: {current_type} (기존 방식 유지)")
-            else:
-                print("⚠️ order_id 컬럼 정보를 찾을 수 없습니다.")
-        except Exception as e:
-            print(f"⚠️ order_id 컬럼 타입 확인 실패: {e}")
+        # order_id 컬럼 타입 확인 (기존 INTEGER 유지) - PostgreSQL만
+        if is_postgresql:
+            try:
+                cursor.execute("""
+                    SELECT data_type FROM information_schema.columns 
+                    WHERE table_name = 'orders' AND column_name = 'order_id'
+                """)
+                column_info = cursor.fetchone()
+                if column_info:
+                    current_type = column_info[0]
+                    print(f"🔍 현재 order_id 컬럼 타입: {current_type}")
+                    print(f"ℹ️ order_id 컬럼 타입: {current_type} (기존 방식 유지)")
+                else:
+                    print("⚠️ order_id 컬럼 정보를 찾을 수 없습니다.")
+            except Exception as e:
+                print(f"⚠️ order_id 컬럼 타입 확인 실패: {e}")
+                try:
+                    conn.rollback()
+                except:
+                    pass
             
             # 기존 테이블에 예약/분할 필드 추가 (이미 존재하는 경우 무시)
-            try:
-                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_scheduled BOOLEAN DEFAULT FALSE")
-                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS scheduled_datetime TIMESTAMP")
-                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_split_delivery BOOLEAN DEFAULT FALSE")
-                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS split_days INTEGER DEFAULT 0")
-                cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS split_quantity INTEGER DEFAULT 0")
-                print("✅ 예약/분할 필드 추가 완료")
-            except Exception as e:
-                print(f"⚠️ 예약/분할 필드 추가 실패 (이미 존재할 수 있음): {e}")
+            def safe_add_order_column(column_name, column_type):
+                """컬럼이 없으면 추가 (이미 존재하면 무시)"""
+                try:
+                    cursor.execute("""
+                        SELECT EXISTS (
+                            SELECT 1 
+                            FROM information_schema.columns 
+                            WHERE table_name = 'orders' 
+                            AND column_name = %s
+                        )
+                    """, (column_name,))
+                    exists = cursor.fetchone()[0]
+                    if not exists:
+                        cursor.execute(f"ALTER TABLE orders ADD COLUMN {column_name} {column_type}")
+                        return True
+                except Exception as e:
+                    # 트랜잭션 중단 오류인 경우 롤백 후 재시도
+                    error_str = str(e).lower()
+                    if 'current transaction is aborted' in error_str:
+                        try:
+                            conn.rollback()
+                            # 롤백 후 컬럼 존재 여부 다시 확인
+                            cursor.execute("""
+                                SELECT EXISTS (
+                                    SELECT 1 
+                                    FROM information_schema.columns 
+                                    WHERE table_name = 'orders' 
+                                    AND column_name = %s
+                                )
+                            """, (column_name,))
+                            exists = cursor.fetchone()[0]
+                            if not exists:
+                                cursor.execute(f"ALTER TABLE orders ADD COLUMN {column_name} {column_type}")
+                                return True
+                        except Exception as retry_error:
+                            pass
+                    # 컬럼 추가 실패 (이미 존재하거나 다른 오류) - 무시
+                    pass
+                return False
             
-            # 분할 발송 진행 상황 테이블 생성
+            added_order_cols = []
+            if safe_add_order_column('is_scheduled', 'BOOLEAN DEFAULT FALSE'):
+                added_order_cols.append('is_scheduled')
+            if safe_add_order_column('scheduled_datetime', 'TIMESTAMP'):
+                added_order_cols.append('scheduled_datetime')
+            if safe_add_order_column('is_split_delivery', 'BOOLEAN DEFAULT FALSE'):
+                added_order_cols.append('is_split_delivery')
+            if safe_add_order_column('split_days', 'INTEGER DEFAULT 0'):
+                added_order_cols.append('split_days')
+            if safe_add_order_column('split_quantity', 'INTEGER DEFAULT 0'):
+                added_order_cols.append('split_quantity')
+            if added_order_cols:
+                print(f"✅ 예약/분할 필드 추가 완료: {', '.join(added_order_cols)}")
+            else:
+                print("✅ 예약/분할 필드 확인 완료 (모든 필드 존재)")
+        
+        # execution_progress 테이블 생성 (통합: package_progress, split_delivery_progress, scheduled_orders 대체) - PostgreSQL만
+        if is_postgresql:
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS split_delivery_progress (
-                    id SERIAL PRIMARY KEY,
+                CREATE TABLE IF NOT EXISTS execution_progress (
+                    exec_id SERIAL PRIMARY KEY,
                     order_id VARCHAR(255) NOT NULL,
-                    day_number INTEGER NOT NULL,
-                    scheduled_date DATE,
-                    quantity_delivered INTEGER DEFAULT 0,
-                    status VARCHAR(50) DEFAULT 'pending',
+                    exec_type VARCHAR(50) NOT NULL CHECK (exec_type IN ('package')),
+                    step_number INTEGER NOT NULL,
+                    step_name VARCHAR(255),
+                    service_id VARCHAR(255),
+                    quantity INTEGER,
+                    scheduled_datetime TIMESTAMP,
+                    priority SMALLINT NOT NULL DEFAULT 5,
+                    lock_token VARCHAR(64),
+                    retry_count INTEGER NOT NULL DEFAULT 0,
+                    last_error_at TIMESTAMP,
+                    status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','running','completed','failed','skipped','scheduled')),
                     smm_panel_order_id VARCHAR(255),
                     error_message TEXT,
-                    created_at TIMESTAMP DEFAULT NOW(),
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     completed_at TIMESTAMP,
                     failed_at TIMESTAMP,
-                    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+                    CONSTRAINT fk_exec_order FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+                    CONSTRAINT ck_exec_qty CHECK (quantity IS NULL OR quantity >= 0),
+                    CONSTRAINT uq_exec UNIQUE (order_id, exec_type, step_number)
                 )
             """)
-            print("✅ 분할 발송 진행 상황 테이블 생성 완료")
+            print("✅ execution_progress 테이블 생성 완료 (통합 테이블)")
             
-            # 패키지 진행 상황 테이블 생성
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS package_progress (
-                id SERIAL PRIMARY KEY,
-                    order_id VARCHAR(255) NOT NULL,
-                    step_number INTEGER NOT NULL,
-                    step_name VARCHAR(255) NOT NULL,
-                    service_id VARCHAR(255) NOT NULL,
-                    quantity INTEGER NOT NULL,
-                    smm_panel_order_id VARCHAR(255),
-                    status VARCHAR(50) DEFAULT 'pending',
-                    error_message TEXT,
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    completed_at TIMESTAMP,
-                    FOREIGN KEY (order_id) REFERENCES orders(order_id)
-                )
-            """)
-            print("✅ 패키지 진행 상황 테이블 생성 완료")
-            
-            # 예약 주문 테이블 생성
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS scheduled_orders (
-                id SERIAL PRIMARY KEY,
-                    user_id VARCHAR(255) NOT NULL,
-                    service_id VARCHAR(255) NOT NULL,
-                    link TEXT NOT NULL,
-                    quantity INTEGER NOT NULL,
-                    price DECIMAL(10,2) NOT NULL,
-                    scheduled_datetime TIMESTAMP NOT NULL,
-                    status VARCHAR(50) DEFAULT 'pending',
-                    package_steps TEXT,
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    processed_at TIMESTAMP
-                )
-            """)
-            print("✅ 예약 주문 테이블 생성 완료")
+            # execution_progress 인덱스 생성
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_key ON execution_progress(order_id, exec_type, step_number)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_status_time ON execution_progress(status, scheduled_datetime)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_status_time_prio ON execution_progress(status, scheduled_datetime, priority)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_lock ON execution_progress(lock_token)")
+            print("✅ execution_progress 인덱스 생성 완료")
             
             # orders 테이블에 필요한 컬럼들 추가 (존재 여부 확인 후)
-            # smm_panel_order_id 컬럼 추가
-            try:
-                cursor.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name='orders' AND column_name='smm_panel_order_id'
-                """)
-                if not cursor.fetchone():
-                    cursor.execute("ALTER TABLE orders ADD COLUMN smm_panel_order_id VARCHAR(255)")
-                    conn.commit()
-                    print("✅ smm_panel_order_id 필드 추가 완료")
-                else:
-                    print("ℹ️ smm_panel_order_id 필드 이미 존재")
-            except Exception as e:
-                print(f"⚠️ smm_panel_order_id 필드 추가 실패: {e}")
-                conn.rollback()
+            def safe_add_order_col(column_name, column_type, col_type_desc=''):
+                """컬럼이 없으면 추가 (트랜잭션 오류 처리 포함)"""
+                try:
+                    cursor.execute("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name='orders' AND column_name=%s
+                    """, (column_name,))
+                    if not cursor.fetchone():
+                        cursor.execute(f"ALTER TABLE orders ADD COLUMN {column_name} {column_type}")
+                        conn.commit()
+                        print(f"✅ {column_name} 필드 추가 완료")
+                        return True
+                    else:
+                        print(f"ℹ️ {column_name} 필드 이미 존재")
+                        return False
+                except Exception as e:
+                    error_str = str(e).lower()
+                    if 'current transaction is aborted' in error_str:
+                        try:
+                            conn.rollback()
+                            # 롤백 후 다시 확인
+                            cursor.execute("""
+                                SELECT column_name 
+                                FROM information_schema.columns 
+                                WHERE table_name='orders' AND column_name=%s
+                            """, (column_name,))
+                            if not cursor.fetchone():
+                                cursor.execute(f"ALTER TABLE orders ADD COLUMN {column_name} {column_type}")
+                                conn.commit()
+                                print(f"✅ {column_name} 필드 추가 완료 (재시도)")
+                                return True
+                            else:
+                                print(f"ℹ️ {column_name} 필드 이미 존재")
+                                return False
+                        except Exception as retry_error:
+                            print(f"⚠️ {column_name} 필드 추가 실패 (재시도 실패): {retry_error}")
+                            try:
+                                conn.rollback()
+                            except:
+                                pass
+                            return False
+                    else:
+                        print(f"⚠️ {column_name} 필드 추가 실패: {e}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        return False
             
-            # last_status_check 컬럼 추가
-            try:
-                cursor.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name='orders' AND column_name='last_status_check'
-                """)
-                if not cursor.fetchone():
-                    cursor.execute("ALTER TABLE orders ADD COLUMN last_status_check TIMESTAMP")
-                    conn.commit()
-                    print("✅ last_status_check 필드 추가 완료")
-                else:
-                    print("ℹ️ last_status_check 필드 이미 존재")
-            except Exception as e:
-                print(f"⚠️ last_status_check 필드 추가 실패: {e}")
-                conn.rollback()
-            
-            # detailed_service 컬럼 추가
-            try:
-                cursor.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name='orders' AND column_name='detailed_service'
-                """)
-                if not cursor.fetchone():
-                    cursor.execute("ALTER TABLE orders ADD COLUMN detailed_service TEXT")
-                    conn.commit()
-                    print("✅ detailed_service 필드 추가 완료")
-                else:
-                    print("ℹ️ detailed_service 필드 이미 존재")
-            except Exception as e:
-                print(f"⚠️ detailed_service 필드 추가 실패: {e}")
-                conn.rollback()
-            
-            # package_steps 컬럼 추가
-            try:
-                cursor.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name='orders' AND column_name='package_steps'
-                """)
-                if not cursor.fetchone():
-                    cursor.execute("ALTER TABLE orders ADD COLUMN package_steps JSONB")
-                    conn.commit()
-                    print("✅ package_steps 필드 추가 완료")
-                else:
-                    print("ℹ️ package_steps 필드 이미 존재")
-            except Exception as e:
-                print(f"⚠️ package_steps 필드 추가 실패: {e}")
-                conn.rollback()
+            safe_add_order_col('smm_panel_order_id', 'VARCHAR(255)')
+            safe_add_order_col('last_status_check', 'TIMESTAMP')
+            safe_add_order_col('detailed_service', 'TEXT')
+            safe_add_order_col('package_steps', 'JSONB')
             
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
@@ -2093,7 +2246,9 @@ def init_database():
                 )
             """)
             
-        else:
+        # PostgreSQL 브랜치 끝
+        
+        if not is_postgresql:
             # SQLite 테이블 생성
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -2110,28 +2265,36 @@ def init_database():
                 )
             """)
             
-            # 기존 테이블에 컬럼 추가 (SQLite)
-            try:
-                cursor.execute("ALTER TABLE users ADD COLUMN google_id TEXT")
-            except:
-                pass
-            try:
-                cursor.execute("ALTER TABLE users ADD COLUMN kakao_id TEXT")
-            except:
-                pass
-            try:
-                cursor.execute("ALTER TABLE users ADD COLUMN profile_image TEXT")
-            except:
-                pass
-            try:
-                cursor.execute("ALTER TABLE users ADD COLUMN last_login TIMESTAMP")
-            except:
-                pass
-            try:
-                cursor.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
-            except:
-                pass
-            print("✅ 사용자 테이블 컬럼 추가 완료 (SQLite)")
+            # 기존 테이블에 컬럼 추가 (SQLite) - 각 컬럼을 개별적으로 시도
+            def safe_add_sqlite_column(column_name, column_type):
+                """컬럼이 없으면 추가 (이미 존재하면 무시)"""
+                try:
+                    # SQLite는 information_schema 대신 PRAGMA table_info 사용
+                    cursor.execute("PRAGMA table_info(users)")
+                    columns = [row[1] for row in cursor.fetchall()]
+                    if column_name not in columns:
+                        cursor.execute(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}")
+                        return True
+                except Exception as e:
+                    # 컬럼 추가 실패 (이미 존재하거나 다른 오류) - 무시
+                    pass
+                return False
+            
+            added_sqlite_cols = []
+            if safe_add_sqlite_column('google_id', 'TEXT'):
+                added_sqlite_cols.append('google_id')
+            if safe_add_sqlite_column('kakao_id', 'TEXT'):
+                added_sqlite_cols.append('kakao_id')
+            if safe_add_sqlite_column('profile_image', 'TEXT'):
+                added_sqlite_cols.append('profile_image')
+            if safe_add_sqlite_column('last_login', 'TIMESTAMP'):
+                added_sqlite_cols.append('last_login')
+            if safe_add_sqlite_column('display_name', 'TEXT'):
+                added_sqlite_cols.append('display_name')
+            if added_sqlite_cols:
+                print(f"✅ 사용자 테이블 컬럼 추가 완료 (SQLite): {', '.join(added_sqlite_cols)}")
+            else:
+                print("✅ 사용자 테이블 컬럼 확인 완료 (모든 컬럼 존재)")
             
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS points (
@@ -2248,21 +2411,58 @@ def init_database():
             """)
             print("✅ 블로그 테이블 생성 완료 (SQLite)")
             
-            # 커미션 환급 내역 테이블 생성 (SQLite)
+            # commission_ledger 테이블 생성 (SQLite) - 통합 테이블
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS commission_payments (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    referrer_email TEXT NOT NULL,
+                CREATE TABLE IF NOT EXISTS commission_ledger (
+                    ledger_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    referral_code TEXT NOT NULL,
+                    referrer_user_id TEXT NOT NULL,
+                    referred_user_id TEXT,
+                    order_id TEXT,
+                    event TEXT NOT NULL CHECK (event IN ('earn','payout','adjust','reverse')),
+                    base_amount REAL,
+                    commission_rate REAL,
                     amount REAL NOT NULL,
-                    payment_method TEXT DEFAULT 'bank_transfer',
+                    status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('pending','confirmed','cancelled')),
                     notes TEXT,
-                    paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    external_ref TEXT,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    confirmed_at TEXT
                 )
             """)
-            print("✅ 커미션 환급 내역 테이블 생성 완료 (SQLite)")
+            print("✅ commission_ledger 테이블 생성 완료 (SQLite - 통합 테이블)")
+            
+            # commission_ledger 인덱스 생성 (SQLite)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_code_time ON commission_ledger(referral_code, created_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_owner_time ON commission_ledger(referrer_user_id, created_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_event_time ON commission_ledger(event, created_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_order ON commission_ledger(order_id)")
+            print("✅ commission_ledger 인덱스 생성 완료 (SQLite)")
         
-        conn.commit()
-        print("✅ 데이터베이스 테이블 초기화 완료")
+        # 트랜잭션 중단 오류 체크 및 복구
+        try:
+            conn.commit()
+            print("✅ 데이터베이스 테이블 초기화 완료")
+        except Exception as commit_error:
+            error_str = str(commit_error).lower()
+            if 'current transaction is aborted' in error_str or 'aborted' in error_str:
+                print("⚠️ 트랜잭션 중단 감지, 롤백 후 계속 진행...")
+                try:
+                    conn.rollback()
+                    # 롤백 후 다시 커밋 시도 (이미 커밋된 작업은 롤백되지 않음)
+                    try:
+                        conn.commit()
+                    except:
+                        pass
+                    print("✅ 트랜잭션 롤백 완료, 계속 진행")
+                except Exception as rollback_error:
+                    print(f"⚠️ 롤백 실패 (무시): {rollback_error}")
+            else:
+                print(f"⚠️ 커밋 오류 (계속 진행): {commit_error}")
+                try:
+                    conn.rollback()
+                except:
+                    pass
         
         # 데이터베이스 인덱스 생성 (성능 최적화)
         print("🔍 데이터베이스 인덱스 생성 중...")
@@ -2327,9 +2527,19 @@ def init_database():
             
     except Exception as e:
         print(f"❌ 데이터베이스 초기화 실패: {e}")
+        import traceback
+        traceback.print_exc()
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
     finally:
-        if 'conn' in locals():
-            conn.close()
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
 
 # 앱 시작 시 초기화
 def initialize_app():
@@ -2968,76 +3178,36 @@ def create_order():
                 
                 print(f"💰 커미션 계산 - 추천인: {referrer_email}, 구매금액: {final_price}, 커미션: {commission_amount}")
                 
-                # 기존 커미션 테이블에 기록
-                if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+                # referral_code로 referrer_user_id 조회
+                referral_code = referral_data[0]
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("SELECT user_id FROM referral_codes WHERE code = %s", (referral_code,))
+                else:
+                    cursor.execute("SELECT user_id FROM referral_codes WHERE code = ?", (referral_code,))
+                referrer_user_result = cursor.fetchone()
+                referrer_user_id = referrer_user_result[0] if referrer_user_result else referrer_email
+                
+                # commission_ledger에 커미션 적립 기록
+                if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
-                        INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
-                                                commission_amount, commission_rate, created_at)
-                        VALUES (%s, %s, %s, %s, %s, NOW())
-                    """, (user_id, referrer_email, final_price, commission_amount, 0.1))
+                        INSERT INTO commission_ledger 
+                        (referral_code, referrer_user_id, referred_user_id, order_id, event, base_amount, commission_rate, amount, status, notes, created_at, confirmed_at)
+                        VALUES (%s, %s, %s, %s, 'earn', %s, %s, %s, 'confirmed', %s, NOW(), NOW())
+                    """, (
+                        referral_code, referrer_user_id, user_id, order_id,
+                        final_price, 0.1, commission_amount,
+                        f'추천인 커미션 적립 - 주문 ID: {order_id}'
+                    ))
                 else:
                     cursor.execute("""
-                        INSERT INTO commissions (referred_user, referrer_id, purchase_amount, 
-                                                commission_amount, commission_rate, created_at)
-                        VALUES (?, ?, ?, ?, ?, datetime('now'))
-                    """, (user_id, referrer_email, final_price, commission_amount, 0.1))
-                
-                print(f"✅ 커미션 기록 완료 - 추천인: {referrer_email}, 커미션: {commission_amount}")
-                
-                # 커미션 포인트 적립 처리
-                if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-                    # 추천인 포인트 계정이 있는지 확인
-                    cursor.execute("SELECT id FROM commission_points WHERE referrer_email = %s", (referrer_email,))
-                    existing_account = cursor.fetchone()
-                    
-                    if existing_account:
-                        # 기존 계정 업데이트
-                        cursor.execute("""
-                            UPDATE commission_points 
-                            SET total_earned = total_earned + %s, 
-                                current_balance = current_balance + %s,
-                                updated_at = NOW()
-                            WHERE referrer_email = %s
-                        """, (commission_amount, commission_amount, referrer_email))
-                    else:
-                        # 새 계정 생성
-                        cursor.execute("""
-                            INSERT INTO commission_points 
-                            (referrer_email, total_earned, current_balance, created_at, updated_at)
-                            VALUES (%s, %s, %s, NOW(), NOW())
-                        """, (referrer_email, commission_amount, commission_amount))
-                    
-                    # 거래 내역 기록
-                    cursor.execute("""
-                        INSERT INTO commission_point_transactions 
-                        (referrer_email, transaction_type, amount, balance_after, description, created_at)
-                        VALUES (%s, %s, %s, %s, %s, NOW())
-                    """, (referrer_email, 'earned', commission_amount, commission_amount, f'추천인 커미션 적립 - 주문 ID: {order_id}'))
-                else:
-                    # SQLite 버전
-                    cursor.execute("SELECT id FROM commission_points WHERE referrer_email = ?", (referrer_email,))
-                    existing_account = cursor.fetchone()
-                    
-                    if existing_account:
-                        cursor.execute("""
-                            UPDATE commission_points 
-                            SET total_earned = total_earned + ?, 
-                                current_balance = current_balance + ?,
-                                updated_at = datetime('now')
-                            WHERE referrer_email = ?
-                        """, (commission_amount, commission_amount, referrer_email))
-                    else:
-                        cursor.execute("""
-                            INSERT INTO commission_points 
-                            (referrer_email, total_earned, current_balance, created_at, updated_at)
-                            VALUES (?, ?, ?, datetime('now'), datetime('now'))
-                        """, (referrer_email, commission_amount, commission_amount))
-                    
-                    cursor.execute("""
-                        INSERT INTO commission_point_transactions 
-                        (referrer_email, transaction_type, amount, balance_after, description, created_at)
-                        VALUES (?, ?, ?, ?, ?, datetime('now'))
-                    """, (referrer_email, 'earned', commission_amount, commission_amount, f'추천인 커미션 적립 - 주문 ID: {order_id}'))
+                        INSERT INTO commission_ledger 
+                        (referral_code, referrer_user_id, referred_user_id, order_id, event, base_amount, commission_rate, amount, status, notes, created_at, confirmed_at)
+                        VALUES (?, ?, ?, ?, 'earn', ?, ?, ?, 'confirmed', ?, datetime('now'), datetime('now'))
+                    """, (
+                        referral_code, referrer_user_id, user_id, order_id,
+                        final_price, 0.1, commission_amount,
+                        f'추천인 커미션 적립 - 주문 ID: {order_id}'
+                    ))
                 
                 print(f"✅ 커미션 포인트 적립 완료: {commission_amount}원")
             except Exception as commission_error:
@@ -3325,15 +3495,15 @@ def get_package_progress(order_id):
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at
-                FROM package_progress 
-                WHERE order_id = %s
+                FROM execution_progress 
+                WHERE order_id = %s AND exec_type = 'package'
                 ORDER BY step_number ASC, created_at ASC
             """, (order_id,))
         else:
             cursor.execute("""
                 SELECT step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at
-                FROM package_progress 
-                WHERE order_id = ?
+                FROM execution_progress 
+                WHERE order_id = ? AND exec_type = 'package'
                 ORDER BY step_number ASC, created_at ASC
             """, (order_id,))
         
@@ -3579,39 +3749,127 @@ def purchase_points():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 사용자가 포인트 테이블에 있는지 확인하고, 없으면 생성
+        # 사용자가 users 테이블에 있는지 확인하고, 없으면 생성
         if DATABASE_URL.startswith('postgresql://'):
-            # PostgreSQL에서는 명시적 타입 캐스팅 사용
-            cursor.execute("SELECT user_id FROM points WHERE user_id::text = %s", (user_id_str,))
-            if not cursor.fetchone():
+            # PostgreSQL: user_id는 VARCHAR이므로 타입 캐스팅 불필요
+            # email이 NOT NULL이므로 기본값 설정
+            user_email = data.get('user_email', '') or f"{user_id_str.replace('@', '_at_').replace('/', '_').replace('\\', '_')[:200]}@temp.local"
+            
+            # 사용자 생성/확인 (ON CONFLICT로 중복 방지 - 원자적 연산)
+            # 같은 트랜잭션 내에서 사용자와 points를 모두 생성해야 외래 키 제약 조건 통과
+            import sys
+            import traceback
+            import time
+            try:
+                # 먼저 사용자가 이미 존재하는지 확인
+                cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id_str,))
+                user_exists = cursor.fetchone()
+                
+                if not user_exists:
+                    # 이메일이 이미 사용 중인지 확인
+                    cursor.execute("SELECT user_id FROM users WHERE email = %s", (user_email,))
+                    email_exists = cursor.fetchone()
+                    
+                    if email_exists:
+                        # 이메일이 이미 사용 중이면 고유한 이메일 생성
+                        user_email = f"{user_id_str.replace('@', '_at_').replace('/', '_').replace('\\', '_')[:150]}_{int(time.time())}@temp.local"
+                        print(f"⚠️ 이메일 충돌 감지, 고유 이메일 생성: {user_email}", flush=True)
+                    
+                    # 사용자 생성 (이메일 충돌 방지를 위해 고유 이메일 사용)
+                    try:
+                        cursor.execute("""
+                            INSERT INTO users (user_id, email, name, created_at, updated_at)
+                            VALUES (%s, %s, %s, NOW(), NOW())
+                            ON CONFLICT (user_id) DO NOTHING
+                        """, (user_id_str, user_email, buyer_name or 'User'))
+                        print(f"✅ 사용자 생성 시도: {user_id_str}, email: {user_email}", flush=True)
+                    except Exception as insert_error:
+                        # 이메일 unique 제약 조건 위반 등 예외 처리
+                        error_str = str(insert_error).lower()
+                        if 'unique' in error_str or 'duplicate' in error_str or 'violates unique constraint' in error_str:
+                            # 이메일 충돌이 발생한 경우, 더 고유한 이메일로 재시도
+                            user_email = f"{user_id_str.replace('@', '_at_').replace('/', '_').replace('\\', '_')[:120]}_{int(time.time() * 1000)}@temp.local"
+                            print(f"⚠️ 이메일 충돌 발생, 재시도: {user_email}", flush=True)
+                            cursor.execute("""
+                                INSERT INTO users (user_id, email, name, created_at, updated_at)
+                                VALUES (%s, %s, %s, NOW(), NOW())
+                                ON CONFLICT (user_id) DO NOTHING
+                            """, (user_id_str, user_email, buyer_name or 'User'))
+                            print(f"✅ 재시도 성공: {user_id_str}", flush=True)
+                        else:
+                            # 다른 종류의 오류는 그대로 전파
+                            raise
+                
+                # 사용자 존재 확인 (반드시 필요)
+                cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id_str,))
+                if not cursor.fetchone():
+                    raise Exception(f"사용자 생성 실패: {user_id_str}가 users 테이블에 존재하지 않습니다.")
+                print(f"✅ 사용자 확인 완료: {user_id_str}", flush=True)
+                
+                # 같은 트랜잭션 내에서 points 레코드 생성 (외래 키 제약 조건이 적용됨)
                 cursor.execute("""
                     INSERT INTO points (user_id, points, created_at, updated_at)
                     VALUES (%s, 0, NOW(), NOW())
+                    ON CONFLICT (user_id) DO NOTHING
                 """, (user_id_str,))
-                print(f"✅ 구글/카카오 로그인 사용자 포인트 테이블 생성: {user_id_str}")
-            
-            cursor.execute("""
-                INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at)
-                VALUES (%s, %s, %s, 'pending', %s, %s, NOW(), NOW())
-                RETURNING id
-            """, (user_id_str, amount, price, buyer_name, bank_info))
-        else:
-            cursor.execute("SELECT user_id FROM points WHERE user_id = ?", (user_id_str,))
-            if not cursor.fetchone():
+                print(f"✅ 포인트 레코드 생성/확인 완료: {user_id_str}", flush=True)
+                
+                # 포인트 레코드 존재 확인
+                cursor.execute("SELECT user_id FROM points WHERE user_id = %s", (user_id_str,))
+                if not cursor.fetchone():
+                    raise Exception(f"포인트 레코드 생성 실패: {user_id_str}가 points 테이블에 존재하지 않습니다.")
+                
+                # 같은 트랜잭션 내에서 point_purchases 삽입
                 cursor.execute("""
-                    INSERT INTO points (user_id, points, created_at, updated_at)
-                    VALUES (?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                """, (user_id_str,))
-                print(f"✅ 구글/카카오 로그인 사용자 포인트 테이블 생성: {user_id_str}")
+                    INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at)
+                    VALUES (%s, %s, %s, 'pending', %s, %s, NOW(), NOW())
+                    RETURNING id
+                """, (user_id_str, amount, price, buyer_name, bank_info))
+                purchase_id = cursor.fetchone()[0]
+                print(f"✅ 포인트 구매 삽입 완료: purchase_id={purchase_id}, user_id={user_id_str}", flush=True)
+                
+            except Exception as db_error:
+                conn.rollback()
+                error_msg = f"❌ 데이터베이스 작업 실패: {db_error}"
+                print(error_msg, file=sys.stderr, flush=True)
+                traceback.print_exc(file=sys.stderr)
+                sys.stderr.flush()
+                raise Exception(f"데이터베이스 작업 실패: {db_error}")
+        else:
+            # SQLite: 사용자가 users 테이블에 있는지 확인하고, 없으면 생성
+            user_email = data.get('user_email', '') or f"{user_id_str.replace('@', '_at_').replace('/', '_').replace('\\', '_')[:200]}@temp.local"
+            
+            # 사용자 생성/확인 (INSERT OR IGNORE로 중복 방지)
+            cursor.execute("""
+                INSERT OR IGNORE INTO users (user_id, email, name, created_at, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, (user_id_str, user_email, buyer_name or 'User'))
+            
+            # points 테이블에도 초기 레코드 생성 (INSERT OR IGNORE로 중복 방지)
+            cursor.execute("""
+                INSERT OR IGNORE INTO points (user_id, points, created_at, updated_at)
+                VALUES (?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, (user_id_str,))
+            
+            print(f"✅ 사용자 및 포인트 레코드 확인/생성 완료: {user_id_str}")
             
             cursor.execute("""
                 INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at)
                 VALUES (?, ?, ?, 'pending', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, (user_id_str, amount, price, buyer_name, bank_info))
             cursor.execute("SELECT last_insert_rowid()")
+            purchase_id = cursor.fetchone()[0]
         
-        purchase_id = cursor.fetchone()[0]
+        # PostgreSQL의 경우 purchase_id는 이미 try 블록에서 설정됨
+        if DATABASE_URL.startswith('postgresql://'):
+            # purchase_id는 이미 위의 try 블록에서 설정되었으므로 여기서는 아무것도 하지 않음
+            pass
+        
+        # 모든 작업이 성공했으면 한 번에 commit
         conn.commit()
+        
+        print(f"✅ 포인트 구매 신청 완료 - purchase_id: {purchase_id}, user_id: {user_id_str}")
+        
         conn.close()
         
         return jsonify({
@@ -3622,7 +3880,13 @@ def purchase_points():
         }), 200
         
     except Exception as e:
-        return jsonify({'error': f'포인트 구매 신청 실패: {str(e)}'}), 500
+        import sys
+        import traceback
+        error_msg = f'포인트 구매 신청 실패: {str(e)}'
+        print(f"❌ 포인트 구매 신청 실패: {error_msg}", file=sys.stderr, flush=True)
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.flush()
+        return jsonify({'error': error_msg}), 500
 
 # KCP 표준결제 - 거래등록 (Mobile)
 @app.route('/api/points/purchase-kcp/register', methods=['POST'])
@@ -4366,12 +4630,20 @@ def deduct_points():
             conn.close()
 
 # 사용자 정보 조회
-@app.route('/api/users/<user_id>', methods=['GET'])
+@app.route('/api/users/<path:user_id>', methods=['GET'])
 def get_user(user_id):
-    """사용자 정보 조회"""
+    """사용자 정보 조회 (없으면 자동 생성) - 항상 200 반환"""
+    import sys
+    # user_id 정규화 (앞뒤 공백 및 슬래시 제거)
+    user_id = str(user_id).strip().rstrip('/')
+    print(f"🔍 사용자 정보 조회 요청 - user_id: {user_id}", flush=True)
+    sys.stdout.flush()
+    conn = None
+    cursor = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        print(f"✅ DB 연결 성공 - user_id: {user_id}", flush=True)
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
@@ -4385,20 +4657,116 @@ def get_user(user_id):
             """, (user_id,))
         
         user = cursor.fetchone()
-        conn.close()
+        print(f"🔍 사용자 조회 결과: {user}", flush=True)
+        sys.stdout.flush()
         
         if user:
-            return jsonify({
+            user_data = {
                 'user_id': user[0],
                 'email': user[1],
                 'name': user[2],
-                'created_at': user[3].isoformat() if hasattr(user[3], 'isoformat') else str(user[3])
-            }), 200
+                'created_at': user[3].isoformat() if user[3] and hasattr(user[3], 'isoformat') else (str(user[3]) if user[3] else None)
+            }
+            print(f"✅ 사용자 정보 반환: {user_data}", flush=True)
+            sys.stdout.flush()
+            return jsonify(user_data), 200
         else:
-            return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+            # 사용자가 없으면 자동으로 생성
+            print(f"ℹ️ 사용자 없음, 자동 생성 시도: {user_id}", flush=True)
+            sys.stdout.flush()
+            
+            # email이 NOT NULL이므로 기본값 설정 (유효한 이메일 형식)
+            default_email = f"{user_id.replace('@', '_at_').replace('/', '_').replace('\\', '_')[:200]}@temp.local"
+            
+            try:
+                if DATABASE_URL.startswith('postgresql://'):
+                    # 사용자 생성 시도
+                    cursor.execute("""
+                        INSERT INTO users (user_id, email, name, created_at, updated_at)
+                        VALUES (%s, %s, %s, NOW(), NOW())
+                        ON CONFLICT (user_id) DO NOTHING
+                    """, (user_id, default_email, 'User'))
+                    
+                    # 사용자 생성 여부 확인
+                    if cursor.rowcount > 0:
+                        # points 테이블에도 초기 레코드 생성
+                        cursor.execute("""
+                            INSERT INTO points (user_id, points, created_at, updated_at)
+                            VALUES (%s, 0, NOW(), NOW())
+                            ON CONFLICT (user_id) DO NOTHING
+                        """, (user_id,))
+                        conn.commit()
+                        print(f"✅ 사용자 자동 생성 완료: {user_id}")
+                    else:
+                        # 이미 존재하는 경우, 다시 조회
+                        cursor.execute("""
+                            SELECT user_id, email, name, created_at
+                            FROM users WHERE user_id = %s
+                        """, (user_id,))
+                        user = cursor.fetchone()
+                        if user:
+                            user_data = {
+                                'user_id': user[0],
+                                'email': user[1],
+                                'name': user[2],
+                                'created_at': user[3].isoformat() if user[3] and hasattr(user[3], 'isoformat') else (str(user[3]) if user[3] else None)
+                            }
+                            return jsonify(user_data), 200
+                else:
+                    cursor.execute("""
+                        INSERT OR IGNORE INTO users (user_id, email, name, created_at, updated_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """, (user_id, default_email, 'User'))
+                    
+                    cursor.execute("""
+                        INSERT OR IGNORE INTO points (user_id, points, created_at, updated_at)
+                        VALUES (?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """, (user_id,))
+                    conn.commit()
+                    print(f"✅ 사용자 자동 생성 완료: {user_id}")
+                
+                # 생성된 사용자 정보 반환
+                return jsonify({
+                    'user_id': user_id,
+                    'email': default_email,
+                    'name': 'User',
+                    'created_at': None,
+                    'message': '사용자가 자동으로 생성되었습니다.'
+                }), 200
+                
+            except Exception as create_error:
+                import traceback
+                conn.rollback()
+                print(f"⚠️ 사용자 자동 생성 실패: {create_error}", file=sys.stderr, flush=True)
+                traceback.print_exc(file=sys.stderr)
+                sys.stderr.flush()
+                
+                # 생성 실패해도 항상 200 반환 (사용자 없음 상태)
+                return jsonify({
+                    'user_id': user_id,
+                    'email': None,
+                    'name': None,
+                    'created_at': None,
+                    'message': '사용자 정보가 없습니다.'
+                }), 200
         
     except Exception as e:
-        return jsonify({'error': f'사용자 정보 조회 실패: {str(e)}'}), 500
+        print(f"❌ 사용자 정보 조회 오류: {e}")
+        import traceback
+        traceback.print_exc()
+        # 오류 발생 시에도 항상 200 반환 (빈 사용자 정보)
+        return jsonify({
+            'user_id': user_id,
+            'email': None,
+            'name': None,
+            'created_at': None,
+            'message': f'사용자 정보 조회 중 오류 발생: {str(e)}'
+        }), 200
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 추천인 코드 생성
 # 사용하지 않는 엔드포인트 제거됨 - 관리자 API 사용
@@ -4796,28 +5164,27 @@ def get_referral_commission_overview():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
-            # 추천인별 커미션 현황 조회
+            # 추천인별 커미션 현황 조회 (commission_ledger 사용)
             cursor.execute("""
                 SELECT 
                     rc.user_email,
                     rc.name,
                     rc.code,
-                    COUNT(DISTINCT urc.user_id) as referral_count,
-                    COALESCE(SUM(c.commission_amount), 0) as total_commission,
+                    COUNT(DISTINCT cl.referred_user_id) as referral_count,
+                    COALESCE(SUM(CASE WHEN cl.event = 'earn' THEN cl.amount ELSE 0 END), 0) as total_commission,
                     COALESCE(SUM(CASE 
-                        WHEN c.payment_date >= DATE_TRUNC('month', CURRENT_DATE) 
-                        THEN c.commission_amount 
+                        WHEN cl.event = 'earn' AND cl.created_at >= DATE_TRUNC('month', CURRENT_DATE) 
+                        THEN cl.amount 
                         ELSE 0 
                     END), 0) as this_month_commission,
                     COALESCE(SUM(CASE 
-                        WHEN c.payment_date >= DATE_TRUNC('month', CURRENT_DATE) 
-                        AND c.is_paid = false
-                        THEN c.commission_amount 
+                        WHEN cl.event = 'earn' AND cl.created_at >= DATE_TRUNC('month', CURRENT_DATE)
+                        AND cl.status = 'confirmed'
+                        THEN cl.amount 
                         ELSE 0 
                     END), 0) as unpaid_commission
                 FROM referral_codes rc
-                LEFT JOIN user_referral_connections urc ON rc.code = urc.referral_code
-                LEFT JOIN commissions c ON rc.user_email = c.referrer_id
+                LEFT JOIN commission_ledger cl ON rc.code = cl.referral_code AND cl.status = 'confirmed'
                 WHERE rc.is_active = true
                 GROUP BY rc.user_email, rc.name, rc.code
                 ORDER BY total_commission DESC
@@ -4829,22 +5196,21 @@ def get_referral_commission_overview():
                     rc.user_email,
                     rc.name,
                     rc.code,
-                    COUNT(DISTINCT urc.user_id) as referral_count,
-                    COALESCE(SUM(c.commission_amount), 0) as total_commission,
+                    COUNT(DISTINCT cl.referred_user_id) as referral_count,
+                    COALESCE(SUM(CASE WHEN cl.event = 'earn' THEN cl.amount ELSE 0 END), 0) as total_commission,
                     COALESCE(SUM(CASE 
-                        WHEN date(c.payment_date) >= date('now', 'start of month') 
-                        THEN c.commission_amount 
+                        WHEN cl.event = 'earn' AND date(cl.created_at) >= date('now', 'start of month') 
+                        THEN cl.amount 
                         ELSE 0 
                     END), 0) as this_month_commission,
                     COALESCE(SUM(CASE 
-                        WHEN date(c.payment_date) >= date('now', 'start of month') 
-                        AND c.is_paid = 0
-                        THEN c.commission_amount 
+                        WHEN cl.event = 'earn' AND date(cl.created_at) >= date('now', 'start of month')
+                        AND cl.status = 'confirmed'
+                        THEN cl.amount 
                         ELSE 0 
                     END), 0) as unpaid_commission
                 FROM referral_codes rc
-                LEFT JOIN user_referral_connections urc ON rc.code = urc.referral_code
-                LEFT JOIN commissions c ON rc.user_email = c.referrer_id
+                LEFT JOIN commission_ledger cl ON rc.code = cl.referral_code AND cl.status = 'confirmed'
                 WHERE rc.is_active = 1
                 GROUP BY rc.user_email, rc.name, rc.code
                 ORDER BY total_commission DESC
@@ -4938,93 +5304,56 @@ def pay_commission():
         cursor = conn.cursor()
         print(f"✅ 데이터베이스 연결 성공")
         
-        # 환급 전 잔액 확인
-        print(f"🔍 추천인 잔액 조회: {referrer_email}")
+        # referral_code로 referrer_user_id 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT current_balance FROM commission_points WHERE referrer_email = %s
-            """, (referrer_email,))
+                SELECT code, user_id FROM referral_codes WHERE user_email = %s OR user_id = %s LIMIT 1
+            """, (referrer_email, referrer_email))
         else:
             cursor.execute("""
-                SELECT current_balance FROM commission_points WHERE referrer_email = ?
-            """, (referrer_email,))
+                SELECT code, user_id FROM referral_codes WHERE user_email = ? OR user_id = ? LIMIT 1
+            """, (referrer_email, referrer_email))
         
-        balance_result = cursor.fetchone()
-        print(f"🔍 잔액 조회 결과: {balance_result}")
-        if not balance_result:
-            print(f"❌ 추천인을 찾을 수 없음: {referrer_email}")
+        referral_result = cursor.fetchone()
+        if not referral_result:
             return jsonify({'error': '추천인을 찾을 수 없습니다.'}), 404
         
-        current_balance = float(balance_result[0])
+        referral_code, referrer_user_id = referral_result
+        
+        # commission_ledger에서 현재 잔액 계산
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT COALESCE(SUM(amount), 0) FROM commission_ledger 
+                WHERE referrer_user_id = %s AND status = 'confirmed'
+            """, (referrer_user_id,))
+        else:
+            cursor.execute("""
+                SELECT COALESCE(SUM(amount), 0) FROM commission_ledger 
+                WHERE referrer_user_id = ? AND status = 'confirmed'
+            """, (referrer_user_id,))
+        
+        balance_result = cursor.fetchone()
+        current_balance = float(balance_result[0]) if balance_result else 0.0
+        
         if current_balance < float(amount):
             return jsonify({'error': f'잔액이 부족합니다. 현재 잔액: {current_balance}원'}), 400
         
-        # 해당 추천인의 미지급 커미션을 지급 처리
+        # commission_ledger에 환급 기록 (event='payout', amount는 음수)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                UPDATE commissions 
-                SET is_paid = true, paid_date = NOW()
-                WHERE referrer_id = %s AND is_paid = false
-            """, (referrer_email,))
+                INSERT INTO commission_ledger 
+                (referral_code, referrer_user_id, event, amount, status, notes, created_at, confirmed_at)
+                VALUES (%s, %s, 'payout', %s, 'confirmed', %s, NOW(), NOW())
+            """, (referral_code, referrer_user_id, -float(amount), f'관리자 환급 처리 - {payment_method} - {notes}'))
         else:
             cursor.execute("""
-                UPDATE commissions 
-                SET is_paid = 1, paid_date = datetime('now')
-                WHERE referrer_id = ? AND is_paid = 0
-            """, (referrer_email,))
+                INSERT INTO commission_ledger 
+                (referral_code, referrer_user_id, event, amount, status, notes, created_at, confirmed_at)
+                VALUES (?, ?, 'payout', ?, 'confirmed', ?, datetime('now'), datetime('now'))
+            """, (referral_code, referrer_user_id, -float(amount), f'관리자 환급 처리 - {payment_method} - {notes}'))
         
-        # 환급 내역 저장 (새로운 테이블 필요)
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                INSERT INTO commission_payments (referrer_email, amount, payment_method, notes, paid_at)
-                VALUES (%s, %s, %s, %s, NOW())
-            """, (referrer_email, amount, payment_method, notes))
-        else:
-            cursor.execute("""
-                INSERT INTO commission_payments (referrer_email, amount, payment_method, notes, paid_at)
-                VALUES (?, ?, ?, ?, datetime('now'))
-            """, (referrer_email, amount, payment_method, notes))
-        
-        # current_balance와 total_paid 업데이트 (환급 처리)
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                UPDATE commission_points 
-                SET current_balance = current_balance - %s, total_paid = total_paid + %s, updated_at = NOW()
-                WHERE referrer_email = %s
-            """, (amount, amount, referrer_email))
-        else:
-            cursor.execute("""
-                UPDATE commission_points 
-                SET current_balance = current_balance - ?, total_paid = total_paid + ?, updated_at = CURRENT_TIMESTAMP
-                WHERE referrer_email = ?
-            """, (amount, amount, referrer_email))
-        
-        # 환급 후 잔액 조회
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT current_balance FROM commission_points WHERE referrer_email = %s
-            """, (referrer_email,))
-        else:
-            cursor.execute("""
-                SELECT current_balance FROM commission_points WHERE referrer_email = ?
-            """, (referrer_email,))
-        
-        balance_result = cursor.fetchone()
-        balance_after = balance_result[0] if balance_result else 0
-        
-        # 환급 거래 내역 기록
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                INSERT INTO commission_point_transactions 
-                (referrer_email, transaction_type, amount, balance_after, description, created_at)
-                VALUES (%s, %s, %s, %s, %s, NOW())
-            """, (referrer_email, 'withdrawal', -float(amount), balance_after, f'관리자 환급 처리 - {amount}원'))
-        else:
-            cursor.execute("""
-                INSERT INTO commission_point_transactions 
-                (referrer_email, transaction_type, amount, balance_after, description, created_at)
-                VALUES (?, ?, ?, ?, ?, datetime('now'))
-            """, (referrer_email, 'withdrawal', -float(amount), balance_after, f'관리자 환급 처리 - {amount}원'))
+        # 환급 후 잔액 계산
+        balance_after = current_balance - float(amount)
         
         conn.commit()
         conn.close()
@@ -5051,30 +5380,31 @@ def get_payment_history():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT referrer_email, amount, payment_method, notes, paid_at
-                FROM commission_payments
-                ORDER BY paid_at DESC
+                SELECT referrer_user_id, amount, notes, created_at
+                FROM commission_ledger
+                WHERE event = 'payout' AND status = 'confirmed'
+                ORDER BY created_at DESC
             """)
         else:
             cursor.execute("""
-                SELECT referrer_email, amount, payment_method, notes, paid_at
-                FROM commission_payments
-                ORDER BY paid_at DESC
+                SELECT referrer_user_id, amount, notes, created_at
+                FROM commission_ledger
+                WHERE event = 'payout' AND status = 'confirmed'
+                ORDER BY created_at DESC
             """)
         
         payments = []
         for row in cursor.fetchall():
-            paid_at = row[4]
+            paid_at = row[3]
             if hasattr(paid_at, 'isoformat'):
                 paid_at = paid_at.isoformat()
             else:
                 paid_at = str(paid_at)
             
             payments.append({
-                'referrer_email': row[0],
-                'amount': float(row[1]),
-                'payment_method': row[2],
-                'notes': row[3],
+                'referrer_user_id': row[0],
+                'amount': abs(float(row[1])),  # payout은 음수이므로 절댓값
+                'notes': row[2],
                 'paid_at': paid_at
             })
         
@@ -5394,14 +5724,14 @@ def admin_get_referrals():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT id, referrer_email, referral_code, name, phone, created_at, status
-                FROM referrals 
+                SELECT id, user_email, code, name, phone, created_at, is_active
+                FROM referral_codes 
                 ORDER BY created_at DESC
             """)
         else:
             cursor.execute("""
-                SELECT id, referrer_email, referral_code, name, phone, created_at, status
-                FROM referrals 
+                SELECT id, user_email, code, name, phone, created_at, is_active
+                FROM referral_codes 
                 ORDER BY created_at DESC
             """)
         
@@ -5423,7 +5753,7 @@ def admin_get_referrals():
                 'name': row[3],
                 'phone': row[4],
                 'joinDate': join_date,
-                'status': row[6]
+                'status': 'active' if row[6] else 'inactive'
             })
         
         return jsonify({
@@ -5530,28 +5860,30 @@ def admin_get_commissions():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT id, referred_user, purchase_amount, commission_amount, 
-                    commission_rate, payment_date
-                FROM commissions 
-                ORDER BY payment_date DESC
+                SELECT ledger_id, referred_user_id, base_amount, amount, 
+                    commission_rate, created_at
+                FROM commission_ledger 
+                WHERE event = 'earn' AND status = 'confirmed'
+                ORDER BY created_at DESC
             """)
         else:
             cursor.execute("""
-                SELECT id, referred_user, purchase_amount, commission_amount, 
-                    commission_rate, payment_date
-                FROM commissions 
-                ORDER BY payment_date DESC
+                SELECT ledger_id, referred_user_id, base_amount, amount, 
+                    commission_rate, created_at
+                FROM commission_ledger 
+                WHERE event = 'earn' AND status = 'confirmed'
+                ORDER BY created_at DESC
             """)
         
         commissions = []
         for row in cursor.fetchall():
             commissions.append({
                 'id': row[0],
-                'referredUser': row[1],
-                'purchaseAmount': row[2],
-                'commissionAmount': row[3],
-                'commissionRate': f"{row[4] * 100}%" if row[4] else "0%",
-                'paymentDate': row[5].strftime('%Y-%m-%d') if hasattr(row[5], 'strftime') else row[5]
+                'referredUser': row[1] if row[1] else 'N/A',
+                'purchaseAmount': float(row[2]) if row[2] else 0,
+                'commissionAmount': float(row[3]) if row[3] else 0,
+                'commissionRate': f"{float(row[4]) * 100}%" if row[4] else "0%",
+                'paymentDate': row[5].strftime('%Y-%m-%d') if hasattr(row[5], 'strftime') else (str(row[5])[:10] if row[5] else '')
             })
         
         conn.close()
@@ -5976,15 +6308,21 @@ def get_commission_points():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT total_earned, total_paid, current_balance, created_at, updated_at
-                FROM commission_points 
-                WHERE referrer_email = %s
+                SELECT 
+                    COALESCE(SUM(CASE WHEN event = 'earn' THEN amount ELSE 0 END), 0) as total_earned,
+                    COALESCE(SUM(CASE WHEN event = 'payout' THEN ABS(amount) ELSE 0 END), 0) as total_paid,
+                    COALESCE(SUM(amount), 0) as current_balance
+                FROM commission_ledger 
+                WHERE referrer_user_id = %s AND status = 'confirmed'
             """, (referrer_email,))
         else:
             cursor.execute("""
-                SELECT total_earned, total_paid, current_balance, created_at, updated_at
-                FROM commission_points 
-                WHERE referrer_email = ?
+                SELECT 
+                    COALESCE(SUM(CASE WHEN event = 'earn' THEN amount ELSE 0 END), 0) as total_earned,
+                    COALESCE(SUM(CASE WHEN event = 'payout' THEN ABS(amount) ELSE 0 END), 0) as total_paid,
+                    COALESCE(SUM(amount), 0) as current_balance
+                FROM commission_ledger 
+                WHERE referrer_user_id = ? AND status = 'confirmed'
             """, (referrer_email,))
         
         result = cursor.fetchone()
@@ -5995,8 +6333,8 @@ def get_commission_points():
                 'total_earned': float(result[0]),
                 'total_paid': float(result[1]),
                 'current_balance': float(result[2]),
-                'created_at': result[3].isoformat() if hasattr(result[3], 'isoformat') else str(result[3]),
-                'updated_at': result[4].isoformat() if hasattr(result[4], 'isoformat') else str(result[4])
+                'created_at': None,
+                'updated_at': None
             }), 200
         else:
             return jsonify({
@@ -6024,27 +6362,31 @@ def get_commission_transactions():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT transaction_type, amount, balance_after, description, created_at
-                FROM commission_point_transactions 
-                WHERE referrer_email = %s
+                SELECT event, amount, notes, created_at,
+                       (SELECT COALESCE(SUM(amount), 0) FROM commission_ledger 
+                        WHERE referrer_user_id = %s AND status = 'confirmed' AND created_at <= cl.created_at) as balance_after
+                FROM commission_ledger cl
+                WHERE referrer_user_id = %s
                 ORDER BY created_at DESC
-            """, (referrer_email,))
+            """, (referrer_email, referrer_email))
         else:
             cursor.execute("""
-                SELECT transaction_type, amount, balance_after, description, created_at
-                FROM commission_point_transactions 
-                WHERE referrer_email = ?
+                SELECT event, amount, notes, created_at,
+                       (SELECT COALESCE(SUM(amount), 0) FROM commission_ledger 
+                        WHERE referrer_user_id = ? AND status = 'confirmed' AND created_at <= cl.created_at) as balance_after
+                FROM commission_ledger cl
+                WHERE referrer_user_id = ?
                 ORDER BY created_at DESC
-            """, (referrer_email,))
+            """, (referrer_email, referrer_email))
         
         transactions = []
         for row in cursor.fetchall():
             transactions.append({
-                'type': row[0],
+                'type': row[0],  # 'earn' or 'payout'
                 'amount': float(row[1]),
-                'balance_after': float(row[2]),
-                'description': row[3],
-                'created_at': row[4].isoformat() if hasattr(row[4], 'isoformat') else str(row[4])
+                'balance_after': float(row[4]) if len(row) > 4 else 0,
+                'description': row[2] if row[2] else '',
+                'created_at': row[3].isoformat() if hasattr(row[3], 'isoformat') else str(row[3])
             })
         
         conn.close()
@@ -6072,21 +6414,39 @@ def request_withdrawal():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 현재 잔액 확인
+        # referral_code로 referrer_user_id 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT current_balance FROM commission_points 
-                WHERE referrer_email = %s
-            """, (referrer_email,))
+                SELECT code, user_id FROM referral_codes WHERE user_email = %s OR user_id = %s LIMIT 1
+            """, (referrer_email, referrer_email))
         else:
             cursor.execute("""
-                SELECT current_balance FROM commission_points 
-                WHERE referrer_email = ?
-            """, (referrer_email,))
+                SELECT code, user_id FROM referral_codes WHERE user_email = ? OR user_id = ? LIMIT 1
+            """, (referrer_email, referrer_email))
+        
+        referral_result = cursor.fetchone()
+        if not referral_result:
+            return jsonify({'error': '추천인을 찾을 수 없습니다.'}), 404
+        
+        referral_code, referrer_user_id = referral_result
+        
+        # commission_ledger에서 현재 잔액 계산
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT COALESCE(SUM(amount), 0) FROM commission_ledger 
+                WHERE referrer_user_id = %s AND status = 'confirmed'
+            """, (referrer_user_id,))
+        else:
+            cursor.execute("""
+                SELECT COALESCE(SUM(amount), 0) FROM commission_ledger 
+                WHERE referrer_user_id = ? AND status = 'confirmed'
+            """, (referrer_user_id,))
         
         result = cursor.fetchone()
-        if not result or float(result[0]) < float(amount):
-            return jsonify({'error': '잔액이 부족합니다.'}), 400
+        current_balance = float(result[0]) if result else 0.0
+        
+        if current_balance < float(amount):
+            return jsonify({'error': f'잔액이 부족합니다. 현재 잔액: {current_balance}원'}), 400
         
         # 환급 신청 저장
         if DATABASE_URL.startswith('postgresql://'):
@@ -6321,15 +6681,17 @@ def get_scheduled_orders():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT id, user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, processed_at
-                FROM scheduled_orders 
+                SELECT order_id, user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, updated_at
+                FROM orders 
+                WHERE is_scheduled = TRUE
                 ORDER BY scheduled_datetime DESC
                 LIMIT 50
             """)
         else:
             cursor.execute("""
-                SELECT id, user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, processed_at
-                FROM scheduled_orders 
+                SELECT order_id, user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, updated_at
+                FROM orders 
+                WHERE is_scheduled = 1
                 ORDER BY scheduled_datetime DESC
                 LIMIT 50
             """)
@@ -6339,7 +6701,8 @@ def get_scheduled_orders():
         order_list = []
         for order in orders:
             order_list.append({
-                'id': order[0],
+                'id': order[0],  # order_id
+                'order_id': order[0],
                 'user_id': order[1],
                 'service_id': order[2],
                 'link': order[3],
@@ -6695,14 +7058,31 @@ def get_smm_services():
                 'service_ids': result.get('service_ids', [])
             }), 200
         else:
+            error_message = result.get('message', 'Failed to get services')
+            print(f"❌ SMM Panel 서비스 목록 조회 실패: {error_message}")
+            
+            # API 키 오류인 경우 더 명확한 메시지
+            if 'Invalid API key' in error_message or '401' in error_message:
+                error_message = 'API 키가 유효하지 않습니다. .env 파일에 올바른 SMMPANEL_API_KEY를 설정하세요.'
+            
             return jsonify({
                 'success': False,
-                'error': result.get('message', 'Failed to get services')
+                'error': error_message,
+                'details': result.get('message', '')
             }), 500
             
     except Exception as e:
-        print(f"❌ SMM Panel 서비스 목록 조회 오류: {str(e)}")
-        return jsonify({'error': f'서비스 목록 조회 실패: {str(e)}'}), 500
+        error_msg = str(e)
+        print(f"❌ SMM Panel 서비스 목록 조회 오류: {error_msg}")
+        
+        # API 키 관련 오류인 경우
+        if 'Invalid API key' in error_msg or '401' in error_msg:
+            error_msg = 'API 키가 유효하지 않습니다. .env 파일에 올바른 SMMPANEL_API_KEY를 설정하세요.'
+        
+        return jsonify({
+            'error': f'서비스 목록 조회 실패: {error_msg}',
+            'details': str(e)
+        }), 500
 
 # 스케줄러 작업: 예약/분할 주문 처리
 @app.route('/api/cron/process-scheduled-orders', methods=['POST'])
@@ -6766,13 +7146,13 @@ def cron_process_scheduled_orders():
                 # 이미 완료된 반복 횟수 확인
                 if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
-                        SELECT COUNT(*) FROM package_progress 
-                        WHERE order_id = %s AND step_number = 1 AND status = 'completed'
+                        SELECT COUNT(*) FROM execution_progress 
+                        WHERE order_id = %s AND exec_type = 'package' AND step_number = 1 AND status = 'completed'
                     """, (order_id,))
                 else:
                     cursor.execute("""
-                        SELECT COUNT(*) FROM package_progress 
-                        WHERE order_id = ? AND step_number = 1 AND status = 'completed'
+                        SELECT COUNT(*) FROM execution_progress 
+                        WHERE order_id = ? AND exec_type = 'package' AND step_number = 1 AND status = 'completed'
                     """, (order_id,))
                 
                 completed_count = cursor.fetchone()[0]
@@ -8053,13 +8433,18 @@ def serve_spa_routes():
         return jsonify({'error': 'SPA routing failed'}), 500
 
 # SPA 라우팅 지원 - 모든 경로를 index.html로 리다이렉트
+# 주의: 이 라우트는 모든 API 라우트보다 나중에 등록되어야 함
 @app.route('/<path:path>', methods=['GET'])
 def serve_spa(path):
     """SPA 라우팅 지원 - 모든 경로를 index.html로 서빙"""
     print(f"🔍 SPA 라우팅 요청: /{path}")
     
-    # API 경로는 제외
+    # API 경로는 Flask가 자동으로 처리하므로 여기서는 처리하지 않음
+    # Flask는 더 구체적인 라우트를 먼저 매칭하므로, API 라우트가 먼저 매칭됨
+    # 여기서는 API 경로가 아닌 경우에만 처리
     if path.startswith('api/'):
+        # API 경로인데 여기까지 왔다면 실제로 404임
+        print(f"⚠️ API 경로를 찾을 수 없음: /{path}")
         return jsonify({'error': 'API endpoint not found'}), 404
     
     # 정적 파일 경로는 제외
@@ -8107,5 +8492,6 @@ print("✅ 백그라운드 스케줄러 시작됨")
 start_smm_status_checker()
 
 if __name__ == '__main__':
-    # 개발 서버 실행
-    app.run(host='0.0.0.0', port=8000, debug=False)
+    # 개발 서버 실행 (PORT 환경 변수 우선)
+    port = int(os.environ.get('PORT', 8000))
+    app.run(host='0.0.0.0', port=port, debug=False)

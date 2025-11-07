@@ -21,7 +21,7 @@ const Header = () => {
   }
 
   // 사용자 포인트 조회
-  const fetchUserPoints = async () => {
+    const fetchUserPoints = async () => {
     const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid
     
     if (!userId) {
@@ -30,8 +30,8 @@ const Header = () => {
       return
     }
     
-    setPointsLoading(true)
-    try {
+        setPointsLoading(true)
+        try {
       const response = await fetch(`${window.location.origin}/api/points?user_id=${userId}`)
       if (response.ok) {
         const data = await response.json()
@@ -44,9 +44,9 @@ const Header = () => {
       console.error('포인트 조회 오류:', error)
       setUserPoints(0)
     } finally {
-      setPointsLoading(false)
+        setPointsLoading(false)
+      }
     }
-  }
 
   // 포인트 업데이트 이벤트 핸들러
   const handlePointsUpdate = () => {
@@ -89,7 +89,7 @@ const Header = () => {
   const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid
   const userName = currentUser?.displayName || currentUser?.email || localStorage.getItem('userEmail') || '사용자'
 
-  return (
+    return (
     <>
       <header className="header">
         <div className="header-content">
@@ -105,14 +105,14 @@ const Header = () => {
             <Link to="/" className="nav-link">홈</Link>
             <Link to="/orders" className="nav-link">주문내역</Link>
             <Link to="/points" className="nav-link">포인트</Link>
-          </nav>
+        </nav>
           
           <div className="user-section">
             {loading ? (
               <div className="loading">로딩 중...</div>
             ) : userId ? (
               <>
-                <div className="user-info">
+            <div className="user-info">
                   <User size={16} />
                   <span className="user-name">{userName}</span>
                 </div>
@@ -133,7 +133,7 @@ const Header = () => {
                   로그아웃
                 </button>
               </>
-            ) : (
+          ) : (
               <div className="auth-buttons">
                 <button 
                   className="login-btn"
@@ -141,18 +141,18 @@ const Header = () => {
                 >
                   로그인
                 </button>
-                <button 
+            <button 
                   className="signup-btn"
-                  onClick={() => setIsLoginModalOpen(true)}
-                >
+              onClick={() => setIsLoginModalOpen(true)}
+            >
                   회원가입
-                </button>
+            </button>
               </div>
-            )}
-          </div>
+          )}
         </div>
+      </div>
       </header>
-
+      
       <AuthModal 
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
