@@ -20,12 +20,35 @@ from urllib.parse import urlparse, unquote
 
 # UTF-8 인코딩 강제 설정 (Windows에서 psycopg2 내부 인코딩 문제 해결)
 if sys.platform == 'win32':
+    import locale
+    # 모든 인코딩 관련 환경 변수 설정
     os.environ['PYTHONIOENCODING'] = 'utf-8'
+    os.environ['PYTHONLEGACYWINDOWSSTDIO'] = '0'
+    os.environ['PYTHONUTF8'] = '1'
+    
     # Windows 콘솔 인코딩 설정
     if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8')
+        try:
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        except:
+            pass
     if hasattr(sys.stderr, 'reconfigure'):
-        sys.stderr.reconfigure(encoding='utf-8')
+        try:
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        except:
+            pass
+    
+    # Locale 설정 시도
+    try:
+        locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+    except:
+        try:
+            locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+        except:
+            try:
+                locale.setlocale(locale.LC_ALL, '')
+            except:
+                pass
 
 # .env 파일 로드 (로컬 개발용) - UTF-8 인코딩 명시
 try:
@@ -1725,6 +1748,12 @@ def get_db_connection():
         
         # psycopg2.connect()에 전달 (모든 값이 ASCII 문자열)
         # 모든 파라미터를 명시적으로 전달하여 환경 변수 의존성 제거
+        # psycopg2의 내부 로깅을 비활성화하여 인코딩 문제 회피
+        import logging
+        psycopg2_logger = logging.getLogger('psycopg2')
+        psycopg2_logger.setLevel(logging.CRITICAL)
+        
+        # 연결 시도
         conn = psycopg2.connect(
             host=host_str,
             port=5432,
@@ -1734,9 +1763,7 @@ def get_db_connection():
             connect_timeout=30,
             keepalives_idle=600,
             keepalives_interval=30,
-            keepalives_count=3,
-            # 환경 변수 사용 안 함을 명시
-            options='-c client_encoding=UTF8'
+            keepalives_count=3
         )
         
         # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
