@@ -1739,7 +1739,9 @@ def get_db_connection():
         host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
         db_name_bytes = b'postgres'
         db_user_bytes = b'postgres'  # Direct는 postgres 사용
-        db_password_bytes = b'KARDONH0813!'
+        # ⚠️ 중요: Supabase 대시보드에서 정확한 비밀번호 확인 필요
+        # Settings → Database → Database password
+        db_password_bytes = b'KARDONH0813!'  # TODO: 대시보드에서 확인한 정확한 비밀번호로 변경
         
         # ASCII로 decode (항상 성공)
         host_str = host_bytes.decode('ascii')
