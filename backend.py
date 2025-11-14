@@ -1735,11 +1735,10 @@ def get_db_connection():
     
     try:
         # ASCII bytes로 정의 (인코딩 문제 없음)
-        # Pooler 연결 사용 (더 안정적이고 DNS 해석 문제 없음)
-        host_bytes = b'aws-0-ap-southeast-2.pooler.supabase.com'
+        # Direct Connection 우선 시도 (가장 안정적)
+        host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
         db_name_bytes = b'postgres'
-        # Pooler는 postgres.[PROJECT_REF] 형식의 사용자명 사용
-        db_user_bytes = b'postgres.gvtrizwkstaznrlloixi'
+        db_user_bytes = b'postgres'  # Direct는 postgres 사용
         db_password_bytes = b'KARDONH0813!'
         
         # ASCII로 decode (항상 성공)
@@ -1755,11 +1754,11 @@ def get_db_connection():
         psycopg2_logger = logging.getLogger('psycopg2')
         psycopg2_logger.setLevel(logging.CRITICAL)
         
-        # Pooler 연결 시도 (포트 5432 - Session mode, 더 안정적)
+        # Direct Connection 우선 시도
         try:
             conn = psycopg2.connect(
                 host=host_str,
-                port=5432,  # Session mode (포트 6543은 Transaction mode)
+                port=5432,
                 database=db_name_str,
                 user=db_user_str,
                 password=db_password_str,
@@ -1768,32 +1767,18 @@ def get_db_connection():
                 keepalives_interval=30,
                 keepalives_count=3
             )
-        except psycopg2.OperationalError as pooler_error:
-            # Pooler Session mode 실패 시 Transaction mode 시도
+        except psycopg2.OperationalError as direct_error:
+            # Direct Connection 실패 시 Pooler Session mode 시도
             try:
-                print(f"⚠️ Pooler Session mode 실패, Transaction mode 시도: {pooler_error}")
-                conn = psycopg2.connect(
-                    host=host_str,
-                    port=6543,  # Transaction mode
-                    database=db_name_str,
-                    user=db_user_str,
-                    password=db_password_str,
-                    connect_timeout=30,
-                    keepalives_idle=600,
-                    keepalives_interval=30,
-                    keepalives_count=3
-                )
-            except psycopg2.OperationalError as pooler_error2:
-                # Pooler 모두 실패 시 Direct Connection 시도
-                print(f"⚠️ Pooler 모두 실패, Direct Connection 시도: {pooler_error2}")
-                host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
-                db_user_bytes = b'postgres'  # Direct는 postgres 사용
+                print(f"⚠️ Direct Connection 실패, Pooler Session mode 시도: {direct_error}")
+                host_bytes = b'aws-0-ap-southeast-2.pooler.supabase.com'
+                db_user_bytes = b'postgres.gvtrizwkstaznrlloixi'  # Pooler는 postgres.[PROJECT_REF] 형식
                 host_str = host_bytes.decode('ascii')
                 db_user_str = db_user_bytes.decode('ascii')
                 
                 conn = psycopg2.connect(
                     host=host_str,
-                    port=5432,
+                    port=5432,  # Session mode
                     database=db_name_str,
                     user=db_user_str,
                     password=db_password_str,
@@ -1802,6 +1787,24 @@ def get_db_connection():
                     keepalives_interval=30,
                     keepalives_count=3
                 )
+            except psycopg2.OperationalError as pooler_error:
+                # Pooler Session mode 실패 시 Transaction mode 시도
+                try:
+                    print(f"⚠️ Pooler Session mode 실패, Transaction mode 시도: {pooler_error}")
+                    conn = psycopg2.connect(
+                        host=host_str,
+                        port=6543,  # Transaction mode
+                        database=db_name_str,
+                        user=db_user_str,
+                        password=db_password_str,
+                        connect_timeout=30,
+                        keepalives_idle=600,
+                        keepalives_interval=30,
+                        keepalives_count=3
+                    )
+                except psycopg2.OperationalError as pooler_error2:
+                    # 모든 연결 방법 실패
+                    raise Exception(f"모든 연결 방법 실패: Direct={direct_error}, Session={pooler_error}, Transaction={pooler_error2}")
         
         # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
         conn.autocommit = False
