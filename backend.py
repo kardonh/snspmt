@@ -4893,21 +4893,15 @@ def get_user(user_id):
                                 'name': existing_user[2] or '사용자',
                                 'created_at': existing_user[3].isoformat() if existing_user[3] and hasattr(existing_user[3], 'isoformat') else (str(existing_user[3]) if existing_user[3] else None)
                             }), 200
-                    else:
-                        # 이미 존재하는 경우, 다시 조회
-                        cursor.execute("""
-                            SELECT user_id, email, name, created_at
-                            FROM users WHERE user_id = %s
-                        """, (user_id,))
-                        user = cursor.fetchone()
-                        if user:
-                            user_data = {
-                                'user_id': user[0],
-                                'email': user[1],
-                                'name': user[2],
-                                'created_at': user[3].isoformat() if user[3] and hasattr(user[3], 'isoformat') else (str(user[3]) if user[3] else None)
-                            }
-                            return jsonify(user_data), 200
+                        else:
+                            # 사용자를 찾을 수 없는 경우 기본 정보 반환
+                            return jsonify({
+                                'user_id': user_id,
+                                'email': default_email,
+                                'name': 'User',
+                                'created_at': None,
+                                'message': '사용자 정보가 없습니다.'
+                            }), 200
                 else:
                     cursor.execute("""
                         INSERT OR IGNORE INTO users (user_id, email, name, created_at, updated_at)
