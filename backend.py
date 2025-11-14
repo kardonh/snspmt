@@ -1727,18 +1727,35 @@ def get_db_connection():
             db_url_clean = ''.join(c for c in db_url if c.isprintable() or c in ':/@%.-')
             
             # PostgreSQL 연결 문자열 파싱: postgresql://user:password@host:port/database
+            # 더 유연한 정규식 패턴 사용
             match = re.match(r'postgresql://([^:]+):([^@]+)@([^:/]+)(?::(\d+))?/(.+)', db_url_clean)
+            if not match:
+                # 더 간단한 패턴으로 재시도
+                match = re.match(r'postgresql://([^:]+):([^@]+)@([^@]+)/(.+)', db_url_clean)
+            
             if match:
-                username, password_encoded, hostname, port_str, database = match.groups()
+                groups = match.groups()
+                if len(groups) == 5:
+                    username, password_encoded, hostname, port_str, database = groups
+                    port = int(port_str) if port_str else 5432
+                elif len(groups) == 4:
+                    username, password_encoded, hostname_port, database = groups
+                    # hostname:port 분리
+                    if ':' in hostname_port:
+                        hostname, port_str = hostname_port.rsplit(':', 1)
+                        port = int(port_str) if port_str.isdigit() else 5432
+                    else:
+                        hostname = hostname_port
+                        port = 5432
+                else:
+                    raise ValueError(f"정규식 매칭 그룹 수가 예상과 다릅니다: {len(groups)}")
+                
                 # 비밀번호 URL 디코딩
                 try:
                     password = unquote(password_encoded)
                 except Exception:
                     # unquote 실패 시 그대로 사용
                     password = password_encoded
-                
-                # 포트 번호 처리
-                port = int(port_str) if port_str else 5432
                 
                 # 개별 파라미터로 연결 (인코딩 문제 방지)
                 conn = psycopg2.connect(
@@ -1754,10 +1771,9 @@ def get_db_connection():
                 )
             else:
                 # 정규식 파싱 실패 - 하드코딩된 값으로 직접 연결 시도
-                # 디버깅: 연결 문자열의 일부만 출력
                 print(f"⚠️ 정규식 파싱 실패, 직접 연결 시도")
                 print(f"   연결 문자열 길이: {len(db_url_clean)}")
-                print(f"   연결 문자열 시작: {db_url_clean[:60]}...")
+                print(f"   연결 문자열: {db_url_clean[:80]}...")
                 
                 # 하드코딩된 Supabase 연결 정보로 직접 연결
                 # 이는 임시 해결책이며, .env 파일을 수정해야 합니다
