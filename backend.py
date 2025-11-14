@@ -1740,7 +1740,7 @@ def get_db_connection():
         db_name_bytes = b'postgres'
         db_user_bytes = b'postgres'  # Direct는 postgres 사용
         # Supabase 데이터베이스 비밀번호
-        db_password_bytes = b'kardonh0813!'
+        db_password_bytes = b'VEOdjCwztZm4oynz'
         
         # ASCII로 decode (항상 성공)
         host_str = host_bytes.decode('ascii')
