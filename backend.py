@@ -4939,19 +4939,52 @@ def get_my_codes():
         # 사용자의 추천인 코드 조회 (user_id 또는 user_email로 검색)
         print(f"🔍 추천인 코드 조회 - user_id: {user_id}")
         
-        # 먼저 전체 코드 수 확인
+        # 새 스키마에서는 users.referral_code 사용
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("SELECT COUNT(*) FROM referral_codes")
-            total_codes = cursor.fetchone()[0]
-            print(f"📊 전체 추천인 코드 수: {total_codes}")
-            
-            # 사용자별 코드 조회 (user_email 우선, user_id 보조)
-            cursor.execute("""
-                SELECT code, is_active, usage_count, total_commission, created_at
-                FROM referral_codes 
-                WHERE user_email = %s OR user_id = %s
-                ORDER BY created_at DESC
-            """, (user_id, user_id))
+            try:
+                # external_uid로 사용자 찾기
+                cursor.execute("""
+                    SELECT user_id, referral_code, created_at
+                    FROM users 
+                    WHERE external_uid = %s OR email = %s
+                    LIMIT 1
+                """, (user_id, user_id))
+                user_result = cursor.fetchone()
+                
+                if not user_result or not user_result[1]:
+                    return jsonify({'codes': []}), 200
+                
+                # users.referral_code를 사용하여 코드 반환
+                referral_code = user_result[1]
+                created_at = user_result[2]
+                
+                # 커미션 정보는 commissions 테이블에서 계산
+                cursor.execute("""
+                    SELECT COALESCE(SUM(c.amount), 0) as total_commission,
+                           COUNT(DISTINCT c.commission_id) as usage_count
+                    FROM commissions c
+                    JOIN referrals r ON c.referral_id = r.referral_id
+                    WHERE r.referrer_user_id = %s
+                """, (user_result[0],))
+                commission_result = cursor.fetchone()
+                total_commission = float(commission_result[0]) if commission_result and commission_result[0] else 0.0
+                usage_count = commission_result[1] if commission_result and commission_result[1] else 0
+                
+                codes = [{
+                    'code': referral_code,
+                    'is_active': True,
+                    'usage_count': usage_count,
+                    'total_commission': total_commission,
+                    'created_at': created_at.isoformat() if created_at and hasattr(created_at, 'isoformat') else (str(created_at) if created_at else None)
+                }]
+                
+                conn.close()
+                return jsonify({'codes': codes}), 200
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'codes': []}), 200
         else:
             cursor.execute("""
                 SELECT code, is_active, usage_count, total_commission, created_at
@@ -5253,13 +5286,32 @@ def get_user_coupons():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT id, referral_code, discount_type, discount_value, is_used, 
-                    created_at, expires_at, used_at
-                FROM coupons 
-                WHERE user_id = %s
-                ORDER BY created_at DESC
-            """, (user_id,))
+            # 새 스키마: user_coupons와 coupons 조인 필요
+            try:
+                # external_uid로 사용자 찾기
+                cursor.execute("""
+                    SELECT user_id FROM users 
+                    WHERE external_uid = %s OR email = %s
+                    LIMIT 1
+                """, (user_id, user_id))
+                user_result = cursor.fetchone()
+                if not user_result:
+                    return jsonify({'coupons': []}), 200
+                db_user_id = user_result[0]
+                
+                cursor.execute("""
+                    SELECT uc.user_coupon_id, c.coupon_code, c.coupon_name, c.discount_type, c.discount_value,
+                           uc.status, uc.issued_at, uc.used_at, c.valid_until
+                    FROM user_coupons uc
+                    JOIN coupons c ON uc.coupon_id = c.coupon_id
+                    WHERE uc.user_id = %s
+                    ORDER BY uc.issued_at DESC
+                """, (db_user_id,))
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'coupons': []}), 200
         else:
             cursor.execute("""
                 SELECT id, referral_code, discount_type, discount_value, is_used, 
@@ -5271,36 +5323,53 @@ def get_user_coupons():
         
         coupons = []
         for row in cursor.fetchall():
-            # 날짜 형식 처리
-            created_at = row[5]
-            expires_at = row[6]
-            used_at = row[7]
-            
-            if hasattr(created_at, 'isoformat'):
-                created_at = created_at.isoformat()
-            else:
-                created_at = str(created_at)
+            if DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: user_coupon_id, coupon_code, coupon_name, discount_type, discount_value, status, issued_at, used_at, valid_until
+                issued_at = row[6] if len(row) > 6 else None
+                used_at = row[7] if len(row) > 7 else None
+                valid_until = row[8] if len(row) > 8 else None
                 
-            if hasattr(expires_at, 'isoformat'):
-                expires_at = expires_at.isoformat()
+                coupons.append({
+                    'id': row[0],
+                    'referral_code': row[1],  # coupon_code
+                    'discount_type': row[3],
+                    'discount_value': float(row[4]) if row[4] else 0.0,
+                    'is_used': row[5] == 'used' if row[5] else False,  # status가 'used'면 사용됨
+                    'created_at': issued_at.isoformat() if issued_at and hasattr(issued_at, 'isoformat') else (str(issued_at) if issued_at else None),
+                    'expires_at': valid_until.isoformat() if valid_until and hasattr(valid_until, 'isoformat') else (str(valid_until) if valid_until else None),
+                    'used_at': used_at.isoformat() if used_at and hasattr(used_at, 'isoformat') else (str(used_at) if used_at else None)
+                })
             else:
-                expires_at = str(expires_at)
+                # 구 스키마 (SQLite)
+                created_at = row[5]
+                expires_at = row[6]
+                used_at = row[7]
                 
-            if used_at and hasattr(used_at, 'isoformat'):
-                used_at = used_at.isoformat()
-            else:
-                used_at = str(used_at) if used_at else None
-            
-            coupons.append({
-                'id': row[0],
-                'referral_code': row[1],
-                'discount_type': row[2],
-                'discount_value': row[3],
-                'is_used': row[4],
-                'created_at': created_at,
-                'expires_at': expires_at,
-                'used_at': used_at
-            })
+                if hasattr(created_at, 'isoformat'):
+                    created_at = created_at.isoformat()
+                else:
+                    created_at = str(created_at)
+                    
+                if hasattr(expires_at, 'isoformat'):
+                    expires_at = expires_at.isoformat()
+                else:
+                    expires_at = str(expires_at)
+                    
+                if used_at and hasattr(used_at, 'isoformat'):
+                    used_at = used_at.isoformat()
+                else:
+                    used_at = str(used_at) if used_at else None
+                
+                coupons.append({
+                    'id': row[0],
+                    'referral_code': row[1],
+                    'discount_type': row[2],
+                    'discount_value': row[3],
+                    'is_used': row[4],
+                    'created_at': created_at,
+                    'expires_at': expires_at,
+                    'used_at': used_at
+                })
         
         conn.close()
         return jsonify({'coupons': coupons}), 200
@@ -6061,11 +6130,38 @@ def get_purchase_history():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT id, amount, price, status, created_at
-                FROM point_purchases WHERE user_id = %s
-                ORDER BY created_at DESC
-            """, (user_id,))
+            # 새 스키마에서는 wallet_transactions 사용
+            try:
+                # external_uid로 사용자 찾기
+                cursor.execute("""
+                    SELECT user_id FROM users 
+                    WHERE external_uid = %s OR email = %s
+                    LIMIT 1
+                """, (user_id, user_id))
+                user_result = cursor.fetchone()
+                if not user_result:
+                    return jsonify({'purchases': []}), 200
+                db_user_id = user_result[0]
+                
+                # wallet_id 찾기
+                cursor.execute("SELECT wallet_id FROM wallets WHERE user_id = %s", (db_user_id,))
+                wallet_result = cursor.fetchone()
+                if not wallet_result:
+                    return jsonify({'purchases': []}), 200
+                wallet_id = wallet_result[0]
+                
+                # wallet_transactions에서 topup 타입만 조회
+                cursor.execute("""
+                    SELECT transaction_id, amount, created_at, status
+                    FROM wallet_transactions 
+                    WHERE wallet_id = %s AND type = 'topup'
+                    ORDER BY created_at DESC
+                """, (wallet_id,))
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'purchases': []}), 200
         else:
             cursor.execute("""
                 SELECT id, amount, price, status, created_at
@@ -6078,13 +6174,23 @@ def get_purchase_history():
         
         purchase_list = []
         for purchase in purchases:
-            purchase_list.append({
-                'id': purchase[0],
-                'amount': purchase[1],
-                'price': float(purchase[2]),
-                'status': purchase[3],
-                'created_at': purchase[4].isoformat() if hasattr(purchase[4], 'isoformat') else str(purchase[4])
-            })
+            if DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: transaction_id, amount, created_at, status
+                purchase_list.append({
+                    'id': purchase[0],
+                    'amount': float(purchase[1]) if purchase[1] else 0.0,
+                    'price': float(purchase[1]) if purchase[1] else 0.0,  # amount를 price로도 사용
+                    'status': purchase[3] if len(purchase) > 3 else 'approved',
+                    'created_at': purchase[2].isoformat() if purchase[2] and hasattr(purchase[2], 'isoformat') else (str(purchase[2]) if purchase[2] else None)
+                })
+            else:
+                purchase_list.append({
+                    'id': purchase[0],
+                    'amount': purchase[1],
+                    'price': float(purchase[2]),
+                    'status': purchase[3],
+                    'created_at': purchase[4].isoformat() if hasattr(purchase[4], 'isoformat') else str(purchase[4])
+                })
         
         return jsonify({
             'purchases': purchase_list
@@ -7175,10 +7281,10 @@ def get_active_notices():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
+            # 새 스키마: notice_id, title, body, image_url, created_at (is_active 없음)
             cursor.execute("""
-                SELECT id, title, content, image_url, created_at
+                SELECT notice_id, title, body, image_url, created_at
                 FROM notices 
-                WHERE is_active = true
                 ORDER BY created_at DESC
                 LIMIT 5
             """)
@@ -7196,9 +7302,9 @@ def get_active_notices():
             notices.append({
                 'id': row[0],
                 'title': row[1],
-                'content': row[2],
+                'content': row[2],  # body를 content로 매핑
                 'image_url': row[3],
-                'created_at': row[4].isoformat() if row[4] else None
+                'created_at': row[4].isoformat() if row[4] and hasattr(row[4], 'isoformat') else (str(row[4]) if row[4] else None)
             })
         
         conn.close()
