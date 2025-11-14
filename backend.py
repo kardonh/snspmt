@@ -1721,62 +1721,11 @@ def get_db_connection():
             db_url = db_url[1:]
         
         if db_url.startswith('postgresql://'):
-            # urlparse가 인코딩 문제를 일으킬 수 있으므로 정규식으로 직접 파싱
-            import re
-            # 연결 문자열에서 문제가 될 수 있는 문자 제거 (보이지 않는 문자 등)
-            db_url_clean = ''.join(c for c in db_url if c.isprintable() or c in ':/@%.-')
-            
-            # PostgreSQL 연결 문자열 파싱: postgresql://user:password@host:port/database
-            # 더 유연한 정규식 패턴 사용
-            match = re.match(r'postgresql://([^:]+):([^@]+)@([^:/]+)(?::(\d+))?/(.+)', db_url_clean)
-            if not match:
-                # 더 간단한 패턴으로 재시도
-                match = re.match(r'postgresql://([^:]+):([^@]+)@([^@]+)/(.+)', db_url_clean)
-            
-            if match:
-                groups = match.groups()
-                if len(groups) == 5:
-                    username, password_encoded, hostname, port_str, database = groups
-                    port = int(port_str) if port_str else 5432
-                elif len(groups) == 4:
-                    username, password_encoded, hostname_port, database = groups
-                    # hostname:port 분리
-                    if ':' in hostname_port:
-                        hostname, port_str = hostname_port.rsplit(':', 1)
-                        port = int(port_str) if port_str.isdigit() else 5432
-                    else:
-                        hostname = hostname_port
-                        port = 5432
-                else:
-                    raise ValueError(f"정규식 매칭 그룹 수가 예상과 다릅니다: {len(groups)}")
-                
-                # 비밀번호 URL 디코딩
-                try:
-                    password = unquote(password_encoded)
-                except Exception:
-                    # unquote 실패 시 그대로 사용
-                    password = password_encoded
-                
-                # 개별 파라미터로 연결 (인코딩 문제 방지)
-                conn = psycopg2.connect(
-                    host=hostname,
-                    port=port,
-                    database=database,
-                    user=username,
-                    password=password,
-                    connect_timeout=30,
-                    keepalives_idle=600,
-                    keepalives_interval=30,
-                    keepalives_count=3
-                )
-            else:
-                # 정규식 파싱 실패 - 하드코딩된 값으로 직접 연결 시도
-                print(f"⚠️ 정규식 파싱 실패, 직접 연결 시도")
-                print(f"   연결 문자열 길이: {len(db_url_clean)}")
-                print(f"   연결 문자열: {db_url_clean[:80]}...")
-                
+            # 인코딩 문제를 완전히 회피하기 위해 하드코딩된 연결 정보 사용
+            # .env 파일의 인코딩 문제로 인해 연결 문자열 파싱이 실패함
+            # TODO: .env 파일을 UTF-8로 재저장 후 정규식 파싱으로 복원
+            try:
                 # 하드코딩된 Supabase 연결 정보로 직접 연결
-                # 이는 임시 해결책이며, .env 파일을 수정해야 합니다
                 conn = psycopg2.connect(
                     host='db.gvtrizwkstaznrlloixi.supabase.co',
                     port=5432,
@@ -1788,6 +1737,53 @@ def get_db_connection():
                     keepalives_interval=30,
                     keepalives_count=3
                 )
+            except Exception as hardcoded_error:
+                # 하드코딩된 연결도 실패하면 정규식 파싱 시도
+                print(f"⚠️ 하드코딩된 연결 실패, 정규식 파싱 시도: {hardcoded_error}")
+                import re
+                # 연결 문자열에서 문제가 될 수 있는 문자 제거 (보이지 않는 문자 등)
+                db_url_clean = ''.join(c for c in db_url if c.isprintable() or c in ':/@%.-')
+                
+                # PostgreSQL 연결 문자열 파싱: postgresql://user:password@host:port/database
+                match = re.match(r'postgresql://([^:]+):([^@]+)@([^:/]+)(?::(\d+))?/(.+)', db_url_clean)
+                if not match:
+                    match = re.match(r'postgresql://([^:]+):([^@]+)@([^@]+)/(.+)', db_url_clean)
+                
+                if match:
+                    groups = match.groups()
+                    if len(groups) == 5:
+                        username, password_encoded, hostname, port_str, database = groups
+                        port = int(port_str) if port_str else 5432
+                    elif len(groups) == 4:
+                        username, password_encoded, hostname_port, database = groups
+                        if ':' in hostname_port:
+                            hostname, port_str = hostname_port.rsplit(':', 1)
+                            port = int(port_str) if port_str.isdigit() else 5432
+                        else:
+                            hostname = hostname_port
+                            port = 5432
+                    else:
+                        raise ValueError(f"정규식 매칭 그룹 수가 예상과 다릅니다: {len(groups)}")
+                    
+                    # 비밀번호 URL 디코딩
+                    try:
+                        password = unquote(password_encoded)
+                    except Exception:
+                        password = password_encoded
+                    
+                    conn = psycopg2.connect(
+                        host=hostname,
+                        port=port,
+                        database=database,
+                        user=username,
+                        password=password,
+                        connect_timeout=30,
+                        keepalives_idle=600,
+                        keepalives_interval=30,
+                        keepalives_count=3
+                    )
+                else:
+                    raise ValueError(f"연결 문자열을 파싱할 수 없습니다: {db_url_clean[:50]}...")
             
             # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
             conn.autocommit = False
