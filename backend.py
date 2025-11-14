@@ -4786,10 +4786,13 @@ def get_user(user_id):
         print(f"✅ DB 연결 성공 - user_id: {user_id}", flush=True)
         
         if DATABASE_URL.startswith('postgresql://'):
+            # 새 스키마에서는 external_uid로 사용자 찾기
             cursor.execute("""
-                SELECT user_id, email, name, created_at
-                FROM users WHERE user_id = %s
-            """, (user_id,))
+                SELECT user_id, email, username, display_name, created_at
+                FROM users 
+                WHERE external_uid = %s OR email = %s OR user_id::text = %s
+                LIMIT 1
+            """, (user_id, user_id, user_id))
         else:
             cursor.execute("""
                 SELECT user_id, email, name, created_at
