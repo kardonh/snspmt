@@ -1691,10 +1691,19 @@ def get_db_connection():
         if os.environ.get('FLASK_ENV') != 'production':
             pass
         
-        if DATABASE_URL.startswith('postgresql://'):
+        # 함수 내에서 DATABASE_URL을 다시 읽어서 인코딩 문제 방지
+        db_url = os.environ.get('DATABASE_URL') or DATABASE_URL
+        if not db_url:
+            raise ValueError("DATABASE_URL 환경 변수가 설정되지 않았습니다")
+        
+        # 연결 문자열을 명시적으로 UTF-8로 처리
+        if isinstance(db_url, bytes):
+            db_url = db_url.decode('utf-8')
+        
+        if db_url.startswith('postgresql://'):
             # PostgreSQL 연결 설정 최적화
             conn = psycopg2.connect(
-                DATABASE_URL,
+                db_url,
                 connect_timeout=30,
                 keepalives_idle=600,
                 keepalives_interval=30,
