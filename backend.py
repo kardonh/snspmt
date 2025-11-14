@@ -3935,33 +3935,37 @@ def purchase_points():
                             # 다른 종류의 오류는 그대로 전파
                             raise
                 
-                # 사용자 존재 확인 (반드시 필요)
-                cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id_str,))
-                if not cursor.fetchone():
+                # 새 스키마에서는 external_uid로 사용자 찾기
+                cursor.execute("SELECT user_id FROM users WHERE external_uid = %s OR email = %s", (user_id_str, user_email))
+                user_result = cursor.fetchone()
+                if not user_result:
                     raise Exception(f"사용자 생성 실패: {user_id_str}가 users 테이블에 존재하지 않습니다.")
-                print(f"✅ 사용자 확인 완료: {user_id_str}", flush=True)
+                db_user_id = user_result[0]
+                print(f"✅ 사용자 확인 완료: user_id={db_user_id}, external_uid={user_id_str}", flush=True)
                 
-                # 같은 트랜잭션 내에서 points 레코드 생성 (외래 키 제약 조건이 적용됨)
+                # 새 스키마에서는 wallets 테이블 사용
                 cursor.execute("""
-                    INSERT INTO points (user_id, points, created_at, updated_at)
+                    INSERT INTO wallets (user_id, balance, created_at, updated_at)
                     VALUES (%s, 0, NOW(), NOW())
                     ON CONFLICT (user_id) DO NOTHING
-                """, (user_id_str,))
-                print(f"✅ 포인트 레코드 생성/확인 완료: {user_id_str}", flush=True)
+                """, (db_user_id,))
+                print(f"✅ 지갑 레코드 생성/확인 완료: user_id={db_user_id}", flush=True)
                 
-                # 포인트 레코드 존재 확인
-                cursor.execute("SELECT user_id FROM points WHERE user_id = %s", (user_id_str,))
-                if not cursor.fetchone():
-                    raise Exception(f"포인트 레코드 생성 실패: {user_id_str}가 points 테이블에 존재하지 않습니다.")
+                # wallet_id 찾기
+                cursor.execute("SELECT wallet_id FROM wallets WHERE user_id = %s", (db_user_id,))
+                wallet_result = cursor.fetchone()
+                if not wallet_result:
+                    raise Exception(f"지갑 생성 실패: user_id={db_user_id}가 wallets 테이블에 존재하지 않습니다.")
+                wallet_id = wallet_result[0]
                 
-                # 같은 트랜잭션 내에서 point_purchases 삽입
+                # 새 스키마에서는 wallet_transactions 사용 (point_purchases 대신)
                 cursor.execute("""
-                    INSERT INTO point_purchases (user_id, amount, price, status, buyer_name, bank_info, created_at, updated_at)
-                    VALUES (%s, %s, %s, 'pending', %s, %s, NOW(), NOW())
-                    RETURNING id
-                """, (user_id_str, amount, price, buyer_name, bank_info))
+                    INSERT INTO wallet_transactions (wallet_id, type, amount, status, meta_json, created_at, updated_at)
+                    VALUES (%s, 'topup', %s, 'pending', %s::jsonb, NOW(), NOW())
+                    RETURNING transaction_id
+                """, (wallet_id, price, json.dumps({'buyer_name': buyer_name, 'bank_info': bank_info, 'amount': amount})))
                 purchase_id = cursor.fetchone()[0]
-                print(f"✅ 포인트 구매 삽입 완료: purchase_id={purchase_id}, user_id={user_id_str}", flush=True)
+                print(f"✅ 포인트 구매 삽입 완료: transaction_id={purchase_id}, wallet_id={wallet_id}", flush=True)
                 
             except Exception as db_error:
                 conn.rollback()
@@ -4456,30 +4460,35 @@ def get_admin_stats():
             cursor.execute("SELECT COUNT(*) FROM orders")
             total_orders = cursor.fetchone()[0]
             
-            # 총 매출 (주문 + 포인트 구매)
+            # 총 매출 (주문 + 포인트 구매) - 새 스키마에서는 wallet_transactions 사용
+            cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE status = 'completed'")
+            order_revenue = cursor.fetchone()[0] or 0
+            
             cursor.execute("""
-                SELECT COALESCE(SUM(price), 0) FROM orders WHERE status = 'completed'
-                UNION ALL
-                SELECT COALESCE(SUM(price), 0) FROM point_purchases WHERE status = 'approved'
+                SELECT COALESCE(SUM(wt.amount), 0) 
+                FROM wallet_transactions wt
+                WHERE wt.type = 'topup' AND wt.status = 'approved'
             """)
-            order_revenue = cursor.fetchone()[0] if cursor.rowcount > 0 else 0
-            cursor.execute("SELECT COALESCE(SUM(price), 0) FROM point_purchases WHERE status = 'approved'")
-            purchase_revenue = cursor.fetchone()[0]
+            purchase_revenue = cursor.fetchone()[0] or 0
             total_revenue = order_revenue + purchase_revenue
             
             # 대기 중인 포인트 구매
-            cursor.execute("SELECT COUNT(*) FROM point_purchases WHERE status = 'pending'")
-            pending_purchases = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM wallet_transactions WHERE type = 'topup' AND status = 'pending'")
+            pending_purchases = cursor.fetchone()[0] or 0
             
             # 오늘 주문 수
             cursor.execute("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = CURRENT_DATE")
             today_orders = cursor.fetchone()[0]
             
             # 오늘 매출 (주문 + 포인트 구매)
-            cursor.execute("SELECT COALESCE(SUM(price), 0) FROM orders WHERE DATE(created_at) = CURRENT_DATE AND status = 'completed'")
-            today_order_revenue = cursor.fetchone()[0]
-            cursor.execute("SELECT COALESCE(SUM(price), 0) FROM point_purchases WHERE DATE(created_at) = CURRENT_DATE AND status = 'approved'")
-            today_purchase_revenue = cursor.fetchone()[0]
+            cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE DATE(created_at) = CURRENT_DATE AND status = 'completed'")
+            today_order_revenue = cursor.fetchone()[0] or 0
+            cursor.execute("""
+                SELECT COALESCE(SUM(wt.amount), 0) 
+                FROM wallet_transactions wt
+                WHERE DATE(wt.created_at) = CURRENT_DATE AND wt.type = 'topup' AND wt.status = 'approved'
+            """)
+            today_purchase_revenue = cursor.fetchone()[0] or 0
             today_revenue = today_order_revenue + today_purchase_revenue
         else:
             # SQLite 버전
@@ -5394,31 +5403,38 @@ def get_referral_commission_overview():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
-            # 추천인별 커미션 현황 조회 (commission_ledger 사용)
-            cursor.execute("""
-                SELECT 
-                    rc.user_email,
-                    rc.name,
-                    rc.code,
-                    COUNT(DISTINCT cl.referred_user_id) as referral_count,
-                    COALESCE(SUM(CASE WHEN cl.event = 'earn' THEN cl.amount ELSE 0 END), 0) as total_commission,
-                    COALESCE(SUM(CASE 
-                        WHEN cl.event = 'earn' AND cl.created_at >= DATE_TRUNC('month', CURRENT_DATE) 
-                        THEN cl.amount 
-                        ELSE 0 
-                    END), 0) as this_month_commission,
-                    COALESCE(SUM(CASE 
-                        WHEN cl.event = 'earn' AND cl.created_at >= DATE_TRUNC('month', CURRENT_DATE)
-                        AND cl.status = 'confirmed'
-                        THEN cl.amount 
-                        ELSE 0 
-                    END), 0) as unpaid_commission
-                FROM referral_codes rc
-                LEFT JOIN commission_ledger cl ON rc.code = cl.referral_code AND cl.status = 'confirmed'
-                WHERE rc.is_active = true
-                GROUP BY rc.user_email, rc.name, rc.code
-                ORDER BY total_commission DESC
-            """)
+            # 새 스키마에서는 commissions와 referrals 사용
+            try:
+                cursor.execute("""
+                    SELECT 
+                        u.email,
+                        u.username,
+                        u.referral_code,
+                        COUNT(DISTINCT r.referred_user_id) as referral_count,
+                        COALESCE(SUM(c.amount), 0) as total_commission,
+                        COALESCE(SUM(CASE 
+                            WHEN c.created_at >= DATE_TRUNC('month', CURRENT_DATE) 
+                            THEN c.amount 
+                            ELSE 0 
+                        END), 0) as this_month_commission,
+                        COALESCE(SUM(CASE 
+                            WHEN c.created_at >= DATE_TRUNC('month', CURRENT_DATE)
+                            AND c.status = 'confirmed'
+                            THEN c.amount 
+                            ELSE 0 
+                        END), 0) as unpaid_commission
+                    FROM users u
+                    LEFT JOIN referrals r ON u.user_id = r.referrer_user_id
+                    LEFT JOIN commissions c ON r.referral_id = c.referral_id AND c.status = 'confirmed'
+                    WHERE u.referral_code IS NOT NULL
+                    GROUP BY u.email, u.username, u.referral_code
+                    ORDER BY total_commission DESC
+                """)
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'overview': []}), 200
         else:
             # SQLite 버전
             cursor.execute("""
@@ -5609,12 +5625,19 @@ def get_payment_history():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT referrer_user_id, amount, notes, created_at
-                FROM commission_ledger
-                WHERE event = 'payout' AND status = 'confirmed'
-                ORDER BY created_at DESC
-            """)
+            # 새 스키마에서는 payouts 테이블 사용
+            try:
+                cursor.execute("""
+                    SELECT p.user_id, p.amount, p.notes, p.paid_at
+                    FROM payouts p
+                    WHERE p.status = 'completed'
+                    ORDER BY p.paid_at DESC
+                """)
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'payments': []}), 200
         else:
             cursor.execute("""
                 SELECT referrer_user_id, amount, notes, created_at
@@ -5953,11 +5976,20 @@ def admin_get_referrals():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT id, user_email, code, name, phone, created_at, is_active
-                FROM referral_codes 
-                ORDER BY created_at DESC
-            """)
+            # 새 스키마에서는 referrals 테이블 사용
+            try:
+                cursor.execute("""
+                    SELECT r.referral_id, u.email, u.referral_code, u.username, NULL as phone, r.created_at, 
+                           'active' as status
+                    FROM referrals r
+                    JOIN users u ON r.referrer_user_id = u.user_id
+                    ORDER BY r.created_at DESC
+                """)
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'referrals': []}), 200
         else:
             cursor.execute("""
                 SELECT id, user_email, code, name, phone, created_at, is_active
@@ -5976,15 +6008,27 @@ def admin_get_referrals():
             else:
                 join_date = str(join_date)[:10]
             
-            referrals.append({
-                'id': row[0],
-                'email': row[1],
-                'referralCode': row[2],
-                'name': row[3],
-                'phone': row[4],
-                'joinDate': join_date,
-                'status': 'active' if row[6] else 'inactive'
-            })
+            if DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: referral_id, email, referral_code, username, phone, created_at, status
+                referrals.append({
+                    'id': str(row[0]),
+                    'email': row[1],
+                    'referralCode': row[2],
+                    'name': row[3] or '사용자',
+                    'phone': row[4],
+                    'joinDate': row[5].isoformat()[:10] if row[5] and hasattr(row[5], 'isoformat') else (str(row[5])[:10] if row[5] else None),
+                    'status': 'active'
+                })
+            else:
+                referrals.append({
+                    'id': row[0],
+                    'email': row[1],
+                    'referralCode': row[2],
+                    'name': row[3],
+                    'phone': row[4],
+                    'joinDate': join_date,
+                    'status': 'active' if row[6] else 'inactive'
+                })
         
         return jsonify({
             'referrals': referrals,
@@ -6010,17 +6054,25 @@ def admin_get_referral_codes():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
-            # 먼저 모든 코드를 강제로 활성화
-            cursor.execute("UPDATE referral_codes SET is_active = true")
-            print("🔄 관리자 API에서 모든 코드 강제 활성화")
-            
-            cursor.execute("""
-                SELECT id, code, user_email, name, phone, created_at, is_active, 
-                    COALESCE(usage_count, 0) as usage_count, 
-                    COALESCE(total_commission, 0) as total_commission
-                FROM referral_codes 
-                ORDER BY created_at DESC
-            """)
+            # 새 스키마에서는 users.referral_code 사용
+            try:
+                cursor.execute("""
+                    SELECT u.user_id, u.referral_code, u.email, u.username, NULL as phone, u.created_at, 
+                           TRUE as is_active,
+                           COUNT(DISTINCT r.referral_id) as usage_count,
+                           COALESCE(SUM(c.amount), 0) as total_commission
+                    FROM users u
+                    LEFT JOIN referrals r ON u.user_id = r.referrer_user_id
+                    LEFT JOIN commissions c ON r.referral_id = c.referral_id
+                    WHERE u.referral_code IS NOT NULL
+                    GROUP BY u.user_id, u.referral_code, u.email, u.username, u.created_at
+                    ORDER BY u.created_at DESC
+                """)
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'codes': []}), 200
         else:
             cursor.execute("""
                 SELECT id, code, user_email, name, phone, created_at, is_active, 
@@ -6032,8 +6084,20 @@ def admin_get_referral_codes():
         
         codes = []
         for row in cursor.fetchall():
+            if DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: user_id, referral_code, email, username, phone, created_at, is_active, usage_count, total_commission
+                created_at = row[5]
+                is_active = row[6] if len(row) > 6 else True
+                usage_count = row[7] if len(row) > 7 else 0
+                total_commission = float(row[8]) if len(row) > 8 and row[8] else 0.0
+            else:
+                # 구 스키마
+                created_at = row[5]
+                is_active = row[6]
+                usage_count = row[7] if len(row) > 7 else 0
+                total_commission = float(row[8]) if len(row) > 8 and row[8] else 0.0
+            
             # 날짜 형식 처리 강화
-            created_at = row[5]
             if hasattr(created_at, 'isoformat'):
                 created_at = created_at.isoformat()
             elif hasattr(created_at, 'strftime'):
@@ -6047,7 +6111,6 @@ def admin_get_referral_codes():
                 created_at = datetime.now().isoformat()
             
             # is_active 값 처리
-            is_active = row[6]
             if is_active is None:
                 is_active = True  # None이면 True로 설정
             elif isinstance(is_active, str):
@@ -6089,13 +6152,21 @@ def admin_get_commissions():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT ledger_id, referred_user_id, base_amount, amount, 
-                    commission_rate, created_at
-                FROM commission_ledger 
-                WHERE event = 'earn' AND status = 'confirmed'
-                ORDER BY created_at DESC
-            """)
+            # 새 스키마에서는 commissions 테이블 사용
+            try:
+                cursor.execute("""
+                    SELECT c.commission_id, r.referred_user_id, c.base_amount, c.amount, 
+                           c.commission_rate, c.created_at
+                    FROM commissions c
+                    JOIN referrals r ON c.referral_id = r.referral_id
+                    WHERE c.status = 'confirmed'
+                    ORDER BY c.created_at DESC
+                """)
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'commissions': []}), 200
         else:
             cursor.execute("""
                 SELECT ledger_id, referred_user_id, base_amount, amount, 
@@ -6302,12 +6373,21 @@ def get_admin_transactions():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT o.order_id, o.user_id, o.service_id, o.price, o.status, o.created_at,
-                       o.platform, o.service_name, o.quantity, o.link, o.comments
-                FROM orders o
-                ORDER BY o.created_at DESC
-            """)
+            # 새 스키마에서는 order_items와 조인 필요
+            try:
+                cursor.execute("""
+                    SELECT o.order_id, o.user_id, oi.variant_id, o.total_amount, o.status, o.created_at,
+                           NULL as platform, NULL as service_name, oi.quantity, oi.link, NULL as comments
+                    FROM orders o
+                    LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                    ORDER BY o.created_at DESC
+                    LIMIT 100
+                """)
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'transactions': []}), 200
         else:
             cursor.execute("""
                 SELECT o.order_id, o.user_id, o.service_id, o.price, o.status, o.created_at,
@@ -8535,9 +8615,8 @@ def get_blog_tags():
                 FROM blog_posts, json_each(tags) as tags
                 WHERE is_published = true AND tags IS NOT NULL
             """)
-        
-        rows = cursor.fetchall()
-        tags = [row[0] for row in rows if row[0]]
+            rows = cursor.fetchall()
+            tags = [row[0] for row in rows if row[0]]
         
         cursor.close()
         conn.close()
