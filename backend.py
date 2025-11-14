@@ -1755,11 +1755,11 @@ def get_db_connection():
         psycopg2_logger = logging.getLogger('psycopg2')
         psycopg2_logger.setLevel(logging.CRITICAL)
         
-        # Pooler 연결 시도 (포트 5432 - Transaction mode)
+        # Pooler 연결 시도 (포트 6543 - Session mode, 더 안정적)
         try:
             conn = psycopg2.connect(
                 host=host_str,
-                port=5432,  # Transaction mode
+                port=6543,  # Session mode (포트 5432는 Transaction mode)
                 database=db_name_str,
                 user=db_user_str,
                 password=db_password_str,
@@ -1769,24 +1769,39 @@ def get_db_connection():
                 keepalives_count=3
             )
         except psycopg2.OperationalError as pooler_error:
-            # Pooler 실패 시 Direct Connection 시도
-            print(f"⚠️ Pooler 연결 실패, Direct Connection 시도: {pooler_error}")
-            host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
-            db_user_bytes = b'postgres'  # Direct는 postgres 사용
-            host_str = host_bytes.decode('ascii')
-            db_user_str = db_user_bytes.decode('ascii')
-            
-            conn = psycopg2.connect(
-                host=host_str,
-                port=5432,
-                database=db_name_str,
-                user=db_user_str,
-                password=db_password_str,
-                connect_timeout=30,
-                keepalives_idle=600,
-                keepalives_interval=30,
-                keepalives_count=3
-            )
+            # Pooler Session mode 실패 시 Transaction mode 시도
+            try:
+                print(f"⚠️ Pooler Session mode 실패, Transaction mode 시도: {pooler_error}")
+                conn = psycopg2.connect(
+                    host=host_str,
+                    port=5432,  # Transaction mode
+                    database=db_name_str,
+                    user=db_user_str,
+                    password=db_password_str,
+                    connect_timeout=30,
+                    keepalives_idle=600,
+                    keepalives_interval=30,
+                    keepalives_count=3
+                )
+            except psycopg2.OperationalError as pooler_error2:
+                # Pooler 모두 실패 시 Direct Connection 시도
+                print(f"⚠️ Pooler 모두 실패, Direct Connection 시도: {pooler_error2}")
+                host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
+                db_user_bytes = b'postgres'  # Direct는 postgres 사용
+                host_str = host_bytes.decode('ascii')
+                db_user_str = db_user_bytes.decode('ascii')
+                
+                conn = psycopg2.connect(
+                    host=host_str,
+                    port=5432,
+                    database=db_name_str,
+                    user=db_user_str,
+                    password=db_password_str,
+                    connect_timeout=30,
+                    keepalives_idle=600,
+                    keepalives_interval=30,
+                    keepalives_count=3
+                )
         
         # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
         conn.autocommit = False
