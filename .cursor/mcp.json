@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=gvtrizwkstaznrlloixi",
+      "headers": {
+        "Authorization": "Bearer sbp_db1ec3bf5a09999f09a61ca397baeb5ce7d76ae2",
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json"
+      }
+    },
+    "render": {
+      "url": "https://mcp.render.com/mcp",
+      "headers": {
+        "Authorization": "Bearer rnd_yfNO7ZpoMQY8R2dsTLRNums7OxvV"
+      }
+    }
+  }
+}
