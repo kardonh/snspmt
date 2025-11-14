@@ -7493,3 +7493,27 @@ def get_admin_transactions():
                 'status': order.get('status'),
                 'created_at': order['created_at'].isoformat() if order.get('created_at') else None,
                 'updated_at': order['updated_at'].isoformat() if order.get('updated_at') else None,
+                'items': items_map.get(order['order_id'], []),
+                'commissions': commission_map.get(order['order_id'], []),
+                'wallet_transactions': wallet_map.get(order['order_id'], []),
+                'notes': notes
+            })
+
+        conn.close()
+        return jsonify({
+            'status': 'success',
+            'transactions': transactions,
+            'total': len(transactions)
+        }), 200
+
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        print(f"❌ 관리자 거래 내역 조회 오류: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
