@@ -21,7 +21,8 @@ class ErrorBoundary extends React.Component {
     })
 
     // 에러를 외부 서비스로 전송 (선택사항)
-    if (process.env.NODE_ENV === 'production') {
+    // Vite에서는 import.meta.env.PROD를 사용합니다
+    if (import.meta.env.PROD) {
       // 에러 리포팅 서비스 (예: Sentry)에 전송
       // logErrorToService(error, errorInfo)
     }
@@ -50,7 +51,7 @@ class ErrorBoundary extends React.Component {
               </button>
             </div>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="error-details">
                 <summary>개발자 정보</summary>
                 <pre>{this.state.error && this.state.error.toString()}</pre>

@@ -9,7 +9,8 @@ const LOG_LEVELS = {
 
 class Logger {
   constructor() {
-    this.logLevel = process.env.NODE_ENV === 'production' ? LOG_LEVELS.WARN : LOG_LEVELS.DEBUG
+    // Vite에서는 import.meta.env.PROD를 사용합니다
+    this.logLevel = import.meta.env.PROD ? LOG_LEVELS.WARN : LOG_LEVELS.DEBUG
   }
 
   formatMessage(level, message, data = null) {
@@ -49,7 +50,8 @@ class Logger {
     }
 
     // 프로덕션에서는 에러를 외부 서비스로 전송
-    if (process.env.NODE_ENV === 'production' && level <= LOG_LEVELS.ERROR) {
+    // Vite에서는 import.meta.env.PROD를 사용합니다
+    if (import.meta.env.PROD && level <= LOG_LEVELS.ERROR) {
       this.sendToExternalService(logEntry)
     }
   }

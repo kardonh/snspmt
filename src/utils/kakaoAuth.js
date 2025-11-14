@@ -3,7 +3,8 @@ class KakaoAuth {
   constructor() {
     this.isInitialized = false;
     // 카카오 개발자 콘솔에서 발급받은 JavaScript 키를 입력하세요
-    this.APP_KEY = process.env.REACT_APP_KAKAO_APP_KEY || '5a6e0106e9beafa7bd8199ab3c378ceb'; // JavaScript 키
+    // Vite에서는 import.meta.env를 사용합니다
+    this.APP_KEY = import.meta.env.VITE_KAKAO_APP_KEY || '5a6e0106e9beafa7bd8199ab3c378ceb'; // JavaScript 키
   }
 
 
