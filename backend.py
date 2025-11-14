@@ -1772,7 +1772,7 @@ def get_db_connection():
             # Direct Connection 실패 시 Pooler Session mode 시도
             try:
                 print(f"⚠️ Direct Connection 실패, Pooler Session mode 시도: {direct_error}")
-                host_bytes = b'aws-0-ap-southeast-2.pooler.supabase.com'
+                host_bytes = b'aws-1-ap-southeast-2.pooler.supabase.com'  # aws-1 (not aws-0)
                 db_user_bytes = b'postgres.gvtrizwkstaznrlloixi'  # Pooler는 postgres.[PROJECT_REF] 형식
                 host_str = host_bytes.decode('ascii')
                 db_user_str = db_user_bytes.decode('ascii')
