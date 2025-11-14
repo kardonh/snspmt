@@ -3675,16 +3675,36 @@ def get_orders():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 주문 정보 조회 - 최소한의 컬럼만 조회하여 성능 개선
+        # 주문 정보 조회 - 새 스키마에 맞게 수정
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT order_id, service_id, link, quantity, price, status, created_at, 
-                       smm_panel_order_id, detailed_service
-                FROM orders 
-                WHERE user_id = %s
-                ORDER BY created_at DESC
-                LIMIT 10
-            """, (user_id,))
+            # 새 스키마에서는 order_items 테이블을 사용
+            try:
+                # external_uid로 사용자 찾기
+                cursor.execute("""
+                    SELECT user_id FROM users 
+                    WHERE external_uid = %s OR email = %s
+                    LIMIT 1
+                """, (user_id, user_id))
+                user_result = cursor.fetchone()
+                if not user_result:
+                    return jsonify({'orders': []}), 200
+                db_user_id = user_result[0]
+                
+                cursor.execute("""
+                    SELECT o.order_id, o.status, o.total_amount, o.created_at,
+                           oi.variant_id, oi.link, oi.quantity, oi.unit_price,
+                           oi.meta_json->>'smm_panel_order_id' as smm_panel_order_id
+                    FROM orders o
+                    LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                    WHERE o.user_id = %s
+                    ORDER BY o.created_at DESC
+                    LIMIT 10
+                """, (db_user_id,))
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패, 빈 결과 반환: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'orders': []}), 200
         else:
             cursor.execute("""
                 SELECT order_id, service_id, link, quantity, price, status, created_at, 
@@ -3701,16 +3721,31 @@ def get_orders():
         order_list = []
         for order in orders:
             try:
-                # 주문 데이터 처리
-                order_id = order[0]
-                service_id = order[1] if len(order) > 1 else ''
-                link = order[2] if len(order) > 2 else ''
-                quantity = order[3] if len(order) > 3 else 0
-                price = float(order[4]) if len(order) > 4 else 0.0
-                db_status = order[5] if len(order) > 5 else 'pending'
-                created_at = order[6]
-                smm_panel_order_id = order[7] if len(order) > 7 else None
-                detailed_service = order[8] if len(order) > 8 else None
+                # 주문 데이터 처리 (새 스키마에 맞게 수정)
+                if DATABASE_URL.startswith('postgresql://'):
+                    # 새 스키마: order_id, status, total_amount, created_at, variant_id, link, quantity, unit_price, smm_panel_order_id
+                    order_id = order[0]
+                    db_status = order[1] if len(order) > 1 else 'pending'
+                    price = float(order[2]) if len(order) > 2 and order[2] else 0.0
+                    created_at = order[3] if len(order) > 3 else None
+                    variant_id = order[4] if len(order) > 4 else None
+                    link = order[5] if len(order) > 5 else ''
+                    quantity = order[6] if len(order) > 6 else 0
+                    unit_price = float(order[7]) if len(order) > 7 and order[7] else 0.0
+                    smm_panel_order_id = order[8] if len(order) > 8 else None
+                    service_id = str(variant_id) if variant_id else ''
+                    detailed_service = None
+                else:
+                    # 구 스키마 (SQLite)
+                    order_id = order[0]
+                    service_id = order[1] if len(order) > 1 else ''
+                    link = order[2] if len(order) > 2 else ''
+                    quantity = order[3] if len(order) > 3 else 0
+                    price = float(order[4]) if len(order) > 4 else 0.0
+                    db_status = order[5] if len(order) > 5 else 'pending'
+                    created_at = order[6]
+                    smm_panel_order_id = order[7] if len(order) > 7 else None
+                    detailed_service = order[8] if len(order) > 8 else None
                 # 일부 DB에는 start_count, remains 컬럼이 없을 수 있으므로 기본값 사용
                 start_count = 0
                 remains = quantity
