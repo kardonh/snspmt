@@ -1702,45 +1702,46 @@ if os.environ.get('FLASK_ENV') != 'production':
 
 def get_db_connection():
     """데이터베이스 연결을 가져옵니다."""
+    # psycopg2가 읽을 수 있는 모든 데이터베이스 관련 환경 변수 제거
+    # 인코딩 문제를 완전히 회피하기 위해
+    saved_env_vars = {}
+    db_env_keys = ['DATABASE_URL', 'PGHOST', 'PGPORT', 'PGDATABASE', 'PGUSER', 'PGPASSWORD', 'PGPASSFILE']
+    for key in db_env_keys:
+        if key in os.environ:
+            saved_env_vars[key] = os.environ.pop(key)
+    
     try:
-        # 인코딩 문제를 완전히 회피하기 위해 환경 변수를 전혀 읽지 않고
-        # 하드코딩된 연결 정보만 사용
-        # psycopg2가 환경 변수를 읽지 않도록 DATABASE_URL 임시 제거
-        original_db_url = os.environ.pop('DATABASE_URL', None)
+        # ASCII bytes로 정의 (인코딩 문제 없음)
+        host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
+        db_name_bytes = b'postgres'
+        db_user_bytes = b'postgres'
+        db_password_bytes = b'KARDONH0813!'
         
-        try:
-            # ASCII bytes로 정의 (인코딩 문제 없음)
-            host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
-            db_name_bytes = b'postgres'
-            db_user_bytes = b'postgres'
-            db_password_bytes = b'KARDONH0813!'
-            
-            # ASCII로 decode (항상 성공)
-            host_str = host_bytes.decode('ascii')
-            db_name_str = db_name_bytes.decode('ascii')
-            db_user_str = db_user_bytes.decode('ascii')
-            db_password_str = db_password_bytes.decode('ascii')
-            
-            # psycopg2.connect()에 전달 (모든 값이 ASCII 문자열)
-            conn = psycopg2.connect(
-                host=host_str,
-                port=5432,
-                database=db_name_str,
-                user=db_user_str,
-                password=db_password_str,
-                connect_timeout=30,
-                keepalives_idle=600,
-                keepalives_interval=30,
-                keepalives_count=3
-            )
-            
-            # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
-            conn.autocommit = False
-            return conn
-        finally:
-            # 환경 변수 복원 (다른 코드에서 사용할 수 있도록)
-            if original_db_url is not None:
-                os.environ['DATABASE_URL'] = original_db_url
+        # ASCII로 decode (항상 성공)
+        host_str = host_bytes.decode('ascii')
+        db_name_str = db_name_bytes.decode('ascii')
+        db_user_str = db_user_bytes.decode('ascii')
+        db_password_str = db_password_bytes.decode('ascii')
+        
+        # psycopg2.connect()에 전달 (모든 값이 ASCII 문자열)
+        # 모든 파라미터를 명시적으로 전달하여 환경 변수 의존성 제거
+        conn = psycopg2.connect(
+            host=host_str,
+            port=5432,
+            database=db_name_str,
+            user=db_user_str,
+            password=db_password_str,
+            connect_timeout=30,
+            keepalives_idle=600,
+            keepalives_interval=30,
+            keepalives_count=3,
+            # 환경 변수 사용 안 함을 명시
+            options='-c client_encoding=UTF8'
+        )
+        
+        # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
+        conn.autocommit = False
+        return conn
         
     except psycopg2.Error as e:
         print(f"❌ PostgreSQL 연결 실패: {e}")
@@ -1750,6 +1751,10 @@ def get_db_connection():
         import traceback
         traceback.print_exc()
         raise
+    finally:
+        # 환경 변수 복원 (다른 코드에서 사용할 수 있도록)
+        for key, value in saved_env_vars.items():
+            os.environ[key] = value
 
 def init_database():
     """데이터베이스 테이블을 초기화합니다."""
