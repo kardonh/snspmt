@@ -1693,77 +1693,45 @@ if os.environ.get('FLASK_ENV') != 'production':
 def get_db_connection():
     """데이터베이스 연결을 가져옵니다."""
     try:
-        # 프로덕션 환경에서는 로그 최소화
-        if os.environ.get('FLASK_ENV') != 'production':
-            pass
+        # 인코딩 문제를 완전히 회피하기 위해 환경 변수를 전혀 읽지 않고
+        # 하드코딩된 연결 정보만 사용
+        # 모든 값을 ASCII bytes로 정의 후 decode하여 인코딩 문제 완전 회피
         
-        # 함수 내에서 DATABASE_URL을 다시 읽어서 인코딩 문제 방지
-        db_url = os.environ.get('DATABASE_URL') or DATABASE_URL
-        if not db_url:
-            raise ValueError("DATABASE_URL 환경 변수가 설정되지 않았습니다")
+        # ASCII bytes로 정의 (인코딩 문제 없음)
+        host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
+        db_name_bytes = b'postgres'
+        db_user_bytes = b'postgres'
+        db_password_bytes = b'KARDONH0813!'
         
-        # 연결 문자열을 명시적으로 UTF-8로 처리
-        if isinstance(db_url, bytes):
-            # bytes인 경우 UTF-8로 디코딩 시도, 실패 시 다른 인코딩 시도
-            try:
-                db_url = db_url.decode('utf-8')
-            except UnicodeDecodeError:
-                # UTF-8 실패 시 latin-1로 시도 (모든 바이트를 유효한 문자로 변환)
-                db_url = db_url.decode('latin-1')
-        else:
-            # 문자열인 경우에도 안전하게 처리
-            if not isinstance(db_url, str):
-                db_url = str(db_url)
+        # ASCII로 decode (항상 성공)
+        host_str = host_bytes.decode('ascii')
+        db_name_str = db_name_bytes.decode('ascii')
+        db_user_str = db_user_bytes.decode('ascii')
+        db_password_str = db_password_bytes.decode('ascii')
         
-        # 문자열 정리 (BOM 제거 등)
-        db_url = db_url.strip()
-        if db_url.startswith('\ufeff'):  # UTF-8 BOM 제거
-            db_url = db_url[1:]
+        # psycopg2.connect()에 전달 (모든 값이 ASCII 문자열)
+        conn = psycopg2.connect(
+            host=host_str,
+            port=5432,
+            database=db_name_str,
+            user=db_user_str,
+            password=db_password_str,
+            connect_timeout=30,
+            keepalives_idle=600,
+            keepalives_interval=30,
+            keepalives_count=3
+        )
         
-        if db_url and db_url.startswith('postgresql://'):
-            # 인코딩 문제를 완전히 회피하기 위해 하드코딩된 연결 정보만 사용
-            # psycopg2의 내부 UTF-8 디코딩 문제를 회피하기 위해 DSN 문자열 직접 사용
-            # 모든 값을 ASCII만 사용하는 문자열로 명시
-            dsn_string = "host=db.gvtrizwkstaznrlloixi.supabase.co port=5432 dbname=postgres user=postgres password=KARDONH0813! connect_timeout=30"
-            
-            try:
-                # DSN 문자열로 직접 연결 시도
-                conn = psycopg2.connect(dsn_string)
-            except Exception as dsn_error:
-                # DSN 문자열 실패 시 개별 파라미터로 시도
-                # 모든 값을 bytes로 변환 후 decode하여 인코딩 문제 완전 회피
-                host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
-                db_name_bytes = b'postgres'
-                db_user_bytes = b'postgres'
-                db_password_bytes = b'KARDONH0813!'
-                
-                conn = psycopg2.connect(
-                    host=host_bytes.decode('ascii'),
-                    port=5432,
-                    database=db_name_bytes.decode('ascii'),
-                    user=db_user_bytes.decode('ascii'),
-                    password=db_password_bytes.decode('ascii'),
-                    connect_timeout=30,
-                    keepalives_idle=600,
-                    keepalives_interval=30,
-                    keepalives_count=3
-                )
-            
-            # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
-            conn.autocommit = False
-            return conn
-        else:
-            # SQLite fallback - 영구 데이터베이스 경로 사용
-            db_path = os.path.join(os.getcwd(), 'data', 'snspmt.db')
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)  # 디렉토리 생성
-            conn = sqlite3.connect(db_path, timeout=30)
-            conn.row_factory = sqlite3.Row  # 딕셔너리 형태로 결과 반환
-            return conn
+        # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
+        conn.autocommit = False
+        return conn
+        
     except psycopg2.Error as e:
         print(f"❌ PostgreSQL 연결 실패: {e}")
         raise
     except Exception as e:
-        raise e
+        print(f"❌ 데이터베이스 연결 오류: {e}")
+        raise
 
 def init_database():
     """데이터베이스 테이블을 초기화합니다."""
