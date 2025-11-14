@@ -17,8 +17,13 @@ from flask import send_from_directory
 from dotenv import load_dotenv
 from urllib.parse import urlparse, unquote
 
-# .env 파일 로드 (로컬 개발용)
-load_dotenv()
+# .env 파일 로드 (로컬 개발용) - UTF-8 인코딩 명시
+try:
+    # .env 파일을 UTF-8로 명시적으로 읽기
+    load_dotenv(encoding='utf-8')
+except Exception:
+    # 인코딩 지정 실패 시 기본 방식으로 시도
+    load_dotenv()
 
 # 안전한 파라미터 조회 유틸 (AWS SSM/Secrets 미사용시 환경변수에서 조회)
 def get_parameter_value(key: str, default: str = "") -> str:
@@ -1699,11 +1704,26 @@ def get_db_connection():
         
         # 연결 문자열을 명시적으로 UTF-8로 처리
         if isinstance(db_url, bytes):
-            db_url = db_url.decode('utf-8', errors='replace')
+            # bytes인 경우 UTF-8로 디코딩 시도, 실패 시 다른 인코딩 시도
+            try:
+                db_url = db_url.decode('utf-8')
+            except UnicodeDecodeError:
+                # UTF-8 실패 시 latin-1로 시도 (모든 바이트를 유효한 문자로 변환)
+                db_url = db_url.decode('latin-1')
+        else:
+            # 문자열인 경우에도 안전하게 처리
+            if not isinstance(db_url, str):
+                db_url = str(db_url)
+        
+        # 문자열 정리 (BOM 제거 등)
+        db_url = db_url.strip()
+        if db_url.startswith('\ufeff'):  # UTF-8 BOM 제거
+            db_url = db_url[1:]
         
         if db_url.startswith('postgresql://'):
             # URL을 파싱해서 개별 파라미터로 전달 (인코딩 문제 방지)
             try:
+                # URL을 안전하게 파싱
                 parsed = urlparse(db_url)
                 # 비밀번호 URL 디코딩
                 password = unquote(parsed.password) if parsed.password else None
@@ -1720,16 +1740,28 @@ def get_db_connection():
                     keepalives_interval=30,
                     keepalives_count=3
                 )
-            except Exception as parse_error:
-                # URL 파싱 실패 시 원래 방식으로 시도
-                print(f"⚠️ URL 파싱 실패, 직접 연결 시도: {parse_error}")
-                conn = psycopg2.connect(
-                    db_url,
-                    connect_timeout=30,
-                    keepalives_idle=600,
-                    keepalives_interval=30,
-                    keepalives_count=3
-                )
+            except (UnicodeDecodeError, ValueError, AttributeError) as parse_error:
+                # URL 파싱 실패 - 직접 연결 문자열 재구성 시도
+                print(f"⚠️ URL 파싱 실패, 연결 문자열 재구성 시도: {parse_error}")
+                # 간단한 정규식으로 파싱 시도
+                import re
+                match = re.match(r'postgresql://([^:]+):([^@]+)@([^:/]+):?(\d+)?/(.+)', db_url)
+                if match:
+                    username, password_encoded, hostname, port, database = match.groups()
+                    password = unquote(password_encoded)
+                    conn = psycopg2.connect(
+                        host=hostname,
+                        port=int(port) if port else 5432,
+                        database=database,
+                        user=username,
+                        password=password,
+                        connect_timeout=30,
+                        keepalives_idle=600,
+                        keepalives_interval=30,
+                        keepalives_count=3
+                    )
+                else:
+                    raise ValueError(f"연결 문자열을 파싱할 수 없습니다: {db_url[:50]}...")
             
             # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
             conn.autocommit = False
