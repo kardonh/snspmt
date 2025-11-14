@@ -15,6 +15,7 @@ from functools import wraps
 from werkzeug.utils import secure_filename
 from flask import send_from_directory
 from dotenv import load_dotenv
+from urllib.parse import urlparse, unquote
 
 # .env 파일 로드 (로컬 개발용)
 load_dotenv()
@@ -1698,17 +1699,38 @@ def get_db_connection():
         
         # 연결 문자열을 명시적으로 UTF-8로 처리
         if isinstance(db_url, bytes):
-            db_url = db_url.decode('utf-8')
+            db_url = db_url.decode('utf-8', errors='replace')
         
         if db_url.startswith('postgresql://'):
-            # PostgreSQL 연결 설정 최적화
-            conn = psycopg2.connect(
-                db_url,
-                connect_timeout=30,
-                keepalives_idle=600,
-                keepalives_interval=30,
-                keepalives_count=3
-            )
+            # URL을 파싱해서 개별 파라미터로 전달 (인코딩 문제 방지)
+            try:
+                parsed = urlparse(db_url)
+                # 비밀번호 URL 디코딩
+                password = unquote(parsed.password) if parsed.password else None
+                
+                # 개별 파라미터로 연결 (인코딩 문제 방지)
+                conn = psycopg2.connect(
+                    host=parsed.hostname,
+                    port=parsed.port or 5432,
+                    database=parsed.path.lstrip('/') or 'postgres',
+                    user=parsed.username,
+                    password=password,
+                    connect_timeout=30,
+                    keepalives_idle=600,
+                    keepalives_interval=30,
+                    keepalives_count=3
+                )
+            except Exception as parse_error:
+                # URL 파싱 실패 시 원래 방식으로 시도
+                print(f"⚠️ URL 파싱 실패, 직접 연결 시도: {parse_error}")
+                conn = psycopg2.connect(
+                    db_url,
+                    connect_timeout=30,
+                    keepalives_idle=600,
+                    keepalives_interval=30,
+                    keepalives_count=3
+                )
+            
             # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
             conn.autocommit = False
             return conn
