@@ -3962,7 +3962,7 @@ def purchase_points():
                 # meta_json을 JSON 문자열로 변환
                 meta_data = json.dumps({'buyer_name': buyer_name, 'bank_info': bank_info, 'amount': amount}, ensure_ascii=False)
                 cursor.execute("""
-                    INSERT INTO wallet_transactions (wallet_id, type, amount, status, payload_json, created_at, updated_at)
+                    INSERT INTO wallet_transactions (wallet_id, type, amount, status, meta_json, created_at, updated_at)
                     VALUES (%s, 'topup', %s, 'pending', %s::jsonb, NOW(), NOW())
                     RETURNING transaction_id
                 """, (wallet_id, price, meta_data))
