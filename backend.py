@@ -1721,47 +1721,52 @@ def get_db_connection():
             db_url = db_url[1:]
         
         if db_url.startswith('postgresql://'):
-            # URL을 파싱해서 개별 파라미터로 전달 (인코딩 문제 방지)
-            try:
-                # URL을 안전하게 파싱
-                parsed = urlparse(db_url)
+            # urlparse가 인코딩 문제를 일으킬 수 있으므로 정규식으로 직접 파싱
+            import re
+            # PostgreSQL 연결 문자열 파싱: postgresql://user:password@host:port/database
+            match = re.match(r'postgresql://([^:]+):([^@]+)@([^:/]+)(?::(\d+))?/(.+)', db_url)
+            if match:
+                username, password_encoded, hostname, port_str, database = match.groups()
                 # 비밀번호 URL 디코딩
-                password = unquote(parsed.password) if parsed.password else None
+                try:
+                    password = unquote(password_encoded)
+                except Exception:
+                    # unquote 실패 시 그대로 사용
+                    password = password_encoded
+                
+                # 포트 번호 처리
+                port = int(port_str) if port_str else 5432
                 
                 # 개별 파라미터로 연결 (인코딩 문제 방지)
                 conn = psycopg2.connect(
-                    host=parsed.hostname,
-                    port=parsed.port or 5432,
-                    database=parsed.path.lstrip('/') or 'postgres',
-                    user=parsed.username,
+                    host=hostname,
+                    port=port,
+                    database=database,
+                    user=username,
                     password=password,
                     connect_timeout=30,
                     keepalives_idle=600,
                     keepalives_interval=30,
                     keepalives_count=3
                 )
-            except (UnicodeDecodeError, ValueError, AttributeError) as parse_error:
-                # URL 파싱 실패 - 직접 연결 문자열 재구성 시도
-                print(f"⚠️ URL 파싱 실패, 연결 문자열 재구성 시도: {parse_error}")
-                # 간단한 정규식으로 파싱 시도
-                import re
-                match = re.match(r'postgresql://([^:]+):([^@]+)@([^:/]+):?(\d+)?/(.+)', db_url)
-                if match:
-                    username, password_encoded, hostname, port, database = match.groups()
-                    password = unquote(password_encoded)
+            else:
+                # 정규식 파싱 실패 시 urlparse 시도
+                try:
+                    parsed = urlparse(db_url)
+                    password = unquote(parsed.password) if parsed.password else None
                     conn = psycopg2.connect(
-                        host=hostname,
-                        port=int(port) if port else 5432,
-                        database=database,
-                        user=username,
+                        host=parsed.hostname,
+                        port=parsed.port or 5432,
+                        database=parsed.path.lstrip('/') or 'postgres',
+                        user=parsed.username,
                         password=password,
                         connect_timeout=30,
                         keepalives_idle=600,
                         keepalives_interval=30,
                         keepalives_count=3
                     )
-                else:
-                    raise ValueError(f"연결 문자열을 파싱할 수 없습니다: {db_url[:50]}...")
+                except Exception as parse_error:
+                    raise ValueError(f"연결 문자열을 파싱할 수 없습니다: {str(parse_error)}")
             
             # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
             conn.autocommit = False
