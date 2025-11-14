@@ -3926,9 +3926,9 @@ def purchase_points():
                             user_email = f"{alt_id[:120]}_{int(time.time() * 1000)}@temp.local"
                             print(f"⚠️ 이메일 충돌 발생, 재시도: {user_email}", flush=True)
                             cursor.execute("""
-                                INSERT INTO users (user_id, email, name, created_at, updated_at)
+                                INSERT INTO users (external_uid, email, username, created_at, updated_at)
                                 VALUES (%s, %s, %s, NOW(), NOW())
-                                ON CONFLICT (user_id) DO NOTHING
+                                ON CONFLICT (external_uid) DO NOTHING
                             """, (user_id_str, user_email, buyer_name or 'User'))
                             print(f"✅ 재시도 성공: {user_id_str}", flush=True)
                         else:
@@ -3959,11 +3959,13 @@ def purchase_points():
                 wallet_id = wallet_result[0]
                 
                 # 새 스키마에서는 wallet_transactions 사용 (point_purchases 대신)
+                # meta_json을 JSON 문자열로 변환
+                meta_data = json.dumps({'buyer_name': buyer_name, 'bank_info': bank_info, 'amount': amount}, ensure_ascii=False)
                 cursor.execute("""
-                    INSERT INTO wallet_transactions (wallet_id, type, amount, status, meta_json, created_at, updated_at)
+                    INSERT INTO wallet_transactions (wallet_id, type, amount, status, payload_json, created_at, updated_at)
                     VALUES (%s, 'topup', %s, 'pending', %s::jsonb, NOW(), NOW())
                     RETURNING transaction_id
-                """, (wallet_id, price, json.dumps({'buyer_name': buyer_name, 'bank_info': bank_info, 'amount': amount})))
+                """, (wallet_id, price, meta_data))
                 purchase_id = cursor.fetchone()[0]
                 print(f"✅ 포인트 구매 삽입 완료: transaction_id={purchase_id}, wallet_id={wallet_id}", flush=True)
                 
@@ -4850,23 +4852,47 @@ def get_user(user_id):
             
             try:
                 if DATABASE_URL.startswith('postgresql://'):
-                    # 사용자 생성 시도
+                    # 새 스키마에서는 external_uid 사용
                     cursor.execute("""
-                        INSERT INTO users (user_id, email, name, created_at, updated_at)
+                        INSERT INTO users (external_uid, email, username, created_at, updated_at)
                         VALUES (%s, %s, %s, NOW(), NOW())
-                        ON CONFLICT (user_id) DO NOTHING
+                        ON CONFLICT (external_uid) DO NOTHING
+                        RETURNING user_id, email, username, created_at
                     """, (user_id, default_email, 'User'))
                     
-                    # 사용자 생성 여부 확인
-                    if cursor.rowcount > 0:
-                        # points 테이블에도 초기 레코드 생성
+                    new_user = cursor.fetchone()
+                    if new_user:
+                        # wallets 테이블에도 초기 레코드 생성
                         cursor.execute("""
-                            INSERT INTO points (user_id, points, created_at, updated_at)
+                            INSERT INTO wallets (user_id, balance, created_at, updated_at)
                             VALUES (%s, 0, NOW(), NOW())
                             ON CONFLICT (user_id) DO NOTHING
-                        """, (user_id,))
+                        """, (new_user[0],))
                         conn.commit()
-                        print(f"✅ 사용자 자동 생성 완료: {user_id}")
+                        print(f"✅ 사용자 자동 생성 완료: user_id={new_user[0]}, external_uid={user_id}")
+                        
+                        return jsonify({
+                            'user_id': str(new_user[0]),
+                            'email': new_user[1],
+                            'name': new_user[2] or '사용자',
+                            'created_at': new_user[3].isoformat() if new_user[3] and hasattr(new_user[3], 'isoformat') else (str(new_user[3]) if new_user[3] else None)
+                        }), 200
+                    else:
+                        # 이미 존재하는 사용자 조회
+                        cursor.execute("""
+                            SELECT user_id, email, username, created_at
+                            FROM users 
+                            WHERE external_uid = %s
+                            LIMIT 1
+                        """, (user_id,))
+                        existing_user = cursor.fetchone()
+                        if existing_user:
+                            return jsonify({
+                                'user_id': str(existing_user[0]),
+                                'email': existing_user[1],
+                                'name': existing_user[2] or '사용자',
+                                'created_at': existing_user[3].isoformat() if existing_user[3] and hasattr(existing_user[3], 'isoformat') else (str(existing_user[3]) if existing_user[3] else None)
+                            }), 200
                     else:
                         # 이미 존재하는 경우, 다시 조회
                         cursor.execute("""
@@ -6119,15 +6145,15 @@ def admin_get_referral_codes():
                 is_active = bool(is_active)
             
             codes.append({
-                'id': row[0],
+                'id': str(row[0]),
                 'code': row[1],
                 'email': row[2],
-                'name': row[3],
-                'phone': row[4],
+                'name': row[3] or '사용자',
+                'phone': row[4] if len(row) > 4 else None,
                 'createdAt': created_at,
                 'isActive': is_active,
-                'usage_count': row[7],
-                'total_commission': row[8]
+                'usage_count': usage_count,
+                'total_commission': total_commission
             })
         
         return jsonify({
@@ -6401,19 +6427,35 @@ def get_admin_transactions():
         
         transaction_list = []
         for transaction in transactions:
-            transaction_list.append({
-                'order_id': transaction[0],
-                'user_id': transaction[1],
-                'service_id': transaction[2],
-                'price': float(transaction[3]),
-                'status': transaction[4],
-                'created_at': transaction[5].isoformat() if hasattr(transaction[5], 'isoformat') else str(transaction[5]),
-                'platform': transaction[6] if len(transaction) > 6 else 'N/A',
-                'service_name': transaction[7] if len(transaction) > 7 else 'N/A',
-                'quantity': transaction[8] if len(transaction) > 8 else 0,
-                'link': transaction[9] if len(transaction) > 9 else 'N/A',
-                'comments': transaction[10] if len(transaction) > 10 else 'N/A'
-            })
+            if DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: order_id, user_id, variant_id, total_amount, status, created_at, platform, service_name, quantity, link, comments
+                transaction_list.append({
+                    'order_id': transaction[0],
+                    'user_id': str(transaction[1]) if transaction[1] else None,
+                    'service_id': str(transaction[2]) if transaction[2] else None,
+                    'price': float(transaction[3]) if transaction[3] else 0.0,
+                    'status': transaction[4],
+                    'created_at': transaction[5].isoformat() if transaction[5] and hasattr(transaction[5], 'isoformat') else (str(transaction[5]) if transaction[5] else None),
+                    'platform': transaction[6] if len(transaction) > 6 else None,
+                    'service_name': transaction[7] if len(transaction) > 7 else None,
+                    'quantity': transaction[8] if len(transaction) > 8 else 0,
+                    'link': transaction[9] if len(transaction) > 9 else None,
+                    'comments': transaction[10] if len(transaction) > 10 else None
+                })
+            else:
+                transaction_list.append({
+                    'order_id': transaction[0],
+                    'user_id': transaction[1],
+                    'service_id': transaction[2],
+                    'price': float(transaction[3]),
+                    'status': transaction[4],
+                    'created_at': transaction[5].isoformat() if hasattr(transaction[5], 'isoformat') else str(transaction[5]),
+                    'platform': transaction[6] if len(transaction) > 6 else 'N/A',
+                    'service_name': transaction[7] if len(transaction) > 7 else 'N/A',
+                    'quantity': transaction[8] if len(transaction) > 8 else 0,
+                    'link': transaction[9] if len(transaction) > 9 else 'N/A',
+                    'comments': transaction[10] if len(transaction) > 10 else 'N/A'
+                })
         
         return jsonify({
             'transactions': transaction_list
