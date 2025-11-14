@@ -4804,12 +4804,21 @@ def get_user(user_id):
         sys.stdout.flush()
         
         if user:
-            user_data = {
-                'user_id': user[0],
-                'email': user[1],
-                'name': user[2],
-                'created_at': user[3].isoformat() if user[3] and hasattr(user[3], 'isoformat') else (str(user[3]) if user[3] else None)
-            }
+            # 새 스키마에서는 username 또는 display_name 사용
+            if DATABASE_URL.startswith('postgresql://'):
+                user_data = {
+                    'user_id': str(user[0]),
+                    'email': user[1],
+                    'name': user[2] or user[3] or '사용자',  # username or display_name
+                    'created_at': user[4].isoformat() if user[4] and hasattr(user[4], 'isoformat') else (str(user[4]) if user[4] else None)
+                }
+            else:
+                user_data = {
+                    'user_id': user[0],
+                    'email': user[1],
+                    'name': user[2],
+                    'created_at': user[3].isoformat() if user[3] and hasattr(user[3], 'isoformat') else (str(user[3]) if user[3] else None)
+                }
             print(f"✅ 사용자 정보 반환: {user_data}", flush=True)
             sys.stdout.flush()
             return jsonify(user_data), 200
