@@ -2949,42 +2949,87 @@ def register():
 # 사용자 포인트 조회
 @app.route('/api/points', methods=['GET'])
 def get_user_points():
-    """사용자 포인트 조회"""
+    """사용자 지갑(포인트) 잔액 조회 - 새 스키마 사용"""
     conn = None
     cursor = None
     
     try:
-        user_id = request.args.get('user_id')
-        print(f"🔍 포인트 조회 요청 - user_id: {user_id}")
+        raw_user_id = request.args.get('user_id')
+        print(f"🔍 포인트 조회 요청 - user_id: {raw_user_id}")
         
-        if not user_id:
+        if not raw_user_id:
             print(f"❌ user_id 누락")
             return jsonify({'error': 'user_id가 필요합니다.'}), 400
         
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
+        # 새 스키마에서는 wallets 테이블 사용
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("SELECT points FROM points WHERE user_id = %s", (user_id,))
+            conn = get_db_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # external_uid로 사용자 찾기 (Firebase UID 등)
+            cursor.execute("""
+                SELECT user_id, external_uid, email 
+                FROM users 
+                WHERE external_uid = %s OR email = %s
+                LIMIT 1
+            """, (raw_user_id, raw_user_id))
+            user = cursor.fetchone()
+            
+            if not user:
+                # 사용자가 없으면 기본값 반환
+                print(f"ℹ️ 사용자 없음, 기본값 0 반환")
+                return jsonify({
+                    'user_id': raw_user_id,
+                    'points': 0,
+                    'wallet_balance': 0
+                }), 200
+            
+            # 지갑 조회 (없으면 생성)
+            cursor.execute("""
+                INSERT INTO wallets (user_id, balance, created_at, updated_at)
+                VALUES (%s, 0, NOW(), NOW())
+                ON CONFLICT (user_id) DO NOTHING
+            """, (user['user_id'],))
+            
+            cursor.execute("""
+                SELECT wallet_id, user_id, balance, created_at, updated_at
+                FROM wallets
+                WHERE user_id = %s
+            """, (user['user_id'],))
+            wallet = cursor.fetchone()
+            
+            conn.commit()
+            
+            balance = float(wallet['balance']) if wallet and wallet['balance'] else 0.0
+            print(f"✅ 포인트 조회 성공: {balance}")
+            
+            return jsonify({
+                'user_id': str(user['user_id']),
+                'external_uid': user.get('external_uid'),
+                'points': balance,
+                'wallet_balance': balance
+            }), 200
         else:
-            cursor.execute("SELECT points FROM points WHERE user_id = ?", (user_id,))
-        
-        result = cursor.fetchone()
-        
-        if result:
-            points = result[0] if isinstance(result, tuple) else result['points']
-            print(f"✅ 포인트 조회 성공: {points}")
-        else:
-            points = 0
-            print(f"ℹ️ 포인트 데이터 없음, 기본값 0 설정")
-        
-        return jsonify({
-            'user_id': user_id,
-            'points': points
-        }), 200
+            # SQLite는 구 스키마 유지
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT points FROM points WHERE user_id = ?", (raw_user_id,))
+            result = cursor.fetchone()
+            points = result[0] if result else 0
+            return jsonify({
+                'user_id': raw_user_id,
+                'points': points
+            }), 200
         
     except Exception as e:
         print(f"❌ 포인트 조회 오류: {e}")
+        import traceback
+        traceback.print_exc()
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
         return jsonify({'error': f'포인트 조회 실패: {str(e)}'}), 500
     finally:
         if cursor:
