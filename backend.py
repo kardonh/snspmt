@@ -1722,25 +1722,32 @@ def get_db_connection():
         
         if db_url and db_url.startswith('postgresql://'):
             # 인코딩 문제를 완전히 회피하기 위해 하드코딩된 연결 정보만 사용
-            # 모든 파라미터를 명시적으로 문자열로 변환하여 인코딩 문제 방지
-            host = str('db.gvtrizwkstaznrlloixi.supabase.co')
-            port_num = int(5432)
-            db_name = str('postgres')
-            db_user = str('postgres')
-            db_password = str('KARDONH0813!')
+            # psycopg2의 내부 UTF-8 디코딩 문제를 회피하기 위해 DSN 문자열 직접 사용
+            # 모든 값을 ASCII만 사용하는 문자열로 명시
+            dsn_string = "host=db.gvtrizwkstaznrlloixi.supabase.co port=5432 dbname=postgres user=postgres password=KARDONH0813! connect_timeout=30"
             
-            # psycopg2.connect()에 직접 전달 (모든 값이 명시적 문자열)
-            conn = psycopg2.connect(
-                host=host,
-                port=port_num,
-                database=db_name,
-                user=db_user,
-                password=db_password,
-                connect_timeout=30,
-                keepalives_idle=600,
-                keepalives_interval=30,
-                keepalives_count=3
-            )
+            try:
+                # DSN 문자열로 직접 연결 시도
+                conn = psycopg2.connect(dsn_string)
+            except Exception as dsn_error:
+                # DSN 문자열 실패 시 개별 파라미터로 시도
+                # 모든 값을 bytes로 변환 후 decode하여 인코딩 문제 완전 회피
+                host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
+                db_name_bytes = b'postgres'
+                db_user_bytes = b'postgres'
+                db_password_bytes = b'KARDONH0813!'
+                
+                conn = psycopg2.connect(
+                    host=host_bytes.decode('ascii'),
+                    port=5432,
+                    database=db_name_bytes.decode('ascii'),
+                    user=db_user_bytes.decode('ascii'),
+                    password=db_password_bytes.decode('ascii'),
+                    connect_timeout=30,
+                    keepalives_idle=600,
+                    keepalives_interval=30,
+                    keepalives_count=3
+                )
             
             # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
             conn.autocommit = False
