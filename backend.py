@@ -4782,13 +4782,25 @@ def get_user(user_id):
         print(f"✅ DB 연결 성공 - user_id: {user_id}", flush=True)
         
         if DATABASE_URL.startswith('postgresql://'):
-            # 새 스키마에서는 external_uid로 사용자 찾기
-            cursor.execute("""
-                SELECT user_id, email, username, display_name, created_at
-                FROM users 
-                WHERE external_uid = %s OR email = %s OR user_id::text = %s
-                LIMIT 1
-            """, (user_id, user_id, user_id))
+            # 새 스키마에서는 external_uid로 사용자 찾기 (display_name 컬럼이 없을 수 있음)
+            try:
+                cursor.execute("""
+                    SELECT user_id, email, username, created_at
+                    FROM users 
+                    WHERE external_uid = %s OR email = %s OR user_id::text = %s
+                    LIMIT 1
+                """, (user_id, user_id, user_id))
+            except Exception as e:
+                # display_name 컬럼이 있는 경우 다시 시도
+                if 'display_name' in str(e) or 'column' in str(e).lower():
+                    cursor.execute("""
+                        SELECT user_id, email, COALESCE(username, display_name, '사용자') as username, created_at
+                        FROM users 
+                        WHERE external_uid = %s OR email = %s OR user_id::text = %s
+                        LIMIT 1
+                    """, (user_id, user_id, user_id))
+                else:
+                    raise
         else:
             cursor.execute("""
                 SELECT user_id, email, name, created_at
@@ -4800,13 +4812,13 @@ def get_user(user_id):
         sys.stdout.flush()
         
         if user:
-            # 새 스키마에서는 username 또는 display_name 사용
+            # 새 스키마에서는 username 사용 (display_name 없을 수 있음)
             if DATABASE_URL.startswith('postgresql://'):
                 user_data = {
                     'user_id': str(user[0]),
                     'email': user[1],
-                    'name': user[2] or user[3] or '사용자',  # username or display_name
-                    'created_at': user[4].isoformat() if user[4] and hasattr(user[4], 'isoformat') else (str(user[4]) if user[4] else None)
+                    'name': user[2] or '사용자',  # username
+                    'created_at': user[3].isoformat() if user[3] and hasattr(user[3], 'isoformat') else (str(user[3]) if user[3] else None)
                 }
             else:
                 user_data = {
@@ -8285,34 +8297,45 @@ def get_blog_posts():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 기본 쿼리
-        base_query = """
-            SELECT id, title, excerpt, category, thumbnail_url, tags, created_at, updated_at, view_count
-            FROM blog_posts 
-            WHERE is_published = true
-        """
-        count_query = "SELECT COUNT(*) FROM blog_posts WHERE is_published = true"
+        # 새 스키마에서는 blogs 테이블 사용
+        if DATABASE_URL.startswith('postgresql://'):
+            # 기본 쿼리 (blogs 테이블 사용)
+            base_query = """
+                SELECT blog_id, title, content, category, NULL as thumbnail_url, NULL as tags, created_at, updated_at, views
+                FROM blogs 
+                WHERE 1=1
+            """
+            count_query = "SELECT COUNT(*) FROM blogs WHERE 1=1"
+        else:
+            # 기본 쿼리
+            base_query = """
+                SELECT id, title, excerpt, category, thumbnail_url, tags, created_at, updated_at, view_count
+                FROM blog_posts 
+                WHERE is_published = true
+            """
+            count_query = "SELECT COUNT(*) FROM blog_posts WHERE is_published = true"
         params = []
         
         # 검색 조건 추가 (SQLite/PostgreSQL 구분)
         if search:
             if DATABASE_URL.startswith('postgresql://'):
-                base_query += " AND (title ILIKE %s OR content ILIKE %s OR excerpt ILIKE %s)"
-                count_query += " AND (title ILIKE %s OR content ILIKE %s OR excerpt ILIKE %s)"
+                base_query += " AND (title ILIKE %s OR content ILIKE %s)"
+                count_query += " AND (title ILIKE %s OR content ILIKE %s)"
             else:
                 base_query += " AND (title LIKE ? OR content LIKE ? OR excerpt LIKE ?)"
                 count_query += " AND (title LIKE ? OR content LIKE ? OR excerpt LIKE ?)"
             search_param = f"%{search}%"
-            params.extend([search_param, search_param, search_param])
+            if DATABASE_URL.startswith('postgresql://'):
+                params.extend([search_param, search_param])
+            else:
+                params.extend([search_param, search_param, search_param])
         
         if tag:
-            if DATABASE_URL.startswith('postgresql://'):
-                base_query += " AND tags::text ILIKE %s"
-                count_query += " AND tags::text ILIKE %s"
-            else:
+            # 새 스키마에서는 tags 컬럼이 없을 수 있으므로 스킵
+            if not DATABASE_URL.startswith('postgresql://'):
                 base_query += " AND tags LIKE ?"
                 count_query += " AND tags LIKE ?"
-            params.append(f"%{tag}%")
+                params.append(f"%{tag}%")
         
         if category:
             if DATABASE_URL.startswith('postgresql://'):
@@ -8340,17 +8363,31 @@ def get_blog_posts():
         
         posts = []
         for row in rows:
-            posts.append({
-                'id': row[0],
-                'title': row[1],
-                'excerpt': row[2],
-                'category': row[3],
-                'thumbnail_url': row[4],
-                'tags': row[5] if isinstance(row[5], list) else (json.loads(row[5]) if row[5] else []),
-                'created_at': row[6].isoformat(),
-                'updated_at': row[7].isoformat(),
-                'view_count': row[8]
-            })
+            if DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: blog_id, title, content, category, NULL, NULL, created_at, updated_at, views
+                posts.append({
+                    'id': row[0],
+                    'title': row[1],
+                    'excerpt': (row[2][:200] + '...') if row[2] and len(row[2]) > 200 else (row[2] or ''),  # content에서 excerpt 생성
+                    'category': row[3],
+                    'thumbnail_url': row[4],
+                    'tags': [],  # 새 스키마에서는 tags 없음
+                    'created_at': row[6].isoformat() if row[6] and hasattr(row[6], 'isoformat') else (str(row[6]) if row[6] else None),
+                    'updated_at': row[7].isoformat() if row[7] and hasattr(row[7], 'isoformat') else (str(row[7]) if row[7] else None),
+                    'view_count': row[8] if len(row) > 8 else 0
+                })
+            else:
+                posts.append({
+                    'id': row[0],
+                    'title': row[1],
+                    'excerpt': row[2],
+                    'category': row[3],
+                    'thumbnail_url': row[4],
+                    'tags': row[5] if isinstance(row[5], list) else (json.loads(row[5]) if row[5] else []),
+                    'created_at': row[6].isoformat(),
+                    'updated_at': row[7].isoformat(),
+                    'view_count': row[8]
+                })
         
         cursor.close()
         conn.close()
@@ -8446,10 +8483,11 @@ def get_blog_categories():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
+            # 새 스키마에서는 blogs 테이블 사용
             cursor.execute("""
                 SELECT category, COUNT(*) as count
-                FROM blog_posts 
-                WHERE is_published = true AND category IS NOT NULL
+                FROM blogs 
+                WHERE category IS NOT NULL
                 GROUP BY category
                 ORDER BY count DESC, category
             """)
@@ -8488,11 +8526,8 @@ def get_blog_tags():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT DISTINCT jsonb_array_elements_text(tags) as tag
-                FROM blog_posts 
-                WHERE is_published = true AND tags IS NOT NULL
-            """)
+            # 새 스키마에서는 blogs 테이블에 tags 컬럼이 없으므로 빈 배열 반환
+            tags = []
         else:
             # SQLite에서는 JSON 함수 사용
             cursor.execute("""
