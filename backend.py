@@ -1705,42 +1705,50 @@ def get_db_connection():
     try:
         # 인코딩 문제를 완전히 회피하기 위해 환경 변수를 전혀 읽지 않고
         # 하드코딩된 연결 정보만 사용
-        # 모든 값을 ASCII bytes로 정의 후 decode하여 인코딩 문제 완전 회피
+        # psycopg2가 환경 변수를 읽지 않도록 DATABASE_URL 임시 제거
+        original_db_url = os.environ.pop('DATABASE_URL', None)
         
-        # ASCII bytes로 정의 (인코딩 문제 없음)
-        host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
-        db_name_bytes = b'postgres'
-        db_user_bytes = b'postgres'
-        db_password_bytes = b'KARDONH0813!'
-        
-        # ASCII로 decode (항상 성공)
-        host_str = host_bytes.decode('ascii')
-        db_name_str = db_name_bytes.decode('ascii')
-        db_user_str = db_user_bytes.decode('ascii')
-        db_password_str = db_password_bytes.decode('ascii')
-        
-        # psycopg2.connect()에 전달 (모든 값이 ASCII 문자열)
-        conn = psycopg2.connect(
-            host=host_str,
-            port=5432,
-            database=db_name_str,
-            user=db_user_str,
-            password=db_password_str,
-            connect_timeout=30,
-            keepalives_idle=600,
-            keepalives_interval=30,
-            keepalives_count=3
-        )
-        
-        # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
-        conn.autocommit = False
-        return conn
+        try:
+            # ASCII bytes로 정의 (인코딩 문제 없음)
+            host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
+            db_name_bytes = b'postgres'
+            db_user_bytes = b'postgres'
+            db_password_bytes = b'KARDONH0813!'
+            
+            # ASCII로 decode (항상 성공)
+            host_str = host_bytes.decode('ascii')
+            db_name_str = db_name_bytes.decode('ascii')
+            db_user_str = db_user_bytes.decode('ascii')
+            db_password_str = db_password_bytes.decode('ascii')
+            
+            # psycopg2.connect()에 전달 (모든 값이 ASCII 문자열)
+            conn = psycopg2.connect(
+                host=host_str,
+                port=5432,
+                database=db_name_str,
+                user=db_user_str,
+                password=db_password_str,
+                connect_timeout=30,
+                keepalives_idle=600,
+                keepalives_interval=30,
+                keepalives_count=3
+            )
+            
+            # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
+            conn.autocommit = False
+            return conn
+        finally:
+            # 환경 변수 복원 (다른 코드에서 사용할 수 있도록)
+            if original_db_url is not None:
+                os.environ['DATABASE_URL'] = original_db_url
         
     except psycopg2.Error as e:
         print(f"❌ PostgreSQL 연결 실패: {e}")
         raise
     except Exception as e:
         print(f"❌ 데이터베이스 연결 오류: {e}")
+        import traceback
+        traceback.print_exc()
         raise
 
 def init_database():
