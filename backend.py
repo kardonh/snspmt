@@ -1453,15 +1453,21 @@ def check_and_update_order_status():
         
         # 주문 실행중 상태인 주문들 조회
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT order_id, smm_panel_order_id, created_at 
-                FROM orders 
-                WHERE status = '주문 실행중' 
-                AND smm_panel_order_id IS NOT NULL
-                AND created_at > NOW() - INTERVAL '25 hours'
-                ORDER BY created_at DESC
-                LIMIT 50
-            """)
+            # 새 스키마에서는 order_items 테이블을 사용하므로 쿼리 수정
+            try:
+                cursor.execute("""
+                    SELECT o.order_id, oi.meta_json->>'smm_panel_order_id' as smm_panel_order_id, o.created_at 
+                    FROM orders o
+                    JOIN order_items oi ON o.order_id = oi.order_id
+                    WHERE o.status = 'processing' 
+                    AND oi.meta_json->>'smm_panel_order_id' IS NOT NULL
+                    AND o.created_at > NOW() - INTERVAL '25 hours'
+                    ORDER BY o.created_at DESC
+                    LIMIT 50
+                """)
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패, 빈 결과 반환: {e}")
+                cursor.execute("SELECT 1 WHERE 1=0")  # 빈 결과
         else:
             cursor.execute("""
                 SELECT order_id, smm_panel_order_id, created_at 
@@ -2018,91 +2024,15 @@ def init_database():
                 )
             """)
             
-            # commission_ledger 테이블 생성 (통합: commission_points, commission_payments, commissions 대체)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS commission_ledger (
-                    ledger_id SERIAL PRIMARY KEY,
-                    referral_code VARCHAR(50) NOT NULL,
-                    referrer_user_id VARCHAR(255) NOT NULL,
-                    referred_user_id VARCHAR(255),
-                    order_id VARCHAR(255),
-                    event VARCHAR(50) NOT NULL CHECK (event IN ('earn','payout','adjust','reverse')),
-                    base_amount DECIMAL(10,2),
-                    commission_rate DECIMAL(5,4),
-                    amount DECIMAL(10,2) NOT NULL,
-                    status VARCHAR(50) NOT NULL DEFAULT 'confirmed' CHECK (status IN ('pending','confirmed','cancelled')),
-                    notes TEXT,
-                    external_ref VARCHAR(100),
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    confirmed_at TIMESTAMP,
-                    CONSTRAINT fk_ledger_code FOREIGN KEY (referral_code) REFERENCES referral_codes(code),
-                    CONSTRAINT fk_ledger_owner FOREIGN KEY (referrer_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-                    CONSTRAINT fk_ledger_refer FOREIGN KEY (referred_user_id) REFERENCES users(user_id),
-                    CONSTRAINT fk_ledger_order FOREIGN KEY (order_id) REFERENCES orders(order_id)
-                )
-            """)
-            print("✅ commission_ledger 테이블 생성 완료 (통합 테이블)")
+            # commission_ledger 테이블 생성 스킵 (새 스키마에서는 commissions 테이블 사용)
+            # Supabase에 이미 새 스키마가 적용되어 있으므로 구 스키마 테이블 생성은 건너뜀
+            print("ℹ️ commission_ledger 테이블 생성 스킵 (새 스키마에서는 commissions 테이블 사용)")
             
-            # commission_ledger 인덱스 생성
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_code_time ON commission_ledger(referral_code, created_at)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_owner_time ON commission_ledger(referrer_user_id, created_at)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_event_time ON commission_ledger(event, created_at)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_order ON commission_ledger(order_id)")
-            print("✅ commission_ledger 인덱스 생성 완료")
+            # commission_ledger 관련 코드 스킵 (새 스키마에서는 commissions 테이블 사용)
+            print("ℹ️ commission_ledger 관련 코드 스킵 (새 스키마에서는 commissions 테이블 사용)")
             
-            # orders.referral_code 외래 키 제약 조건 추가
-            try:
-                cursor.execute("""
-                    SELECT constraint_name 
-                    FROM information_schema.table_constraints 
-                    WHERE table_name='orders' AND constraint_name='fk_orders_referral_code'
-                """)
-                if not cursor.fetchone():
-                    cursor.execute("""
-                        ALTER TABLE orders 
-                        ADD CONSTRAINT fk_orders_referral_code 
-                        FOREIGN KEY (referral_code) REFERENCES referral_codes(code)
-                    """)
-                    print("✅ orders.referral_code 외래 키 제약 조건 추가 완료")
-            except Exception as e:
-                print(f"⚠️ orders.referral_code 외래 키 추가 실패 (이미 존재할 수 있음): {e}")
-            
-            # commission_ledger 트리거 함수 생성 (referral_codes.total_commission 자동 동기화)
-            cursor.execute("""
-                CREATE OR REPLACE FUNCTION sync_referral_commission()
-                RETURNS TRIGGER AS $$
-                BEGIN
-                  UPDATE referral_codes
-                     SET total_commission = (
-                       SELECT COALESCE(SUM(amount), 0)
-                       FROM commission_ledger
-                       WHERE referral_code = COALESCE(NEW.referral_code, OLD.referral_code)
-                         AND status='confirmed'
-                     )
-                   WHERE code = COALESCE(NEW.referral_code, OLD.referral_code);
-                  
-                  RETURN COALESCE(NEW, OLD);
-                END;
-                $$ LANGUAGE plpgsql;
-            """)
-            
-            # commission_ledger 트리거 생성
-            cursor.execute("DROP TRIGGER IF EXISTS trg_commission_ai ON commission_ledger")
-            cursor.execute("""
-                CREATE TRIGGER trg_commission_ai AFTER INSERT ON commission_ledger
-                FOR EACH ROW EXECUTE FUNCTION sync_referral_commission()
-            """)
-            cursor.execute("DROP TRIGGER IF EXISTS trg_commission_au ON commission_ledger")
-            cursor.execute("""
-                CREATE TRIGGER trg_commission_au AFTER UPDATE ON commission_ledger
-                FOR EACH ROW EXECUTE FUNCTION sync_referral_commission()
-            """)
-            cursor.execute("DROP TRIGGER IF EXISTS trg_commission_ad ON commission_ledger")
-            cursor.execute("""
-                CREATE TRIGGER trg_commission_ad AFTER DELETE ON commission_ledger
-                FOR EACH ROW EXECUTE FUNCTION sync_referral_commission()
-            """)
-            print("✅ commission_ledger 트리거 생성 완료 (referral_codes.total_commission 자동 동기화)")
+            # commission_ledger 트리거 함수 생성 스킵 (새 스키마에서는 commissions 테이블 사용)
+            print("ℹ️ commission_ledger 트리거 생성 스킵 (새 스키마에서는 commissions 테이블 사용)")
             
             # 공지사항 테이블 생성
             cursor.execute("""
@@ -6875,13 +6805,23 @@ def check_order_status():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 주문 정보 조회
+        # 주문 정보 조회 (새 스키마에서는 order_items 테이블 사용)
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT order_id, status, smm_panel_order_id, created_at, updated_at
-                FROM orders 
-                WHERE order_id = %s
-            """, (order_id,))
+            try:
+                cursor.execute("""
+                    SELECT o.order_id, o.status, oi.meta_json->>'smm_panel_order_id' as smm_panel_order_id, o.created_at, o.updated_at
+                    FROM orders o
+                    LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                    WHERE o.order_id = %s
+                    LIMIT 1
+                """, (order_id,))
+            except Exception as e:
+                print(f"⚠️ 새 스키마 쿼리 실패, 기본 쿼리 사용: {e}")
+                cursor.execute("""
+                    SELECT order_id, status, NULL as smm_panel_order_id, created_at, updated_at
+                    FROM orders 
+                    WHERE order_id = %s
+                """, (order_id,))
         else:
             cursor.execute("""
                 SELECT order_id, status, smm_panel_order_id, created_at, updated_at
