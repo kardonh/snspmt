@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import sys
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import Flask, request, jsonify
@@ -16,6 +17,15 @@ from werkzeug.utils import secure_filename
 from flask import send_from_directory
 from dotenv import load_dotenv
 from urllib.parse import urlparse, unquote
+
+# UTF-8 인코딩 강제 설정 (Windows에서 psycopg2 내부 인코딩 문제 해결)
+if sys.platform == 'win32':
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    # Windows 콘솔 인코딩 설정
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8')
 
 # .env 파일 로드 (로컬 개발용) - UTF-8 인코딩 명시
 try:
