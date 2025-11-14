@@ -1755,11 +1755,11 @@ def get_db_connection():
         psycopg2_logger = logging.getLogger('psycopg2')
         psycopg2_logger.setLevel(logging.CRITICAL)
         
-        # Pooler 연결 시도 (포트 6543 - Session mode, 더 안정적)
+        # Pooler 연결 시도 (포트 5432 - Session mode, 더 안정적)
         try:
             conn = psycopg2.connect(
                 host=host_str,
-                port=6543,  # Session mode (포트 5432는 Transaction mode)
+                port=5432,  # Session mode (포트 6543은 Transaction mode)
                 database=db_name_str,
                 user=db_user_str,
                 password=db_password_str,
@@ -1774,7 +1774,7 @@ def get_db_connection():
                 print(f"⚠️ Pooler Session mode 실패, Transaction mode 시도: {pooler_error}")
                 conn = psycopg2.connect(
                     host=host_str,
-                    port=5432,  # Transaction mode
+                    port=6543,  # Transaction mode
                     database=db_name_str,
                     user=db_user_str,
                     password=db_password_str,
