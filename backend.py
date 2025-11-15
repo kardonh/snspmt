@@ -5037,44 +5037,85 @@ def deduct_points():
             return jsonify({'error': '차감할 포인트는 0보다 커야 합니다.'}), 400
         
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 새 스키마: wallets와 wallet_transactions 사용
+        if DATABASE_URL.startswith('postgresql://'):
+            # external_uid로 사용자 찾기
+            cursor.execute("""
+                SELECT u.user_id, w.wallet_id, w.balance
+                FROM users u
+                LEFT JOIN wallets w ON u.user_id = w.user_id
+                WHERE u.external_uid = %s OR u.email = %s
+                LIMIT 1
+            """, (user_id, user_id))
             
-        # 사용자 포인트 조회
-        if DATABASE_URL.startswith('postgresql://'):
+            user_result = cursor.fetchone()
+            
+            if not user_result:
+                return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+            
+            db_user_id = user_result['user_id']
+            wallet_id = user_result.get('wallet_id')
+            current_balance = float(user_result.get('balance', 0))
+            
+            # wallet이 없으면 생성
+            if not wallet_id:
+                cursor.execute("""
+                    INSERT INTO wallets (user_id, balance, created_at, updated_at)
+                    VALUES (%s, 0, NOW(), NOW())
+                    RETURNING wallet_id
+                """, (db_user_id,))
+                wallet_result = cursor.fetchone()
+                wallet_id = wallet_result['wallet_id']
+                current_balance = 0
+            
+            if current_balance < amount:
+                return jsonify({'error': '포인트가 부족합니다.'}), 400
+            
+            # 포인트 차감 (동시성 제어)
+            new_balance = current_balance - amount
+            
             cursor.execute("""
-                SELECT points FROM points WHERE user_id = %s
-            """, (user_id,))
-        else:
-            cursor.execute("""
-                SELECT points FROM points WHERE user_id = ?
-            """, (user_id,))
-        
-        user_points = cursor.fetchone()
-        
-        if not user_points:
-            return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
-        
-        current_points = user_points[0]
-        
-        if current_points < amount:
-            return jsonify({'error': '포인트가 부족합니다.'}), 400
-        
-        # 포인트 차감 (동시성 제어)
-        new_points = current_points - amount
-        
-        if DATABASE_URL.startswith('postgresql://'):
-            # PostgreSQL: SELECT FOR UPDATE로 락 설정
-            cursor.execute("""
-                UPDATE points
-                SET points = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE user_id = %s AND points = %s
-            """, (new_points, user_id, current_points))
+                UPDATE wallets
+                SET balance = %s, updated_at = NOW()
+                WHERE wallet_id = %s AND balance = %s
+            """, (new_balance, wallet_id, current_balance))
             
             if cursor.rowcount == 0:
                 conn.rollback()
                 return jsonify({'error': '포인트 잔액이 변경되었습니다. 다시 시도해주세요.'}), 409
+            
+            # wallet_transactions에 거래 기록
+            import json as json_module
+            meta_json = json_module.dumps({
+                'order_id': order_id,
+                'type': 'deduction',
+                'reason': '주문 결제'
+            })
+            
+            cursor.execute("""
+                INSERT INTO wallet_transactions (wallet_id, type, amount, status, meta_json, created_at, updated_at)
+                VALUES (%s, 'deduction', %s, 'completed', %s::jsonb, NOW(), NOW())
+            """, (wallet_id, -amount, meta_json))
         else:
-            # SQLite: 트랜잭션으로 동시성 제어
+            # SQLite: 구 스키마
+            cursor.execute("""
+                SELECT points FROM points WHERE user_id = ?
+            """, (user_id,))
+            
+            user_points = cursor.fetchone()
+            
+            if not user_points:
+                return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+            
+            current_points = user_points[0]
+            
+            if current_points < amount:
+                return jsonify({'error': '포인트가 부족합니다.'}), 400
+            
+            new_points = current_points - amount
+            
             cursor.execute("""
                 UPDATE points
                 SET points = ?, updated_at = CURRENT_TIMESTAMP
@@ -5089,7 +5130,7 @@ def deduct_points():
         
         return jsonify({
             'message': '포인트가 성공적으로 차감되었습니다.',
-            'remaining_points': new_points,
+            'remaining_points': new_balance if DATABASE_URL.startswith('postgresql://') else new_points,
             'deducted_amount': amount
         }), 200
         
@@ -5434,13 +5475,36 @@ def get_commissions():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
+            # 새 스키마: commissions 테이블은 referral_id를 사용
+            # external_uid로 사용자 찾기
             cursor.execute("""
-            SELECT id, referred_user, purchase_amount, commission_amount, 
-                commission_rate, created_at
-            FROM commissions 
-            WHERE referrer_id = %s
-            ORDER BY created_at DESC
-            """, (user_id,))
+                SELECT user_id FROM users 
+                WHERE external_uid = %s OR email = %s
+                LIMIT 1
+            """, (user_id, user_id))
+            user_result = cursor.fetchone()
+            
+            if not user_result:
+                return jsonify({'commissions': []}), 200
+            
+            db_user_id = user_result[0]
+            
+            # referrals와 commissions 조인하여 조회
+            cursor.execute("""
+                SELECT 
+                    c.commission_id,
+                    u.external_uid as referred_user,
+                    o.total_amount as purchase_amount,
+                    c.amount as commission_amount,
+                    0.1 as commission_rate,
+                    c.created_at
+                FROM commissions c
+                JOIN referrals r ON c.referral_id = r.referral_id
+                JOIN orders o ON c.order_id = o.order_id
+                JOIN users u ON r.referred_user_id = u.user_id
+                WHERE r.referrer_user_id = %s
+                ORDER BY c.created_at DESC
+            """, (db_user_id,))
         else:
             cursor.execute("""
                 SELECT id, referred_user, purchase_amount, commission_amount, 
@@ -5452,23 +5516,51 @@ def get_commissions():
         
         commissions = []
         for row in cursor.fetchall():
-            # 날짜 형식 처리 (created_at는 5번째 인덱스)
-            payment_date = row[5]
-            if hasattr(payment_date, 'strftime'):
-                payment_date = payment_date.strftime('%Y-%m-%d')
-            elif hasattr(payment_date, 'isoformat'):
-                payment_date = payment_date.isoformat()[:10]
+            if DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: commission_id, referred_user, purchase_amount, commission_amount, commission_rate, created_at
+                commission_id = row[0]
+                referred_user = row[1] or 'N/A'
+                purchase_amount = float(row[2]) if row[2] else 0.0
+                commission_amount = float(row[3]) if row[3] else 0.0
+                commission_rate = float(row[4]) if row[4] else 0.1
+                created_at = row[5]
             else:
-                payment_date = str(payment_date)[:10]
+                commission_id = row[0]
+                referred_user = row[1]
+                purchase_amount = float(row[2]) if row[2] else 0.0
+                commission_amount = float(row[3]) if row[3] else 0.0
+                commission_rate = float(row[4]) if row[4] else 0.1
+                created_at = row[5]
+            
+            # 날짜 형식 처리
+            if hasattr(created_at, 'strftime'):
+                payment_date = created_at.strftime('%Y-%m-%d')
+            elif hasattr(created_at, 'isoformat'):
+                payment_date = created_at.isoformat()[:10]
+            else:
+                payment_date = str(created_at)[:10] if created_at else None
+            
+            # 새 스키마에서는 payout_requests와 payouts로 지급 상태 확인
+            is_paid = False
+            if DATABASE_URL.startswith('postgresql://'):
+                try:
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM payouts 
+                        WHERE commission_id = %s AND status = 'completed'
+                    """, (commission_id,))
+                    payout_result = cursor.fetchone()
+                    is_paid = payout_result[0] > 0 if payout_result else False
+                except:
+                    pass
             
             commissions.append({
-                'id': row[0],
-                'referredUser': row[1],
-                'purchaseAmount': row[2],
-                'commissionAmount': row[3],
-                'commissionRate': f"{row[4] * 100}%" if row[4] else "0%",
+                'id': commission_id,
+                'referredUser': referred_user,
+                'purchaseAmount': purchase_amount,
+                'commissionAmount': commission_amount,
+                'commissionRate': f"{commission_rate * 100}%",
                 'paymentDate': payment_date,
-                'isPaid': True  # 기본값으로 지급 완료 처리
+                'isPaid': is_paid
             })
         
         return jsonify({
@@ -7005,14 +7097,49 @@ def get_commission_points():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
+            # 새 스키마: commissions와 payouts 사용
+            # external_uid 또는 email로 사용자 찾기
             cursor.execute("""
-                SELECT 
-                    COALESCE(SUM(CASE WHEN event = 'earn' THEN amount ELSE 0 END), 0) as total_earned,
-                    COALESCE(SUM(CASE WHEN event = 'payout' THEN ABS(amount) ELSE 0 END), 0) as total_paid,
-                    COALESCE(SUM(amount), 0) as current_balance
-                FROM commission_ledger 
-                WHERE referrer_user_id = %s AND status = 'confirmed'
-            """, (referrer_email,))
+                SELECT user_id FROM users 
+                WHERE external_uid = %s OR email = %s
+                LIMIT 1
+            """, (referrer_email, referrer_email))
+            user_result = cursor.fetchone()
+            
+            if not user_result:
+                return jsonify({
+                    'total_earned': 0,
+                    'total_paid': 0,
+                    'current_balance': 0,
+                    'created_at': None,
+                    'updated_at': None
+                }), 200
+            
+            db_user_id = user_result[0]
+            
+            # 총 적립액 (commissions에서)
+            cursor.execute("""
+                SELECT COALESCE(SUM(c.amount), 0)
+                FROM commissions c
+                JOIN referrals r ON c.referral_id = r.referral_id
+                WHERE r.referrer_user_id = %s AND c.status = 'accrued'
+            """, (db_user_id,))
+            total_earned_result = cursor.fetchone()
+            total_earned = float(total_earned_result[0]) if total_earned_result else 0.0
+            
+            # 총 지급액 (payouts에서)
+            cursor.execute("""
+                SELECT COALESCE(SUM(p.amount), 0)
+                FROM payouts p
+                JOIN commissions c ON p.commission_id = c.commission_id
+                JOIN referrals r ON c.referral_id = r.referral_id
+                WHERE r.referrer_user_id = %s AND p.status = 'completed'
+            """, (db_user_id,))
+            total_paid_result = cursor.fetchone()
+            total_paid = float(total_paid_result[0]) if total_paid_result else 0.0
+            
+            # 현재 잔액 (적립액 - 지급액)
+            current_balance = total_earned - total_paid
         else:
             cursor.execute("""
                 SELECT 
@@ -7023,25 +7150,36 @@ def get_commission_points():
                 WHERE referrer_user_id = ? AND status = 'confirmed'
             """, (referrer_email,))
         
-        result = cursor.fetchone()
-        conn.close()
-        
-        if result:
+        if DATABASE_URL.startswith('postgresql://'):
+            # 이미 계산된 값 사용
+            conn.close()
             return jsonify({
-                'total_earned': float(result[0]),
-                'total_paid': float(result[1]),
-                'current_balance': float(result[2]),
+                'total_earned': total_earned,
+                'total_paid': total_paid,
+                'current_balance': current_balance,
                 'created_at': None,
                 'updated_at': None
             }), 200
         else:
-            return jsonify({
-                'total_earned': 0,
-                'total_paid': 0,
-                'current_balance': 0,
-                'created_at': None,
-                'updated_at': None
-            }), 200
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result:
+                return jsonify({
+                    'total_earned': float(result[0]),
+                    'total_paid': float(result[1]),
+                    'current_balance': float(result[2]),
+                    'created_at': None,
+                    'updated_at': None
+                }), 200
+            else:
+                return jsonify({
+                    'total_earned': 0,
+                    'total_paid': 0,
+                    'current_balance': 0,
+                    'created_at': None,
+                    'updated_at': None
+                }), 200
             
     except Exception as e:
         return jsonify({'error': f'커미션 포인트 조회 실패: {str(e)}'}), 500
@@ -7059,14 +7197,55 @@ def get_commission_transactions():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
+            # 새 스키마: commissions와 payouts에서 거래 내역 조회
+            # external_uid 또는 email로 사용자 찾기
             cursor.execute("""
-                SELECT event, amount, notes, created_at,
-                       (SELECT COALESCE(SUM(amount), 0) FROM commission_ledger 
-                        WHERE referrer_user_id = %s AND status = 'confirmed' AND created_at <= cl.created_at) as balance_after
-                FROM commission_ledger cl
-                WHERE referrer_user_id = %s
-                ORDER BY created_at DESC
+                SELECT user_id FROM users 
+                WHERE external_uid = %s OR email = %s
+                LIMIT 1
             """, (referrer_email, referrer_email))
+            user_result = cursor.fetchone()
+            
+            if not user_result:
+                return jsonify({'transactions': []}), 200
+            
+            db_user_id = user_result[0]
+            
+            # commissions (적립 내역)
+            cursor.execute("""
+                SELECT 
+                    'earn' as type,
+                    c.amount,
+                    CONCAT('주문 #', c.order_id, ' 커미션') as description,
+                    c.created_at,
+                    (SELECT COALESCE(SUM(c2.amount), 0) - COALESCE(SUM(p.amount), 0)
+                     FROM commissions c2
+                     JOIN referrals r2 ON c2.referral_id = r2.referral_id
+                     LEFT JOIN payouts p ON c2.commission_id = p.commission_id AND p.status = 'completed'
+                     WHERE r2.referrer_user_id = %s AND c2.created_at <= c.created_at) as balance_after
+                FROM commissions c
+                JOIN referrals r ON c.referral_id = r.referral_id
+                WHERE r.referrer_user_id = %s
+                
+                UNION ALL
+                
+                SELECT 
+                    'payout' as type,
+                    -p.amount as amount,
+                    CONCAT('환급 #', p.payout_id) as description,
+                    p.created_at,
+                    (SELECT COALESCE(SUM(c2.amount), 0) - COALESCE(SUM(p2.amount), 0)
+                     FROM commissions c2
+                     JOIN referrals r2 ON c2.referral_id = r2.referral_id
+                     LEFT JOIN payouts p2 ON c2.commission_id = p2.commission_id AND p2.status = 'completed'
+                     WHERE r2.referrer_user_id = %s AND p2.created_at <= p.created_at) as balance_after
+                FROM payouts p
+                JOIN commissions c ON p.commission_id = c.commission_id
+                JOIN referrals r ON c.referral_id = r.referral_id
+                WHERE r.referrer_user_id = %s AND p.status = 'completed'
+                
+                ORDER BY created_at DESC
+            """, (db_user_id, db_user_id, db_user_id, db_user_id))
         else:
             cursor.execute("""
                 SELECT event, amount, notes, created_at,
@@ -7079,13 +7258,22 @@ def get_commission_transactions():
         
         transactions = []
         for row in cursor.fetchall():
-            transactions.append({
-                'type': row[0],  # 'earn' or 'payout'
-                'amount': float(row[1]),
-                'balance_after': float(row[4]) if len(row) > 4 else 0,
-                'description': row[2] if row[2] else '',
-                'created_at': row[3].isoformat() if hasattr(row[3], 'isoformat') else str(row[3])
-            })
+            if DATABASE_URL.startswith('postgresql://'):
+                transactions.append({
+                    'type': row[0],  # 'earn' or 'payout'
+                    'amount': float(row[1]),
+                    'balance_after': float(row[4]) if len(row) > 4 and row[4] else 0,
+                    'description': row[2] if row[2] else '',
+                    'created_at': row[3].isoformat() if hasattr(row[3], 'isoformat') else str(row[3])
+                })
+            else:
+                transactions.append({
+                    'type': row[0],  # 'earn' or 'payout'
+                    'amount': float(row[1]),
+                    'balance_after': float(row[4]) if len(row) > 4 else 0,
+                    'description': row[2] if row[2] else '',
+                    'created_at': row[3].isoformat() if hasattr(row[3], 'isoformat') else str(row[3])
+                })
         
         conn.close()
         return jsonify({'transactions': transactions}), 200
@@ -7112,48 +7300,65 @@ def request_withdrawal():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # referral_code로 referrer_user_id 조회
+        # 새 스키마: users에서 referrer_user_id 조회
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT code, user_id FROM referral_codes WHERE user_email = %s OR user_id = %s LIMIT 1
+                SELECT user_id, referral_code FROM users 
+                WHERE external_uid = %s OR email = %s
+                LIMIT 1
             """, (referrer_email, referrer_email))
+            
+            user_result = cursor.fetchone()
+            if not user_result:
+                return jsonify({'error': '추천인을 찾을 수 없습니다.'}), 404
+            
+            referrer_user_id = user_result[0]
+            referral_code = user_result[1]
+            
+            # commissions와 payouts에서 현재 잔액 계산
+            cursor.execute("""
+                SELECT COALESCE(SUM(c.amount), 0) - COALESCE(SUM(p.amount), 0)
+                FROM commissions c
+                JOIN referrals r ON c.referral_id = r.referral_id
+                LEFT JOIN payouts p ON c.commission_id = p.commission_id AND p.status = 'completed'
+                WHERE r.referrer_user_id = %s AND c.status = 'accrued'
+            """, (referrer_user_id,))
+            
+            result = cursor.fetchone()
+            current_balance = float(result[0]) if result else 0.0
+            
+            if current_balance < float(amount):
+                return jsonify({'error': f'잔액이 부족합니다. 현재 잔액: {current_balance}원'}), 400
+            
+            # payout_requests에 환급 신청 저장
+            cursor.execute("""
+                INSERT INTO payout_requests 
+                (referrer_user_id, amount, bank_name, account_number, account_holder, status, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, 'pending', NOW(), NOW())
+            """, (referrer_user_id, amount, bank_name, account_number, account_holder))
         else:
+            # SQLite: 구 스키마
             cursor.execute("""
                 SELECT code, user_id FROM referral_codes WHERE user_email = ? OR user_id = ? LIMIT 1
             """, (referrer_email, referrer_email))
-        
-        referral_result = cursor.fetchone()
-        if not referral_result:
-            return jsonify({'error': '추천인을 찾을 수 없습니다.'}), 404
-        
-        referral_code, referrer_user_id = referral_result
-        
-        # commission_ledger에서 현재 잔액 계산
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT COALESCE(SUM(amount), 0) FROM commission_ledger 
-                WHERE referrer_user_id = %s AND status = 'confirmed'
-            """, (referrer_user_id,))
-        else:
+            
+            referral_result = cursor.fetchone()
+            if not referral_result:
+                return jsonify({'error': '추천인을 찾을 수 없습니다.'}), 404
+            
+            referral_code, referrer_user_id = referral_result
+            
             cursor.execute("""
                 SELECT COALESCE(SUM(amount), 0) FROM commission_ledger 
                 WHERE referrer_user_id = ? AND status = 'confirmed'
             """, (referrer_user_id,))
-        
-        result = cursor.fetchone()
-        current_balance = float(result[0]) if result else 0.0
-        
-        if current_balance < float(amount):
-            return jsonify({'error': f'잔액이 부족합니다. 현재 잔액: {current_balance}원'}), 400
-        
-        # 환급 신청 저장
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                INSERT INTO commission_withdrawal_requests 
-                (referrer_email, referrer_name, bank_name, account_number, account_holder, amount, requested_at)
-                VALUES (%s, %s, %s, %s, %s, %s, NOW())
-            """, (referrer_email, referrer_name, bank_name, account_number, account_holder, amount))
-        else:
+            
+            result = cursor.fetchone()
+            current_balance = float(result[0]) if result else 0.0
+            
+            if current_balance < float(amount):
+                return jsonify({'error': f'잔액이 부족합니다. 현재 잔액: {current_balance}원'}), 400
+            
             cursor.execute("""
                 INSERT INTO commission_withdrawal_requests 
                 (referrer_email, referrer_name, bank_name, account_number, account_holder, amount, requested_at)
