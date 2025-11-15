@@ -4928,7 +4928,7 @@ def update_purchase_status(purchase_id):
                     wt.wallet_id,
                     wt.amount as price,
                     wt.status,
-                    wt.meta_json->>'amount' as amount,
+                    wt.meta_json,
                     w.user_id
                 FROM wallet_transactions wt
                 INNER JOIN wallets w ON wt.wallet_id = w.wallet_id
@@ -4953,7 +4953,23 @@ def update_purchase_status(purchase_id):
             
             # 승인된 경우 지갑 잔액 증가
             if status == 'approved':
-                amount = float(purchase['amount']) if purchase['amount'] else 0
+                # meta_json에서 amount 추출, 없으면 wt.amount 사용
+                meta_json = purchase.get('meta_json') or {}
+                if isinstance(meta_json, str):
+                    import json as json_module
+                    try:
+                        meta_json = json_module.loads(meta_json)
+                    except:
+                        meta_json = {}
+                
+                amount = 0
+                if meta_json and 'amount' in meta_json:
+                    amount = float(meta_json['amount'])
+                elif purchase.get('price'):
+                    amount = float(purchase['price'])
+                else:
+                    return jsonify({'error': '구매 금액을 확인할 수 없습니다.'}), 400
+                
                 wallet_id = purchase['wallet_id']
                 
                 # 지갑 잔액 증가
