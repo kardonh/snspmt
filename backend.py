@@ -6125,37 +6125,65 @@ def get_referral_stats():
         print(f"🔍 추천인 통계 조회 - user_id: {user_id}, user_email: {user_email}")
         
         if DATABASE_URL.startswith('postgresql://'):
-            # 총 추천인 수 (user_referral_connections 테이블 사용)
+            # 새 스키마: external_uid 또는 email로 사용자 찾기
             cursor.execute("""
-                SELECT COUNT(*) FROM user_referral_connections 
-                WHERE referrer_email = %s
-            """, (user_email,))
+                SELECT user_id FROM users 
+                WHERE external_uid = %s OR email = %s
+                LIMIT 1
+            """, (user_id, user_id))
+            user_result = cursor.fetchone()
+            
+            if not user_result:
+                return jsonify({
+                    'totalReferrals': 0,
+                    'totalCommission': 0,
+                    'activeReferrals': 0,
+                    'thisMonthReferrals': 0,
+                    'thisMonthCommission': 0
+                }), 200
+            
+            db_user_id = user_result[0]
+            
+            # 총 추천인 수 (referrals 테이블 사용)
+            cursor.execute("""
+                SELECT COUNT(*) FROM referrals 
+                WHERE referrer_user_id = %s
+            """, (db_user_id,))
             total_referrals = cursor.fetchone()[0] or 0
             
-            # 활성 추천인 수 (모든 피추천인은 활성으로 간주)
-            active_referrals = total_referrals
-            
-            # 총 커미션 (referrer_id로 조회)
+            # 활성 추천인 수 (status = 'approved')
             cursor.execute("""
-                SELECT COALESCE(SUM(commission_amount), 0) FROM commissions 
-                WHERE referrer_id = %s
-            """, (user_id,))
+                SELECT COUNT(*) FROM referrals 
+                WHERE referrer_user_id = %s AND status = 'approved'
+            """, (db_user_id,))
+            active_referrals = cursor.fetchone()[0] or 0
+            
+            # 총 커미션 (commissions 테이블 사용)
+            cursor.execute("""
+                SELECT COALESCE(SUM(c.amount), 0) 
+                FROM commissions c
+                JOIN referrals r ON c.referral_id = r.referral_id
+                WHERE r.referrer_user_id = %s AND c.status = 'accrued'
+            """, (db_user_id,))
             total_commission = cursor.fetchone()[0] or 0
             
-            # 이번 달 추천인 수 (user_referral_connections 테이블 사용)
+            # 이번 달 추천인 수
             cursor.execute("""
-                SELECT COUNT(*) FROM user_referral_connections 
-                WHERE referrer_email = %s 
+                SELECT COUNT(*) FROM referrals 
+                WHERE referrer_user_id = %s 
                 AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)
-            """, (user_email,))
+            """, (db_user_id,))
             this_month_referrals = cursor.fetchone()[0] or 0
             
             # 이번 달 커미션
             cursor.execute("""
-                SELECT COALESCE(SUM(commission_amount), 0) FROM commissions 
-                WHERE referrer_id = %s 
-                AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)
-            """, (user_id,))
+                SELECT COALESCE(SUM(c.amount), 0) 
+                FROM commissions c
+                JOIN referrals r ON c.referral_id = r.referral_id
+                WHERE r.referrer_user_id = %s 
+                AND c.status = 'accrued'
+                AND DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', CURRENT_DATE)
+            """, (db_user_id,))
             this_month_commission = cursor.fetchone()[0] or 0
         else:
             # SQLite 버전 (user_referral_connections 테이블 사용)
@@ -6217,25 +6245,42 @@ def get_user_referrals():
         
         print(f"🔍 피추천인 목록 조회 - user_id: {user_id}")
         
-        # user_id가 이메일인지 확인하고 적절히 처리
-        if '@' in user_id:
-            user_email = user_id
-        else:
-            user_email = f"{user_id}@example.com"
-        
-        print(f"🔍 검색할 이메일: {user_email}")
-        
-        # user_referral_connections 테이블에서 피추천인 목록 조회
         if DATABASE_URL.startswith('postgresql://'):
+            # 새 스키마: external_uid 또는 email로 사용자 찾기
             cursor.execute("""
-                SELECT urc.id, urc.user_id, urc.referral_code, urc.created_at,
-                       u.name, u.email
-                FROM user_referral_connections urc
-                LEFT JOIN users u ON urc.user_id = u.user_id
-                WHERE urc.referrer_email = %s
-                ORDER BY urc.created_at DESC
-            """, (user_email,))
+                SELECT user_id FROM users 
+                WHERE external_uid = %s OR email = %s
+                LIMIT 1
+            """, (user_id, user_id))
+            user_result = cursor.fetchone()
+            
+            if not user_result:
+                return jsonify({'referrals': []}), 200
+            
+            db_user_id = user_result[0]
+            
+            # referrals 테이블에서 피추천인 목록 조회
+            cursor.execute("""
+                SELECT 
+                    r.referral_id,
+                    r.referred_user_id,
+                    r.status,
+                    r.created_at,
+                    u.external_uid,
+                    u.email,
+                    COALESCE(u.username, u.display_name, '사용자') as username,
+                    COALESCE(SUM(c.amount), 0) as total_commission
+                FROM referrals r
+                JOIN users u ON r.referred_user_id = u.user_id
+                LEFT JOIN commissions c ON r.referral_id = c.referral_id AND c.status = 'accrued'
+                WHERE r.referrer_user_id = %s
+                GROUP BY r.referral_id, r.referred_user_id, r.status, r.created_at, 
+                         u.external_uid, u.email, u.username, u.display_name
+                ORDER BY r.created_at DESC
+            """, (db_user_id,))
         else:
+            # SQLite: 구 스키마
+            user_email = user_id if '@' in user_id else f"{user_id}@example.com"
             cursor.execute("""
                 SELECT urc.id, urc.user_id, urc.referral_code, urc.created_at,
                        u.name, u.email
@@ -6247,25 +6292,54 @@ def get_user_referrals():
         
         referrals = []
         for row in cursor.fetchall():
-            # 날짜 형식 처리
-            join_date = row[3]
-            if hasattr(join_date, 'strftime'):
-                join_date = join_date.strftime('%Y-%m-%d')
-            elif hasattr(join_date, 'isoformat'):
-                join_date = join_date.isoformat()[:10]
+            if DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: referral_id, referred_user_id, status, created_at, external_uid, email, username, total_commission
+                referral_id = row[0]
+                referred_user_id = row[1]
+                status = row[2]
+                created_at = row[3]
+                external_uid = row[4]
+                email = row[5]
+                username = row[6]
+                total_commission = float(row[7]) if row[7] else 0.0
+                
+                # 날짜 형식 처리
+                if hasattr(created_at, 'strftime'):
+                    join_date = created_at.strftime('%Y-%m-%d')
+                elif hasattr(created_at, 'isoformat'):
+                    join_date = created_at.isoformat()[:10]
+                else:
+                    join_date = str(created_at)[:10] if created_at else None
+                
+                # 사용자 이름
+                user_name = username or email or external_uid or '사용자'
+                
+                referrals.append({
+                    'id': referral_id,
+                    'user': user_name,
+                    'joinDate': join_date,
+                    'status': '활성' if status == 'approved' else '대기',
+                    'commission': total_commission
+                })
             else:
-                join_date = str(join_date)[:10]
-            
-            # 사용자 이름이 없으면 이메일 사용
-            user_name = row[4] if row[4] else (row[5] if row[5] else row[1])
-            
-            referrals.append({
-                'id': row[0],
-                'user': user_name,
-                'joinDate': join_date,
-                'status': '활성',  # 피추천인은 기본적으로 활성
-                'commission': 0  # 개별 커미션은 별도 계산 필요
-            })
+                # SQLite: 구 스키마
+                join_date = row[3]
+                if hasattr(join_date, 'strftime'):
+                    join_date = join_date.strftime('%Y-%m-%d')
+                elif hasattr(join_date, 'isoformat'):
+                    join_date = join_date.isoformat()[:10]
+                else:
+                    join_date = str(join_date)[:10]
+                
+                user_name = row[4] if row[4] else (row[5] if row[5] else row[1])
+                
+                referrals.append({
+                    'id': row[0],
+                    'user': user_name,
+                    'joinDate': join_date,
+                    'status': '활성',
+                    'commission': 0
+                })
         
         print(f"✅ 피추천인 목록 조회 완료: {len(referrals)}명")
         
