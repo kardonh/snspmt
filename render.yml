@@ -6,8 +6,8 @@ services:
     plan: free
     runtime: python-3.12.8
     buildCommand: |
-      which node || (curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash - && sudo apt-get install -y nodejs) || echo "Node.js 설치 실패, 프론트엔드 빌드 스킵"
-      npm install && npm run build || echo "프론트엔드 빌드 실패, 계속 진행"
+      npm install
+      npx vite build || echo "프론트엔드 빌드 실패, 계속 진행"
       pip install -r requirements.txt
     startCommand: gunicorn backend:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120
     envVars:
