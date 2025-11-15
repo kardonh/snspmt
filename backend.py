@@ -8866,20 +8866,35 @@ def serve_spa_routes():
 # 주의: 이 라우트는 모든 API 라우트보다 나중에 등록되어야 함
 @app.route('/<path:path>', methods=['GET'])
 def serve_spa(path):
-    """SPA 라우팅 지원 - 모든 경로를 index.html로 서빙"""
+    """SPA 라우팅 지원 - 정적 파일은 서빙하고, 나머지는 index.html로 서빙"""
     print(f"🔍 SPA 라우팅 요청: /{path}")
     
     # API 경로는 Flask가 자동으로 처리하므로 여기서는 처리하지 않음
     # Flask는 더 구체적인 라우트를 먼저 매칭하므로, API 라우트가 먼저 매칭됨
-    # 여기서는 API 경로가 아닌 경우에만 처리
     if path.startswith('api/'):
         # API 경로인데 여기까지 왔다면 실제로 404임
         print(f"⚠️ API 경로를 찾을 수 없음: /{path}")
         return jsonify({'error': 'API endpoint not found'}), 404
     
-    # 정적 파일 경로는 제외
-    if path.startswith('static/') or path.startswith('assets/') or '.' in path:
-        return jsonify({'error': 'Static file not found'}), 404
+    # 정적 파일 경로 처리 (assets/, logo1.png 등)
+    # 파일 확장자가 있는 경우 정적 파일로 간주
+    if '.' in path and not path.endswith('/'):
+        # 정적 파일 서빙 시도
+        try:
+            # dist 폴더에서 파일 찾기
+            static_path = os.path.join('dist', path)
+            if os.path.exists(static_path) and os.path.isfile(static_path):
+                print(f"📦 정적 파일 서빙: /{path}")
+                return app.send_static_file(path)
+            else:
+                # assets/ 폴더 내 파일도 시도
+                if path.startswith('assets/'):
+                    return app.send_static_file(path)
+                print(f"⚠️ 정적 파일을 찾을 수 없음: /{path}")
+                return jsonify({'error': 'Static file not found'}), 404
+        except Exception as e:
+            print(f"❌ 정적 파일 서빙 오류: {e}")
+            return jsonify({'error': 'Static file serving failed'}), 500
     
     # SPA 라우트인 경우 index.html 서빙
     try:
