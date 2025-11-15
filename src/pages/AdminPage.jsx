@@ -285,7 +285,7 @@ const AdminPage = () => {
   // 포인트 구매 신청 로드
   const loadPendingPurchases = async () => {
     try {
-      const response = await adminFetch(`${window.location.origin}/api/admin/purchases`)
+      const response = await adminFetch('/api/admin/purchases')
       
       if (response.ok) {
         const data = await response.json()

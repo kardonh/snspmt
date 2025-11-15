@@ -4558,37 +4558,54 @@ def get_admin_stats():
 @app.route('/api/admin/purchases', methods=['GET'])
 def get_admin_purchases():
     """관리자 포인트 구매 목록"""
+    conn = None
+    cursor = None
     try:
         print("🔍 관리자 포인트 구매 목록 조회 시작")
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         if DATABASE_URL.startswith('postgresql://'):
-            # 테이블 존재 여부 확인
+            # 새 스키마에서는 wallet_transactions에서 조회 (type='topup')
             cursor.execute("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_schema = 'public' 
-                    AND table_name = 'point_purchases'
-                );
+                SELECT 
+                    wt.transaction_id as id,
+                    u.external_uid as user_id,
+                    u.email,
+                    (wt.meta_json->>'amount')::numeric as amount,
+                    wt.amount as price,
+                    wt.status,
+                    wt.meta_json->>'buyer_name' as buyer_name,
+                    wt.meta_json->>'bank_info' as bank_info,
+                    wt.created_at
+                FROM wallet_transactions wt
+                INNER JOIN wallets w ON wt.wallet_id = w.wallet_id
+                INNER JOIN users u ON w.user_id = u.user_id
+                WHERE wt.type = 'topup'
+                ORDER BY wt.created_at DESC
             """)
-            purchases_table_exists = cursor.fetchone()[0]
             
-            print(f"📊 point_purchases 테이블 존재 여부: {purchases_table_exists}")
+            purchases = cursor.fetchall()
+            purchase_list = []
+            for purchase in purchases:
+                purchase_list.append({
+                    'id': purchase['id'],
+                    'user_id': purchase['user_id'],
+                    'email': purchase['email'] or 'N/A',
+                    'amount': float(purchase['amount']) if purchase['amount'] else 0,
+                    'price': float(purchase['price']) if purchase['price'] else 0,
+                    'status': purchase['status'] or 'pending',
+                    'created_at': purchase['created_at'].isoformat() if hasattr(purchase['created_at'], 'isoformat') else str(purchase['created_at']),
+                    'buyer_name': purchase['buyer_name'] or 'N/A',
+                    'bank_info': purchase['bank_info'] or 'N/A'
+                })
             
-            if purchases_table_exists:
-                cursor.execute("""
-                    SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, 
-                        pp.buyer_name, pp.bank_info, pp.created_at
-                FROM point_purchases pp
-                ORDER BY pp.created_at DESC
-            """)
-            else:
-                print("⚠️ point_purchases 테이블이 존재하지 않습니다. 빈 배열을 반환합니다.")
-                purchases = []
-                conn.close()
-                return jsonify({'purchases': []}), 200
+            print(f"✅ 포인트 구매 목록 조회 완료: {len(purchase_list)}건")
+            return jsonify({
+                'purchases': purchase_list
+            }), 200
         else:
+            # SQLite: point_purchases 테이블 사용
             cursor.execute("""
                 SELECT pp.id, pp.user_id, pp.amount, pp.price, pp.status, pp.created_at,
                        pp.buyer_name, pp.bank_info, u.email
@@ -4596,35 +4613,44 @@ def get_admin_purchases():
                 LEFT JOIN users u ON pp.user_id = u.user_id
                 ORDER BY pp.created_at DESC
             """)
-        
-        purchases = cursor.fetchall()
-        conn.close()
-        
-        purchase_list = []
-        for purchase in purchases:
-            purchase_list.append({
-                'id': purchase[0],
-                'user_id': purchase[1],
-                'amount': purchase[2],
-                'price': float(purchase[3]),
-                'status': purchase[4],
-                'created_at': purchase[5].isoformat() if hasattr(purchase[5], 'isoformat') else str(purchase[5]),
-                'buyer_name': purchase[6] if len(purchase) > 6 else 'N/A',
-                'bank_info': purchase[7] if len(purchase) > 7 else 'N/A',
-                'email': purchase[8] if len(purchase) > 8 else 'N/A'
-            })
-        
-        return jsonify({
-            'purchases': purchase_list
-        }), 200
+            
+            purchases = cursor.fetchall()
+            purchase_list = []
+            for purchase in purchases:
+                purchase_list.append({
+                    'id': purchase[0],
+                    'user_id': purchase[1],
+                    'amount': purchase[2],
+                    'price': float(purchase[3]),
+                    'status': purchase[4],
+                    'created_at': purchase[5].isoformat() if hasattr(purchase[5], 'isoformat') else str(purchase[5]),
+                    'buyer_name': purchase[6] if len(purchase) > 6 else 'N/A',
+                    'bank_info': purchase[7] if len(purchase) > 7 else 'N/A',
+                    'email': purchase[8] if len(purchase) > 8 else 'N/A'
+                })
+            
+            return jsonify({
+                'purchases': purchase_list
+            }), 200
         
     except Exception as e:
-        return jsonify({'error': f'포인트 구매 목록 조회 실패: {str(e)}'}), 500
+        import traceback
+        error_msg = f'포인트 구매 목록 조회 실패: {str(e)}'
+        print(f"❌ {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({'error': error_msg}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 포인트 구매 승인/거절
 @app.route('/api/admin/purchases/<int:purchase_id>', methods=['PUT'])
 def update_purchase_status(purchase_id):
     """포인트 구매 승인/거절"""
+    conn = None
+    cursor = None
     try:
         data = request.get_json()
         status = data.get('status')  # 'approved' 또는 'rejected'
@@ -4633,76 +4659,87 @@ def update_purchase_status(purchase_id):
             return jsonify({'error': '유효하지 않은 상태입니다.'}), 400
         
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # 구매 신청 정보 조회
         if DATABASE_URL.startswith('postgresql://'):
+            # 새 스키마에서는 wallet_transactions 사용
+            # 구매 신청 정보 조회
             cursor.execute("""
-                SELECT user_id, amount, status
-                FROM point_purchases
-                WHERE id = %s
+                SELECT 
+                    wt.transaction_id,
+                    wt.wallet_id,
+                    wt.amount as price,
+                    wt.status,
+                    wt.meta_json->>'amount' as amount,
+                    w.user_id
+                FROM wallet_transactions wt
+                INNER JOIN wallets w ON wt.wallet_id = w.wallet_id
+                WHERE wt.transaction_id = %s AND wt.type = 'topup'
             """, (purchase_id,))
+            
+            purchase = cursor.fetchone()
+            
+            if not purchase:
+                return jsonify({'error': '구매 신청을 찾을 수 없습니다.'}), 404
+            
+            if purchase['status'] != 'pending':
+                return jsonify({'error': '이미 처리된 구매 신청입니다.'}), 400
+            
+            # 상태 업데이트
+            new_status = 'completed' if status == 'approved' else 'failed'
+            cursor.execute("""
+                UPDATE wallet_transactions
+                SET status = %s, updated_at = NOW()
+                WHERE transaction_id = %s
+            """, (new_status, purchase_id))
+            
+            # 승인된 경우 지갑 잔액 증가
+            if status == 'approved':
+                amount = float(purchase['amount']) if purchase['amount'] else 0
+                wallet_id = purchase['wallet_id']
+                
+                # 지갑 잔액 증가
+                cursor.execute("""
+                    UPDATE wallets
+                    SET balance = balance + %s, updated_at = NOW()
+                    WHERE wallet_id = %s
+                """, (amount, wallet_id))
+                
+                print(f"✅ 포인트 구매 승인: wallet_id={wallet_id}, amount={amount}")
         else:
+            # SQLite: point_purchases 테이블 사용
             cursor.execute("""
                 SELECT user_id, amount, status
                 FROM point_purchases
                 WHERE id = ?
             """, (purchase_id,))
-        
-        purchase = cursor.fetchone()
-        
-        if not purchase:
-            return jsonify({'error': '구매 신청을 찾을 수 없습니다.'}), 404
-        
-        if purchase[2] != 'pending':
-            return jsonify({'error': '이미 처리된 구매 신청입니다.'}), 400
-        
-        # 상태 업데이트
-        if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                UPDATE point_purchases
-                SET status = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s
-            """, (status, purchase_id))
-        else:
+            
+            purchase = cursor.fetchone()
+            
+            if not purchase:
+                return jsonify({'error': '구매 신청을 찾을 수 없습니다.'}), 404
+            
+            if purchase['status'] != 'pending':
+                return jsonify({'error': '이미 처리된 구매 신청입니다.'}), 400
+            
+            # 상태 업데이트
             cursor.execute("""
                 UPDATE point_purchases
                 SET status = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             """, (status, purchase_id))
-        
-        # 승인된 경우 사용자 포인트 증가
-        if status == 'approved':
-            user_id = purchase[0]
-            amount = purchase[1]
             
-            # 사용자 포인트 조회
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    SELECT points FROM points WHERE user_id = %s
-                """, (user_id,))
-            else:
-                cursor.execute("""
-                    SELECT points FROM points WHERE user_id = ?
-                """, (user_id,))
-            
-            user_points = cursor.fetchone()
-            current_points = user_points[0] if user_points else 0
-            new_points = current_points + amount
-            
-            # 포인트 업데이트
-            if DATABASE_URL.startswith('postgresql://'):
+            # 승인된 경우 사용자 포인트 증가
+            if status == 'approved':
+                user_id = purchase['user_id']
+                amount = purchase['amount']
+                
+                # 사용자 포인트 조회 및 업데이트
                 cursor.execute("""
                     UPDATE points
-                    SET points = %s, updated_at = CURRENT_TIMESTAMP
-                    WHERE user_id = %s
-                """, (new_points, user_id))
-            else:
-                cursor.execute("""
-                    UPDATE points
-                    SET points = ?, updated_at = CURRENT_TIMESTAMP
+                    SET points = points + ?, updated_at = CURRENT_TIMESTAMP
                     WHERE user_id = ?
-                """, (new_points, user_id))
+                """, (amount, user_id))
         
         conn.commit()
         
@@ -4712,9 +4749,17 @@ def update_purchase_status(purchase_id):
         }), 200
         
     except Exception as e:
-        return jsonify({'error': f'구매 신청 처리 실패: {str(e)}'}), 500
+        import traceback
+        error_msg = f'구매 신청 처리 실패: {str(e)}'
+        print(f"❌ {error_msg}")
+        print(traceback.format_exc())
+        if conn:
+            conn.rollback()
+        return jsonify({'error': error_msg}), 500
     finally:
-        if 'conn' in locals():
+        if cursor:
+            cursor.close()
+        if conn:
             conn.close()
 
 # 포인트 차감 (주문 결제용)
