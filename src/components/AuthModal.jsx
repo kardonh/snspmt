@@ -37,6 +37,22 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
     setIsLogin(initialMode === 'login')
   }, [initialMode])
 
+  // URL 파라미터에서 추천인 코드 읽기
+  useEffect(() => {
+    if (isOpen && !isLogin) {
+      // URL 파라미터에서 추천인 코드 읽기 (ref 또는 referral)
+      const urlParams = new URLSearchParams(window.location.search)
+      const refCode = urlParams.get('ref') || urlParams.get('referral')
+      
+      if (refCode) {
+        console.log('🔗 추천인 링크에서 코드 감지:', refCode)
+        setReferralCode(refCode)
+        // 추천인 코드 유효성 검증
+        validateReferralCode(refCode)
+      }
+    }
+  }, [isOpen, isLogin])
+
   // 모바일에서 모달이 열릴 때 body 스크롤 방지
   useEffect(() => {
     if (isOpen) {

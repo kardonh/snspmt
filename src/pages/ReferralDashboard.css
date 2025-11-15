@@ -96,6 +96,69 @@
   box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
 }
 
+/* 추천인 링크 섹션 */
+.referral-link-section {
+  margin-top: 25px;
+  padding-top: 25px;
+  border-top: 1px solid #e9ecef;
+}
+
+.referral-link-section h3 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+  text-align: left;
+}
+
+.link-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.referral-link-input {
+  flex: 1;
+  padding: 10px 15px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #f8f9fa;
+  color: #495057;
+  cursor: text;
+}
+
+.referral-link-input:focus {
+  outline: none;
+  border-color: #007bff;
+  background: white;
+}
+
+.copy-link-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.copy-link-btn:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+}
+
+.link-description {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-top: 8px;
+  text-align: left;
+  line-height: 1.4;
+}
+
 /* 통계 그리드 */
 .stats-grid {
   display: grid;

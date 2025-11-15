@@ -251,6 +251,12 @@ const ReferralDashboard = () => {
     }
   }
 
+  // 추천인 링크 생성
+  const getReferralLink = () => {
+    const baseUrl = window.location.origin
+    return `${baseUrl}?ref=${referralCode}`
+  }
+
   const copyReferralCode = async () => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -272,19 +278,43 @@ const ReferralDashboard = () => {
     }
   }
 
+  const copyReferralLink = async () => {
+    const referralLink = getReferralLink()
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(referralLink)
+        alert('추천인 링크가 복사되었습니다!')
+      } else {
+        // 폴백: 텍스트 선택 방식
+        const textArea = document.createElement('textarea')
+        textArea.value = referralLink
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+        alert('추천인 링크가 복사되었습니다!')
+      }
+    } catch (error) {
+      console.error('클립보드 복사 실패:', error)
+      alert('클립보드 복사에 실패했습니다. 수동으로 복사해주세요: ' + referralLink)
+    }
+  }
+
   const shareReferralCode = async () => {
-    const shareText = `추천인 코드: ${referralCode}\n이 코드로 가입하시면 혜택을 받으실 수 있습니다!`
+    const referralLink = getReferralLink()
+    const shareText = `추천인 코드: ${referralCode}\n추천인 링크: ${referralLink}\n이 링크로 가입하시면 혜택을 받으실 수 있습니다!`
     try {
       if (navigator.share) {
         await navigator.share({
           title: '추천인 코드',
-          text: shareText
+          text: shareText,
+          url: referralLink
         })
       } else {
         // 클립보드 복사 폴백
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(shareText)
-          alert('추천인 코드가 복사되었습니다!')
+          alert('추천인 정보가 복사되었습니다!')
         } else {
           // 텍스트 선택 방식
           const textArea = document.createElement('textarea')
@@ -293,7 +323,7 @@ const ReferralDashboard = () => {
           textArea.select()
           document.execCommand('copy')
           document.body.removeChild(textArea)
-          alert('추천인 코드가 복사되었습니다!')
+          alert('추천인 정보가 복사되었습니다!')
         }
       }
     } catch (error) {
@@ -396,9 +426,30 @@ const ReferralDashboard = () => {
           <div className="code-display">
             <span className="code-text">{referralCode}</span>
             <button className="copy-btn" onClick={copyReferralCode}>
-              복사
+              코드 복사
             </button>
           </div>
+          
+          {/* 추천인 링크 */}
+          <div className="referral-link-section">
+            <h3>추천인 링크</h3>
+            <div className="link-display">
+              <input 
+                type="text" 
+                readOnly 
+                value={getReferralLink()} 
+                className="referral-link-input"
+                onClick={(e) => e.target.select()}
+              />
+              <button className="copy-link-btn" onClick={copyReferralLink}>
+                링크 복사
+              </button>
+            </div>
+            <p className="link-description">
+              이 링크를 공유하면 회원가입 시 추천인 코드가 자동으로 입력됩니다.
+            </p>
+          </div>
+          
           <button className="share-btn" onClick={shareReferralCode}>
             공유하기
           </button>
