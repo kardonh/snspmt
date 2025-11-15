@@ -44,7 +44,16 @@ const AdminServiceManagement = ({ adminFetch }) => {
     description: '',
     is_domestic: true,
     auto_tag: false,
-    is_package: false
+    is_package: false,
+    // 세부서비스 정보
+    variant_name: '',
+    variant_price: '',
+    variant_min_quantity: '',
+    variant_max_quantity: '',
+    variant_delivery_time: '',
+    variant_is_active: true,
+    variant_meta_json: {},
+    variant_api_endpoint: ''
   })
   const [variantForm, setVariantForm] = useState({
     product_id: null,
@@ -176,21 +185,22 @@ const AdminServiceManagement = ({ adminFetch }) => {
     }
   }
 
-  // 상품 추가/수정
+  // 상품 추가/수정 (세부서비스 정보 포함)
   const handleProductSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
     try {
-      const url = editingItem
+      // 1. 상품 먼저 생성/수정
+      const productUrl = editingItem
         ? `/api/admin/products/${editingItem.product_id}`
         : `/api/admin/products`
       
-      const method = editingItem ? 'PUT' : 'POST'
+      const productMethod = editingItem ? 'PUT' : 'POST'
       
-      const response = await adminFetch(url, {
-        method,
+      const productResponse = await adminFetch(productUrl, {
+        method: productMethod,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           category_id: parseInt(productForm.category_id),
@@ -201,22 +211,60 @@ const AdminServiceManagement = ({ adminFetch }) => {
         })
       })
 
-      if (response.ok) {
-        await loadProducts()
-        setShowProductModal(false)
-        setEditingItem(null)
-        setProductForm({
-          category_id: null,
-          name: '',
-          description: '',
-          is_domestic: true,
-          auto_tag: false,
-          is_package: false
-        })
-      } else {
-        const data = await response.json()
+      if (!productResponse.ok) {
+        const data = await productResponse.json()
         setError(data.error || '상품 저장 실패')
+        return
       }
+
+      const productData = await productResponse.json()
+      const savedProductId = editingItem ? editingItem.product_id : productData.product?.product_id
+
+      // 2. 세부서비스(옵션) 정보가 있으면 함께 생성
+      if (productForm.variant_name && productForm.variant_price) {
+        const variantResponse = await adminFetch('/api/admin/product-variants', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            product_id: savedProductId,
+            name: productForm.variant_name,
+            price: parseFloat(productForm.variant_price),
+            min_quantity: productForm.variant_min_quantity ? parseInt(productForm.variant_min_quantity) : null,
+            max_quantity: productForm.variant_max_quantity ? parseInt(productForm.variant_max_quantity) : null,
+            delivery_time_days: productForm.variant_delivery_time ? parseInt(productForm.variant_delivery_time) : null,
+            is_active: productForm.variant_is_active !== false,
+            meta_json: productForm.variant_meta_json || {},
+            api_endpoint: productForm.variant_api_endpoint || null
+          })
+        })
+
+        if (!variantResponse.ok) {
+          const variantData = await variantResponse.json()
+          setError(variantData.error || '세부서비스 저장 실패')
+          return
+        }
+      }
+
+      await loadProducts()
+      await loadVariants()
+      setShowProductModal(false)
+      setEditingItem(null)
+      setProductForm({
+        category_id: null,
+        name: '',
+        description: '',
+        is_domestic: true,
+        auto_tag: false,
+        is_package: false,
+        variant_name: '',
+        variant_price: '',
+        variant_min_quantity: '',
+        variant_max_quantity: '',
+        variant_delivery_time: '',
+        variant_is_active: true,
+        variant_meta_json: {},
+        variant_api_endpoint: ''
+      })
     } catch (err) {
       setError('상품 저장 중 오류 발생')
     } finally {
@@ -362,14 +410,22 @@ const AdminServiceManagement = ({ adminFetch }) => {
       })
     } else {
       setEditingItem(null)
-      setProductForm({
-        category_id: categoryId || null,
-        name: '',
-        description: '',
-        is_domestic: true,
-        auto_tag: false,
-        is_package: false
-      })
+        setProductForm({
+          category_id: categoryId || null,
+          name: '',
+          description: '',
+          is_domestic: true,
+          auto_tag: false,
+          is_package: false,
+          variant_name: '',
+          variant_price: '',
+          variant_min_quantity: '',
+          variant_max_quantity: '',
+          variant_delivery_time: '',
+          variant_is_active: true,
+          variant_meta_json: {},
+          variant_api_endpoint: ''
+        })
     }
     setShowProductModal(true)
   }
@@ -564,68 +620,82 @@ const AdminServiceManagement = ({ adminFetch }) => {
       {/* 전체 상품 목록 섹션 */}
       <div className="all-products-section">
         <div className="section-header">
-          <h3>전체 상품 목록</h3>
-          <span className="product-count">총 {products.length}개 상품</span>
+          <h3>전체 세부서비스 목록</h3>
+          <span className="product-count">총 {variants.length}개 세부서비스</span>
         </div>
         <div className="all-products-grid">
-          {products.length === 0 ? (
+          {variants.length === 0 ? (
             <div className="empty-state">
-              등록된 상품이 없습니다. 상품을 추가해주세요.
+              등록된 세부서비스가 없습니다. 상품을 추가해주세요.
             </div>
           ) : (
-            products.map(product => {
-              const productVariants = getVariantsByProduct(product.product_id)
-              const category = categories.find(c => c.category_id === product.category_id)
+            variants.map(variant => {
+              const product = products.find(p => p.product_id === variant.product_id)
+              const category = product ? categories.find(c => c.category_id === product.category_id) : null
               
               return (
-                <div key={product.product_id} className="product-card">
+                <div key={variant.variant_id} className="product-card">
                   <div className="product-card-header">
                     <div className="product-card-title">
                       <Layers size={16} />
-                      <span className="product-name">{product.name}</span>
+                      <span className="product-name">{variant.name}</span>
                       {category && (
                         <span className="category-badge">{category.name}</span>
+                      )}
+                      {product && (
+                        <span className="product-badge">{product.name}</span>
                       )}
                     </div>
                     <div className="product-card-actions">
                       <button
                         className="btn-icon"
-                        onClick={() => openVariantModal(null, product.product_id)}
-                        title="옵션 추가"
-                      >
-                        <Plus size={14} />
-                      </button>
-                      <button
-                        className="btn-icon"
-                        onClick={() => openProductModal(product)}
+                        onClick={() => openVariantModal(variant)}
                         title="수정"
                       >
                         <Edit size={14} />
                       </button>
                       <button
                         className="btn-icon"
-                        onClick={() => handleDeleteProduct(product.product_id)}
+                        onClick={() => handleDeleteVariant(variant.variant_id)}
                         title="삭제"
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
-                  {product.description && (
-                    <div className="product-description">{product.description}</div>
-                  )}
-                  <div className="product-variants-summary">
-                    <strong>옵션 {productVariants.length}개</strong>
-                    {productVariants.length > 0 && (
-                      <div className="variants-preview">
-                        {productVariants.slice(0, 3).map(variant => (
-                          <span key={variant.variant_id} className="variant-tag">
-                            {variant.name} ({parseFloat(variant.price).toLocaleString()}원)
-                          </span>
-                        ))}
-                        {productVariants.length > 3 && (
-                          <span className="variant-more">+{productVariants.length - 3}개 더</span>
-                        )}
+                  <div className="variant-details">
+                    <div className="detail-row">
+                      <span className="detail-label">가격:</span>
+                      <span className="detail-value price">{parseFloat(variant.price).toLocaleString()}원</span>
+                    </div>
+                    {variant.min_quantity && (
+                      <div className="detail-row">
+                        <span className="detail-label">최소 수량:</span>
+                        <span className="detail-value">{variant.min_quantity.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {variant.max_quantity && (
+                      <div className="detail-row">
+                        <span className="detail-label">최대 수량:</span>
+                        <span className="detail-value">{variant.max_quantity.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {variant.delivery_time_days && (
+                      <div className="detail-row">
+                        <span className="detail-label">배송 시간:</span>
+                        <span className="detail-value">{variant.delivery_time_days}일</span>
+                      </div>
+                    )}
+                    <div className="detail-row">
+                      <span className="detail-label">상태:</span>
+                      <span className={`detail-value status ${variant.is_active ? 'active' : 'inactive'}`}>
+                        {variant.is_active ? '활성' : '비활성'}
+                      </span>
+                    </div>
+                    {variant.api_endpoint && (
+                      <div className="detail-row">
+                        <span className="detail-label">API:</span>
+                        <span className="detail-value api-endpoint">{variant.api_endpoint}</span>
                       </div>
                     )}
                   </div>
@@ -759,6 +829,88 @@ const AdminServiceManagement = ({ adminFetch }) => {
                   자동 태그
                 </label>
               </div>
+
+              {/* 세부서비스 정보 섹션 */}
+              <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '2px solid #e5e7eb' }}>
+                <h4 style={{ marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>세부서비스 정보</h4>
+                
+                <div className="form-group">
+                  <label>세부서비스 이름 *</label>
+                  <input
+                    type="text"
+                    value={productForm.variant_name}
+                    onChange={(e) => setProductForm({ ...productForm, variant_name: e.target.value })}
+                    placeholder="예: 인스타그램 팔로워 1000명"
+                    required
+                  />
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>가격 *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={productForm.variant_price}
+                      onChange={(e) => setProductForm({ ...productForm, variant_price: e.target.value })}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>배송 시간 (일)</label>
+                    <input
+                      type="number"
+                      value={productForm.variant_delivery_time}
+                      onChange={(e) => setProductForm({ ...productForm, variant_delivery_time: e.target.value })}
+                      placeholder="예: 1"
+                    />
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>최소 수량</label>
+                    <input
+                      type="number"
+                      value={productForm.variant_min_quantity}
+                      onChange={(e) => setProductForm({ ...productForm, variant_min_quantity: e.target.value })}
+                      placeholder="예: 100"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>최대 수량</label>
+                    <input
+                      type="number"
+                      value={productForm.variant_max_quantity}
+                      onChange={(e) => setProductForm({ ...productForm, variant_max_quantity: e.target.value })}
+                      placeholder="예: 10000"
+                    />
+                  </div>
+                </div>
+                
+                <div className="form-group">
+                  <label>API 엔드포인트</label>
+                  <input
+                    type="text"
+                    value={productForm.variant_api_endpoint}
+                    onChange={(e) => setProductForm({ ...productForm, variant_api_endpoint: e.target.value })}
+                    placeholder="SMM Panel API 엔드포인트"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={productForm.variant_is_active}
+                      onChange={(e) => setProductForm({ ...productForm, variant_is_active: e.target.checked })}
+                    />
+                    세부서비스 활성화
+                  </label>
+                </div>
+              </div>
+
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowProductModal(false)}>
                   취소
