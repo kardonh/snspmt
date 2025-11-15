@@ -983,42 +983,85 @@ def process_package_step(order_id, step_index):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 주문 정보 조회
+        # 주문 정보 조회 (새 스키마: work_jobs에서 패키지 단계 정보 가져오기)
         if DATABASE_URL.startswith('postgresql://'):
+            # 새 스키마: order_items와 work_jobs에서 패키지 단계 정보 조회
             cursor.execute("""
-                SELECT user_id, link, package_steps, comments
-                FROM orders 
-                WHERE order_id = %s
+                SELECT 
+                    o.user_id,
+                    oi.link,
+                    wj.payload_json,
+                    oi.order_item_id
+                FROM orders o
+                JOIN order_items oi ON o.order_id = oi.order_id
+                JOIN work_jobs wj ON oi.order_item_id = wj.order_item_id
+                WHERE o.order_id = %s
+                ORDER BY (wj.payload_json->>'step_index')::int ASC
             """, (order_id,))
+            
+            work_jobs = cursor.fetchall()
+            
+            if not work_jobs:
+                print(f"❌ 패키지 주문 {order_id}의 work_jobs를 찾을 수 없습니다.")
+                return False
+            
+            # work_jobs에서 패키지 단계 정보 추출
+            package_steps = []
+            user_id = None
+            link = None
+            comments = ''
+            
+            for job in work_jobs:
+                if not user_id:
+                    user_id = job[0]
+                if not link:
+                    link = job[1]
+                payload = job[2]
+                
+                if payload:
+                    step_index = payload.get('step_index', 0)
+                    step_name = payload.get('step_name', f'단계 {step_index + 1}')
+                    variant_id = payload.get('variant_id')
+                    step_quantity = payload.get('quantity', 0)
+                    
+                    package_steps.append({
+                        'index': step_index,
+                        'name': step_name,
+                        'id': variant_id,
+                        'variant_id': variant_id,
+                        'quantity': step_quantity,
+                        'delay': 0,
+                        'repeat': 1
+                    })
+            
+            # step_index 순서대로 정렬
+            package_steps.sort(key=lambda x: x.get('index', 0))
+            print(f"🔍 패키지 주문 데이터: user_id={user_id}, link={link}, 단계 수: {len(package_steps)}")
         else:
+            # SQLite: 구 스키마 사용
             cursor.execute("""
                 SELECT user_id, link, package_steps, comments
                 FROM orders 
                 WHERE order_id = ?
             """, (order_id,))
-        
-        order = cursor.fetchone()
-        if not order:
-            print(f"❌ 패키지 주문 {order_id}을 찾을 수 없습니다.")
-            return False
-        
-        user_id, link, package_steps_json, comments = order
-        print(f"🔍 패키지 주문 데이터: user_id={user_id}, link={link}, package_steps_json={package_steps_json}")
-        
-        try:
-            # package_steps가 이미 리스트인지 확인
-            if isinstance(package_steps_json, list):
-                package_steps = package_steps_json
-                print(f"🔍 패키지 단계 (이미 리스트): {len(package_steps)}단계")
-            elif isinstance(package_steps_json, str):
-                package_steps = json.loads(package_steps_json)
-                print(f"🔍 패키지 단계 (JSON 파싱): {len(package_steps)}단계")
-            else:
+            
+            order = cursor.fetchone()
+            if not order:
+                print(f"❌ 패키지 주문 {order_id}을 찾을 수 없습니다.")
+                return False
+            
+            user_id, link, package_steps_json, comments = order
+            
+            try:
+                if isinstance(package_steps_json, list):
+                    package_steps = package_steps_json
+                elif isinstance(package_steps_json, str):
+                    package_steps = json.loads(package_steps_json)
+                else:
+                    package_steps = []
+            except (json.JSONDecodeError, TypeError) as e:
+                print(f"❌ 패키지 단계 파싱 실패: {e}")
                 package_steps = []
-                print(f"🔍 패키지 단계 (기본값): {len(package_steps)}단계")
-        except (json.JSONDecodeError, TypeError) as e:
-            print(f"❌ 패키지 단계 파싱 실패: {e}")
-            package_steps = []
         
         # 패키지 단계가 없으면 종료
         if not package_steps or len(package_steps) == 0:
@@ -1043,9 +1086,9 @@ def process_package_step(order_id, step_index):
             return True
         
         current_step = package_steps[step_index]
-        step_service_id = current_step.get('id')
+        step_service_id = current_step.get('id') or current_step.get('variant_id')
         step_quantity = current_step.get('quantity', 0)
-        step_name = current_step.get('name')
+        step_name = current_step.get('name') or f'단계 {step_index + 1}'
         step_delay = current_step.get('delay', 0)
         step_repeat = current_step.get('repeat', 1)  # 반복 횟수 (기본값: 1)
         
@@ -1055,21 +1098,34 @@ def process_package_step(order_id, step_index):
         # 수량이 0이면 건너뛰기
         if step_quantity <= 0:
             print(f"⚠️ 패키지 단계 {step_index + 1} 건너뛰기 - 수량이 0: {step_name}")
-            # 건너뛴 단계도 진행 상황에 기록
+            # 건너뛴 단계도 work_jobs에 기록 (새 스키마)
             if DATABASE_URL.startswith('postgresql://'):
+                # 해당 step_index의 work_job 찾기
                 cursor.execute("""
-                    INSERT INTO execution_progress 
-                    (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (%s, 'package', %s, %s, %s, %s, %s, 'skipped', NOW())
-                    ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
-                    SET step_name=EXCLUDED.step_name, status=EXCLUDED.status
-                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
+                    SELECT wj.job_id, oi.order_item_id
+                    FROM work_jobs wj
+                    JOIN order_items oi ON wj.order_item_id = oi.order_item_id
+                    JOIN orders o ON oi.order_id = o.order_id
+                    WHERE o.order_id = %s 
+                    AND (wj.payload_json->>'step_index')::int = %s
+                """, (order_id, step_index))
+                
+                job_result = cursor.fetchone()
+                if job_result:
+                    job_id = job_result[0]
+                    cursor.execute("""
+                        UPDATE work_jobs 
+                        SET status = 'canceled', updated_at = NOW()
+                        WHERE job_id = %s
+                    """, (job_id,))
             else:
+                # SQLite: 구 스키마
                 cursor.execute("""
                     INSERT INTO execution_progress 
                     (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
                     VALUES (?, 'package', ?, ?, ?, ?, ?, 'skipped', datetime('now'))
                 """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
+            
             conn.commit()
             
             # 다음 단계로 진행
@@ -1101,17 +1157,40 @@ def process_package_step(order_id, step_index):
             status = 'completed' if smm_result.get('status') == 'success' else 'failed'
             smm_order_id = smm_result.get('order') if smm_result.get('status') == 'success' else None
             
-            # 패키지 진행 상황을 DB에 기록
+            # 패키지 진행 상황을 work_jobs에 기록 (새 스키마)
             if DATABASE_URL.startswith('postgresql://'):
+                # 해당 step_index의 work_job 찾기
                 cursor.execute("""
-                    INSERT INTO execution_progress 
-                    (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (%s, 'package', %s, %s, %s, %s, %s, %s, NOW())
-                    ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
-                    SET step_name=EXCLUDED.step_name, service_id=EXCLUDED.service_id, quantity=EXCLUDED.quantity, 
-                        smm_panel_order_id=EXCLUDED.smm_panel_order_id, status=EXCLUDED.status
-                """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
+                    SELECT wj.job_id, oi.order_item_id
+                    FROM work_jobs wj
+                    JOIN order_items oi ON wj.order_item_id = oi.order_item_id
+                    JOIN orders o ON oi.order_id = o.order_id
+                    WHERE o.order_id = %s 
+                    AND (wj.payload_json->>'step_index')::int = %s
+                """, (order_id, step_index))
+                
+                job_result = cursor.fetchone()
+                if job_result:
+                    job_id = job_result[0]
+                    order_item_id = job_result[1]
+                    
+                    # work_job의 payload_json 업데이트
+                    import json as json_module
+                    updated_payload = json_module.dumps({
+                        'step_index': step_index,
+                        'step_name': f"{step_name} ({repeat_count + 1}/{step_repeat})",
+                        'variant_id': step_service_id,
+                        'quantity': step_quantity,
+                        'smm_panel_order_id': smm_order_id
+                    })
+                    
+                    cursor.execute("""
+                        UPDATE work_jobs 
+                        SET status = %s, payload_json = %s::jsonb, updated_at = NOW()
+                        WHERE job_id = %s
+                    """, (status, updated_payload, job_id))
             else:
+                # SQLite: 구 스키마
                 cursor.execute("""
                     INSERT INTO execution_progress 
                     (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
@@ -1120,45 +1199,21 @@ def process_package_step(order_id, step_index):
             
             conn.commit()
             
-            # SMM Panel에서 받은 실제 주문번호로 order_id 업데이트 (성공한 경우만)
+            # SMM Panel에서 받은 주문번호를 work_jobs에 저장 (새 스키마)
             if smm_order_id and status == 'completed':
-                print(f"🔄 주문번호 업데이트: {order_id} -> {smm_order_id}")
+                print(f"✅ SMM Panel 주문 ID 저장: {smm_order_id}")
                 
-                try:
-                    # 1. 먼저 package_progress 테이블의 order_id를 새 주문번호로 업데이트
-                    if DATABASE_URL.startswith('postgresql://'):
+                # work_jobs의 payload_json에 smm_panel_order_id 저장 (이미 위에서 업데이트됨)
+                # 추가로 order_item 상태도 업데이트
+                if DATABASE_URL.startswith('postgresql://') and order_item_id:
+                    try:
                         cursor.execute("""
-                            UPDATE execution_progress 
-                            SET order_id = %s
-                            WHERE order_id = %s AND exec_type = 'package'
-                        """, (smm_order_id, order_id))
-                    else:
-                        cursor.execute("""
-                            UPDATE execution_progress 
-                            SET order_id = ?
-                            WHERE order_id = ? AND exec_type = 'package'
-                        """, (smm_order_id, order_id))
-                    
-                    # 2. 그 다음 orders 테이블의 order_id 업데이트
-                    if DATABASE_URL.startswith('postgresql://'):
-                        cursor.execute("""
-                            UPDATE orders SET order_id = %s, smm_panel_order_id = %s, updated_at = NOW()
-                            WHERE order_id = %s
-                        """, (smm_order_id, smm_order_id, order_id))
-                    else:
-                        cursor.execute("""
-                            UPDATE orders SET order_id = ?, smm_panel_order_id = ?, updated_at = CURRENT_TIMESTAMP
-                            WHERE order_id = ?
-                        """, (smm_order_id, smm_order_id, order_id))
-                    
-                    conn.commit()
-                    order_id = smm_order_id  # 다음 단계에서 사용할 주문번호 업데이트
-                    print(f"✅ 주문번호 업데이트 완료: {order_id}")
-                except Exception as update_error:
-                    print(f"❌ 주문번호 업데이트 실패: {update_error}")
-                    conn.rollback()
-                    # 업데이트 실패 시 원래 order_id 유지
-                    print(f"🔄 원래 주문번호 유지: {order_id}")
+                            UPDATE order_items SET status = 'processing', updated_at = NOW()
+                            WHERE order_item_id = %s
+                        """, (order_item_id,))
+                        conn.commit()
+                    except Exception as update_error:
+                        print(f"⚠️ order_item 상태 업데이트 실패: {update_error}")
             
             # 마지막 반복이 아니면 delay 시간만큼 대기
             if repeat_count < step_repeat - 1:
@@ -1173,55 +1228,55 @@ def process_package_step(order_id, step_index):
         print(f"🔄 다음 단계 스케줄링 시작: {step_index + 1}/{len(package_steps)}")
         print(f"🔄 현재 단계: {step_index + 1}, 전체 단계: {len(package_steps)}")
         
-        # 다음 단계 정보를 데이터베이스에 미리 기록
+        # 다음 단계 처리 (새 스키마: work_jobs의 schedule_at 사용)
         if step_index + 1 < len(package_steps):
-            next_step = package_steps[step_index + 1]
-            next_step_name = next_step.get('name', f'단계 {step_index + 2}')
-            next_step_delay = next_step.get('delay', 10)
-            
-            print(f"📝 다음 단계 정보 기록: {next_step_name} ({next_step_delay}분 후)")
-            print(f"📝 다음 단계 상세 정보: {next_step}")
-            
-            # 다음 단계 예약 정보를 데이터베이스에 저장
-            try:
+                next_step = package_steps[step_index + 1]
+                next_step_name = next_step.get('name', f'단계 {step_index + 2}')
+                next_step_delay = next_step.get('delay', 10)
+                
+                print(f"📝 다음 단계 정보: {next_step_name} ({next_step_delay}분 후)")
+                
+                # 다음 단계의 work_job 찾기 및 schedule_at 업데이트
+                if DATABASE_URL.startswith('postgresql://'):
+                    try:
+                        from datetime import datetime, timedelta
+                        schedule_at = datetime.now() + timedelta(minutes=next_step_delay)
+                        
+                        cursor.execute("""
+                            UPDATE work_jobs 
+                            SET schedule_at = %s, status = 'pending', updated_at = NOW()
+                            WHERE order_item_id IN (
+                                SELECT oi.order_item_id 
+                                FROM order_items oi 
+                                JOIN orders o ON oi.order_id = o.order_id
+                                WHERE o.order_id = %s
+                            ) AND (payload_json->>'step_index')::int = %s
+                        """, (schedule_at, order_id, step_index + 1))
+                        
+                        conn.commit()
+                        print(f"📝 다음 단계 work_job 스케줄링 완료: {schedule_at}")
+                    except Exception as e:
+                        print(f"❌ 다음 단계 work_job 스케줄링 실패: {e}")
+                else:
+                    # SQLite: 구 스키마
+                    try:
+                        cursor.execute("""
+                            INSERT INTO execution_progress 
+                            (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, scheduled_datetime, created_at)
+                            VALUES (?, 'package', ?, ?, ?, ?, ?, ?, datetime('now', '+' || ? || ' minutes'), datetime('now'))
+                        """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'pending', next_step_delay))
+                        conn.commit()
+                    except Exception as e:
+                        print(f"❌ 다음 단계 예약 정보 저장 실패: {e}")
+            else:
+                print(f"🎉 모든 단계 완료! 다음 단계 없음")
+                # 모든 단계 완료 시 주문 상태 업데이트
                 if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
-                        INSERT INTO execution_progress 
-                        (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, scheduled_datetime, created_at)
-                        VALUES (%s, 'package', %s, %s, %s, %s, %s, %s, NOW() + INTERVAL '%s minutes', NOW())
-                        ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
-                        SET step_name=EXCLUDED.step_name, scheduled_datetime=EXCLUDED.scheduled_datetime, status=EXCLUDED.status
-                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'pending', next_step.get('delay', 1440)))
-                else:
-                    cursor.execute("""
-                        INSERT INTO execution_progress 
-                        (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, scheduled_datetime, created_at)
-                        VALUES (?, 'package', ?, ?, ?, ?, ?, ?, datetime('now', '+' || ? || ' minutes'), datetime('now'))
-                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'pending', next_step.get('delay', 1440)))
-                
-                conn.commit()
-                print(f"📝 다음 단계 예약 정보 저장 완료")
-            except Exception as e:
-                print(f"❌ 다음 단계 예약 정보 저장 실패: {e}")
-        else:
-            print(f"🎉 모든 단계 완료! 다음 단계 없음")
-        
-        print(f"🔄 schedule_next_package_step 호출 시작")
-        print(f"🔄 현재 단계: {step_index + 1}, 다음 단계: {step_index + 2}, 총 단계: {len(package_steps)}")
-        
-        # 다음 단계가 존재하는지 확인
-        if step_index + 1 < len(package_steps):
-            print(f"✅ 다음 단계 존재 확인: {step_index + 2}/{len(package_steps)}")
-            try:
-                schedule_next_package_step(order_id, step_index + 1, package_steps)
-                print(f"✅ schedule_next_package_step 호출 완료")
-                print(f"✅ 다음 단계 스케줄링 완료: {step_index + 1}/{len(package_steps)}")
-            except Exception as e:
-                print(f"❌ schedule_next_package_step 호출 실패: {e}")
-                import traceback
-                print(f"❌ 스케줄링 오류 스택: {traceback.format_exc()}")
-        else:
-            print(f"🎉 모든 단계 완료! 다음 단계 없음 (현재: {step_index + 1}, 총: {len(package_steps)})")
+                        UPDATE orders SET status = 'completed', updated_at = NOW()
+                        WHERE order_id = %s
+                    """, (order_id,))
+                    conn.commit()
         
         # 스레드 상태 확인
         import threading
@@ -1453,16 +1508,21 @@ def check_and_update_order_status():
         
         # 주문 실행중 상태인 주문들 조회
         if DATABASE_URL.startswith('postgresql://'):
-            # 새 스키마에서는 order_items 테이블을 사용하므로 쿼리 수정
+            # 새 스키마에서는 order_items와 work_jobs 테이블을 사용
             try:
-                # 새 스키마: order_items에 meta_json이 없으므로 work_jobs의 payload_json에서 smm_panel_order_id 조회
+                # 새 스키마: running 상태인 주문들의 work_jobs에서 smm_panel_order_id 조회
                 cursor.execute("""
-                    SELECT DISTINCT o.order_id, wj.payload_json->>'smm_panel_order_id' as smm_panel_order_id, o.created_at 
+                    SELECT DISTINCT 
+                        o.order_id, 
+                        wj.payload_json->>'smm_panel_order_id' as smm_panel_order_id, 
+                        o.created_at,
+                        oi.order_item_id
                     FROM orders o
                     JOIN order_items oi ON o.order_id = oi.order_id
-                    LEFT JOIN work_jobs wj ON oi.order_item_id = wj.order_item_id
-                    WHERE o.status = 'processing' 
+                    JOIN work_jobs wj ON oi.order_item_id = wj.order_item_id
+                    WHERE o.status IN ('running', 'pending', 'processing')
                     AND wj.payload_json->>'smm_panel_order_id' IS NOT NULL
+                    AND wj.status = 'completed'
                     AND o.created_at > NOW() - INTERVAL '25 hours'
                     ORDER BY o.created_at DESC
                     LIMIT 50
@@ -1487,34 +1547,40 @@ def check_and_update_order_status():
         print(f"🔍 SMM Panel 상태 확인 대상 주문: {len(orders)}개")
         
         for order in orders:
-            order_id, smm_panel_order_id, created_at = order
+            if DATABASE_URL.startswith('postgresql://'):
+                order_id, smm_panel_order_id, created_at, order_item_id = order
+            else:
+                order_id, smm_panel_order_id, created_at = order
+                order_item_id = None
+            
+            if not smm_panel_order_id:
+                continue
             
             try:
                 # SMM Panel API로 주문 상태 확인
-                import requests
-                smm_api_url = "https://smm-panel.com/api/v2"
-                smm_api_key = os.getenv('SMM_PANEL_API_KEY')
+                smm_result = call_smm_panel_api({
+                    'action': 'status',
+                    'order': smm_panel_order_id
+                })
                 
-                if not smm_api_key:
-                    print("⚠️ SMM_PANEL_API_KEY가 설정되지 않았습니다.")
-                    continue
-                
-                # 주문 상태 확인 API 호출
-                status_response = requests.get(f"{smm_api_url}/orders/{smm_panel_order_id}", 
-                                             headers={'Authorization': f'Bearer {smm_api_key}'},
-                                             timeout=10)
-                
-                if status_response.status_code == 200:
-                    status_data = status_response.json()
-                    smm_status = status_data.get('status', '').lower()
+                if smm_result.get('status') == 'success':
+                    smm_status = smm_result.get('status', '').lower()
+                    order_status = smm_result.get('order_status', '').lower()
                     
                     # SMM Panel에서 완료된 경우
-                    if smm_status in ['completed', 'finished', 'done']:
+                    if order_status in ['completed', 'finished', 'done'] or smm_status == 'success':
                         if DATABASE_URL.startswith('postgresql://'):
+                            # 새 스키마: orders와 order_items 상태 업데이트
                             cursor.execute("""
-                                UPDATE orders SET status = '주문 실행완료', updated_at = NOW() 
+                                UPDATE orders SET status = 'completed', updated_at = NOW() 
                                 WHERE order_id = %s
                             """, (order_id,))
+                            
+                            if order_item_id:
+                                cursor.execute("""
+                                    UPDATE order_items SET status = 'completed', updated_at = NOW() 
+                                    WHERE order_item_id = %s
+                                """, (order_item_id,))
                         else:
                             cursor.execute("""
                                 UPDATE orders SET status = '주문 실행완료', updated_at = CURRENT_TIMESTAMP 
@@ -1525,12 +1591,18 @@ def check_and_update_order_status():
                         print(f"✅ 주문 {order_id}이 SMM Panel에서 완료되어 상태가 업데이트되었습니다.")
                     
                     # SMM Panel에서 실패한 경우
-                    elif smm_status in ['failed', 'cancelled', 'error']:
+                    elif order_status in ['failed', 'cancelled', 'error']:
                         if DATABASE_URL.startswith('postgresql://'):
                             cursor.execute("""
                                 UPDATE orders SET status = 'failed', updated_at = NOW() 
                                 WHERE order_id = %s
                             """, (order_id,))
+                            
+                            if order_item_id:
+                                cursor.execute("""
+                                    UPDATE order_items SET status = 'failed', updated_at = NOW() 
+                                    WHERE order_item_id = %s
+                                """, (order_item_id,))
                         else:
                             cursor.execute("""
                                 UPDATE orders SET status = 'failed', updated_at = CURRENT_TIMESTAMP 
@@ -1542,6 +1614,8 @@ def check_and_update_order_status():
                 
             except Exception as e:
                 print(f"⚠️ 주문 {order_id} SMM Panel 상태 확인 실패: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
         
     except Exception as e:
@@ -3672,67 +3746,125 @@ def get_package_progress(order_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 패키지 진행 상황 조회
+        # 패키지 진행 상황 조회 (새 스키마: work_jobs 사용)
         if DATABASE_URL.startswith('postgresql://'):
+            # 새 스키마: work_jobs에서 패키지 단계 정보 조회
             cursor.execute("""
-                SELECT step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at
-                FROM execution_progress 
-                WHERE order_id = %s AND exec_type = 'package'
-                ORDER BY step_number ASC, created_at ASC
+                SELECT 
+                    wj.job_id,
+                    wj.payload_json->>'step_index' as step_index,
+                    wj.payload_json->>'step_name' as step_name,
+                    wj.payload_json->>'variant_id' as variant_id,
+                    wj.payload_json->>'quantity' as quantity,
+                    wj.payload_json->>'smm_panel_order_id' as smm_panel_order_id,
+                    wj.status,
+                    wj.created_at,
+                    oi.order_item_id
+                FROM work_jobs wj
+                JOIN order_items oi ON wj.order_item_id = oi.order_item_id
+                JOIN orders o ON oi.order_id = o.order_id
+                WHERE o.order_id = %s
+                ORDER BY (wj.payload_json->>'step_index')::int ASC, wj.created_at ASC
             """, (order_id,))
+            
+            progress_data = cursor.fetchall()
+            
+            # 주문 정보도 조회
+            cursor.execute("""
+                SELECT status FROM orders 
+                WHERE order_id = %s
+            """, (order_id,))
+            
+            order_info = cursor.fetchone()
+            
+            if not order_info:
+                return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
+            
+            order_status = order_info[0]
+            package_steps_json = None  # 새 스키마에서는 work_jobs에서 단계 정보를 가져옴
+            
+            # work_jobs에서 패키지 단계 정보 추출
+            package_steps = []
+            for row in progress_data:
+                step_index = int(row[1]) if row[1] else 0
+                step_name = row[2] or f'단계 {step_index + 1}'
+                variant_id = row[3]
+                quantity = int(row[4]) if row[4] else 0
+                package_steps.append({
+                    'index': step_index,
+                    'name': step_name,
+                    'variant_id': variant_id,
+                    'quantity': quantity
+                })
         else:
+            # SQLite: 구 스키마 사용
             cursor.execute("""
                 SELECT step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at
                 FROM execution_progress 
                 WHERE order_id = ? AND exec_type = 'package'
                 ORDER BY step_number ASC, created_at ASC
             """, (order_id,))
-        
-        progress_data = cursor.fetchall()
-        
-        # 주문 정보도 조회
-        if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT status, package_steps FROM orders 
-                WHERE order_id = %s
-            """, (order_id,))
-        else:
+            
+            progress_data = cursor.fetchall()
+            
             cursor.execute("""
                 SELECT status, package_steps FROM orders 
                 WHERE order_id = ?
             """, (order_id,))
-        
-        order_info = cursor.fetchone()
-        
-        if not order_info:
-            return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
-        
-        order_status, package_steps_json = order_info
-        
-        # package_steps 파싱
-        try:
-            if isinstance(package_steps_json, list):
-                package_steps = package_steps_json
-            elif isinstance(package_steps_json, str):
-                package_steps = json.loads(package_steps_json)
-            else:
+            
+            order_info = cursor.fetchone()
+            
+            if not order_info:
+                return jsonify({'error': '주문을 찾을 수 없습니다.'}), 404
+            
+            order_status, package_steps_json = order_info
+            
+            # package_steps 파싱
+            try:
+                if isinstance(package_steps_json, list):
+                    package_steps = package_steps_json
+                elif isinstance(package_steps_json, str):
+                    package_steps = json.loads(package_steps_json)
+                else:
+                    package_steps = []
+            except:
                 package_steps = []
-        except:
-            package_steps = []
         
         # 진행 상황 데이터 포맷팅
         progress_list = []
         for row in progress_data:
-            step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at = row
-            progress_list.append({
-                'step_number': step_number,
-                'step_name': step_name,
-                'service_id': service_id,
-                'quantity': quantity,
-                'smm_panel_order_id': smm_panel_order_id,
-                'status': status,
-                'created_at': created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at)
-            })
+            if DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: job_id, step_index, step_name, variant_id, quantity, smm_panel_order_id, status, created_at, order_item_id
+                job_id = row[0]
+                step_index = int(row[1]) if row[1] else 0
+                step_name = row[2] or f'단계 {step_index + 1}'
+                variant_id = row[3]
+                quantity = int(row[4]) if row[4] else 0
+                smm_panel_order_id = row[5]
+                status = row[6] or 'pending'
+                created_at = row[7]
+                progress_list.append({
+                    'step_number': step_index + 1,
+                    'step_name': step_name,
+                    'service_id': str(variant_id) if variant_id else '',
+                    'variant_id': variant_id,
+                    'quantity': quantity,
+                    'smm_panel_order_id': smm_panel_order_id,
+                    'status': status,
+                    'created_at': created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at)
+                })
+            else:
+                # SQLite: 구 스키마
+                step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at = row
+                progress_list.append({
+                    'step_number': step_number,
+                    'step_name': step_name,
+                    'service_id': service_id,
+                    'quantity': quantity,
+                    'smm_panel_order_id': smm_panel_order_id,
+                    'status': status,
+                    'created_at': created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at)
+                })
         
         return jsonify({
             'success': True,
@@ -3784,15 +3916,19 @@ def get_orders():
                     return jsonify({'orders': []}), 200
                 db_user_id = user_result[0]
                 
+                # 주문별로 첫 번째 order_item과 work_job 정보 조회
                 cursor.execute("""
-                    SELECT o.order_id, o.status, o.total_amount, o.created_at,
-                           oi.variant_id, oi.link, oi.quantity, oi.unit_price,
-                           wj.payload_json->>'smm_panel_order_id' as smm_panel_order_id
+                    SELECT DISTINCT ON (o.order_id)
+                        o.order_id, o.status, o.total_amount, o.created_at,
+                        oi.variant_id, oi.link, oi.quantity, oi.unit_price,
+                        wj.payload_json->>'smm_panel_order_id' as smm_panel_order_id,
+                        oi.order_item_id
                     FROM orders o
                     LEFT JOIN order_items oi ON o.order_id = oi.order_id
-                    LEFT JOIN work_jobs wj ON oi.order_item_id = wj.order_item_id AND wj.payload_json->>'smm_panel_order_id' IS NOT NULL
+                    LEFT JOIN work_jobs wj ON oi.order_item_id = wj.order_item_id 
+                        AND wj.payload_json->>'smm_panel_order_id' IS NOT NULL
                     WHERE o.user_id = %s
-                    ORDER BY o.created_at DESC
+                    ORDER BY o.order_id DESC, o.created_at DESC
                     LIMIT 10
                 """, (db_user_id,))
             except Exception as e:
@@ -3818,7 +3954,7 @@ def get_orders():
             try:
                 # 주문 데이터 처리 (새 스키마에 맞게 수정)
                 if DATABASE_URL.startswith('postgresql://'):
-                    # 새 스키마: order_id, status, total_amount, created_at, variant_id, link, quantity, unit_price, smm_panel_order_id
+                    # 새 스키마: order_id, status, total_amount, created_at, variant_id, link, quantity, unit_price, smm_panel_order_id, order_item_id
                     order_id = order[0]
                     db_status = order[1] if len(order) > 1 else 'pending'
                     price = float(order[2]) if len(order) > 2 and order[2] else 0.0
@@ -3830,6 +3966,18 @@ def get_orders():
                     smm_panel_order_id = order[8] if len(order) > 8 else None
                     service_id = str(variant_id) if variant_id else ''
                     detailed_service = None
+                    
+                    # 상태 매핑 (새 스키마 ENUM 값 -> 프론트엔드 상태)
+                    if db_status == 'completed':
+                        status = '주문 실행완료'
+                    elif db_status == 'running':
+                        status = '주문 실행중'
+                    elif db_status == 'pending':
+                        status = '주문발송'
+                    elif db_status == 'failed':
+                        status = '실패'
+                    else:
+                        status = '주문발송'  # 기본값
                 else:
                     # 구 스키마 (SQLite)
                     order_id = order[0]
@@ -3845,13 +3993,14 @@ def get_orders():
                 start_count = 0
                 remains = quantity
                 
-                # 간단한 상태 매핑
-                if db_status in ['completed', '완료']:
-                    status = '주문 실행완료'
-                elif db_status in ['in_progress', '진행중', 'processing']:
-                    status = '주문 실행중'
-                elif db_status in ['pending', '접수됨', '주문발송']:
-                    status = '주문발송'
+                # 간단한 상태 매핑 (SQLite용)
+                if not DATABASE_URL.startswith('postgresql://'):
+                    if db_status in ['completed', '완료']:
+                        status = '주문 실행완료'
+                    elif db_status in ['in_progress', '진행중', 'processing']:
+                        status = '주문 실행중'
+                    elif db_status in ['pending', '접수됨', '주문발송']:
+                        status = '주문발송'
                 else:
                     status = '주문 미처리'
                 
@@ -7668,24 +7817,46 @@ def cron_process_scheduled_orders():
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print(f"🔍 예약 주문 조회 중... (현재 시간: {current_time})")
         
-        # orders 테이블에서 예약 주문 조회 (새 스키마에서는 order_items 사용)
+        # orders 테이블에서 예약 주문 조회 (새 스키마: work_jobs의 schedule_at 사용)
         if DATABASE_URL.startswith('postgresql://'):
             try:
+                # 새 스키마: work_jobs에서 schedule_at이 지난 pending 작업 조회
                 cursor.execute("""
-                    SELECT o.order_id, o.user_id, oi.variant_id, oi.link, oi.quantity, o.total_amount, 
-                           o.scheduled_datetime, o.order_id
+                    SELECT DISTINCT
+                        o.order_id, 
+                        o.user_id, 
+                        oi.variant_id, 
+                        oi.link, 
+                        oi.quantity, 
+                        o.total_amount,
+                        wj.schedule_at as scheduled_datetime
                     FROM orders o
-                    LEFT JOIN order_items oi ON o.order_id = oi.order_id
-                    WHERE o.is_scheduled = TRUE 
+                    JOIN order_items oi ON o.order_id = oi.order_id
+                    JOIN work_jobs wj ON oi.order_item_id = wj.order_item_id
+                    WHERE wj.status = 'pending'
+                    AND wj.schedule_at IS NOT NULL
+                    AND wj.schedule_at <= NOW()
                     AND o.status = 'pending'
-                    AND o.scheduled_datetime <= NOW()
+                    ORDER BY wj.schedule_at ASC
                     LIMIT 50
                 """)
             except Exception as e:
                 print(f"⚠️ 새 스키마 쿼리 실패: {e}")
                 import traceback
                 traceback.print_exc()
-                return jsonify({'message': '예약 주문 처리 실패', 'error': str(e)}), 500
+                # 구 스키마로 폴백 시도 (is_scheduled 컬럼이 있는 경우)
+                try:
+                    cursor.execute("""
+                        SELECT o.order_id, o.user_id, oi.variant_id, oi.link, oi.quantity, o.total_amount, 
+                               NULL as scheduled_datetime
+                        FROM orders o
+                        LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                        WHERE o.status = 'pending'
+                        LIMIT 50
+                    """)
+                except Exception as fallback_error:
+                    print(f"⚠️ 폴백 쿼리도 실패: {fallback_error}")
+                    return jsonify({'message': '예약 주문 처리 실패', 'error': str(e)}), 500
         else:
             cursor.execute("""
                 SELECT order_id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime
@@ -7794,41 +7965,72 @@ def cron_process_scheduled_orders():
                     processed_count += 1
                     print(f"✅ 예약 패키지 주문 {order_id} 처리 시작")
             else:
-                # 일반 주문인 경우 SMM Panel API 호출 (drip-feed 지원)
+                # 일반 주문인 경우 SMM Panel API 호출 (새 스키마: work_jobs 사용)
                 print(f"🚀 일반 예약 주문 - SMM Panel API 호출")
-                # orders 테이블에 runs와 interval이 저장되어 있을 수 있지만, 
-                # scheduled_orders 테이블에서 가져오는 것이 더 정확함
-                # 여기서는 orders 테이블에서 조회 (추후 컬럼 추가 필요 시 확장 가능)
-                runs = 1
-                interval = 0
-                
-                # TODO: orders 테이블에 runs, interval 컬럼이 있다면 조회
-                # 현재는 기본값 사용 (일반 주문 처리)
                 
                 smm_result = call_smm_panel_api({
-                    'service': service_id,
+                    'service': str(variant_id) if variant_id else '',
                     'link': link,
                     'quantity': quantity,
                     'comments': f'Scheduled order {order_id}',
-                    'runs': runs,  # Drip-feed 지원 (기본값 1)
-                    'interval': interval  # Drip-feed 지원 (기본값 0)
+                    'runs': 1,
+                    'interval': 0
                 })
                 
                 if smm_result.get('status') == 'success':
-                    # SMM Panel 주문 ID 저장
+                    smm_panel_order_id = smm_result.get('order')
+                    
+                    # 새 스키마: work_jobs에 SMM Panel 주문 ID 저장
                     if DATABASE_URL.startswith('postgresql://'):
+                        import json as json_module
+                        # order_item_id 찾기
                         cursor.execute("""
-                            UPDATE orders SET smm_panel_order_id = %s, status = 'processing', updated_at = NOW()
-                            WHERE order_id = %s
-                        """, (smm_result.get('order'), order_id))
+                            SELECT oi.order_item_id 
+                            FROM order_items oi
+                            WHERE oi.order_id = %s
+                            LIMIT 1
+                        """, (order_id,))
+                        order_item_result = cursor.fetchone()
+                        
+                        if order_item_result:
+                            order_item_id = order_item_result[0]
+                            
+                            # work_jobs 업데이트 또는 생성
+                            payload_json = json_module.dumps({'smm_panel_order_id': smm_panel_order_id})
+                            
+                            cursor.execute("""
+                                UPDATE work_jobs 
+                                SET status = 'completed', payload_json = %s::jsonb, updated_at = NOW()
+                                WHERE order_item_id = %s AND status = 'pending'
+                            """, (payload_json, order_item_id))
+                            
+                            # work_job이 없으면 생성
+                            if cursor.rowcount == 0:
+                                cursor.execute("""
+                                    INSERT INTO work_jobs (order_item_id, status, payload_json, created_at, updated_at)
+                                    VALUES (%s, 'completed', %s::jsonb, NOW(), NOW())
+                                """, (order_item_id, payload_json))
+                            
+                            # orders와 order_items 상태 업데이트
+                            cursor.execute("""
+                                UPDATE orders SET status = 'running', updated_at = NOW()
+                                WHERE order_id = %s
+                            """, (order_id,))
+                            
+                            cursor.execute("""
+                                UPDATE order_items SET status = 'processing', updated_at = NOW()
+                                WHERE order_item_id = %s
+                            """, (order_item_id,))
                     else:
+                        # SQLite: 구 스키마
                         cursor.execute("""
                             UPDATE orders SET smm_panel_order_id = ?, status = 'processing', updated_at = CURRENT_TIMESTAMP
                             WHERE order_id = ?
-                        """, (smm_result.get('order'), order_id))
+                        """, (smm_panel_order_id, order_id))
+                    
                     conn.commit()
                     processed_count += 1
-                    print(f"✅ 일반 예약 주문 {order_id} 처리 완료: SMM 주문 ID {smm_result.get('order')}")
+                    print(f"✅ 일반 예약 주문 {order_id} 처리 완료: SMM 주문 ID {smm_panel_order_id}")
                 else:
                     print(f"❌ 일반 예약 주문 {order_id} 처리 실패: {smm_result.get('message')}")
         
