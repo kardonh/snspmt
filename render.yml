@@ -6,7 +6,9 @@ services:
     plan: free
     runtime: python-3.12.8
     buildCommand: |
-      npm install && npm run build && pip install -r requirements.txt
+      curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs || true
+      npm install && npm run build
+      pip install -r requirements.txt
     startCommand: gunicorn backend:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120
     envVars:
       - key: PORT
