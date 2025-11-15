@@ -409,12 +409,20 @@ const AdminServiceManagement = ({ adminFetch }) => {
     <div className="admin-service-management">
       <div className="service-header">
         <h2>서비스 관리</h2>
-        <button 
-          className="btn-primary"
-          onClick={() => openCategoryModal()}
-        >
-          <Plus size={16} /> 카테고리 추가
-        </button>
+        <div className="header-actions">
+          <button 
+            className="btn-primary"
+            onClick={() => openProductModal()}
+          >
+            <Plus size={16} /> 상품 추가
+          </button>
+          <button 
+            className="btn-primary"
+            onClick={() => openCategoryModal()}
+          >
+            <Plus size={16} /> 카테고리 추가
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -551,6 +559,81 @@ const AdminServiceManagement = ({ adminFetch }) => {
             </div>
           )
         })}
+      </div>
+
+      {/* 전체 상품 목록 섹션 */}
+      <div className="all-products-section">
+        <div className="section-header">
+          <h3>전체 상품 목록</h3>
+          <span className="product-count">총 {products.length}개 상품</span>
+        </div>
+        <div className="all-products-grid">
+          {products.length === 0 ? (
+            <div className="empty-state">
+              등록된 상품이 없습니다. 상품을 추가해주세요.
+            </div>
+          ) : (
+            products.map(product => {
+              const productVariants = getVariantsByProduct(product.product_id)
+              const category = categories.find(c => c.category_id === product.category_id)
+              
+              return (
+                <div key={product.product_id} className="product-card">
+                  <div className="product-card-header">
+                    <div className="product-card-title">
+                      <Layers size={16} />
+                      <span className="product-name">{product.name}</span>
+                      {category && (
+                        <span className="category-badge">{category.name}</span>
+                      )}
+                    </div>
+                    <div className="product-card-actions">
+                      <button
+                        className="btn-icon"
+                        onClick={() => openVariantModal(null, product.product_id)}
+                        title="옵션 추가"
+                      >
+                        <Plus size={14} />
+                      </button>
+                      <button
+                        className="btn-icon"
+                        onClick={() => openProductModal(product)}
+                        title="수정"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleDeleteProduct(product.product_id)}
+                        title="삭제"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  {product.description && (
+                    <div className="product-description">{product.description}</div>
+                  )}
+                  <div className="product-variants-summary">
+                    <strong>옵션 {productVariants.length}개</strong>
+                    {productVariants.length > 0 && (
+                      <div className="variants-preview">
+                        {productVariants.slice(0, 3).map(variant => (
+                          <span key={variant.variant_id} className="variant-tag">
+                            {variant.name} ({parseFloat(variant.price).toLocaleString()}원)
+                          </span>
+                        ))}
+                        {productVariants.length > 3 && (
+                          <span className="variant-more">+{productVariants.length - 3}개 더</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
       </div>
 
       {/* 카테고리 모달 */}
