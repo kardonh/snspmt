@@ -4435,18 +4435,22 @@ def kcp_payment_approve():
 @require_admin_auth
 def get_admin_stats():
     """관리자 통계"""
+    conn = None
+    cursor = None
+    
     try:
+        print("🔍 관리자 통계 조회 시작")
         conn = get_db_connection()
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
             # 총 사용자 수
             cursor.execute("SELECT COUNT(*) FROM users")
-            total_users = cursor.fetchone()[0]
+            total_users = cursor.fetchone()[0] or 0
             
             # 총 주문 수
             cursor.execute("SELECT COUNT(*) FROM orders")
-            total_orders = cursor.fetchone()[0]
+            total_orders = cursor.fetchone()[0] or 0
             
             # 총 매출 (주문 + 포인트 구매) - 새 스키마에서는 wallet_transactions 사용
             cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE status = 'completed'")
@@ -4466,7 +4470,7 @@ def get_admin_stats():
             
             # 오늘 주문 수
             cursor.execute("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = CURRENT_DATE")
-            today_orders = cursor.fetchone()[0]
+            today_orders = cursor.fetchone()[0] or 0
             
             # 오늘 매출 (주문 + 포인트 구매)
             cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE DATE(created_at) = CURRENT_DATE AND status = 'completed'")
@@ -4481,32 +4485,32 @@ def get_admin_stats():
         else:
             # SQLite 버전
             cursor.execute("SELECT COUNT(*) FROM users")
-            total_users = cursor.fetchone()[0]
+            total_users = cursor.fetchone()[0] or 0
             
             cursor.execute("SELECT COUNT(*) FROM orders")
-            total_orders = cursor.fetchone()[0]
+            total_orders = cursor.fetchone()[0] or 0
             
             # 총 매출 (주문 + 포인트 구매)
             cursor.execute("SELECT COALESCE(SUM(price), 0) FROM orders WHERE status = 'completed'")
-            order_revenue = cursor.fetchone()[0]
+            order_revenue = cursor.fetchone()[0] or 0
             cursor.execute("SELECT COALESCE(SUM(price), 0) FROM point_purchases WHERE status = 'approved'")
-            purchase_revenue = cursor.fetchone()[0]
+            purchase_revenue = cursor.fetchone()[0] or 0
             total_revenue = order_revenue + purchase_revenue
             
             cursor.execute("SELECT COUNT(*) FROM point_purchases WHERE status = 'pending'")
-            pending_purchases = cursor.fetchone()[0]
+            pending_purchases = cursor.fetchone()[0] or 0
             
             cursor.execute("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = DATE('now')")
-            today_orders = cursor.fetchone()[0]
+            today_orders = cursor.fetchone()[0] or 0
             
             # 오늘 매출 (주문 + 포인트 구매)
             cursor.execute("SELECT COALESCE(SUM(price), 0) FROM orders WHERE DATE(created_at) = DATE('now') AND status = 'completed'")
-            today_order_revenue = cursor.fetchone()[0]
+            today_order_revenue = cursor.fetchone()[0] or 0
             cursor.execute("SELECT COALESCE(SUM(price), 0) FROM point_purchases WHERE DATE(created_at) = DATE('now') AND status = 'approved'")
-            today_purchase_revenue = cursor.fetchone()[0]
+            today_purchase_revenue = cursor.fetchone()[0] or 0
             today_revenue = today_order_revenue + today_purchase_revenue
         
-        conn.close()
+        print(f"✅ 관리자 통계 조회 성공: users={total_users}, orders={total_orders}, revenue={total_revenue}")
         
         return jsonify({
             'total_users': total_users,
@@ -4518,7 +4522,33 @@ def get_admin_stats():
         }), 200
             
     except Exception as e:
-        return jsonify({'error': f'통계 조회 실패: {str(e)}'}), 500
+        import traceback
+        error_msg = str(e)
+        traceback_str = traceback.format_exc()
+        print(f"❌ 관리자 통계 조회 오류: {error_msg}")
+        print(f"📋 상세 오류:\n{traceback_str}")
+        
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        
+        return jsonify({
+            'error': f'통계 조회 실패: {error_msg}',
+            'details': str(e)
+        }), 500
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
 
 # 관리자 포인트 구매 목록
 @app.route('/api/admin/purchases', methods=['GET'])
