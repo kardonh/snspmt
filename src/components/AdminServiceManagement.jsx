@@ -74,7 +74,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
 
   const loadCategories = async () => {
     try {
-      const response = await adminFetch(`${window.location.origin}/api/admin/categories?include_inactive=true`)
+      const response = await adminFetch('/api/admin/categories?include_inactive=true')
       if (response.ok) {
         const data = await response.json()
         setCategories(data.categories || [])
@@ -86,7 +86,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
 
   const loadProducts = async () => {
     try {
-      const response = await adminFetch(`${window.location.origin}/api/admin/products`)
+      const response = await adminFetch('/api/admin/products')
       if (response.ok) {
         const data = await response.json()
         setProducts(data.products || [])
@@ -98,7 +98,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
 
   const loadVariants = async () => {
     try {
-      const response = await adminFetch(`${window.location.origin}/api/admin/product-variants`)
+      const response = await adminFetch('/api/admin/product-variants')
       if (response.ok) {
         const data = await response.json()
         setVariants(data.variants || [])
@@ -110,7 +110,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
 
   const loadPackages = async () => {
     try {
-      const response = await adminFetch(`${window.location.origin}/api/admin/packages`)
+      const response = await adminFetch('/api/admin/packages')
       if (response.ok) {
         const data = await response.json()
         setPackages(data.packages || [])
@@ -149,8 +149,8 @@ const AdminServiceManagement = ({ adminFetch }) => {
 
     try {
       const url = editingItem
-        ? `${window.location.origin}/api/admin/categories/${editingItem.category_id}`
-        : `${window.location.origin}/api/admin/categories`
+        ? `/api/admin/categories/${editingItem.category_id}`
+        : `/api/admin/categories`
       
       const method = editingItem ? 'PUT' : 'POST'
       
@@ -184,8 +184,8 @@ const AdminServiceManagement = ({ adminFetch }) => {
 
     try {
       const url = editingItem
-        ? `${window.location.origin}/api/admin/products/${editingItem.product_id}`
-        : `${window.location.origin}/api/admin/products`
+        ? `/api/admin/products/${editingItem.product_id}`
+        : `/api/admin/products`
       
       const method = editingItem ? 'PUT' : 'POST'
       
@@ -232,8 +232,8 @@ const AdminServiceManagement = ({ adminFetch }) => {
 
     try {
       const url = editingItem
-        ? `${window.location.origin}/api/admin/product-variants/${editingItem.variant_id}`
-        : `${window.location.origin}/api/admin/product-variants`
+        ? `/api/admin/product-variants/${editingItem.variant_id}`
+        : `/api/admin/product-variants`
       
       const method = editingItem ? 'PUT' : 'POST'
       
@@ -284,7 +284,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
     if (!confirm('카테고리를 비활성화하시겠습니까?')) return
 
     try {
-      const response = await adminFetch(`${window.location.origin}/api/admin/categories/${categoryId}`, {
+      const response = await adminFetch(`/api/admin/categories/${categoryId}`, {
         method: 'DELETE'
       })
 
@@ -300,7 +300,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
     if (!confirm('상품을 삭제하시겠습니까?')) return
 
     try {
-      const response = await adminFetch(`${window.location.origin}/api/admin/products/${productId}`, {
+      const response = await adminFetch(`/api/admin/products/${productId}`, {
         method: 'DELETE'
       })
 
@@ -320,7 +320,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
     if (!confirm('옵션을 삭제하시겠습니까?')) return
 
     try {
-      const response = await adminFetch(`${window.location.origin}/api/admin/product-variants/${variantId}`, {
+      const response = await adminFetch(`/api/admin/product-variants/${variantId}`, {
         method: 'DELETE'
       })
 
