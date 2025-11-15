@@ -1798,6 +1798,7 @@ def get_db_connection():
                     keepalives_interval=30,
                     keepalives_count=3
                 )
+                print(f"✅ Pooler Session mode 연결 성공: {host_str}:5432")
             except psycopg2.OperationalError as pooler_error:
                 # Pooler Session mode 실패 시 Transaction mode 시도
                 try:
@@ -1813,6 +1814,7 @@ def get_db_connection():
                         keepalives_interval=30,
                         keepalives_count=3
                     )
+                    print(f"✅ Pooler Transaction mode 연결 성공: {host_str}:6543")
                 except psycopg2.OperationalError as pooler_error2:
                     # 모든 연결 방법 실패
                     raise Exception(f"모든 연결 방법 실패: Direct={direct_error}, Session={pooler_error}, Transaction={pooler_error2}")
