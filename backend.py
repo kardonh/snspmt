@@ -6451,15 +6451,7 @@ def serve_admin():
     except:
         return "Admin page not found", 404
 
-# 정적 파일 서빙
-@app.route('/<path:filename>')
-def serve_static(filename):
-    """정적 파일 서빙"""
-    try:
-        return app.send_static_file(filename)
-    except:
-        return "File not found", 404
-
+# 루트 경로 서빙
 @app.route('/', methods=['GET', 'POST'])
 def serve_index():
     """메인 페이지 서빙"""
