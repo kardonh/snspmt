@@ -3871,8 +3871,8 @@ def purchase_points():
             import traceback
             import time
             try:
-                # 먼저 사용자가 이미 존재하는지 확인
-                cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id_str,))
+                # 먼저 사용자가 이미 존재하는지 확인 (새 스키마에서는 external_uid 사용)
+                cursor.execute("SELECT user_id FROM users WHERE external_uid = %s OR email = %s", (user_id_str, user_email))
                 user_exists = cursor.fetchone()
                 
                 if not user_exists:
@@ -8881,6 +8881,942 @@ def upload_admin_image():
             'success': False,
             'error': str(e)
         }), 500
+
+# ==================== 관리자 카탈로그 API ====================
+
+# 카테고리 관리
+@app.route('/api/admin/categories', methods=['GET'])
+@require_admin_auth
+def get_admin_categories():
+    """카테고리 목록 조회"""
+    conn = None
+    cursor = None
+    try:
+        include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        if include_inactive:
+            cursor.execute("SELECT * FROM categories ORDER BY created_at DESC")
+        else:
+            cursor.execute("SELECT * FROM categories WHERE is_active = TRUE ORDER BY created_at DESC")
+        
+        categories = cursor.fetchall()
+        return jsonify({
+            'categories': [dict(cat) for cat in categories],
+            'count': len(categories)
+        }), 200
+    except Exception as e:
+        print(f"❌ 카테고리 목록 조회 오류: {e}")
+        return jsonify({'error': f'카테고리 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/categories', methods=['POST'])
+@require_admin_auth
+def create_admin_category():
+    """카테고리 생성"""
+    conn = None
+    cursor = None
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        slug = data.get('slug', name.lower().replace(' ', '-'))
+        image_url = data.get('image_url')
+        is_active = data.get('is_active', True)
+        
+        if not name:
+            return jsonify({'error': '카테고리 이름이 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            INSERT INTO categories (name, slug, image_url, is_active, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, NOW(), NOW())
+            RETURNING *
+        """, (name, slug, image_url, is_active))
+        
+        category = cursor.fetchone()
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'category': dict(category)
+        }), 201
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 카테고리 생성 오류: {e}")
+        return jsonify({'error': f'카테고리 생성 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/categories/<int:category_id>', methods=['GET'])
+@require_admin_auth
+def get_admin_category(category_id):
+    """카테고리 상세 조회"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("SELECT * FROM categories WHERE category_id = %s", (category_id,))
+        category = cursor.fetchone()
+        
+        if not category:
+            return jsonify({'error': '카테고리를 찾을 수 없습니다.'}), 404
+        
+        return jsonify({'category': dict(category)}), 200
+    except Exception as e:
+        print(f"❌ 카테고리 조회 오류: {e}")
+        return jsonify({'error': f'카테고리 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/categories/<int:category_id>', methods=['PUT'])
+@require_admin_auth
+def update_admin_category(category_id):
+    """카테고리 수정"""
+    conn = None
+    cursor = None
+    try:
+        data = request.get_json()
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 기존 데이터 조회
+        cursor.execute("SELECT * FROM categories WHERE category_id = %s", (category_id,))
+        category = cursor.fetchone()
+        
+        if not category:
+            return jsonify({'error': '카테고리를 찾을 수 없습니다.'}), 404
+        
+        # 업데이트할 필드만 변경
+        name = data.get('name', category['name'])
+        slug = data.get('slug', category.get('slug') or name.lower().replace(' ', '-'))
+        image_url = data.get('image_url', category.get('image_url'))
+        is_active = data.get('is_active', category.get('is_active', True))
+        
+        cursor.execute("""
+            UPDATE categories
+            SET name = %s, slug = %s, image_url = %s, is_active = %s, updated_at = NOW()
+            WHERE category_id = %s
+            RETURNING *
+        """, (name, slug, image_url, is_active, category_id))
+        
+        updated = cursor.fetchone()
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'category': dict(updated)
+        }), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 카테고리 수정 오류: {e}")
+        return jsonify({'error': f'카테고리 수정 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/categories/<int:category_id>', methods=['DELETE'])
+@require_admin_auth
+def delete_admin_category(category_id):
+    """카테고리 비활성화 (실제 삭제는 하지 않음)"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("UPDATE categories SET is_active = FALSE, updated_at = NOW() WHERE category_id = %s", (category_id,))
+        
+        if cursor.rowcount == 0:
+            return jsonify({'error': '카테고리를 찾을 수 없습니다.'}), 404
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': '카테고리가 비활성화되었습니다.'}), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 카테고리 삭제 오류: {e}")
+        return jsonify({'error': f'카테고리 삭제 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+# 상품 관리
+@app.route('/api/admin/products', methods=['GET'])
+@require_admin_auth
+def get_admin_products():
+    """상품 목록 조회"""
+    conn = None
+    cursor = None
+    try:
+        category_id = request.args.get('category_id')
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        if category_id:
+            cursor.execute("""
+                SELECT p.*, c.name as category_name
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.category_id
+                WHERE p.category_id = %s
+                ORDER BY p.created_at DESC
+            """, (category_id,))
+        else:
+            cursor.execute("""
+                SELECT p.*, c.name as category_name
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.category_id
+                ORDER BY p.created_at DESC
+            """)
+        
+        products = cursor.fetchall()
+        return jsonify({
+            'products': [dict(p) for p in products],
+            'count': len(products)
+        }), 200
+    except Exception as e:
+        print(f"❌ 상품 목록 조회 오류: {e}")
+        return jsonify({'error': f'상품 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/products', methods=['POST'])
+@require_admin_auth
+def create_admin_product():
+    """상품 생성"""
+    conn = None
+    cursor = None
+    try:
+        data = request.get_json()
+        category_id = data.get('category_id')
+        name = data.get('name')
+        description = data.get('description')
+        is_domestic = data.get('is_domestic', True)
+        auto_tag = data.get('auto_tag', False)
+        
+        if not category_id or not name:
+            return jsonify({'error': '카테고리 ID와 상품 이름이 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            INSERT INTO products (category_id, name, description, is_domestic, auto_tag, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+            RETURNING *
+        """, (category_id, name, description, is_domestic, auto_tag))
+        
+        product = cursor.fetchone()
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'product': dict(product)
+        }), 201
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 상품 생성 오류: {e}")
+        return jsonify({'error': f'상품 생성 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/products/<int:product_id>', methods=['GET'])
+@require_admin_auth
+def get_admin_product(product_id):
+    """상품 상세 조회"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT p.*, c.name as category_name
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.category_id
+            WHERE p.product_id = %s
+        """, (product_id,))
+        product = cursor.fetchone()
+        
+        if not product:
+            return jsonify({'error': '상품을 찾을 수 없습니다.'}), 404
+        
+        return jsonify({'product': dict(product)}), 200
+    except Exception as e:
+        print(f"❌ 상품 조회 오류: {e}")
+        return jsonify({'error': f'상품 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/products/<int:product_id>', methods=['PUT'])
+@require_admin_auth
+def update_admin_product(product_id):
+    """상품 수정"""
+    conn = None
+    cursor = None
+    try:
+        data = request.get_json()
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("SELECT * FROM products WHERE product_id = %s", (product_id,))
+        product = cursor.fetchone()
+        
+        if not product:
+            return jsonify({'error': '상품을 찾을 수 없습니다.'}), 404
+        
+        category_id = data.get('category_id', product['category_id'])
+        name = data.get('name', product['name'])
+        description = data.get('description', product.get('description'))
+        is_domestic = data.get('is_domestic', product.get('is_domestic', True))
+        auto_tag = data.get('auto_tag', product.get('auto_tag', False))
+        
+        cursor.execute("""
+            UPDATE products
+            SET category_id = %s, name = %s, description = %s, is_domestic = %s, auto_tag = %s, updated_at = NOW()
+            WHERE product_id = %s
+            RETURNING *
+        """, (category_id, name, description, is_domestic, auto_tag, product_id))
+        
+        updated = cursor.fetchone()
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'product': dict(updated)
+        }), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 상품 수정 오류: {e}")
+        return jsonify({'error': f'상품 수정 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/products/<int:product_id>', methods=['DELETE'])
+@require_admin_auth
+def delete_admin_product(product_id):
+    """상품 삭제 (옵션이 있으면 오류)"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 옵션 확인
+        cursor.execute("SELECT COUNT(*) FROM product_variants WHERE product_id = %s", (product_id,))
+        variant_count = cursor.fetchone()[0]
+        
+        if variant_count > 0:
+            return jsonify({
+                'error': f'상품에 {variant_count}개의 옵션이 있어 삭제할 수 없습니다. 먼저 옵션을 삭제하세요.'
+            }), 400
+        
+        cursor.execute("DELETE FROM products WHERE product_id = %s", (product_id,))
+        
+        if cursor.rowcount == 0:
+            return jsonify({'error': '상품을 찾을 수 없습니다.'}), 404
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': '상품이 삭제되었습니다.'}), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 상품 삭제 오류: {e}")
+        return jsonify({'error': f'상품 삭제 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+# 상품 옵션 관리
+@app.route('/api/admin/product-variants', methods=['GET'])
+@require_admin_auth
+def get_admin_product_variants():
+    """상품 옵션 목록 조회"""
+    conn = None
+    cursor = None
+    try:
+        product_id = request.args.get('product_id')
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        if product_id:
+            cursor.execute("""
+                SELECT pv.*, p.name as product_name, c.name as category_name
+                FROM product_variants pv
+                LEFT JOIN products p ON pv.product_id = p.product_id
+                LEFT JOIN categories c ON p.category_id = c.category_id
+                WHERE pv.product_id = %s
+                ORDER BY pv.created_at DESC
+            """, (product_id,))
+        else:
+            cursor.execute("""
+                SELECT pv.*, p.name as product_name, c.name as category_name
+                FROM product_variants pv
+                LEFT JOIN products p ON pv.product_id = p.product_id
+                LEFT JOIN categories c ON p.category_id = c.category_id
+                ORDER BY pv.created_at DESC
+            """)
+        
+        variants = cursor.fetchall()
+        # meta_json을 파싱
+        result = []
+        for v in variants:
+            variant_dict = dict(v)
+            if variant_dict.get('meta_json') and isinstance(variant_dict['meta_json'], str):
+                try:
+                    import json
+                    variant_dict['meta_json'] = json.loads(variant_dict['meta_json'])
+                except:
+                    pass
+            result.append(variant_dict)
+        
+        return jsonify({
+            'variants': result,
+            'count': len(result)
+        }), 200
+    except Exception as e:
+        print(f"❌ 상품 옵션 목록 조회 오류: {e}")
+        return jsonify({'error': f'상품 옵션 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/product-variants', methods=['POST'])
+@require_admin_auth
+def create_admin_product_variant():
+    """상품 옵션 생성"""
+    conn = None
+    cursor = None
+    try:
+        data = request.get_json()
+        product_id = data.get('product_id')
+        name = data.get('name')
+        price = data.get('price')
+        min_quantity = data.get('min_quantity')
+        max_quantity = data.get('max_quantity')
+        delivery_time_days = data.get('delivery_time_days')
+        is_active = data.get('is_active', True)
+        meta_json = data.get('meta_json')
+        api_endpoint = data.get('api_endpoint')
+        
+        if not product_id or not name or price is None:
+            return jsonify({'error': '상품 ID, 옵션 이름, 가격이 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # meta_json을 JSON 문자열로 변환
+        import json
+        meta_json_str = None
+        if meta_json:
+            meta_json_str = json.dumps(meta_json) if not isinstance(meta_json, str) else meta_json
+        
+        cursor.execute("""
+            INSERT INTO product_variants (
+                product_id, name, price, min_quantity, max_quantity,
+                delivery_time_days, is_active, meta_json, api_endpoint,
+                created_at, updated_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            RETURNING *
+        """, (product_id, name, price, min_quantity, max_quantity, delivery_time_days, is_active, meta_json_str, api_endpoint))
+        
+        variant = cursor.fetchone()
+        conn.commit()
+        
+        variant_dict = dict(variant)
+        if variant_dict.get('meta_json') and isinstance(variant_dict['meta_json'], str):
+            try:
+                variant_dict['meta_json'] = json.loads(variant_dict['meta_json'])
+            except:
+                pass
+        
+        return jsonify({
+            'success': True,
+            'variant': variant_dict
+        }), 201
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 상품 옵션 생성 오류: {e}")
+        return jsonify({'error': f'상품 옵션 생성 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/product-variants/<int:variant_id>', methods=['GET'])
+@require_admin_auth
+def get_admin_product_variant(variant_id):
+    """상품 옵션 상세 조회"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT pv.*, p.name as product_name, c.name as category_name
+            FROM product_variants pv
+            LEFT JOIN products p ON pv.product_id = p.product_id
+            LEFT JOIN categories c ON p.category_id = c.category_id
+            WHERE pv.variant_id = %s
+        """, (variant_id,))
+        variant = cursor.fetchone()
+        
+        if not variant:
+            return jsonify({'error': '상품 옵션을 찾을 수 없습니다.'}), 404
+        
+        variant_dict = dict(variant)
+        if variant_dict.get('meta_json') and isinstance(variant_dict['meta_json'], str):
+            try:
+                import json
+                variant_dict['meta_json'] = json.loads(variant_dict['meta_json'])
+            except:
+                pass
+        
+        return jsonify({'variant': variant_dict}), 200
+    except Exception as e:
+        print(f"❌ 상품 옵션 조회 오류: {e}")
+        return jsonify({'error': f'상품 옵션 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/product-variants/<int:variant_id>', methods=['PUT'])
+@require_admin_auth
+def update_admin_product_variant(variant_id):
+    """상품 옵션 수정"""
+    conn = None
+    cursor = None
+    try:
+        data = request.get_json()
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("SELECT * FROM product_variants WHERE variant_id = %s", (variant_id,))
+        variant = cursor.fetchone()
+        
+        if not variant:
+            return jsonify({'error': '상품 옵션을 찾을 수 없습니다.'}), 404
+        
+        product_id = data.get('product_id', variant['product_id'])
+        name = data.get('name', variant['name'])
+        price = data.get('price', variant['price'])
+        min_quantity = data.get('min_quantity', variant.get('min_quantity'))
+        max_quantity = data.get('max_quantity', variant.get('max_quantity'))
+        delivery_time_days = data.get('delivery_time_days', variant.get('delivery_time_days'))
+        is_active = data.get('is_active', variant.get('is_active', True))
+        meta_json = data.get('meta_json', variant.get('meta_json'))
+        api_endpoint = data.get('api_endpoint', variant.get('api_endpoint'))
+        
+        # meta_json을 JSON 문자열로 변환
+        import json
+        meta_json_str = None
+        if meta_json:
+            meta_json_str = json.dumps(meta_json) if not isinstance(meta_json, str) else meta_json
+        
+        cursor.execute("""
+            UPDATE product_variants
+            SET product_id = %s, name = %s, price = %s, min_quantity = %s, max_quantity = %s,
+                delivery_time_days = %s, is_active = %s, meta_json = %s, api_endpoint = %s,
+                updated_at = NOW()
+            WHERE variant_id = %s
+            RETURNING *
+        """, (product_id, name, price, min_quantity, max_quantity, delivery_time_days, is_active, meta_json_str, api_endpoint, variant_id))
+        
+        updated = cursor.fetchone()
+        conn.commit()
+        
+        updated_dict = dict(updated)
+        if updated_dict.get('meta_json') and isinstance(updated_dict['meta_json'], str):
+            try:
+                updated_dict['meta_json'] = json.loads(updated_dict['meta_json'])
+            except:
+                pass
+        
+        return jsonify({
+            'success': True,
+            'variant': updated_dict
+        }), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 상품 옵션 수정 오류: {e}")
+        return jsonify({'error': f'상품 옵션 수정 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/product-variants/<int:variant_id>', methods=['DELETE'])
+@require_admin_auth
+def delete_admin_product_variant(variant_id):
+    """상품 옵션 삭제"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("DELETE FROM product_variants WHERE variant_id = %s", (variant_id,))
+        
+        if cursor.rowcount == 0:
+            return jsonify({'error': '상품 옵션을 찾을 수 없습니다.'}), 404
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': '상품 옵션이 삭제되었습니다.'}), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 상품 옵션 삭제 오류: {e}")
+        return jsonify({'error': f'상품 옵션 삭제 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+# 패키지 관리
+@app.route('/api/admin/packages', methods=['GET'])
+@require_admin_auth
+def get_admin_packages():
+    """패키지 목록 조회"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT p.*, c.name as category_name
+            FROM packages p
+            LEFT JOIN categories c ON p.category_id = c.category_id
+            ORDER BY p.created_at DESC
+        """)
+        
+        packages = cursor.fetchall()
+        
+        # 각 패키지의 items 조회
+        result = []
+        for pkg in packages:
+            pkg_dict = dict(pkg)
+            cursor.execute("""
+                SELECT pi.*, pv.name as variant_name
+                FROM package_items pi
+                LEFT JOIN product_variants pv ON pi.variant_id = pv.variant_id
+                WHERE pi.package_id = %s
+                ORDER BY pi.step
+            """, (pkg_dict['package_id'],))
+            items = cursor.fetchall()
+            pkg_dict['items'] = [dict(item) for item in items]
+            result.append(pkg_dict)
+        
+        return jsonify({
+            'packages': result,
+            'count': len(result)
+        }), 200
+    except Exception as e:
+        print(f"❌ 패키지 목록 조회 오류: {e}")
+        return jsonify({'error': f'패키지 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/packages', methods=['POST'])
+@require_admin_auth
+def create_admin_package():
+    """패키지 생성"""
+    conn = None
+    cursor = None
+    try:
+        data = request.get_json()
+        category_id = data.get('category_id')
+        name = data.get('name')
+        description = data.get('description')
+        items = data.get('items', [])
+        
+        if not category_id or not name:
+            return jsonify({'error': '카테고리 ID와 패키지 이름이 필요합니다.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 패키지 생성
+        cursor.execute("""
+            INSERT INTO packages (category_id, name, description, created_at, updated_at)
+            VALUES (%s, %s, %s, NOW(), NOW())
+            RETURNING *
+        """, (category_id, name, description))
+        
+        package = cursor.fetchone()
+        package_id = package['package_id']
+        
+        # 패키지 아이템 생성
+        for item in items:
+            variant_id = item.get('variant_id')
+            step = item.get('step')
+            term_value = item.get('term_value')
+            term_unit = item.get('term_unit')
+            quantity = item.get('quantity')
+            repeat_count = item.get('repeat_count')
+            repeat_term_value = item.get('repeat_term_value')
+            repeat_term_unit = item.get('repeat_term_unit')
+            
+            cursor.execute("""
+                INSERT INTO package_items (
+                    package_id, variant_id, step, term_value, term_unit,
+                    quantity, repeat_count, repeat_term_value, repeat_term_unit
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (package_id, variant_id, step, term_value, term_unit, quantity, repeat_count, repeat_term_value, repeat_term_unit))
+        
+        conn.commit()
+        
+        # 생성된 패키지 조회 (items 포함)
+        cursor.execute("""
+            SELECT p.*, c.name as category_name
+            FROM packages p
+            LEFT JOIN categories c ON p.category_id = c.category_id
+            WHERE p.package_id = %s
+        """, (package_id,))
+        package = cursor.fetchone()
+        
+        cursor.execute("""
+            SELECT pi.*, pv.name as variant_name
+            FROM package_items pi
+            LEFT JOIN product_variants pv ON pi.variant_id = pv.variant_id
+            WHERE pi.package_id = %s
+            ORDER BY pi.step
+        """, (package_id,))
+        items = cursor.fetchall()
+        
+        package_dict = dict(package)
+        package_dict['items'] = [dict(item) for item in items]
+        
+        return jsonify({
+            'success': True,
+            'package': package_dict
+        }), 201
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 패키지 생성 오류: {e}")
+        return jsonify({'error': f'패키지 생성 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/packages/<int:package_id>', methods=['GET'])
+@require_admin_auth
+def get_admin_package(package_id):
+    """패키지 상세 조회"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT p.*, c.name as category_name
+            FROM packages p
+            LEFT JOIN categories c ON p.category_id = c.category_id
+            WHERE p.package_id = %s
+        """, (package_id,))
+        package = cursor.fetchone()
+        
+        if not package:
+            return jsonify({'error': '패키지를 찾을 수 없습니다.'}), 404
+        
+        cursor.execute("""
+            SELECT pi.*, pv.name as variant_name
+            FROM package_items pi
+            LEFT JOIN product_variants pv ON pi.variant_id = pv.variant_id
+            WHERE pi.package_id = %s
+            ORDER BY pi.step
+        """, (package_id,))
+        items = cursor.fetchall()
+        
+        package_dict = dict(package)
+        package_dict['items'] = [dict(item) for item in items]
+        
+        return jsonify({'package': package_dict}), 200
+    except Exception as e:
+        print(f"❌ 패키지 조회 오류: {e}")
+        return jsonify({'error': f'패키지 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/packages/<int:package_id>', methods=['PUT'])
+@require_admin_auth
+def update_admin_package(package_id):
+    """패키지 수정 (items 배열 전달 시 전체 교체)"""
+    conn = None
+    cursor = None
+    try:
+        data = request.get_json()
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("SELECT * FROM packages WHERE package_id = %s", (package_id,))
+        package = cursor.fetchone()
+        
+        if not package:
+            return jsonify({'error': '패키지를 찾을 수 없습니다.'}), 404
+        
+        category_id = data.get('category_id', package['category_id'])
+        name = data.get('name', package['name'])
+        description = data.get('description', package.get('description'))
+        
+        cursor.execute("""
+            UPDATE packages
+            SET category_id = %s, name = %s, description = %s, updated_at = NOW()
+            WHERE package_id = %s
+        """, (category_id, name, description, package_id))
+        
+        # items가 제공된 경우 전체 교체
+        if 'items' in data:
+            items = data.get('items', [])
+            # 기존 items 삭제
+            cursor.execute("DELETE FROM package_items WHERE package_id = %s", (package_id,))
+            
+            # 새 items 추가
+            for item in items:
+                variant_id = item.get('variant_id')
+                step = item.get('step')
+                term_value = item.get('term_value')
+                term_unit = item.get('term_unit')
+                quantity = item.get('quantity')
+                repeat_count = item.get('repeat_count')
+                repeat_term_value = item.get('repeat_term_value')
+                repeat_term_unit = item.get('repeat_term_unit')
+                
+                cursor.execute("""
+                    INSERT INTO package_items (
+                        package_id, variant_id, step, term_value, term_unit,
+                        quantity, repeat_count, repeat_term_value, repeat_term_unit
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (package_id, variant_id, step, term_value, term_unit, quantity, repeat_count, repeat_term_value, repeat_term_unit))
+        
+        conn.commit()
+        
+        # 수정된 패키지 조회
+        cursor.execute("""
+            SELECT p.*, c.name as category_name
+            FROM packages p
+            LEFT JOIN categories c ON p.category_id = c.category_id
+            WHERE p.package_id = %s
+        """, (package_id,))
+        package = cursor.fetchone()
+        
+        cursor.execute("""
+            SELECT pi.*, pv.name as variant_name
+            FROM package_items pi
+            LEFT JOIN product_variants pv ON pi.variant_id = pv.variant_id
+            WHERE pi.package_id = %s
+            ORDER BY pi.step
+        """, (package_id,))
+        items = cursor.fetchall()
+        
+        package_dict = dict(package)
+        package_dict['items'] = [dict(item) for item in items]
+        
+        return jsonify({
+            'success': True,
+            'package': package_dict
+        }), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 패키지 수정 오류: {e}")
+        return jsonify({'error': f'패키지 수정 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/packages/<int:package_id>', methods=['DELETE'])
+@require_admin_auth
+def delete_admin_package(package_id):
+    """패키지 삭제"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # package_items 먼저 삭제 (외래키 제약)
+        cursor.execute("DELETE FROM package_items WHERE package_id = %s", (package_id,))
+        
+        # 패키지 삭제
+        cursor.execute("DELETE FROM packages WHERE package_id = %s", (package_id,))
+        
+        if cursor.rowcount == 0:
+            return jsonify({'error': '패키지를 찾을 수 없습니다.'}), 404
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': '패키지가 삭제되었습니다.'}), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"❌ 패키지 삭제 오류: {e}")
+        return jsonify({'error': f'패키지 삭제 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # SPA 라우팅 지원 - 구체적인 라우트들
 @app.route('/home', methods=['GET'])
