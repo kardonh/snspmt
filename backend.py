@@ -1230,53 +1230,53 @@ def process_package_step(order_id, step_index):
         
         # 다음 단계 처리 (새 스키마: work_jobs의 schedule_at 사용)
         if step_index + 1 < len(package_steps):
-                next_step = package_steps[step_index + 1]
-                next_step_name = next_step.get('name', f'단계 {step_index + 2}')
-                next_step_delay = next_step.get('delay', 10)
-                
-                print(f"📝 다음 단계 정보: {next_step_name} ({next_step_delay}분 후)")
-                
-                # 다음 단계의 work_job 찾기 및 schedule_at 업데이트
-                if DATABASE_URL.startswith('postgresql://'):
-                    try:
-                        from datetime import datetime, timedelta
-                        schedule_at = datetime.now() + timedelta(minutes=next_step_delay)
-                        
-                        cursor.execute("""
-                            UPDATE work_jobs 
-                            SET schedule_at = %s, status = 'pending', updated_at = NOW()
-                            WHERE order_item_id IN (
-                                SELECT oi.order_item_id 
-                                FROM order_items oi 
-                                JOIN orders o ON oi.order_id = o.order_id
-                                WHERE o.order_id = %s
-                            ) AND (payload_json->>'step_index')::int = %s
-                        """, (schedule_at, order_id, step_index + 1))
-                        
-                        conn.commit()
-                        print(f"📝 다음 단계 work_job 스케줄링 완료: {schedule_at}")
-                    except Exception as e:
-                        print(f"❌ 다음 단계 work_job 스케줄링 실패: {e}")
-                else:
-                    # SQLite: 구 스키마
-                    try:
-                        cursor.execute("""
-                            INSERT INTO execution_progress 
-                            (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, scheduled_datetime, created_at)
-                            VALUES (?, 'package', ?, ?, ?, ?, ?, ?, datetime('now', '+' || ? || ' minutes'), datetime('now'))
-                        """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'pending', next_step_delay))
-                        conn.commit()
-                    except Exception as e:
-                        print(f"❌ 다음 단계 예약 정보 저장 실패: {e}")
-            else:
-                print(f"🎉 모든 단계 완료! 다음 단계 없음")
-                # 모든 단계 완료 시 주문 상태 업데이트
-                if DATABASE_URL.startswith('postgresql://'):
+            next_step = package_steps[step_index + 1]
+            next_step_name = next_step.get('name', f'단계 {step_index + 2}')
+            next_step_delay = next_step.get('delay', 10)
+            
+            print(f"📝 다음 단계 정보: {next_step_name} ({next_step_delay}분 후)")
+            
+            # 다음 단계의 work_job 찾기 및 schedule_at 업데이트
+            if DATABASE_URL.startswith('postgresql://'):
+                try:
+                    from datetime import datetime, timedelta
+                    schedule_at = datetime.now() + timedelta(minutes=next_step_delay)
+                    
                     cursor.execute("""
-                        UPDATE orders SET status = 'completed', updated_at = NOW()
-                        WHERE order_id = %s
-                    """, (order_id,))
+                        UPDATE work_jobs 
+                        SET schedule_at = %s, status = 'pending', updated_at = NOW()
+                        WHERE order_item_id IN (
+                            SELECT oi.order_item_id 
+                            FROM order_items oi 
+                            JOIN orders o ON oi.order_id = o.order_id
+                            WHERE o.order_id = %s
+                        ) AND (payload_json->>'step_index')::int = %s
+                    """, (schedule_at, order_id, step_index + 1))
+                    
                     conn.commit()
+                    print(f"📝 다음 단계 work_job 스케줄링 완료: {schedule_at}")
+                except Exception as e:
+                    print(f"❌ 다음 단계 work_job 스케줄링 실패: {e}")
+            else:
+                # SQLite: 구 스키마
+                try:
+                    cursor.execute("""
+                        INSERT INTO execution_progress 
+                        (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, scheduled_datetime, created_at)
+                        VALUES (?, 'package', ?, ?, ?, ?, ?, ?, datetime('now', '+' || ? || ' minutes'), datetime('now'))
+                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'pending', next_step_delay))
+                    conn.commit()
+                except Exception as e:
+                    print(f"❌ 다음 단계 예약 정보 저장 실패: {e}")
+        else:
+            print(f"🎉 모든 단계 완료! 다음 단계 없음")
+            # 모든 단계 완료 시 주문 상태 업데이트
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    UPDATE orders SET status = 'completed', updated_at = NOW()
+                    WHERE order_id = %s
+                """, (order_id,))
+                conn.commit()
         
         # 스레드 상태 확인
         import threading
