@@ -37,6 +37,35 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
     setIsLogin(initialMode === 'login')
   }, [initialMode])
 
+  // 추천인 코드 검증
+  const validateReferralCode = async (code) => {
+    if (!code.trim()) {
+      setReferralCodeValid(false)
+      setReferralCodeError('')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/referral/validate-code?code=${encodeURIComponent(code)}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.valid) {
+          setReferralCodeValid(true)
+          setReferralCodeError('')
+        } else {
+          setReferralCodeValid(false)
+          setReferralCodeError('유효하지 않은 추천인 코드입니다.')
+        }
+      } else {
+        setReferralCodeValid(false)
+        setReferralCodeError('추천인 코드를 확인할 수 없습니다.')
+      }
+    } catch (error) {
+      setReferralCodeValid(false)
+      setReferralCodeError('추천인 코드 검증 중 오류가 발생했습니다.')
+    }
+  }
+
   // URL 파라미터에서 추천인 코드 읽기
   useEffect(() => {
     if (isOpen && !isLogin) {
