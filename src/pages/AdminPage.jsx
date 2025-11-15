@@ -19,9 +19,11 @@ import {
   Bell,
   FileText,
   Edit,
-  Trash2
+  Trash2,
+  Package
 } from 'lucide-react'
 import ReferralRegistration from '../components/ReferralRegistration'
+import AdminServiceManagement from '../components/AdminServiceManagement'
 import { 
   saveReferralCode, 
   getReferralCodes, 
@@ -1703,6 +1705,13 @@ const AdminPage = () => {
           블로그 관리
                   </button>
                   <button
+          className={`tab-button ${activeTab === 'services' ? 'active' : ''}`}
+          onClick={() => setActiveTab('services')}
+                  >
+          <Package size={20} />
+          서비스 관리
+                  </button>
+                  <button
           className={`tab-button ${activeTab === 'notices' ? 'active' : ''}`}
           onClick={() => setActiveTab('notices')}
                   >
@@ -1750,6 +1759,9 @@ const AdminPage = () => {
               </div>
             )}
             {activeTab === 'commissions' && renderCommissions()}
+            {activeTab === 'services' && (
+              <AdminServiceManagement adminFetch={adminFetch} />
+            )}
             {activeTab === 'notices' && renderNotices()}
           </>
         )}
