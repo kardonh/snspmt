@@ -268,7 +268,7 @@ def create_scheduled_order():
             cursor.execute("""
                 INSERT INTO orders 
                 (order_id, user_id, service_id, link, quantity, price, status, is_scheduled, scheduled_datetime, package_steps, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, 'scheduled', TRUE, %s, %s, NOW(), NOW())
+                VALUES (%s, %s, %s, %s, %s, %s, 'pending', TRUE, %s, %s, NOW(), NOW())
             """, (
                 order_id, user_id, service_id, link, quantity, price, scheduled_datetime,
                 json.dumps(package_steps) if package_steps else None
@@ -289,7 +289,7 @@ def create_scheduled_order():
                     cursor.execute("""
                         INSERT INTO execution_progress 
                         (order_id, exec_type, step_number, step_name, service_id, quantity, scheduled_datetime, status, created_at)
-                        VALUES (%s, 'package', %s, %s, %s, %s, %s, 'scheduled', NOW())
+                        VALUES (%s, 'package', %s, %s, %s, %s, %s, 'pending', NOW())
                         ON CONFLICT (order_id, exec_type, step_number) DO NOTHING
                     """, (
                         order_id, idx + 1, step.get('name', f'단계 {idx + 1}'),
@@ -299,7 +299,7 @@ def create_scheduled_order():
             cursor.execute("""
                 INSERT INTO orders 
                 (order_id, user_id, service_id, link, quantity, price, status, is_scheduled, scheduled_datetime, package_steps, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, 'scheduled', 1, ?, ?, datetime('now'), datetime('now'))
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', 1, ?, ?, datetime('now'), datetime('now'))
             """, (
                 order_id, user_id, service_id, link, quantity, price, scheduled_datetime,
                 json.dumps(package_steps) if package_steps else None
@@ -319,7 +319,7 @@ def create_scheduled_order():
                     cursor.execute("""
                         INSERT INTO execution_progress 
                         (order_id, exec_type, step_number, step_name, service_id, quantity, scheduled_datetime, status, created_at)
-                        VALUES (?, 'package', ?, ?, ?, ?, ?, 'scheduled', datetime('now'))
+                        VALUES (?, 'package', ?, ?, ?, ?, ?, 'pending', datetime('now'))
                     """, (
                         order_id, idx + 1, step.get('name', f'단계 {idx + 1}'),
                         step.get('id'), step.get('quantity', 0), scheduled_time
@@ -1191,13 +1191,13 @@ def process_package_step(order_id, step_index):
                         VALUES (%s, 'package', %s, %s, %s, %s, %s, %s, NOW() + INTERVAL '%s minutes', NOW())
                         ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
                         SET step_name=EXCLUDED.step_name, scheduled_datetime=EXCLUDED.scheduled_datetime, status=EXCLUDED.status
-                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled', next_step.get('delay', 1440)))
+                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'pending', next_step.get('delay', 1440)))
                 else:
                     cursor.execute("""
                         INSERT INTO execution_progress 
                         (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, scheduled_datetime, created_at)
                         VALUES (?, 'package', ?, ?, ?, ?, ?, ?, datetime('now', '+' || ? || ' minutes'), datetime('now'))
-                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'scheduled', next_step.get('delay', 1440)))
+                    """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'pending', next_step.get('delay', 1440)))
                 
                 conn.commit()
                 print(f"📝 다음 단계 예약 정보 저장 완료")
@@ -2515,17 +2515,9 @@ def init_database():
                 "CREATE INDEX IF NOT EXISTS idx_point_purchases_user_id ON point_purchases(user_id)",
                 "CREATE INDEX IF NOT EXISTS idx_point_purchases_status ON point_purchases(status)",
                 "CREATE INDEX IF NOT EXISTS idx_referral_codes_code ON referral_codes(code)",
-                "CREATE INDEX IF NOT EXISTS idx_referral_codes_user_email ON referral_codes(user_email)",
-                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_user_id ON scheduled_orders(user_id)",
-                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_status ON scheduled_orders(status)",
-                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_datetime ON scheduled_orders(scheduled_datetime)",
-                "CREATE INDEX IF NOT EXISTS idx_package_progress_order_id ON package_progress(order_id)",
-                "CREATE INDEX IF NOT EXISTS idx_package_progress_status ON package_progress(status)",
-                "CREATE INDEX IF NOT EXISTS idx_split_delivery_order_id ON split_delivery_progress(order_id)",
-                "CREATE INDEX IF NOT EXISTS idx_commission_points_email ON commission_points(referrer_email)",
-                "CREATE INDEX IF NOT EXISTS idx_commission_transactions_email ON commission_point_transactions(referrer_email)",
-                "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_email ON commission_withdrawal_requests(referrer_email)",
-                "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_status ON commission_withdrawal_requests(status)"
+                "CREATE INDEX IF NOT EXISTS idx_referral_codes_user_email ON referral_codes(user_email)"
+                # 새 스키마에서는 존재하지 않는 테이블들의 인덱스는 스킵
+                # scheduled_orders, package_progress, split_delivery_progress, commission_points 등은 새 스키마에서 사용하지 않음
             ]
         else:
             # SQLite 인덱스
@@ -2537,17 +2529,9 @@ def init_database():
                 "CREATE INDEX IF NOT EXISTS idx_point_purchases_user_id ON point_purchases(user_id)",
                 "CREATE INDEX IF NOT EXISTS idx_point_purchases_status ON point_purchases(status)",
                 "CREATE INDEX IF NOT EXISTS idx_referral_codes_code ON referral_codes(code)",
-                "CREATE INDEX IF NOT EXISTS idx_referral_codes_user_email ON referral_codes(user_email)",
-                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_user_id ON scheduled_orders(user_id)",
-                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_status ON scheduled_orders(status)",
-                "CREATE INDEX IF NOT EXISTS idx_scheduled_orders_datetime ON scheduled_orders(scheduled_datetime)",
-                "CREATE INDEX IF NOT EXISTS idx_package_progress_order_id ON package_progress(order_id)",
-                "CREATE INDEX IF NOT EXISTS idx_package_progress_status ON package_progress(status)",
-                "CREATE INDEX IF NOT EXISTS idx_split_delivery_order_id ON split_delivery_progress(order_id)",
-                "CREATE INDEX IF NOT EXISTS idx_commission_points_email ON commission_points(referrer_email)",
-                "CREATE INDEX IF NOT EXISTS idx_commission_transactions_email ON commission_point_transactions(referrer_email)",
-                "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_email ON commission_withdrawal_requests(referrer_email)",
-                "CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_status ON commission_withdrawal_requests(status)"
+                "CREATE INDEX IF NOT EXISTS idx_referral_codes_user_email ON referral_codes(user_email)"
+                # 새 스키마에서는 존재하지 않는 테이블들의 인덱스는 스킵
+                # scheduled_orders, package_progress, split_delivery_progress, commission_points 등은 새 스키마에서 사용하지 않음
             ]
         
         for index_sql in indexes:
@@ -3317,12 +3301,12 @@ def create_order():
         if is_scheduled and not is_package:
             # 예약 주문 (패키지가 아닌 경우)은 나중에 처리하도록 스케줄링
             print(f"📅 예약 주문 - 즉시 처리하지 않음")
-            status = 'scheduled'
+            status = 'pending'  # 예약 주문은 pending 상태로 시작
             message = '예약 주문이 생성되었습니다.'
         elif is_split_delivery:
             # 분할 주문은 나중에 처리하도록 스케줄링
             print(f"📅 분할 주문 - 즉시 처리하지 않음")
-            status = 'split_scheduled'
+            status = 'pending'  # 분할 주문은 pending 상태로 시작
             message = '분할 주문이 생성되었습니다.'
         elif is_package:
             # 패키지 상품은 각 단계를 순차적으로 처리하도록 저장
@@ -7499,7 +7483,7 @@ def cron_process_scheduled_orders():
                     FROM orders o
                     LEFT JOIN order_items oi ON o.order_id = oi.order_id
                     WHERE o.is_scheduled = TRUE 
-                    AND o.status IN ('scheduled', 'pending')
+                    AND o.status = 'pending'
                     AND o.scheduled_datetime <= NOW()
                     LIMIT 50
                 """)
@@ -7513,7 +7497,7 @@ def cron_process_scheduled_orders():
                 SELECT order_id, user_id, service_id, link, quantity, price, package_steps, scheduled_datetime
                 FROM orders 
                 WHERE is_scheduled = 1 
-                AND status IN ('scheduled', 'pending')
+                AND status = 'pending'
                 AND scheduled_datetime <= datetime('now')
             """)
         
@@ -7679,14 +7663,14 @@ def cron_process_split_deliveries():
                 SELECT o.order_id, o.split_days, o.created_at
                 FROM orders o
                 WHERE o.is_split_delivery = TRUE 
-                AND o.status IN ('split_scheduled', 'in_progress')
+                AND o.status IN ('pending', 'processing')
             """)
         else:
             cursor.execute("""
                 SELECT o.order_id, o.split_days, o.created_at
                 FROM orders o
                 WHERE o.is_split_delivery = 1
-                AND o.status IN ('split_scheduled', 'in_progress')
+                AND o.status IN ('pending', 'processing')
             """)
         
         split_orders = cursor.fetchall()
