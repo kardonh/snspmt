@@ -7421,6 +7421,16 @@ def get_active_notices():
 def get_smm_services():
     """SMM Panel에서 사용 가능한 서비스 목록 조회"""
     try:
+        # API 키 확인
+        smm_api_key = get_parameter_value('SMMPANEL_API_KEY', '')
+        if not smm_api_key:
+            print("⚠️ SMMPANEL_API_KEY가 설정되지 않음")
+            return jsonify({
+                'success': False,
+                'error': 'SMM Panel API 키가 설정되지 않았습니다.',
+                'message': '관리자에게 문의하세요.'
+            }), 500
+        
         result = get_smm_panel_services()
         
         if result.get('status') == 'success':
@@ -7435,7 +7445,7 @@ def get_smm_services():
             
             # API 키 오류인 경우 더 명확한 메시지
             if 'Invalid API key' in error_message or '401' in error_message:
-                error_message = 'API 키가 유효하지 않습니다. .env 파일에 올바른 SMMPANEL_API_KEY를 설정하세요.'
+                error_message = 'API 키가 유효하지 않습니다. 관리자에게 문의하세요.'
             
             return jsonify({
                 'success': False,
@@ -7444,12 +7454,15 @@ def get_smm_services():
             }), 500
             
     except Exception as e:
+        import traceback
         error_msg = str(e)
+        traceback_str = traceback.format_exc()
         print(f"❌ SMM Panel 서비스 목록 조회 오류: {error_msg}")
+        print(f"📋 상세 오류:\n{traceback_str}")
         
         # API 키 관련 오류인 경우
         if 'Invalid API key' in error_msg or '401' in error_msg:
-            error_msg = 'API 키가 유효하지 않습니다. .env 파일에 올바른 SMMPANEL_API_KEY를 설정하세요.'
+            error_msg = 'API 키가 유효하지 않습니다. 관리자에게 문의하세요.'
         
         return jsonify({
             'error': f'서비스 목록 조회 실패: {error_msg}',
