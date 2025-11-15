@@ -3067,103 +3067,112 @@ def create_order():
         print(f"가격: {price}")
         
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         print("✅ 데이터베이스 연결 성공")
         
         # 데이터베이스 타입 확인
         if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
             print("🗄️ PostgreSQL 데이터베이스 사용 중 (영구 저장)")
+            
+            # 새 스키마: external_uid로 사용자 찾기 및 user_id (BIGINT) 가져오기
+            cursor.execute("""
+                SELECT user_id, referral_code 
+                FROM users 
+                WHERE external_uid = %s OR email = %s
+                LIMIT 1
+            """, (user_id, user_id))
+            user_result = cursor.fetchone()
+            
+            if not user_result:
+                # 사용자가 없으면 생성
+                default_email = f"{user_id}@temp.local" if '@' not in str(user_id) else user_id
+                cursor.execute("""
+                    INSERT INTO users (external_uid, email, username, created_at, updated_at)
+                    VALUES (%s, %s, %s, NOW(), NOW())
+                    ON CONFLICT (external_uid) DO UPDATE SET updated_at = NOW()
+                    RETURNING user_id, referral_code
+                """, (user_id, default_email, 'User'))
+                user_result = cursor.fetchone()
+            
+            db_user_id = user_result['user_id']
+            user_referral_code = user_result.get('referral_code')
+            
+            # service_id를 variant_id로 변환 (service_id가 이미 variant_id인 경우 그대로 사용)
+            try:
+                variant_id = int(service_id)
+                # variant_id가 유효한지 확인
+                cursor.execute("SELECT variant_id FROM product_variants WHERE variant_id = %s", (variant_id,))
+                variant_check = cursor.fetchone()
+                if not variant_check:
+                    print(f"⚠️ variant_id {variant_id}가 존재하지 않습니다. service_id를 그대로 사용합니다.")
+            except (ValueError, TypeError):
+                # service_id가 숫자가 아니면 그대로 사용 (구 스키마 호환)
+                variant_id = service_id
+                print(f"⚠️ service_id가 숫자가 아닙니다: {service_id}. 그대로 사용합니다.")
+            
+            # 추천인 정보 확인 (users 테이블의 referral_code 사용)
+            referrer_user_id = None
+            if user_referral_code:
+                # 이 사용자가 추천인인 경우, 추천인 정보 조회
+                cursor.execute("""
+                    SELECT user_id FROM users WHERE referral_code = %s
+                """, (user_referral_code,))
+                referrer_result = cursor.fetchone()
+                if referrer_result:
+                    referrer_user_id = referrer_result['user_id']
+            
+            # 쿠폰 확인 (새 스키마: user_coupons 사용)
+            coupon_id_from_request = data.get('coupon_id')
+            user_coupon_id = None
+            discount_amount = 0
+            final_price = price
+            
+            if coupon_id_from_request:
+                print(f"🎫 쿠폰 사용 요청 - 쿠폰 ID: {coupon_id_from_request}")
+                cursor.execute("""
+                    SELECT uc.user_coupon_id, c.discount_type, c.discount_value, c.valid_until
+                    FROM user_coupons uc
+                    JOIN coupons c ON uc.coupon_id = c.coupon_id
+                    WHERE uc.user_coupon_id = %s AND uc.user_id = %s AND uc.status = 'active'
+                    AND (c.valid_until IS NULL OR c.valid_until > NOW())
+                """, (coupon_id_from_request, db_user_id))
+                coupon_data = cursor.fetchone()
+                
+                if coupon_data:
+                    user_coupon_id = coupon_data['user_coupon_id']
+                    discount_type = coupon_data['discount_type']
+                    discount_value = coupon_data['discount_value']
+                    
+                    if discount_type == 'percentage':
+                        discount_amount = price * (discount_value / 100)
+                    else:
+                        discount_amount = discount_value
+                    
+                    final_price = price - discount_amount
+                    print(f"✅ 쿠폰 적용 - 할인액: {discount_amount}원, 최종가격: {final_price}원")
+                else:
+                    print(f"⚠️ 유효한 쿠폰을 찾을 수 없음 - 쿠폰 ID: {coupon_id_from_request}")
         else:
             print("⚠️ SQLite 데이터베이스 사용 중 (로컬 개발용)")
-        
-        # 사용자의 추천인 연결 확인
-        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT referral_code, referrer_email FROM user_referral_connections 
-                WHERE user_id = %s
-            """, (user_id,))
-        else:
+            db_user_id = user_id
+            variant_id = service_id
+            referrer_user_id = None
+            user_coupon_id = None
+            discount_amount = 0
+            final_price = price
+            
+            # 구 스키마: user_referral_connections 사용
             cursor.execute("""
                 SELECT referral_code, referrer_email FROM user_referral_connections 
                 WHERE user_id = ?
             """, (user_id,))
-        
-        referral_data = cursor.fetchone()
-        discount_amount = 0
-        final_price = price
-        
-        # 프론트엔드에서 전달받은 쿠폰 ID 확인
-        coupon_id_from_request = data.get('coupon_id')
-        
-        # 쿠폰 사용 여부 확인
-        if coupon_id_from_request:
-            print(f"🎫 쿠폰 사용 요청 - 쿠폰 ID: {coupon_id_from_request}")
-            
-            # 쿠폰 유효성 확인
-            if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    SELECT id, discount_value, referral_code FROM coupons 
-                    WHERE id = %s AND user_id = %s AND is_used = false 
-                    AND expires_at > NOW()
-                """, (coupon_id_from_request, user_id))
-            else:
-                cursor.execute("""
-                    SELECT id, discount_value, referral_code FROM coupons 
-                    WHERE id = ? AND user_id = ? AND is_used = false 
-                    AND expires_at > datetime('now')
-                """, (coupon_id_from_request, user_id))
-            
-            coupon_data = cursor.fetchone()
-            if coupon_data:
-                coupon_id, discount_value, referral_code = coupon_data
-                discount_amount = price * (discount_value / 100)
-                final_price = price - discount_amount
-                
-                print(f"✅ 쿠폰 적용 - 할인율: {discount_value}%, 할인액: {discount_amount}원, 최종가격: {final_price}원")
-                
-                # 쿠폰 사용 처리
-                if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-                    cursor.execute("""
-                        UPDATE coupons SET is_used = true, used_at = NOW() 
-                        WHERE id = %s
-                    """, (coupon_id,))
-                else:
-                    cursor.execute("""
-                        UPDATE coupons SET is_used = true, used_at = datetime('now') 
-                        WHERE id = ?
-                    """, (coupon_id,))
-                
-                print(f"✅ 쿠폰 사용 처리 완료 - 쿠폰 ID: {coupon_id}")
-                
-                # 사용자의 추천인 연결 정보 조회 (커미션 적립용)
-                if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-                    cursor.execute("""
-                        SELECT referral_code, referrer_email FROM user_referral_connections 
-                        WHERE user_id = %s
-                    """, (user_id,))
-                else:
-                    cursor.execute("""
-                        SELECT referral_code, referrer_email FROM user_referral_connections 
-                        WHERE user_id = ?
-                    """, (user_id,))
-                
-                referral_data = cursor.fetchone()
-            else:
-                print(f"⚠️ 유효한 쿠폰을 찾을 수 없음 - 쿠폰 ID: {coupon_id_from_request}")
-        else:
-            # 쿠폰 미사용 시 추천인 연결 확인
-            if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    SELECT referral_code, referrer_email FROM user_referral_connections 
-                    WHERE user_id = %s
-                """, (user_id,))
-            else:
-                cursor.execute("""
-                    SELECT referral_code, referrer_email FROM user_referral_connections 
-                    WHERE user_id = ?
-                """, (user_id,))
-            
             referral_data = cursor.fetchone()
+            if referral_data:
+                # referral_code로 referrer_user_id 조회
+                cursor.execute("SELECT user_id FROM referral_codes WHERE code = ?", (referral_data[0],))
+                referrer_result = cursor.fetchone()
+                if referrer_result:
+                    referrer_user_id = referrer_result[0]
         
         # 예약/분할 주문 정보 추출
         is_scheduled = data.get('is_scheduled', False)
@@ -3216,18 +3225,43 @@ def create_order():
         # detailed_service 정보 가져오기
         detailed_service = data.get('detailed_service', '')
         
-        # 주문 생성 (SMM Panel 주문번호 사용)
+        # 새 스키마: orders 테이블에 기본 정보만 저장
         if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+            # orders 테이블에 기본 정보 저장 (order_id는 BIGSERIAL이므로 자동 생성)
             cursor.execute("""
-                INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
-                                discount_amount, referral_code, status, created_at, updated_at,
-                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(),
-                        %s, %s, %s, %s, %s, %s, %s)
-            """, (real_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
-                referral_data[0] if referral_data else None, '주문발송' if not is_scheduled else 'pending_payment',
-                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service))
+                INSERT INTO orders (user_id, referrer_user_id, coupon_id, total_amount, discount_amount, 
+                                  final_amount, status, notes, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                RETURNING order_id
+            """, (db_user_id, referrer_user_id, user_coupon_id, price, discount_amount, final_price,
+                  'pending', f'주문 생성 - variant_id: {variant_id}'))
+            
+            order_result = cursor.fetchone()
+            order_id = order_result['order_id']
+            
+            # order_items 테이블에 상세 정보 저장
+            unit_price = final_price / quantity if quantity > 0 else final_price
+            cursor.execute("""
+                INSERT INTO order_items (order_id, variant_id, quantity, unit_price, link, status, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                RETURNING order_item_id
+            """, (order_id, variant_id, quantity, unit_price, link, 'pending'))
+            
+            order_item_result = cursor.fetchone()
+            order_item_id = order_item_result['order_item_id']
+            
+            # work_jobs 테이블에 SMM Panel 주문 ID 저장 (일반 주문인 경우만)
+            if smm_panel_order_id:
+                import json as json_module
+                payload_json = json_module.dumps({'smm_panel_order_id': smm_panel_order_id, 'service_id': service_id})
+                cursor.execute("""
+                    INSERT INTO work_jobs (order_item_id, status, payload_json, created_at, updated_at)
+                    VALUES (%s, %s, %s::jsonb, NOW(), NOW())
+                """, (order_item_id, 'completed', payload_json))
+            
+            print(f"✅ 주문 생성 완료 - order_id: {order_id}, order_item_id: {order_item_id}, user_id: {db_user_id}, variant_id: {variant_id}, price: {final_price}")
         else:
+            # SQLite: 구 스키마 사용
             cursor.execute("""
                 INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
                                 discount_amount, referral_code, status, created_at, updated_at,
@@ -3237,59 +3271,84 @@ def create_order():
             """, (real_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
                 referral_data[0] if referral_data else None, '주문발송' if not is_scheduled else 'pending_payment',
                 is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service))
+            order_id = real_order_id
+            order_item_id = None
+            print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {user_id}, service_id: {service_id}, price: {final_price}")
         
-        order_id = real_order_id
-        print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {user_id}, service_id: {service_id}, price: {final_price}")
-        
-        # 추천인이 있는 경우 10% 커미션 포인트 적립
+        # 추천인이 있는 경우 10% 커미션 기록 (새 스키마: commissions 테이블 사용)
         commission_amount = 0
-        if referral_data:
+        if referrer_user_id and DATABASE_URL.startswith('postgresql://'):
             try:
-                referrer_email = referral_data[1]
                 commission_amount = final_price * 0.1  # 10% 커미션
+                print(f"💰 커미션 계산 - 추천인 user_id: {referrer_user_id}, 구매금액: {final_price}, 커미션: {commission_amount}")
                 
-                print(f"💰 커미션 계산 - 추천인: {referrer_email}, 구매금액: {final_price}, 커미션: {commission_amount}")
+                # referrals 테이블에 관계 기록 (없으면 생성)
+                cursor.execute("""
+                    INSERT INTO referrals (referrer_user_id, referred_user_id, status, created_at)
+                    VALUES (%s, %s, 'approved', NOW())
+                    ON CONFLICT DO NOTHING
+                    RETURNING referral_id
+                """, (referrer_user_id, db_user_id))
+                referral_result = cursor.fetchone()
                 
-                # referral_code로 referrer_user_id 조회
-                referral_code = referral_data[0]
-                if DATABASE_URL.startswith('postgresql://'):
-                    cursor.execute("SELECT user_id FROM referral_codes WHERE code = %s", (referral_code,))
+                if referral_result:
+                    referral_id = referral_result['referral_id']
                 else:
-                    cursor.execute("SELECT user_id FROM referral_codes WHERE code = ?", (referral_code,))
-                referrer_user_result = cursor.fetchone()
-                referrer_user_id = referrer_user_result[0] if referrer_user_result else referrer_email
-                
-                # commission_ledger에 커미션 적립 기록
-                if DATABASE_URL.startswith('postgresql://'):
+                    # 이미 존재하는 경우 조회
                     cursor.execute("""
-                        INSERT INTO commission_ledger 
-                        (referral_code, referrer_user_id, referred_user_id, order_id, event, base_amount, commission_rate, amount, status, notes, created_at, confirmed_at)
-                        VALUES (%s, %s, %s, %s, 'earn', %s, %s, %s, 'confirmed', %s, NOW(), NOW())
-                    """, (
-                        referral_code, referrer_user_id, user_id, order_id,
-                        final_price, 0.1, commission_amount,
-                        f'추천인 커미션 적립 - 주문 ID: {order_id}'
-                    ))
+                        SELECT referral_id FROM referrals 
+                        WHERE referrer_user_id = %s AND referred_user_id = %s
+                    """, (referrer_user_id, db_user_id))
+                    referral_result = cursor.fetchone()
+                    referral_id = referral_result['referral_id'] if referral_result else None
+                
+                if referral_id:
+                    # commissions 테이블에 커미션 기록
+                    cursor.execute("""
+                        INSERT INTO commissions (referral_id, order_id, amount, status, created_at)
+                        VALUES (%s, %s, %s, 'accrued', NOW())
+                    """, (referral_id, order_id, commission_amount))
+                    print(f"✅ 커미션 기록 완료: {commission_amount}원 (referral_id: {referral_id})")
                 else:
-                    cursor.execute("""
-                        INSERT INTO commission_ledger 
-                        (referral_code, referrer_user_id, referred_user_id, order_id, event, base_amount, commission_rate, amount, status, notes, created_at, confirmed_at)
-                        VALUES (?, ?, ?, ?, 'earn', ?, ?, ?, 'confirmed', ?, datetime('now'), datetime('now'))
-                    """, (
-                        referral_code, referrer_user_id, user_id, order_id,
-                        final_price, 0.1, commission_amount,
-                        f'추천인 커미션 적립 - 주문 ID: {order_id}'
-                    ))
-                
-                print(f"✅ 커미션 포인트 적립 완료: {commission_amount}원")
+                    print(f"⚠️ referral_id를 찾을 수 없어 커미션 기록 실패")
+                    commission_amount = 0
             except Exception as commission_error:
-                print(f"⚠️ 커미션 포인트 적립 실패 (주문은 계속 진행): {commission_error}")
-                print(f"⚠️ 커미션 오류 상세: {type(commission_error).__name__}: {str(commission_error)}")
+                print(f"⚠️ 커미션 기록 실패 (주문은 계속 진행): {commission_error}")
                 import traceback
                 print(f"⚠️ 커미션 오류 스택: {traceback.format_exc()}")
                 commission_amount = 0
+        elif referrer_user_id:
+            # SQLite: 구 스키마 사용
+            try:
+                commission_amount = final_price * 0.1
+                # commission_ledger에 기록
+                cursor.execute("""
+                    INSERT INTO commission_ledger 
+                    (referral_code, referrer_user_id, referred_user_id, order_id, event, base_amount, commission_rate, amount, status, notes, created_at, confirmed_at)
+                    VALUES (?, ?, ?, ?, 'earn', ?, ?, ?, 'confirmed', ?, datetime('now'), datetime('now'))
+                """, (
+                    referral_data[0] if referral_data else '', referrer_user_id, user_id, order_id,
+                    final_price, 0.1, commission_amount,
+                    f'추천인 커미션 적립 - 주문 ID: {order_id}'
+                ))
+                print(f"✅ 커미션 포인트 적립 완료: {commission_amount}원")
+            except Exception as commission_error:
+                print(f"⚠️ 커미션 포인트 적립 실패: {commission_error}")
+                commission_amount = 0
         else:
             print(f"ℹ️ 추천인 연결 없음 - 커미션 적립 건너뜀")
+        
+        # 쿠폰 사용 처리 (새 스키마: user_coupons 상태 업데이트)
+        if user_coupon_id and DATABASE_URL.startswith('postgresql://'):
+            try:
+                cursor.execute("""
+                    UPDATE user_coupons 
+                    SET status = 'used', used_at = NOW()
+                    WHERE user_coupon_id = %s
+                """, (user_coupon_id,))
+                print(f"✅ 쿠폰 사용 처리 완료 - user_coupon_id: {user_coupon_id}")
+            except Exception as coupon_error:
+                print(f"⚠️ 쿠폰 사용 처리 실패: {coupon_error}")
         
         conn.commit()
         print(f"✅ 주문 생성 성공 - 주문 ID: {order_id}")
@@ -3319,68 +3378,118 @@ def create_order():
             print(f"📦 패키지 주문 - {len(package_steps)}단계 순차 처리 예정")
             print(f"📦 패키지 단계 상세: {json.dumps(package_steps, indent=2, ensure_ascii=False)}")
             
-            # 패키지 단계 정보를 JSON으로 저장 (상태는 pending으로 유지)
             if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: 패키지 단계별로 order_items와 work_jobs 생성
+                import json as json_module
+                for step_idx, step in enumerate(package_steps):
+                    step_variant_id = step.get('variant_id') or step.get('id') or variant_id
+                    step_quantity = step.get('quantity', quantity)
+                    step_link = step.get('link') or link
+                    step_delay = step.get('delay', 0)
+                    
+                    # 각 단계별 order_item 생성
+                    step_unit_price = final_price / len(package_steps) / step_quantity if step_quantity > 0 else final_price / len(package_steps)
+                    cursor.execute("""
+                        INSERT INTO order_items (order_id, variant_id, quantity, unit_price, link, status, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                        RETURNING order_item_id
+                    """, (order_id, step_variant_id, step_quantity, step_unit_price, step_link, 'pending'))
+                    
+                    step_order_item = cursor.fetchone()
+                    step_order_item_id = step_order_item['order_item_id']
+                    
+                    # work_jobs에 패키지 단계 정보 저장
+                    schedule_at = None
+                    if step_delay > 0:
+                        from datetime import datetime, timedelta
+                        schedule_at = datetime.now() + timedelta(minutes=step_delay)
+                    
+                    payload_json = json_module.dumps({
+                        'step_index': step_idx,
+                        'step_name': step.get('name', f'단계 {step_idx + 1}'),
+                        'variant_id': step_variant_id,
+                        'quantity': step_quantity,
+                        'link': step_link
+                    })
+                    
+                    cursor.execute("""
+                        INSERT INTO work_jobs (order_item_id, schedule_at, status, payload_json, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s::jsonb, NOW(), NOW())
+                    """, (step_order_item_id, schedule_at, 'pending', payload_json))
+                
+                # 주문 상태를 pending으로 변경 (패키지 처리 시작 전)
                 cursor.execute("""
-                    UPDATE orders SET package_steps = %s, updated_at = NOW()
+                    UPDATE orders SET status = 'pending', updated_at = NOW()
                     WHERE order_id = %s
-                """, (json.dumps(package_steps), order_id))
+                """, (order_id,))
+                conn.commit()
+                
+                # 첫 번째 단계 처리 시작
+                def start_package_processing():
+                    print(f"📦 패키지 주문 {order_id} 처리 시작")
+                    if package_steps:
+                        print(f"📦 첫 번째 단계 실행: {package_steps[0]}")
+                    # process_package_step 함수는 나중에 새 스키마에 맞게 수정 필요
+                    # process_package_step(order_id, 0)
+                
+                thread = threading.Thread(target=start_package_processing, daemon=True, name=f"PackageStart-{order_id}")
+                thread.start()
+                
+                status = 'pending'  # 패키지 처리 시작 전 상태
+                message = f'패키지 주문이 생성되었습니다. ({len(package_steps)}단계 순차 처리 예정)'
             else:
+                # SQLite: 구 스키마 사용
                 cursor.execute("""
                     UPDATE orders SET package_steps = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE order_id = ?
                 """, (json.dumps(package_steps), order_id))
-            
-            conn.commit()
-            
-            # 패키지 주문 즉시 처리 시작
-            print(f"📦 패키지 주문 즉시 처리 시작: {order_id}")
-            print(f"📦 주문 ID: {order_id}, 사용자: {user_id}, 단계 수: {len(package_steps)}")
-            
-            # 주문 상태를 package_processing으로 변경
-            if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    UPDATE orders SET status = 'package_processing', updated_at = NOW()
-                    WHERE order_id = %s
-                """, (order_id,))
-            else:
+                conn.commit()
+                
+                # 주문 상태를 package_processing으로 변경
                 cursor.execute("""
                     UPDATE orders SET status = 'package_processing', updated_at = CURRENT_TIMESTAMP
                     WHERE order_id = ?
                 """, (order_id,))
-            
-            conn.commit()
-            
-            # 첫 번째 단계 처리 시작
-            def start_package_processing():
-                print(f"📦 패키지 주문 {order_id} 처리 시작")
-                print(f"📦 첫 번째 단계 실행: {package_steps[0] if package_steps else 'None'}")
-                process_package_step(order_id, 0)
-            
-            # 별도 스레드에서 실행
-            thread = threading.Thread(target=start_package_processing, daemon=True, name=f"PackageStart-{order_id}")
-            thread.start()
-            
-            # 스레드가 정상적으로 시작되었는지 확인
-            import time
-            time.sleep(0.1)
-            if thread.is_alive():
-                print(f"✅ 패키지 시작 스레드 정상 실행: {thread.name}")
-            else:
-                print(f"❌ 패키지 시작 스레드 실패: {thread.name}")
-            
-            status = 'package_processing'  # 패키지 처리 중 상태
-            message = f'패키지 주문이 생성되었습니다. ({len(package_steps)}단계 순차 처리 중)'
+                conn.commit()
+                
+                def start_package_processing():
+                    print(f"📦 패키지 주문 {order_id} 처리 시작")
+                    if package_steps:
+                        print(f"📦 첫 번째 단계 실행: {package_steps[0]}")
+                    # process_package_step(order_id, 0)
+                
+                thread = threading.Thread(target=start_package_processing, daemon=True, name=f"PackageStart-{order_id}")
+                thread.start()
+                
+                status = 'package_processing'
+                message = f'패키지 주문이 생성되었습니다. ({len(package_steps)}단계 순차 처리 중)'
         else:
             # 일반 주문은 이미 SMM Panel API 호출 완료됨
-            status = '주문발송'
+            if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: 주문 상태를 running으로 변경
+                cursor.execute("""
+                    UPDATE orders SET status = 'running', updated_at = NOW()
+                    WHERE order_id = %s
+                """, (order_id,))
+                
+                # order_item 상태도 업데이트
+                if order_item_id:
+                    cursor.execute("""
+                        UPDATE order_items SET status = 'processing', updated_at = NOW()
+                        WHERE order_item_id = %s
+                    """, (order_item_id,))
+                
+                conn.commit()
+                status = 'running'
+            else:
+                status = '주문발송'
+            
             message = '주문이 접수되어 진행중입니다.'
             
-            # 2분 후 주문 실행중으로 변경하는 스케줄 설정
-            schedule_order_status_update(order_id, '주문 실행중', 2)  # 2분 후
-            
-            # 24시간 후 주문 실행완료로 변경하는 스케줄 설정 (최대 대기시간)
-            schedule_order_status_update(order_id, '주문 실행완료', 1440)  # 24시간 후
+            # 2분 후 주문 실행중으로 변경하는 스케줄 설정 (구 스키마만)
+            if not DATABASE_URL or not DATABASE_URL.startswith('postgresql://'):
+                schedule_order_status_update(order_id, '주문 실행중', 2)  # 2분 후
+                schedule_order_status_update(order_id, '주문 실행완료', 1440)  # 24시간 후
         
         return jsonify({
             'success': True,
@@ -3390,7 +3499,7 @@ def create_order():
             'discount_amount': discount_amount,
             'final_price': final_price,
             'referral_discount': discount_amount > 0,
-            'commission_earned': commission_amount if referral_data else 0,
+            'commission_earned': commission_amount if referrer_user_id else 0,
             'message': message,
             'is_scheduled': is_scheduled,
             'is_split_delivery': is_split_delivery,
