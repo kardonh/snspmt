@@ -7451,9 +7451,8 @@ def get_active_notices():
 def get_smm_services():
     """SMM Panel에서 사용 가능한 서비스 목록 조회"""
     try:
-        # API 키 확인
-        smm_api_key = get_parameter_value('SMMPANEL_API_KEY', '')
-        if not smm_api_key:
+        # API 키 확인 (전역 변수 사용)
+        if not SMMPANEL_API_KEY:
             print("⚠️ SMMPANEL_API_KEY가 설정되지 않음")
             return jsonify({
                 'success': False,
