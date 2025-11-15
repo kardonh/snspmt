@@ -208,7 +208,7 @@ const AdminPage = () => {
   // 대시보드 통계 로드
   const loadDashboardStats = async () => {
     try {
-      const response = await adminFetch(`${window.location.origin}/api/admin/stats`)
+      const response = await adminFetch('/api/admin/stats')
       
       if (response.ok) {
         const data = await response.json()
@@ -231,7 +231,7 @@ const AdminPage = () => {
   // 사용자 데이터 로드
   const loadUsers = async () => {
     try {
-      const response = await adminFetch(`${window.location.origin}/api/admin/users`)
+      const response = await adminFetch('/api/admin/users')
       
       if (response.ok) {
       const data = await response.json()
@@ -256,7 +256,7 @@ const AdminPage = () => {
   // 주문 데이터 로드
   const loadOrders = async () => {
     try {
-      const response = await adminFetch(`${window.location.origin}/api/admin/transactions`)
+      const response = await adminFetch('/api/admin/transactions')
       
       if (response.ok) {
         const data = await response.json()
