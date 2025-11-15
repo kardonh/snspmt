@@ -8869,6 +8869,15 @@ def serve_spa(path):
         return jsonify({'error': 'API endpoint not found'}), 404
     
     # 정적 파일 경로 처리 (assets/, logo1.png 등)
+    # assets/ 경로는 무조건 정적 파일로 처리
+    if path.startswith('assets/'):
+        try:
+            print(f"📦 assets 파일 서빙: /{path}")
+            return app.send_static_file(path)
+        except Exception as e:
+            print(f"❌ assets 파일 서빙 오류: {e}")
+            return jsonify({'error': 'Static file serving failed'}), 500
+    
     # 파일 확장자가 있는 경우 정적 파일로 간주
     if '.' in path and not path.endswith('/'):
         # 정적 파일 서빙 시도
@@ -8879,9 +8888,7 @@ def serve_spa(path):
                 print(f"📦 정적 파일 서빙: /{path}")
                 return app.send_static_file(path)
             else:
-                # assets/ 폴더 내 파일도 시도
-                if path.startswith('assets/'):
-                    return app.send_static_file(path)
+                # 직접 파일명인 경우 (logo1.png 등)
                 print(f"⚠️ 정적 파일을 찾을 수 없음: /{path}")
                 return jsonify({'error': 'Static file not found'}), 404
         except Exception as e:
