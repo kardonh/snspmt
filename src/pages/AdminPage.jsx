@@ -8,6 +8,7 @@ import {
   Search, 
   CheckCircle,
   XCircle,
+  X,
   Eye,
   Download,
   RefreshCw,
@@ -20,10 +21,13 @@ import {
   FileText,
   Edit,
   Trash2,
-  Package
+  Package,
+  Tag
 } from 'lucide-react'
 import ReferralRegistration from '../components/ReferralRegistration'
 import AdminServiceManagement from '../components/AdminServiceManagement'
+import AdminUserManagement from '../components/AdminUserManagement'
+import AdminCouponManagement from '../components/AdminCouponManagement'
 import { 
   saveReferralCode, 
   getReferralCodes, 
@@ -62,7 +66,7 @@ const AdminPage = () => {
     dashboard: { lastUpdate: null },
     users: { searchTerm: '', lastUpdate: null },
     orders: { searchTerm: '', lastUpdate: null },
-    purchases: { searchTerm: '', lastUpdate: null },
+    purchases: { searchTerm: '', statusFilter: 'all', lastUpdate: null },
     referrals: { lastUpdate: null },
     notices: { lastUpdate: null }
   })
@@ -74,7 +78,8 @@ const AdminPage = () => {
     totalRevenue: 0,
     pendingPurchases: 0,
     todayOrders: 0,
-    todayRevenue: 0
+    todayRevenue: 0,
+    monthlyRevenue: 0
   })
 
   // 사용자 데이터
@@ -89,6 +94,8 @@ const AdminPage = () => {
   // 추천인 데이터
   const [referrals, setReferrals] = useState([])
   const [showReferralModal, setShowReferralModal] = useState(false)
+  const [showReferralDetailModal, setShowReferralDetailModal] = useState(false)
+  const [selectedReferralCode, setSelectedReferralCode] = useState(null)
   const [filteredPurchases, setFilteredPurchases] = useState([])
   
   // 공지사항 데이터
@@ -96,13 +103,16 @@ const AdminPage = () => {
   const [showNoticeModal, setShowNoticeModal] = useState(false)
   const [editingNotice, setEditingNotice] = useState(null)
   const [noticeForm, setNoticeForm] = useState({
+    title: '',
+    content: '',
     image_url: '',
+    login_popup_image_url: '',
+    popup_type: 'notice', // 'notice' or 'login'
     is_active: true
   })
   const [uploadingImage, setUploadingImage] = useState(false)
   const [referralCodes, setReferralCodes] = useState([])
   const [referralCommissions, setReferralCommissions] = useState([])
-  const [newReferralUser, setNewReferralUser] = useState('')
   
   // 추천인 커미션 관리 상태
   const [commissionOverview, setCommissionOverview] = useState([])
@@ -123,25 +133,53 @@ const AdminPage = () => {
     loadCommissionData()
   }, [])
 
-  // 구매 신청 검색 필터링
+  // 탭 변경 시 해당 탭 데이터 로드
   useEffect(() => {
-    const searchTerm = tabStates.purchases.searchTerm
+    if (activeTab === 'purchases') {
+      loadPendingPurchases()
+    }
+  }, [activeTab])
+
+  // 구매 신청 검색 및 상태 필터링
+  useEffect(() => {
+    const searchTerm = tabStates.purchases.searchTerm || ''
+    const statusFilter = tabStates.purchases.statusFilter || 'all'
+    
     const filtered = (pendingPurchases || []).filter(purchase => {
       try {
-        const userId = String(purchase?.userId || '')
-        const email = String(purchase?.email || '')
-        const buyerName = String(purchase?.buyerName || '')
-        const searchLower = String(searchTerm || '').toLowerCase()
+        // 상태 필터링
+        if (statusFilter !== 'all') {
+          const purchaseStatus = purchase.status || 'pending'
+          if (statusFilter === 'pending' && purchaseStatus !== 'pending') {
+            return false
+          }
+          if (statusFilter === 'approved' && purchaseStatus !== 'approved') {
+            return false
+          }
+          if (statusFilter === 'rejected' && purchaseStatus !== 'rejected') {
+            return false
+          }
+        }
         
-        return userId.toLowerCase().includes(searchLower) ||
-               email.toLowerCase().includes(searchLower) ||
-               buyerName.toLowerCase().includes(searchLower)
+        // 검색어 필터링
+        if (searchTerm) {
+          const userId = String(purchase?.userId || '')
+          const email = String(purchase?.email || '')
+          const buyerName = String(purchase?.buyerName || '')
+          const searchLower = String(searchTerm || '').toLowerCase()
+          
+          return userId.toLowerCase().includes(searchLower) ||
+                 email.toLowerCase().includes(searchLower) ||
+                 buyerName.toLowerCase().includes(searchLower)
+        }
+        
+        return true
       } catch (error) {
         return false
       }
     })
     setFilteredPurchases(filtered)
-  }, [pendingPurchases, tabStates.purchases.searchTerm])
+  }, [pendingPurchases, tabStates.purchases.searchTerm, tabStates.purchases.statusFilter])
 
   // 검색어 업데이트 함수들
   const updateSearchTerm = (tab, searchTerm) => {
@@ -188,9 +226,6 @@ const AdminPage = () => {
       // 대시보드 통계 로드
       await loadDashboardStats()
       
-      // 사용자 데이터 로드
-      await loadUsers()
-      
       // 주문 데이터 로드
       await loadOrders()
       
@@ -218,7 +253,8 @@ const AdminPage = () => {
           totalRevenue: data.total_revenue || 0,
           pendingPurchases: data.pending_purchases || 0,
           todayOrders: data.today_orders || 0,
-          todayRevenue: data.today_revenue || 0
+          todayRevenue: data.today_revenue || 0,
+          monthlyRevenue: data.monthly_sales || 0
         })
       } else {
         console.error('대시보드 통계 로드 실패:', response.status)
@@ -285,10 +321,12 @@ const AdminPage = () => {
   // 포인트 구매 신청 로드
   const loadPendingPurchases = async () => {
     try {
+      console.log('🔍 포인트 구매 신청 목록 로드 시작')
       const response = await adminFetch('/api/admin/purchases')
       
       if (response.ok) {
         const data = await response.json()
+        console.log('✅ 포인트 구매 신청 데이터:', data)
         // API 응답을 프론트엔드 형식으로 변환
         const transformedPurchases = Array.isArray(data.purchases) ? 
           data.purchases.map(purchase => ({
@@ -303,11 +341,19 @@ const AdminPage = () => {
             bankInfo: purchase.bank_info || 'N/A'
           })) : []
         
+        console.log(`✅ 변환된 포인트 구매 신청: ${transformedPurchases.length}건`)
         setPendingPurchases(transformedPurchases)
         setFilteredPurchases(transformedPurchases)
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('❌ 포인트 구매 신청 목록 조회 실패:', response.status, errorData)
+        setPendingPurchases([])
+        setFilteredPurchases([])
       }
     } catch (error) {
+      console.error('❌ 포인트 구매 신청 목록 로드 오류:', error)
       setPendingPurchases([])
+      setFilteredPurchases([])
     }
   }
 
@@ -383,12 +429,12 @@ const AdminPage = () => {
         setNotices(data.notices || [])
       }
     } catch (error) {
-      console.error('공지사항 로드 실패:', error)
+      console.error('팝업 로드 실패:', error)
     }
   }
 
   // 이미지 업로드
-  const handleImageUpload = async (file) => {
+  const handleImageUpload = async (file, type = 'notice') => {
     try {
       setUploadingImage(true)
       
@@ -402,7 +448,11 @@ const AdminPage = () => {
       
       if (response.ok) {
         const data = await response.json()
-        setNoticeForm({...noticeForm, image_url: data.image_url})
+        if (type === 'login') {
+          setNoticeForm({...noticeForm, login_popup_image_url: data.image_url})
+        } else {
+          setNoticeForm({...noticeForm, image_url: data.image_url})
+        }
         alert('이미지가 업로드되었습니다.')
       } else {
         const errorData = await response.json()
@@ -439,16 +489,20 @@ const AdminPage = () => {
         setShowNoticeModal(false)
         setEditingNotice(null)
         setNoticeForm({
+          title: '',
+          content: '',
           image_url: '',
+          login_popup_image_url: '',
+          popup_type: 'notice',
           is_active: true
         })
-        alert(editingNotice ? '공지사항이 수정되었습니다.' : '공지사항이 생성되었습니다.')
+        alert(editingNotice ? '팝업이 수정되었습니다.' : '팝업이 생성되었습니다.')
       } else {
         const errorData = await response.json()
         alert(`오류: ${errorData.error}`)
       }
     } catch (error) {
-      alert('공지사항 처리 중 오류가 발생했습니다.')
+      alert('팝업 처리 중 오류가 발생했습니다.')
     } finally {
       setIsLoading(false)
     }
@@ -456,7 +510,7 @@ const AdminPage = () => {
 
   // 공지사항 삭제
   const handleDeleteNotice = async (noticeId) => {
-    if (!confirm('정말로 이 공지사항을 삭제하시겠습니까?')) return
+    if (!confirm('정말로 이 팝업을 삭제하시겠습니까?')) return
     
     try {
       const response = await adminFetch(`/api/admin/notices/${noticeId}`, {
@@ -465,13 +519,13 @@ const AdminPage = () => {
       
       if (response.ok) {
         await loadNotices()
-        alert('공지사항이 삭제되었습니다.')
+        alert('팝업이 삭제되었습니다.')
       } else {
         const errorData = await response.json()
         alert(`오류: ${errorData.error}`)
       }
     } catch (error) {
-      alert('공지사항 삭제 중 오류가 발생했습니다.')
+      alert('팝업 삭제 중 오류가 발생했습니다.')
     }
   }
 
@@ -479,8 +533,12 @@ const AdminPage = () => {
   const handleEditNotice = (notice) => {
     setEditingNotice(notice)
     setNoticeForm({
+      title: notice.title || '',
+      content: notice.content || '',
       image_url: notice.image_url || '',
-      is_active: notice.is_active
+      login_popup_image_url: notice.login_popup_image_url || '',
+      popup_type: notice.popup_type || 'notice',
+      is_active: notice.is_active !== undefined ? notice.is_active : true
     })
     setShowNoticeModal(true)
   }
@@ -551,16 +609,16 @@ const AdminPage = () => {
       console.log('🔄 추천인 데이터 로드 시작...')
       
       // 서버에서 데이터 로드
-      const [codesResponse, referralsResponse, commissionsResponse] = await Promise.all([
+      const [codesResponse, referralsResponse, payoutRequestsResponse] = await Promise.all([
         adminFetch('/api/admin/referral/codes'),
         adminFetch('/api/admin/referral/list'),
-        adminFetch('/api/admin/referral/commissions')
+        adminFetch('/api/admin/payout-requests')
       ])
       
       console.log('📡 API 응답 상태:', {
         codes: codesResponse.status,
         referrals: referralsResponse.status,
-        commissions: commissionsResponse.status
+        payoutRequests: payoutRequestsResponse.status
       })
       
       if (codesResponse.ok) {
@@ -583,13 +641,29 @@ const AdminPage = () => {
         setReferrals([])
       }
       
-      if (commissionsResponse.ok) {
-        const commissionsData = await commissionsResponse.json()
-        console.log('📋 커미션 내역 API 응답:', commissionsData)
-        setReferralCommissions(commissionsData.commissions || [])
-        console.log('✅ 커미션 내역 데이터 로드 완료:', commissionsData.commissions?.length || 0, '개')
+      if (payoutRequestsResponse.ok) {
+        const payoutData = await payoutRequestsResponse.json()
+        console.log('📋 커미션 환급 신청 API 응답:', payoutData)
+        // payout_requests를 referralCommissions에 매핑 (기존 구조 유지)
+        const mappedCommissions = (payoutData.payout_requests || []).map(req => ({
+          request_id: req.request_id,
+          referred_user_id: req.referrer_name || req.referrer_email || 'N/A',
+          purchase_amount: 0, // 환급 신청이므로 구매 금액은 0
+          commission_amount: parseFloat(req.amount) || 0,
+          commission_rate: 0, // 환급 신청이므로 커미션율은 없음
+          created_at: req.created_at || req.requested_at,
+          status: req.status || 'requested',
+          referrer_email: req.referrer_email,
+          referrer_name: req.referrer_name,
+          phone: req.phone,
+          bank_name: req.bank_name,
+          account_number: req.account_number,
+          user_id: req.user_id
+        }))
+        setReferralCommissions(mappedCommissions)
+        console.log('✅ 커미션 환급 신청 데이터 로드 완료:', mappedCommissions.length || 0, '개')
       } else {
-        console.error('❌ 커미션 내역 로드 실패:', commissionsResponse.status)
+        console.error('❌ 커미션 환급 신청 로드 실패:', payoutRequestsResponse.status)
         setReferralCommissions([])
       }
       
@@ -607,12 +681,13 @@ const AdminPage = () => {
     }
   }
 
-  // 커미션 데이터 로드
+  // 커미션 데이터 로드 (환급신청 포함)
   const loadCommissionData = async () => {
     try {
-      const [overviewResponse, historyResponse] = await Promise.all([
+      const [overviewResponse, historyResponse, payoutRequestsResponse] = await Promise.all([
         adminFetch('/api/admin/referral/commission-overview'),
-        adminFetch('/api/admin/referral/payment-history')
+        adminFetch('/api/admin/referral/payment-history'),
+        adminFetch('/api/admin/payout-requests')
       ])
       
       if (overviewResponse.ok) {
@@ -623,12 +698,101 @@ const AdminPage = () => {
       
       if (historyResponse.ok) {
         const historyData = await historyResponse.json()
-        setPaymentHistory(historyData.payments || [])
+        setPaymentHistory(historyData.payments || historyData.payout_requests || [])
+      }
+      
+      if (payoutRequestsResponse.ok) {
+        const payoutData = await payoutRequestsResponse.json()
+        setPaymentHistory(payoutData.payout_requests || payoutData.requests || [])
       }
     } catch (error) {
       console.error('커미션 데이터 로드 실패:', error)
     }
   }
+
+  // 환급신청 승인
+  const handleApprovePayoutRequest = async (requestId) => {
+    if (!confirm('환급신청을 승인하시겠습니까?')) return
+    
+    try {
+      const response = await adminFetch(`/api/admin/payout-requests/${requestId}/approve`, {
+        method: 'PUT'
+      })
+      
+      if (response.ok) {
+        await loadReferralData() // 환급 신청 목록 새로고침
+        alert('환급신청이 승인되었습니다.')
+      } else {
+        const errorData = await response.json()
+        alert(`승인 실패: ${errorData.error}`)
+      }
+    } catch (error) {
+      console.error('환급신청 승인 실패:', error)
+      alert('환급신청 승인에 실패했습니다.')
+    }
+  }
+  
+  // 환급신청 거절
+  const handleRejectPayoutRequest = async (requestId) => {
+    if (!confirm('환급신청을 거절하시겠습니까?')) return
+    
+    try {
+      const response = await adminFetch(`/api/admin/payout-requests/${requestId}/reject`, {
+        method: 'PUT'
+      })
+      
+      if (response.ok) {
+        await loadReferralData() // 환급 신청 목록 새로고침
+        alert('환급신청이 거절되었습니다.')
+      } else {
+        const errorData = await response.json()
+        alert(`거절 실패: ${errorData.error}`)
+      }
+    } catch (error) {
+      console.error('환급신청 거절 실패:', error)
+      alert('환급신청 거절에 실패했습니다.')
+    }
+  }
+
+  // 추천인별 커미션 비율 변경
+  const handleUpdateCommissionRate = async (referrerEmail, referrerUserId, currentRate) => {
+    const newRate = prompt(`커미션 비율을 입력하세요 (0~1, 현재: ${(currentRate * 100).toFixed(1)}%):`, currentRate);
+    
+    if (newRate === null) return; // 취소
+    
+    const rate = parseFloat(newRate);
+    if (isNaN(rate) || rate < 0 || rate > 1) {
+      alert('커미션 비율은 0과 1 사이의 값이어야 합니다.');
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      const response = await adminFetch('/api/admin/referral/update-commission-rate', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          referrer_email: referrerEmail,
+          referrer_user_id: referrerUserId,
+          commission_rate: rate
+        })
+      });
+      
+      if (response.ok) {
+        await loadCommissionData();
+        alert(`커미션 비율이 ${(rate * 100).toFixed(1)}%로 변경되었습니다.`);
+      } else {
+        const errorData = await response.json();
+        alert(`오류: ${errorData.error}`);
+      }
+    } catch (error) {
+      alert('커미션 비율 변경 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // 커미션 환급 처리
   const handleCommissionPayment = async () => {
@@ -737,38 +901,28 @@ const AdminPage = () => {
     }
   }
 
-  // 추천인 코드 생성
-  const handleGenerateReferralCode = async () => {
-    if (!newReferralUser.trim()) {
-      alert('사용자 ID를 입력해주세요.')
+  
+  // 추천인 코드 삭제
+  const handleDeleteReferralCode = async (code, user_id) => {
+    if (!confirm(`정말로 추천인 코드 "${code}"를 삭제하시겠습니까?`)) {
       return
     }
-
+    
     try {
-      const response = await adminFetch('/api/admin/referral/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: newReferralUser.trim() + '@example.com',
-          name: newReferralUser.trim(),
-          phone: ''
-        })
+      const response = await adminFetch(`/api/admin/referral/codes/${code}`, {
+        method: 'DELETE'
       })
       
       if (response.ok) {
-        const data = await response.json()
         await loadReferralData()
-        setNewReferralUser('')
-        alert(`추천인 코드가 생성되었습니다: ${data.referralCode}`)
+        alert('추천인 코드가 삭제되었습니다.')
       } else {
         const errorData = await response.json()
-        alert(`추천인 코드 생성 실패: ${errorData.error}`)
+        alert(`삭제 실패: ${errorData.error}`)
       }
     } catch (error) {
-      console.error('추천인 코드 생성 실패:', error)
-      alert('추천인 코드 생성에 실패했습니다.')
+      console.error('추천인 코드 삭제 실패:', error)
+      alert('추천인 코드 삭제에 실패했습니다.')
     }
   }
 
@@ -900,17 +1054,6 @@ const AdminPage = () => {
             <p className="stat-label">전체 주문 건수</p>
           </div>
         </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon revenue">
-            <DollarSign size={24} />
-          </div>
-          <div className="stat-content">
-            <h3>총 매출</h3>
-            <p className="stat-number">₩{formatNumber(dashboardData.totalRevenue)}</p>
-            <p className="stat-label">전체 누적 매출</p>
-                  </div>
-                </div>
 
         <div className="stat-card">
           <div className="stat-icon pending">
@@ -942,6 +1085,17 @@ const AdminPage = () => {
             <h3>오늘 매출</h3>
             <p className="stat-number">₩{formatNumber(dashboardData.todayRevenue)}</p>
             <p className="stat-label">오늘 신규 매출</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon monthly-revenue">
+            <TrendingUp size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>월 매출</h3>
+            <p className="stat-number">₩{formatNumber(dashboardData.monthlyRevenue)}</p>
+            <p className="stat-label">총 포인트 - 총원가</p>
           </div>
         </div>
       </div>
@@ -991,52 +1145,7 @@ const AdminPage = () => {
                     </div>
   )
 
-  const renderUsers = () => (
-    <div className="tab-content">
-      <div className="search-bar">
-        <Search size={20} />
-        <input
-          type="text"
-          placeholder="사용자 ID 또는 이메일로 검색..."
-          value={tabStates.users.searchTerm}
-          onChange={(e) => updateSearchTerm('users', e.target.value)}
-        />
-                    </div>
-
-      <div className="data-table">
-        <table>
-          <thead>
-            <tr>
-              <th>사용자 ID</th>
-              <th>이메일</th>
-              <th>포인트</th>
-              <th>가입일</th>
-              <th>마지막 활동</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.length > 0 ? (
-              filteredUsers.map((user, index) => (
-                <tr key={index}>
-                  <td>{user.userId || 'N/A'}</td>
-                  <td>{user.email || 'N/A'}</td>
-                  <td>{formatNumber(user.points)}</td>
-                  <td>{formatDate(user.createdAt)}</td>
-                  <td>{formatDate(user.lastActivity)}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="5" className="no-data">
-                  {users.length === 0 ? '사용자 데이터를 불러오는 중...' : '검색 결과가 없습니다.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-                    </div>
-                  </div>
-  )
+  // renderUsers 함수는 AdminUserManagement 컴포넌트로 대체됨
 
   const renderOrders = () => (
     <div className="tab-content">
@@ -1191,69 +1300,125 @@ const AdminPage = () => {
 
   const renderPurchases = () => (
     <div className="tab-content">
-      <div className="search-bar">
-        <Search size={20} />
-        <input
-          type="text"
-          placeholder="구매자 이름, 이메일 또는 사용자 ID로 검색..."
-          value={tabStates.purchases.searchTerm}
-          onChange={(e) => updateSearchTerm('purchases', e.target.value)}
-        />
-                    </div>
+      <div className="search-bar" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+          <Search size={20} />
+          <input
+            type="text"
+            placeholder="구매자 이름, 이메일로 검색..."
+            value={tabStates.purchases.searchTerm}
+            onChange={(e) => updateSearchTerm('purchases', e.target.value)}
+            style={{ flex: 1 }}
+          />
+        </div>
+        <select
+          value={tabStates.purchases.statusFilter || 'all'}
+          onChange={(e) => {
+            setTabStates(prev => ({
+              ...prev,
+              purchases: { ...prev.purchases, statusFilter: e.target.value }
+            }))
+          }}
+          style={{
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            border: '1px solid #ddd',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }}
+        >
+          <option value="all">전체 상태</option>
+          <option value="pending">대기중</option>
+          <option value="approved">승인됨</option>
+          <option value="rejected">거절됨</option>
+        </select>
+      </div>
 
       <div className="data-table">
         <table>
           <thead>
             <tr>
               <th>신청 ID</th>
-              <th>사용자 ID</th>
               <th>이메일</th>
               <th>구매자 이름</th>
               <th>은행 정보</th>
               <th>결제 금액</th>
+              <th>현금영수증 정보</th>
               <th>신청일</th>
               <th>상태</th>
               <th>작업</th>
             </tr>
           </thead>
           <tbody>
-            {filteredPurchases.map((purchase, index) => (
-              <tr key={index}>
-                <td>{purchase.id || 'N/A'}</td>
-                <td>{purchase.userId || 'N/A'}</td>
-                <td>{purchase.email || 'N/A'}</td>
-                <td>{purchase.buyerName || 'N/A'}</td>
-                <td>{purchase.bankInfo || 'N/A'}</td>
-                <td>₩{formatNumber(purchase.amount)}</td>
-                <td>{formatDate(purchase.createdAt)}</td>
-                <td>
-                  <span className={`status ${purchase.status || 'pending'}`}>
-                    {purchase.status === 'approved' ? '승인됨' : 
-                     purchase.status === 'rejected' ? '거절됨' : '대기중'}
-                  </span>
-                </td>
-                <td>
-                  {purchase.status === 'pending' && (
-                    <div className="action-buttons">
-                      <button
-                        className="btn-approve"
-                        onClick={() => handleApprovePurchase(purchase.id)}
-                        title="승인"
+            {filteredPurchases.length === 0 ? (
+              <tr>
+                <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>
+                  {pendingPurchases.length === 0 ? (
+                    <div>
+                      <p>포인트 구매 신청이 없습니다.</p>
+                      <button 
+                        onClick={loadPendingPurchases}
+                        style={{ marginTop: '1rem', padding: '0.5rem 1rem' }}
                       >
-                        <CheckCircle size={16} />
-                      </button>
-                      <button
-                        className="btn-reject"
-                        onClick={() => handleRejectPurchase(purchase.id)}
-                        title="거절"
-                      >
-                        <XCircle size={16} />
+                        새로고침
                       </button>
                     </div>
+                  ) : (
+                    <p>검색 결과가 없습니다.</p>
                   )}
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredPurchases.map((purchase, index) => (
+                <tr key={index}>
+                  <td>{purchase.id || 'N/A'}</td>
+                  <td>{purchase.email || 'N/A'}</td>
+                  <td>{purchase.buyerName || 'N/A'}</td>
+                  <td>{purchase.bankInfo || 'N/A'}</td>
+                  <td>₩{formatNumber(purchase.amount)}</td>
+                  <td>
+                    {purchase.business_registration_number ? (
+                      <div className="business-info">
+                        <div>사업자등록번호: {purchase.business_registration_number}</div>
+                        <div>사업자명: {purchase.business_name || 'N/A'}</div>
+                        <div className={`business-status ${purchase.business_status || 'individual'}`}>
+                          {purchase.business_status === 'business' ? '사업자' : '개인'}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="business-status individual">개인</span>
+                    )}
+                  </td>
+                  <td>{formatDate(purchase.createdAt)}</td>
+                  <td>
+                    <span className={`status ${purchase.status || 'pending'}`}>
+                      {purchase.status === 'approved' ? '승인됨' : 
+                       purchase.status === 'rejected' ? '거절됨' : '대기중'}
+                    </span>
+                  </td>
+                  <td>
+                    {purchase.status === 'pending' && (
+                      <div className="action-buttons">
+                        <button
+                          className="btn-approve"
+                          onClick={() => handleApprovePurchase(purchase.id)}
+                          title="승인"
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                        <button
+                          className="btn-reject"
+                          onClick={() => handleRejectPurchase(purchase.id)}
+                          title="거절"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -1267,22 +1432,6 @@ const AdminPage = () => {
         <h2>추천인 관리</h2>
         <div className="referral-actions">
           <div className="action-group">
-            <div className="input-group">
-              <input
-                type="text"
-                placeholder="사용자 ID 입력"
-                value={newReferralUser}
-                onChange={(e) => setNewReferralUser(e.target.value)}
-                className="admin-input"
-              />
-              <button 
-                onClick={handleGenerateReferralCode}
-                className="admin-button primary"
-              >
-                <UserPlus size={16} />
-                추천인 코드 생성
-              </button>
-            </div>
             <button 
               onClick={() => setShowReferralModal(true)}
               className="admin-button success"
@@ -1319,10 +1468,12 @@ const AdminPage = () => {
               <thead>
                 <tr>
                   <th>코드</th>
+                  <th>이메일</th>
                   <th>상태</th>
                   <th>사용 횟수</th>
                   <th>총 커미션</th>
                   <th>생성일</th>
+                  <th>작업</th>
                 </tr>
               </thead>
               <tbody>
@@ -1330,7 +1481,11 @@ const AdminPage = () => {
                   <tr key={index}>
                     <td className="code-cell">
                       <span className="referral-code">{code.code}</span>
+                      {code.user_id && (
+                        <span className="user-id-badge">(사용자 ID: {code.user_id})</span>
+                      )}
                     </td>
+                    <td>{code.email || '-'}</td>
                     <td>
                       <span className={`status-badge ${code.is_active ? 'active' : 'inactive'}`}>
                         {(() => {
@@ -1352,7 +1507,29 @@ const AdminPage = () => {
                     <td className="commission-amount">
                       {formatNumber(code.total_commission)}원
                     </td>
-                    <td>{code.created_at ? new Date(code.created_at).toLocaleDateString() : '날짜 없음'}</td>
+                    <td>{code.createdAt ? new Date(code.createdAt).toLocaleDateString() : '날짜 없음'}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <button
+                          className="btn-icon btn-info"
+                          onClick={() => {
+                            setSelectedReferralCode(code)
+                            setShowReferralDetailModal(true)
+                          }}
+                          title="세부정보"
+                          style={{ backgroundColor: '#667eea', color: 'white' }}
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          className="btn-icon btn-danger"
+                          onClick={() => handleDeleteReferralCode(code.code, code.user_id)}
+                          title="삭제"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1361,30 +1538,80 @@ const AdminPage = () => {
                     </div>
 
         <div className="referral-commissions-section">
-          <h3>커미션 내역</h3>
+          <h3>커미션 환급 신청</h3>
           <div className="commissions-table">
             <table>
               <thead>
                 <tr>
-                  <th>피추천인</th>
-                  <th>구매 금액</th>
-                  <th>커미션 금액</th>
-                  <th>커미션율</th>
-                  <th>지급일</th>
+                  <th>신청 ID</th>
+                  <th>이름</th>
+                  <th>이메일</th>
+                  <th>전화번호</th>
+                  <th>은행명</th>
+                  <th>계좌번호</th>
+                  <th>환급 금액</th>
+                  <th>상태</th>
+                  <th>신청일</th>
+                  <th>작업</th>
                 </tr>
               </thead>
               <tbody>
-                {referralCommissions.map((commission, index) => (
-                  <tr key={index}>
-                    <td>{commission.referred_user_id}</td>
-                    <td>{formatNumber(commission.purchase_amount)}원</td>
-                    <td className="commission-amount">
-                      {formatNumber(commission.commission_amount)}원
+                {referralCommissions.length === 0 ? (
+                  <tr>
+                    <td colSpan="10" style={{ textAlign: 'center', padding: '2rem' }}>
+                      <p>커미션 환급 신청이 없습니다.</p>
                     </td>
-                    <td>{(commission.commission_rate * 100).toFixed(1)}%</td>
-                    <td>{new Date(commission.created_at).toLocaleDateString()}</td>
                   </tr>
-                ))}
+                ) : (
+                  referralCommissions.map((request, index) => (
+                    <tr key={index}>
+                      <td>{request.request_id || index + 1}</td>
+                      <td>{request.referrer_name || 'N/A'}</td>
+                      <td>{request.referrer_email || 'N/A'}</td>
+                      <td>{request.phone || 'N/A'}</td>
+                      <td>{request.bank_name || 'N/A'}</td>
+                      <td>{request.account_number || 'N/A'}</td>
+                      <td className="commission-amount">
+                        {formatNumber(request.commission_amount || request.amount || 0)}원
+                      </td>
+                      <td>
+                        <span className={`status ${request.status || 'requested'}`}>
+                          {request.status === 'approved' ? '승인됨' : 
+                           request.status === 'rejected' ? '거절됨' : 
+                           request.status === 'requested' || request.status === 'pending' ? '대기중' : '대기중'}
+                        </span>
+                      </td>
+                      <td>{request.created_at ? new Date(request.created_at).toLocaleDateString('ko-KR') : '날짜 없음'}</td>
+                      <td>
+                        {(request.status === 'requested' || request.status === 'pending') && (
+                          <div className="action-buttons" style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              className="btn-icon btn-approve"
+                              onClick={() => handleApprovePayoutRequest(request.request_id)}
+                              title="승인"
+                              style={{ backgroundColor: '#10b981', color: 'white' }}
+                            >
+                              <CheckCircle size={16} />
+                            </button>
+                            <button
+                              className="btn-icon btn-reject"
+                              onClick={() => handleRejectPayoutRequest(request.request_id)}
+                              title="거절"
+                              style={{ backgroundColor: '#ef4444', color: 'white' }}
+                            >
+                              <XCircle size={16} />
+                            </button>
+                          </div>
+                        )}
+                        {(request.status === 'approved' || request.status === 'rejected') && (
+                          <span style={{ color: '#666', fontSize: '12px' }}>
+                            {request.status === 'approved' ? '승인 완료' : '거절됨'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
                     </div>
@@ -1412,11 +1639,11 @@ const AdminPage = () => {
               </div>
   )
 
-  // 공지사항 관리 탭 렌더링
+
   const renderNotices = () => (
     <div className="notices-management">
       <div className="notices-header">
-        <h2>공지사항 관리</h2>
+        <h2>팝업 관리</h2>
         <button 
           className="create-notice-btn"
           onClick={() => {
@@ -1425,13 +1652,15 @@ const AdminPage = () => {
               title: '',
               content: '',
               image_url: '',
+              login_popup_image_url: '',
+              popup_type: 'notice',
               is_active: true
             })
             setShowNoticeModal(true)
           }}
         >
           <Bell size={16} />
-          새 공지사항 작성
+          새 팝업 작성
         </button>
       </div>
 
@@ -1439,13 +1668,13 @@ const AdminPage = () => {
         {notices.length === 0 ? (
           <div className="empty-state">
             <Bell size={48} />
-            <p>등록된 공지사항이 없습니다.</p>
+            <p>등록된 팝업이 없습니다.</p>
           </div>
         ) : (
           notices.map(notice => (
             <div key={notice.id} className="notice-item">
               <div className="notice-header">
-                <h3>공지사항</h3>
+                <h3>{notice.popup_type === 'login' ? '로그인 팝업' : '공지사항 팝업'}</h3>
                 <div className="notice-actions">
                   <button 
                     className="notice-action-btn edit"
@@ -1497,131 +1726,7 @@ const AdminPage = () => {
     </div>
   )
 
-  // 커미션 관리 탭 렌더링
-  const renderCommissions = () => (
-    <div className="commission-management">
-      <div className="commission-header">
-        <h2>커미션 관리</h2>
-        <div className="commission-stats">
-          <div className="stat-card">
-            <h4>총 추천인 수</h4>
-            <span className="stat-number">{commissionStats.total_referrers || 0}</span>
-          </div>
-          <div className="stat-card">
-            <h4>총 피추천인 수</h4>
-            <span className="stat-number">{commissionStats.total_referrals || 0}</span>
-          </div>
-          <div className="stat-card">
-            <h4>총 커미션</h4>
-            <span className="stat-number">{formatNumber(commissionStats.total_commissions)}원</span>
-          </div>
-          <div className="stat-card">
-            <h4>이번 달 커미션</h4>
-            <span className="stat-number">{formatNumber(commissionStats.this_month_commissions)}원</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="commission-overview">
-        <h3>추천인별 커미션 현황</h3>
-        <div className="commission-table-container">
-          <table className="commission-table">
-            <thead>
-              <tr>
-                <th>추천인</th>
-                <th>추천인 코드</th>
-                <th>피추천인 수</th>
-                <th>총 커미션</th>
-                <th>이번 달 커미션</th>
-                <th>미지급 커미션</th>
-                <th>액션</th>
-              </tr>
-            </thead>
-            <tbody>
-              {commissionOverview.map((referrer, index) => (
-                <tr key={index}>
-                  <td>
-                    <div className="referrer-info">
-                      <div className="referrer-avatar">👤</div>
-                      <div>
-                        <div className="referrer-name">{referrer.referrer_name || '이름 없음'}</div>
-                        <div className="referrer-email">{referrer.referrer_email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="referral-code">{referrer.referral_code}</span>
-                  </td>
-                  <td>
-                    <span className="referral-count">{referrer.referral_count}명</span>
-                  </td>
-                  <td>
-                    <span className="total-commission">{formatNumber(referrer.total_commission)}원</span>
-                  </td>
-                  <td>
-                    <span className="month-commission">{formatNumber(referrer.this_month_commission)}원</span>
-                  </td>
-                  <td>
-                    <span className={`unpaid-commission ${referrer.unpaid_commission > 0 ? 'has-unpaid' : ''}`}>
-                      {formatNumber(referrer.unpaid_commission)}원
-                    </span>
-                  </td>
-                  <td>
-                    {referrer.unpaid_commission > 0 ? (
-                      <button 
-                        className="admin-button primary"
-                        onClick={() => openPaymentModal(referrer)}
-                      >
-                        환급하기
-                      </button>
-                    ) : (
-                      <span className="no-payment">환급 완료</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="payment-history">
-        <h3>환급 내역</h3>
-        <div className="payment-table-container">
-          <table className="payment-table">
-            <thead>
-              <tr>
-                <th>추천인</th>
-                <th>환급 금액</th>
-                <th>환급 방법</th>
-                <th>메모</th>
-                <th>환급일</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paymentHistory.map((payment, index) => (
-                <tr key={index}>
-                  <td>{payment.referrer_email}</td>
-                  <td className="payment-amount">{formatNumber(payment.amount)}원</td>
-                  <td>
-                    <span className={`payment-method ${payment.payment_method}`}>
-                      {payment.payment_method === 'bank_transfer' ? '계좌이체' : 
-                       payment.payment_method === 'kakao_pay' ? '카카오페이' : 
-                       payment.payment_method === 'toss' ? '토스' : payment.payment_method}
-                    </span>
-                  </td>
-                  <td>{payment.notes || '-'}</td>
-                  <td>{new Date(payment.paid_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  )
-
-  return (
+    return (
     <div className="admin-page">
       <div className="admin-header">
         <h1>관리자 대시보드</h1>
@@ -1631,8 +1736,6 @@ const AdminPage = () => {
             onClick={() => {
               if (activeTab === 'dashboard') {
                 loadDashboardStats()
-              } else if (activeTab === 'users') {
-                loadUsers()
               } else if (activeTab === 'orders') {
                 loadOrders()
               } else if (activeTab === 'purchases') {
@@ -1716,14 +1819,14 @@ const AdminPage = () => {
           onClick={() => setActiveTab('notices')}
                   >
           <Bell size={20} />
-          공지사항 관리
+          팝업 관리
                   </button>
                   <button
-          className={`tab-button ${activeTab === 'commissions' ? 'active' : ''}`}
-          onClick={() => setActiveTab('commissions')}
+          className={`tab-button ${activeTab === 'coupons' ? 'active' : ''}`}
+          onClick={() => setActiveTab('coupons')}
                   >
-          <DollarSign size={20} />
-          커미션 관리
+          <Tag size={20} />
+          쿠폰 관리
                   </button>
                 </div>
 
@@ -1736,10 +1839,11 @@ const AdminPage = () => {
         ) : (
           <>
             {activeTab === 'dashboard' && renderDashboard()}
-            {activeTab === 'users' && renderUsers()}
+            {activeTab === 'users' && <AdminUserManagement adminFetch={adminFetch} />}
             {activeTab === 'orders' && renderOrders()}
             {activeTab === 'purchases' && renderPurchases()}
             {activeTab === 'referrals' && renderReferrals()}
+            {activeTab === 'coupons' && <AdminCouponManagement adminFetch={adminFetch} />}
             {activeTab === 'blog' && (
               <div className="blog-management">
                 <div className="blog-header">
@@ -1758,7 +1862,6 @@ const AdminPage = () => {
                 </div>
               </div>
             )}
-            {activeTab === 'commissions' && renderCommissions()}
             {activeTab === 'services' && (
               <AdminServiceManagement adminFetch={adminFetch} />
             )}
@@ -1855,12 +1958,197 @@ const AdminPage = () => {
         </div>
       )}
 
+      {/* 추천인 세부정보 모달 */}
+      {showReferralDetailModal && selectedReferralCode && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3>추천인 세부정보</h3>
+              <button 
+                className="modal-close"
+                onClick={() => {
+                  setShowReferralDetailModal(false)
+                  setSelectedReferralCode(null)
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>추천인 코드</label>
+                <div className="referral-code-display" style={{ 
+                  padding: '12px', 
+                  backgroundColor: '#f0f0f0', 
+                  borderRadius: '8px',
+                  fontFamily: 'monospace',
+                  fontSize: '18px',
+                  fontWeight: 'bold'
+                }}>
+                  {selectedReferralCode.code}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>이메일</label>
+                <input
+                  type="email"
+                  value={selectedReferralCode.email || ''}
+                  readOnly
+                  className="admin-input"
+                  style={{ backgroundColor: '#f5f5f5' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>이름</label>
+                <input
+                  type="text"
+                  value={selectedReferralCode.name || ''}
+                  readOnly
+                  className="admin-input"
+                  style={{ backgroundColor: '#f5f5f5' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>상태</label>
+                <div>
+                  <span className={`status-badge ${selectedReferralCode.is_active || selectedReferralCode.isActive ? 'active' : 'inactive'}`}>
+                    {selectedReferralCode.is_active || selectedReferralCode.isActive ? '활성' : '비활성'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>사용 횟수</label>
+                <input
+                  type="text"
+                  value={selectedReferralCode.usage_count || 0}
+                  readOnly
+                  className="admin-input"
+                  style={{ backgroundColor: '#f5f5f5' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>총 커미션</label>
+                <input
+                  type="text"
+                  value={`${formatNumber(selectedReferralCode.total_commission || 0)}원`}
+                  readOnly
+                  className="admin-input"
+                  style={{ backgroundColor: '#f5f5f5' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>생성일</label>
+                <input
+                  type="text"
+                  value={selectedReferralCode.createdAt ? new Date(selectedReferralCode.createdAt).toLocaleString('ko-KR') : '날짜 없음'}
+                  readOnly
+                  className="admin-input"
+                  style={{ backgroundColor: '#f5f5f5' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>커미션 비율 (%)</label>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={((selectedReferralCode.commission_rate || 0.1) * 100).toFixed(1)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value)
+                      if (!isNaN(value) && value >= 0 && value <= 100) {
+                        setSelectedReferralCode({
+                          ...selectedReferralCode,
+                          commission_rate: value / 100
+                        })
+                      }
+                    }}
+                    className="admin-input"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    className="admin-button primary"
+                    onClick={async () => {
+                      try {
+                        const newRate = (selectedReferralCode.commission_rate || 0.1)
+                        console.log('🔄 커미션 비율 업데이트 요청:', {
+                          email: selectedReferralCode.email,
+                          user_id: selectedReferralCode.user_id,
+                          code: selectedReferralCode.code,
+                          rate: newRate
+                        })
+                        
+                        const requestBody = {
+                          referrer_email: selectedReferralCode.email,
+                          commission_rate: newRate
+                        }
+                        
+                        // user_id가 있으면 추가
+                        if (selectedReferralCode.user_id || selectedReferralCode.id) {
+                          requestBody.referrer_user_id = selectedReferralCode.user_id || selectedReferralCode.id
+                        }
+                        
+                        const response = await adminFetch('/api/admin/referral/update-commission-rate', {
+                          method: 'PUT',
+                          headers: {
+                            'Content-Type': 'application/json'
+                          },
+                          body: JSON.stringify(requestBody)
+                        })
+                        
+                        if (response.ok) {
+                          await loadReferralData()
+                          alert(`커미션 비율이 ${(newRate * 100).toFixed(1)}%로 변경되었습니다.`)
+                          setShowReferralDetailModal(false)
+                          setSelectedReferralCode(null)
+                        } else {
+                          const errorData = await response.json()
+                          alert(`오류: ${errorData.error}`)
+                        }
+                      } catch (error) {
+                        console.error('커미션 비율 변경 실패:', error)
+                        alert('커미션 비율 변경 중 오류가 발생했습니다.')
+                      }
+                    }}
+                  >
+                    <Edit size={16} style={{ marginRight: '5px' }} />
+                    저장
+                  </button>
+                </div>
+                <small style={{ color: '#666', marginTop: '5px', display: 'block' }}>
+                  현재 커미션 비율: {(selectedReferralCode.commission_rate || 0.1) * 100}% (기본값: 10%)
+                </small>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="admin-button secondary"
+                onClick={() => {
+                  setShowReferralDetailModal(false)
+                  setSelectedReferralCode(null)
+                }}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 공지사항 모달 */}
       {showNoticeModal && (
         <div className="notice-modal">
           <div className="notice-modal-content">
             <div className="modal-header">
-              <h3>{editingNotice ? '공지사항 수정' : '새 공지사항 작성'}</h3>
+              <h3>{editingNotice ? '팝업 수정' : '새 팝업 작성'}</h3>
               <button 
                 className="modal-close"
                 onClick={() => setShowNoticeModal(false)}
@@ -1870,7 +2158,46 @@ const AdminPage = () => {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>이미지 업로드</label>
+                <label>팝업 타입</label>
+                <select
+                  value={noticeForm.popup_type}
+                  onChange={(e) => setNoticeForm({...noticeForm, popup_type: e.target.value})}
+                  className="admin-input"
+                >
+                  <option value="notice">공지사항 팝업</option>
+                  <option value="login">로그인 팝업</option>
+                </select>
+              </div>
+
+              {noticeForm.popup_type !== 'login' && (
+                <div className="form-group">
+                  <label>제목 {noticeForm.popup_type === 'notice' && <span style={{color: '#999', fontSize: '12px'}}>(선택 사항)</span>}</label>
+                  <input
+                    type="text"
+                    value={noticeForm.title}
+                    onChange={(e) => setNoticeForm({...noticeForm, title: e.target.value})}
+                    placeholder={noticeForm.popup_type === 'notice' ? "팝업 제목 (선택 사항)" : "팝업 제목"}
+                    className="admin-input"
+                  />
+                </div>
+              )}
+
+              {noticeForm.popup_type !== 'notice' && noticeForm.popup_type !== 'login' && (
+                <div className="form-group">
+                  <label>내용</label>
+                  <textarea
+                    value={noticeForm.content}
+                    onChange={(e) => setNoticeForm({...noticeForm, content: e.target.value})}
+                    placeholder="팝업 내용"
+                    className="admin-input"
+                    rows="4"
+                  />
+                </div>
+              )}
+
+              {noticeForm.popup_type === 'notice' && (
+                <div className="form-group">
+                  <label>공지사항 이미지 업로드</label>
                 <div className="image-upload-container">
                 <input
                     type="file"
@@ -1902,6 +2229,46 @@ const AdminPage = () => {
                   )}
               </div>
               </div>
+              )}
+
+              {noticeForm.popup_type === 'login' && (
+                <div className="form-group">
+                  <label>로그인 팝업 이미지 업로드</label>
+                  <small style={{color: '#666', display: 'block', marginBottom: '8px'}}>
+                    로그인 모달의 왼쪽 배경에 표시되는 이미지입니다. (예: "신규 회원 쿠폰" 등의 프로모션 이미지)
+                  </small>
+                  <div className="image-upload-container">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0]
+                        if (file) {
+                          handleImageUpload(file, 'login')
+                        }
+                      }}
+                      className="file-input"
+                      id="login-image-upload"
+                      disabled={uploadingImage}
+                    />
+                    <label htmlFor="login-image-upload" className="file-input-label">
+                      {uploadingImage ? '업로드 중...' : '이미지 선택'}
+                    </label>
+                    {noticeForm.login_popup_image_url && (
+                      <div className="uploaded-image-preview">
+                        <img src={noticeForm.login_popup_image_url} alt="로그인 팝업 이미지" />
+                        <button
+                          type="button"
+                          onClick={() => setNoticeForm({...noticeForm, login_popup_image_url: ''})}
+                          className="remove-image-btn"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               
               <div className="form-group">
                 <label>
@@ -1924,7 +2291,7 @@ const AdminPage = () => {
               <button 
                 className="admin-button primary"
                 onClick={handleNoticeSubmit}
-                disabled={!noticeForm.image_url || isLoading || uploadingImage}
+                disabled={isLoading || uploadingImage || (noticeForm.popup_type === 'notice' && !noticeForm.image_url) || (noticeForm.popup_type === 'login' && !noticeForm.login_popup_image_url)}
               >
                 {editingNotice ? '수정' : '생성'}
               </button>

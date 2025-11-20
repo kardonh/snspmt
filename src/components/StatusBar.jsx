@@ -14,12 +14,13 @@ const StatusBar = () => {
 
   // 사용자 포인트 조회 함수
   const fetchUserPoints = async () => {
-    const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid
-    
-    if (!userId) {
+    // currentUser가 없으면 포인트 조회하지 않음
+    if (!currentUser?.uid) {
       setUserPoints(0)
       return
     }
+    
+    const userId = currentUser.uid
     
     setPointsLoading(true)
     try {
@@ -97,17 +98,23 @@ const StatusBar = () => {
 
   const handleLogout = async () => {
     try {
+      console.log('🔐 StatusBar 로그아웃 버튼 클릭');
       if (typeof logout === 'function') {
-      await logout()
-      alert('로그아웃되었습니다.')
-      navigate('/')
+        await logout();
+        console.log('✅ StatusBar 로그아웃 처리 완료');
+        // 포인트 초기화
+        setUserPoints(0);
+        alert('로그아웃되었습니다.');
+        navigate('/');
       } else {
-        console.error('logout 함수가 정의되지 않았습니다.')
-        alert('로그아웃 함수를 찾을 수 없습니다.')
+        console.error('logout 함수가 정의되지 않았습니다.');
+        alert('로그아웃 함수를 찾을 수 없습니다.');
       }
     } catch (error) {
-      console.error('로그아웃 실패:', error)
-      alert('로그아웃 중 오류가 발생했습니다.')
+      console.error('로그아웃 실패:', error);
+      // 오류가 있어도 포인트 초기화
+      setUserPoints(0);
+      alert('로그아웃 중 오류가 발생했습니다.');
     }
   }
 
@@ -121,9 +128,8 @@ const StatusBar = () => {
     }).replace(/\./g, '-')
   }
 
-  // 사용자 정보 확인
-  const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid
-  const userName = currentUser?.displayName || currentUser?.email || localStorage.getItem('userEmail') || '사용자'
+  // 사용자 정보 확인 (currentUser만 확인)
+  const userName = currentUser?.displayName || currentUser?.email || '사용자'
 
   return (
     <>
@@ -139,7 +145,7 @@ const StatusBar = () => {
             </Link>
           
           <div className="mobile-header-right">
-            {userId ? (
+            {currentUser ? (
                 <>
                 <div className="mobile-points-display">
                     <Coins size={16} />
@@ -185,7 +191,7 @@ const StatusBar = () => {
               <span>{formatTime(currentTime)}</span>
             </div>
             <div className="status-user-display">
-              {userId ? (
+              {currentUser ? (
                 <span>{userName}고객님</span>
               ) : (
                 <span>게스트</span>

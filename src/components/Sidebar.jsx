@@ -34,12 +34,13 @@ const Sidebar = ({ onClose }) => {
 
   // 사용자 포인트 조회 함수
   const fetchUserPoints = async () => {
-    const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid
-    
-    if (!userId) {
+    // currentUser가 없으면 포인트 조회하지 않음
+    if (!currentUser?.uid) {
       setUserPoints(0)
       return
     }
+    
+    const userId = currentUser.uid
     
     setPointsLoading(true)
     try {
@@ -160,22 +161,28 @@ const Sidebar = ({ onClose }) => {
 
   const handleSignOut = async () => {
     try {
+      console.log('🔐 Sidebar 로그아웃 버튼 클릭');
       if (typeof logout === 'function') {
-      await logout()
-      alert('로그아웃되었습니다. 게스트 모드로 전환됩니다.')
-      // 모바일에서 사이드바가 열려있다면 닫기
-      if (onClose) {
-        onClose()
-      }
-      // 홈페이지로 리다이렉트
-      navigate('/')
+        await logout();
+        console.log('✅ Sidebar 로그아웃 처리 완료');
+        // 포인트 초기화
+        setUserPoints(0);
+        alert('로그아웃되었습니다. 게스트 모드로 전환됩니다.');
+        // 모바일에서 사이드바가 열려있다면 닫기
+        if (onClose) {
+          onClose();
+        }
+        // 홈페이지로 리다이렉트
+        navigate('/');
       } else {
-        console.error('logout 함수가 정의되지 않았습니다.')
-        alert('로그아웃 함수를 찾을 수 없습니다.')
+        console.error('logout 함수가 정의되지 않았습니다.');
+        alert('로그아웃 함수를 찾을 수 없습니다.');
       }
     } catch (error) {
-      console.error('로그아웃 실패:', error)
-      alert('로그아웃 중 오류가 발생했습니다.')
+      console.error('로그아웃 실패:', error);
+      // 오류가 있어도 포인트 초기화
+      setUserPoints(0);
+      alert('로그아웃 중 오류가 발생했습니다.');
     }
   }
 
@@ -208,10 +215,10 @@ const Sidebar = ({ onClose }) => {
 
       {/* User Status */}
       <div className="user-status">
-        {(currentUser || localStorage.getItem('userId') || localStorage.getItem('firebase_user_id')) ? (
+        {currentUser ? (
           <div className="user-info">
             <span className="user-name">
-              {currentUser?.displayName || currentUser?.email || localStorage.getItem('userEmail') || '사용자'}
+              {currentUser?.displayName || currentUser?.email || '사용자'}
             </span>
               <div className="user-points">
                 <Coins size={16} className="points-icon" />

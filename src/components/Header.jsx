@@ -14,21 +14,28 @@ const Header = () => {
 
   const handleLogout = async () => {
     try {
-      await logout()
+      console.log('🔐 로그아웃 버튼 클릭');
+      await logout();
+      console.log('✅ 로그아웃 처리 완료');
+      // 로그아웃 후 포인트 초기화
+      setUserPoints(0);
     } catch (error) {
-      console.error('로그아웃 실패:', error)
+      console.error('로그아웃 실패:', error);
+      // 오류가 있어도 포인트 초기화
+      setUserPoints(0);
     }
   }
 
   // 사용자 포인트 조회
     const fetchUserPoints = async () => {
-    const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid
-    
-    if (!userId) {
+    // currentUser가 없으면 포인트 조회하지 않음
+    if (!currentUser?.uid) {
       setUserPoints(0)
       setPointsLoading(false)
       return
     }
+    
+    const userId = currentUser.uid
     
         setPointsLoading(true)
         try {
@@ -85,9 +92,8 @@ const Header = () => {
     }
   }, [currentUser])
 
-  // 사용자 정보 확인
-  const userId = localStorage.getItem('userId') || localStorage.getItem('firebase_user_id') || currentUser?.uid
-  const userName = currentUser?.displayName || currentUser?.email || localStorage.getItem('userEmail') || '사용자'
+  // 사용자 정보 확인 (currentUser만 확인)
+  const userName = currentUser?.displayName || currentUser?.email || '사용자'
 
     return (
     <>
@@ -110,7 +116,7 @@ const Header = () => {
           <div className="user-section">
             {loading ? (
               <div className="loading">로딩 중...</div>
-            ) : userId ? (
+            ) : currentUser ? (
               <>
             <div className="user-info">
                   <User size={16} />

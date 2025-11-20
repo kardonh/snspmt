@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, CheckCircle, Coins, Star } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 import './PaymentPage.css'
 
 const PaymentPage = () => {
@@ -8,6 +9,7 @@ const PaymentPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const orderData = location.state?.orderData
+  const { currentUser } = useAuth()
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -16,6 +18,8 @@ const PaymentPage = () => {
   const [selectedCoupon, setSelectedCoupon] = useState(null)
   const [showCouponModal, setShowCouponModal] = useState(false)
   const [finalPrice, setFinalPrice] = useState(orderData?.totalPrice || 0)
+  const [couponCode, setCouponCode] = useState('')
+  const [addingCoupon, setAddingCoupon] = useState(false)
 
   // 주문 데이터가 없으면 홈으로 리다이렉트
   useEffect(() => {
@@ -25,31 +29,51 @@ const PaymentPage = () => {
     }
   }, [orderData, navigate])
 
-  // 쿠폰 데이터 로드
+  // 사용자의 쿠폰 데이터 로드 (사용하지 않은 쿠폰만)
   useEffect(() => {
-    const loadCoupons = async () => {
+    const loadUserCoupons = async () => {
+      if (!currentUser?.uid) {
+        setAvailableCoupons([])
+        return
+      }
+      
       try {
-        const response = await fetch('/api/coupons')
+        const response = await fetch(`/api/user/coupons?user_id=${currentUser.uid}`)
         if (response.ok) {
-          const coupons = await response.json()
-          setAvailableCoupons(coupons)
+          const data = await response.json()
+          // 사용하지 않은 쿠폰만 필터링
+          const usableCoupons = (data.coupons || []).filter(coupon => {
+            // is_used가 false이고, 만료되지 않은 쿠폰만
+            const isNotUsed = !coupon.is_used
+            const isNotExpired = !coupon.expires_at || new Date(coupon.expires_at) > new Date()
+            return isNotUsed && isNotExpired
+          }).map(coupon => ({
+            id: coupon.id,
+            name: coupon.coupon_name || coupon.referral_code || '할인 쿠폰',
+            description: '',
+            discount: coupon.discount_value || 0,
+            type: coupon.discount_type === 'percentage' ? 'percentage' : 'fixed',
+            coupon_code: coupon.coupon_code || coupon.referral_code
+          }))
+          setAvailableCoupons(usableCoupons)
         }
       } catch (error) {
         console.error('쿠폰 로드 실패:', error)
+        setAvailableCoupons([])
       }
     }
-    loadCoupons()
-  }, [])
+    loadUserCoupons()
+  }, [currentUser])
 
   // 최종 가격 계산
   useEffect(() => {
     if (orderData) {
       let price = orderData.totalPrice || 0
       if (selectedCoupon) {
-        if (selectedCoupon.type === 'percentage') {
-          price = price * (1 - selectedCoupon.discount / 100)
+        if (selectedCoupon.type === 'percentage' || selectedCoupon.discount_type === 'percentage') {
+          price = price * (1 - (selectedCoupon.discount || 0) / 100)
         } else {
-          price = Math.max(0, price - selectedCoupon.discount)
+          price = Math.max(0, price - (selectedCoupon.discount || 0))
         }
       }
       setFinalPrice(Math.round(price))
@@ -65,6 +89,57 @@ const PaymentPage = () => {
   // 쿠폰 선택 해제
   const handleCouponRemove = () => {
     setSelectedCoupon(null)
+  }
+
+  // 쿠폰 번호로 쿠폰 추가
+  const handleAddCouponByCode = async () => {
+    if (!couponCode.trim()) {
+      alert('쿠폰 번호를 입력해주세요.')
+      return
+    }
+
+    if (!currentUser?.uid) {
+      alert('로그인이 필요합니다.')
+      return
+    }
+
+    setAddingCoupon(true)
+    try {
+      const response = await fetch('/api/user/coupons/add-by-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: currentUser.uid,
+          coupon_code: couponCode.trim()
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        // 새로 추가된 쿠폰을 목록에 추가
+        const newCoupon = {
+          id: data.coupon.id,
+          name: data.coupon.coupon_name || data.coupon.coupon_code || '할인 쿠폰',
+          description: '',
+          discount: data.coupon.discount_value || 0,
+          type: data.coupon.discount_type === 'percentage' ? 'percentage' : 'fixed',
+          coupon_code: data.coupon.coupon_code
+        }
+        setAvailableCoupons([...availableCoupons, newCoupon])
+        setCouponCode('')
+        alert('쿠폰이 추가되었습니다!')
+      } else {
+        alert(data.error || '쿠폰 추가에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('쿠폰 추가 실패:', error)
+      alert('쿠폰 추가 중 오류가 발생했습니다.')
+    } finally {
+      setAddingCoupon(false)
+    }
   }
 
   const paymentMethods = [
@@ -373,7 +448,9 @@ const PaymentPage = () => {
             
             {selectedCoupon && (
               <div className="price-row discount">
-                <span>할인 ({selectedCoupon.type === 'percentage' ? selectedCoupon.discount + '%' : selectedCoupon.discount + '원'}):</span>
+                <span>할인 ({(selectedCoupon.type === 'percentage' || selectedCoupon.discount_type === 'percentage') 
+                  ? (selectedCoupon.discount || 0) + '%' 
+                  : (selectedCoupon.discount || 0).toLocaleString() + '원'}):</span>
                 <span>-{(orderData.totalPrice - finalPrice).toLocaleString()}원</span>
               </div>
             )}
@@ -464,8 +541,50 @@ const PaymentPage = () => {
               </button>
             </div>
             <div className="modal-body">
+              {/* 쿠폰 번호 입력 섹션 */}
+              <div className="coupon-code-input-section" style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid #eee' }}>
+                <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>쿠폰 번호 입력</h3>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    placeholder="쿠폰 번호를 입력하세요"
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddCouponByCode()
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={handleAddCouponByCode}
+                    disabled={addingCoupon || !couponCode.trim()}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: addingCoupon ? '#ccc' : '#6366f1',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: addingCoupon || !couponCode.trim() ? 'not-allowed' : 'pointer',
+                      fontSize: '14px'
+                    }}
+                  >
+                    {addingCoupon ? '추가 중...' : '추가'}
+                  </button>
+                </div>
+              </div>
+
+              {/* 쿠폰 목록 */}
+              <h3 style={{ marginBottom: '15px', fontSize: '16px' }}>보유한 쿠폰</h3>
               {availableCoupons.length === 0 ? (
-                <p>사용 가능한 쿠폰이 없습니다.</p>
+                <p style={{ color: '#666', textAlign: 'center', padding: '20px' }}>사용 가능한 쿠폰이 없습니다.</p>
               ) : (
                 <div className="coupon-list">
                   {availableCoupons.map((coupon) => (
@@ -476,7 +595,9 @@ const PaymentPage = () => {
                     >
                       <div className="coupon-info">
                         <h3>{coupon.name}</h3>
-                        <p>{coupon.description}</p>
+                        {coupon.coupon_code && (
+                          <p style={{ fontSize: '12px', color: '#666' }}>쿠폰 번호: {coupon.coupon_code}</p>
+                        )}
                         <div className="coupon-discount">
                           {coupon.type === 'percentage' 
                             ? `${coupon.discount}% 할인`

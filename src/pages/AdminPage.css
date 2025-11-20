@@ -1523,7 +1523,8 @@
 @media (prefers-color-scheme: dark) {
   .admin-page {
     background: #0f172a;
-    color: #e2e8f0;
+    color: #3b6eb1;
+    ;
   }
   
   .admin-header {

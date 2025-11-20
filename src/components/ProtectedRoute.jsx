@@ -26,6 +26,16 @@ export default function ProtectedRoute({ children }) {
     if (!loading || checkLocalStorage()) {
       setIsChecking(false);
     }
+
+    // 타임아웃: 5초 후에도 로딩 중이면 강제로 체크 완료
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ ProtectedRoute: 인증 확인 타임아웃, 로딩 강제 종료');
+      setIsChecking(false);
+    }, 5000);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [loading]);
 
   // 로딩 중이거나 체크 중일 때는 로딩 표시

@@ -54,6 +54,12 @@ const Home = () => {
   const [validServiceIds, setValidServiceIds] = useState([])
   const [isLoadingServices, setIsLoadingServices] = useState(false)
   
+  // 데이터베이스에서 가져온 상품 데이터
+  const [categories, setCategories] = useState([])
+  const [products, setProducts] = useState([])
+  const [variants, setVariants] = useState([])
+  const [packages, setPackages] = useState([])
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false)
   
   // 예약 발송 관련 상태
   const [isScheduledOrder, setIsScheduledOrder] = useState(false)
@@ -153,11 +159,74 @@ const Home = () => {
     }
   }
 
+  // 카탈로그 데이터 로드 (카테고리, 상품, 세부서비스, 패키지)
+  const loadCatalog = async () => {
+    setIsLoadingCatalog(true)
+    try {
+      // 카테고리 로드
+      const categoriesRes = await fetch('/api/categories')
+      if (categoriesRes.ok) {
+        const categoriesData = await categoriesRes.json()
+        setCategories(categoriesData.categories || [])
+      }
 
-  // 컴포넌트 마운트 시 기본 서비스 자동 선택 및 SMM 서비스 목록 로드
+      // 상품 로드
+      const productsRes = await fetch('/api/products')
+      if (productsRes.ok) {
+        const productsData = await productsRes.json()
+        setProducts(productsData.products || [])
+      }
+
+      // 세부서비스 로드
+      const variantsRes = await fetch('/api/product-variants')
+      if (variantsRes.ok) {
+        const variantsData = await variantsRes.json()
+        // variants 형식 정규화 (API 응답 형식에 맞춤)
+        const normalizedVariants = (variantsData.variants || variantsData || []).map(v => ({
+          variant_id: v.variant_id || v.id,
+          product_id: v.product_id,
+          category_id: v.category_id,
+          name: v.name,
+          price: parseFloat(v.price || 0),
+          min_quantity: parseInt(v.min || v.min_quantity || 1),
+          max_quantity: parseInt(v.max || v.max_quantity || 1000000),
+          delivery_time_days: v.delivery_time_days,
+          meta_json: v.meta_json || (typeof v.meta_json === 'string' ? JSON.parse(v.meta_json) : {}),
+          api_endpoint: v.api_endpoint,
+          product_name: v.product_name,
+          category_name: v.category_name,
+          // 하위 호환성을 위한 필드
+          id: v.variant_id || v.id,
+          min: parseInt(v.min || v.min_quantity || 1),
+          max: parseInt(v.max || v.max_quantity || 1000000),
+        }))
+        setVariants(normalizedVariants)
+        console.log('✅ 세부서비스 로드 완료:', normalizedVariants.length, '개')
+      }
+
+      // 패키지 로드
+      const packagesRes = await fetch('/api/packages')
+      if (packagesRes.ok) {
+        const packagesData = await packagesRes.json()
+        setPackages(packagesData.packages || [])
+        console.log('✅ 패키지 로드 완료:', packagesData.packages?.length || 0, '개')
+      }
+    } catch (error) {
+      console.error('❌ 카탈로그 로드 오류:', error)
+    } finally {
+      setIsLoadingCatalog(false)
+    }
+  }
+
+
+  // 컴포넌트 마운트 시 카탈로그 및 SMM 서비스 목록 로드
   useEffect(() => {
+    loadCatalog()
     loadSMMServices()
-    
+  }, [])
+
+  // 플랫폼/서비스 변경 시 세부 서비스 자동 선택
+  useEffect(() => {
     if (selectedPlatform && selectedService && !selectedDetailedService) {
       const detailedServices = getDetailedServices(selectedPlatform, selectedService)
       if (detailedServices && detailedServices.length > 0) {
@@ -170,7 +239,7 @@ const Home = () => {
         }
       }
     }
-  }, [selectedPlatform, selectedService, selectedDetailedService])
+  }, [selectedPlatform, selectedService, selectedDetailedService, variants, packages])
 
   // 할인 쿠폰 초기화 - 백엔드에서 실제 쿠폰 조회
   useEffect(() => {
@@ -619,29 +688,189 @@ const Home = () => {
     }
   }
   
-  // 세부 서비스 목록 가져오기
+  // 세부 서비스 목록 가져오기 (데이터베이스 우선, 하드코딩 fallback)
   const getDetailedServices = (platform, serviceType) => {
-  // 추천서비스 매핑
-  if (platform === 'recommended') {
-    if (serviceType === 'top_exposure_30days') {
-      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1005) || [])
-    } else if (serviceType === 'recommended_tab_entry') {
-      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1003) || [])
-    } else if (serviceType === 'instagram_followers') {
-      return filterValidServices(instagramDetailedServices.followers_korean || [])
-    } else if (serviceType === 'instagram_reels_views') {
-      return filterValidServices(instagramDetailedServices.reels_views_korean || [])
-    } else if (serviceType === 'instagram_optimization_30days') {
-      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1002) || [])
-    } else if (serviceType === 'recommended_tab_maintenance') {
-      return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1004) || [])
-    } else if (serviceType === 'instagram_korean_likes') {
-      return filterValidServices(instagramDetailedServices.likes_korean || [])
-    } else if (serviceType === 'instagram_regram') {
-      return filterValidServices(instagramDetailedServices.regram_korean || [])
+    // 먼저 데이터베이스에서 가져온 variants와 packages 사용 시도
+    let dbServices = []
+    
+    // 카테고리 이름으로 필터링 (예: '인스타그램', '유튜브' 등)
+    const categoryNameMap = {
+      'instagram': '인스타그램',
+      'youtube': '유튜브',
+      'facebook': '페이스북',
+      'tiktok': '틱톡',
+      'twitter': '트위터',
+      'threads': 'Threads',
+      'telegram': '텔레그램',
+      'whatsapp': 'WhatsApp',
+      'kakao': '카카오'
     }
-    return filterValidServices([])
-  }
+    
+    // 플랫폼에 맞는 카테고리 찾기
+    const targetCategory = categories.find(c => 
+      c.name?.includes(categoryNameMap[platform] || platform) || 
+      c.slug === platform
+    )
+    
+    if (targetCategory) {
+      // serviceType(상품 ID)에 해당하는 상품 찾기
+      const targetProduct = products.find(p => 
+        p.category_id === targetCategory.category_id && (
+          p.name?.toLowerCase().includes(serviceType?.toLowerCase() || '') ||
+          p.description?.toLowerCase().includes(serviceType?.toLowerCase() || '')
+        )
+      )
+      
+      // serviceType으로 직접 매칭 시도 (상품 이름이나 설명에 serviceType이 포함된 경우)
+      // 또는 products 배열에서 serviceType과 일치하는 상품 찾기
+      let matchedProduct = products.find(p => {
+        if (p.category_id !== targetCategory.category_id) return false
+        
+        // serviceType이 상품 이름이나 설명에 포함되어 있는지 확인
+        const productNameLower = (p.name || '').toLowerCase()
+        const productDescLower = (p.description || '').toLowerCase()
+        const serviceTypeLower = (serviceType || '').toLowerCase()
+        
+        // 정확한 매칭: serviceType이 상품 이름의 키워드와 일치하는지
+        // 예: serviceType='likes_korean' -> 상품 이름에 '좋아요' 또는 'likes' 포함
+        const serviceTypeKeywords = {
+          'likes_korean': ['좋아요', 'likes'],
+          'followers_korean': ['팔로워', 'followers'],
+          'comments_korean': ['댓글', 'comments'],
+          'reels_views_korean': ['릴스', '조회수', 'reels', 'views'],
+          'regram_korean': ['리그램', 'regram'],
+          'exposure_save_share': ['노출', '저장', '공유', 'exposure', 'save', 'share'],
+          'auto_likes': ['자동', '좋아요', 'auto', 'likes'],
+          'auto_views': ['자동', '조회수', 'auto', 'views'],
+          'auto_comments': ['자동', '댓글', 'auto', 'comments'],
+          'auto_followers': ['자동', '팔로워', 'auto', 'followers'],
+          'auto_regram': ['자동', '리그램', 'auto', 'regram'],
+          'custom_comments_korean': ['커스텀', '이모지', '댓글', 'custom', 'comments'],
+          'popular_posts': ['인기게시물', '상위', 'popular', 'posts'],
+          'followers_foreign': ['외국인', '팔로워', 'foreign', 'followers'],
+          'likes_foreign': ['외국인', '좋아요', 'foreign', 'likes'],
+          'comments_foreign': ['외국인', '댓글', 'foreign', 'comments'],
+          'reels_views_foreign': ['외국인', '릴스', '조회수', 'foreign', 'reels', 'views'],
+          'exposure_save_share_foreign': ['외국인', '노출', '저장', '공유', 'foreign'],
+          'live_streaming': ['라이브', '스트리밍', 'live', 'streaming'],
+          'auto_likes_foreign': ['외국인', '자동', '좋아요', 'foreign', 'auto', 'likes'],
+          'auto_followers_foreign': ['외국인', '자동', '팔로워', 'foreign', 'auto', 'followers'],
+          'auto_comments_foreign': ['외국인', '자동', '댓글', 'foreign', 'auto', 'comments'],
+          'auto_reels_views_foreign': ['외국인', '자동', '릴스', '조회수', 'foreign', 'auto'],
+          'auto_exposure_save_share_foreign': ['외국인', '자동', '노출', '저장', '공유', 'foreign', 'auto'],
+        }
+        
+        const keywords = serviceTypeKeywords[serviceType] || [serviceTypeLower]
+        return keywords.some(keyword => 
+          productNameLower.includes(keyword.toLowerCase()) || 
+          productDescLower.includes(keyword.toLowerCase())
+        )
+      })
+      
+      if (matchedProduct) {
+        // 해당 상품의 variants만 필터링하고 형식 변환
+        dbServices = variants.filter(v => 
+          v.product_id === matchedProduct.product_id
+        ).map(v => ({
+          id: v.variant_id || v.id,
+          name: v.name,
+          price: parseFloat(v.price || 0),
+          min: parseInt(v.min_quantity || v.min || 1),
+          max: parseInt(v.max_quantity || v.max || 1000000),
+          time: v.meta_json?.time || v.delivery_time_days ? `${v.delivery_time_days}일` : '데이터가 충분하지 않습니다',
+          description: v.meta_json?.description || v.description || '',
+          smm_service_id: v.meta_json?.smm_service_id || v.smm_service_id,
+          meta_json: v.meta_json || {},
+        }))
+        
+        // 해당 상품의 패키지도 추가
+        const productPackages = packages.filter(p => 
+          p.category_id === targetCategory.category_id && 
+          (p.name?.toLowerCase().includes(serviceType?.toLowerCase() || '') ||
+           p.description?.toLowerCase().includes(serviceType?.toLowerCase() || ''))
+        )
+        
+        // 패키지를 variant 형식으로 변환
+        productPackages.forEach(pkg => {
+          dbServices.push({
+            id: pkg.package_id,
+            name: pkg.name,
+            price: pkg.price || 0,
+            min: 1,
+            max: 1,
+            time: pkg.meta_json?.time || '데이터가 충분하지 않습니다',
+            description: pkg.description,
+            package: true,
+            steps: pkg.steps || pkg.items || [],
+            drip_feed: pkg.meta_json?.drip_feed || false,
+            smmkings_id: pkg.meta_json?.smmkings_id,
+            runs: pkg.meta_json?.runs,
+            interval: pkg.meta_json?.interval,
+            drip_quantity: pkg.meta_json?.drip_quantity,
+          })
+        })
+      } else {
+        // 상품을 찾지 못한 경우, 카테고리 전체 variants 사용 (fallback)
+        dbServices = variants.filter(v => 
+          v.category_id === targetCategory.category_id
+        )
+        
+        // 패키지도 추가
+        const categoryPackages = packages.filter(p => 
+          p.category_id === targetCategory.category_id
+        )
+        
+        categoryPackages.forEach(pkg => {
+          dbServices.push({
+            id: pkg.package_id,
+            name: pkg.name,
+            price: pkg.price || 0,
+            min: 1,
+            max: 1,
+            time: pkg.meta_json?.time || '데이터가 충분하지 않습니다',
+            description: pkg.description,
+            package: true,
+            steps: pkg.steps || pkg.items || [],
+            drip_feed: pkg.meta_json?.drip_feed || false,
+            smmkings_id: pkg.meta_json?.smmkings_id,
+            runs: pkg.meta_json?.runs,
+            interval: pkg.meta_json?.interval,
+            drip_quantity: pkg.meta_json?.drip_quantity,
+          })
+        })
+      }
+    }
+    
+    // 데이터베이스에서 서비스를 찾았으면 반환
+    if (dbServices.length > 0) {
+      console.log(`✅ 데이터베이스에서 ${dbServices.length}개 서비스 로드: ${platform}/${serviceType}`)
+      return filterValidServices(dbServices)
+    }
+    
+    // 데이터베이스에 없으면 기존 하드코딩된 데이터 사용 (fallback)
+    console.log(`⚠️ 데이터베이스에 서비스 없음, 하드코딩 데이터 사용: ${platform}/${serviceType}`)
+    
+    // 추천서비스 매핑 (기존 하드코딩)
+    if (platform === 'recommended') {
+      if (serviceType === 'top_exposure_30days') {
+        return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1005) || [])
+      } else if (serviceType === 'recommended_tab_entry') {
+        return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1003) || [])
+      } else if (serviceType === 'instagram_followers') {
+        return filterValidServices(instagramDetailedServices.followers_korean || [])
+      } else if (serviceType === 'instagram_reels_views') {
+        return filterValidServices(instagramDetailedServices.reels_views_korean || [])
+      } else if (serviceType === 'instagram_optimization_30days') {
+        return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1002) || [])
+      } else if (serviceType === 'recommended_tab_maintenance') {
+        return filterValidServices(instagramDetailedServices.top_exposure?.manual?.filter(s => s.id === 1004) || [])
+      } else if (serviceType === 'instagram_korean_likes') {
+        return filterValidServices(instagramDetailedServices.likes_korean || [])
+      } else if (serviceType === 'instagram_regram') {
+        return filterValidServices(instagramDetailedServices.regram_korean || [])
+      }
+      return filterValidServices([])
+    }
   
   // 이벤트 매핑
   if (platform === 'event') {

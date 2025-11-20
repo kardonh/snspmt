@@ -19,6 +19,7 @@ const FAQPage = lazy(() => import('./pages/FAQPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const ReferralDashboard = lazy(() => import('./pages/ReferralDashboard'))
 const KakaoCallback = lazy(() => import('./pages/KakaoCallback'))
+const AuthCallback = lazy(() => import('./pages/AuthCallback'))
 const BlogPage = lazy(() => import('./pages/BlogPage'))
 const BlogDetailPage = lazy(() => import('./pages/BlogDetailPage'))
 const AdminBlogPage = lazy(() => import('./pages/AdminBlogPage'))
@@ -53,6 +54,7 @@ function App() {
                       <Route path="/blog/:id" element={<BlogDetailPage />} />
                       <Route path="/admin/blog" element={<ProtectedRoute><AdminBlogPage /></ProtectedRoute>} />
                       <Route path="/kakao-callback" element={<KakaoCallback />} />
+                      <Route path="/auth/callback" element={<AuthCallback />} />
                   </Routes>
                 </Suspense>
               </Layout>
