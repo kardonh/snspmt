@@ -43,6 +43,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
     name: '',
     description: '',
     is_domestic: true,
+    is_auto: false,  // 자동상품 여부
     auto_tag: false,
     is_package: false
   })
@@ -63,7 +64,11 @@ const AdminServiceManagement = ({ adminFetch }) => {
     drip_quantity: '',  // Drip-feed 수량
     is_active: true,
     meta_json: {},
-    api_endpoint: ''
+    api_endpoint: '',
+    // 추가 정보 입력 필드 설정
+    requires_comments: false,
+    requires_custom_fields: false,
+    custom_fields_config: {}
   })
   const [packageForm, setPackageForm] = useState({
     category_id: null,
@@ -87,6 +92,22 @@ const AdminServiceManagement = ({ adminFetch }) => {
     loadProducts()
     loadVariants()
     loadPackages()
+    
+    // SMM API 엔드포인트 환경변수에서 자동 로드
+    const loadSmmEndpoint = async () => {
+      try {
+        const response = await adminFetch('/api/admin/config')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.smm_api_endpoint && !variantForm.api_endpoint) {
+            setVariantForm(prev => ({ ...prev, api_endpoint: data.smm_api_endpoint }))
+          }
+        }
+      } catch (err) {
+        console.error('SMM API 엔드포인트 로드 실패:', err)
+      }
+    }
+    loadSmmEndpoint()
   }, [])
 
   const importSMM = async () => {
@@ -237,6 +258,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
           name: productForm.name,
           description: productForm.description,
           is_domestic: productForm.is_domestic,
+          is_auto: productForm.is_auto,
           auto_tag: productForm.auto_tag
         })
       })
@@ -250,6 +272,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
           name: '',
           description: '',
           is_domestic: true,
+          is_auto: false,
           auto_tag: false,
           is_package: false
         })
@@ -277,7 +300,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
       
       const method = editingItem ? 'PUT' : 'POST'
       
-      // meta_json 구성
+      // meta_json 구성 (추가 정보 입력 필드 설정 포함)
       const metaJson = {
         ...(variantForm.meta_json || {}),
         description: variantForm.description || null,
@@ -287,7 +310,11 @@ const AdminServiceManagement = ({ adminFetch }) => {
         drip_feed: variantForm.drip_feed || false,
         runs: variantForm.runs ? parseInt(variantForm.runs) : null,
         interval: variantForm.interval ? parseInt(variantForm.interval) : null,
-        drip_quantity: variantForm.drip_quantity ? parseInt(variantForm.drip_quantity) : null
+        drip_quantity: variantForm.drip_quantity ? parseInt(variantForm.drip_quantity) : null,
+        // 추가 정보 입력 필드 설정
+        requires_comments: variantForm.requires_comments || false,
+        requires_custom_fields: variantForm.requires_custom_fields || false,
+        custom_fields_config: variantForm.custom_fields_config || {}
       }
       
       // null 값 제거
@@ -334,7 +361,10 @@ const AdminServiceManagement = ({ adminFetch }) => {
           drip_quantity: '',
           is_active: true,
           meta_json: {},
-          api_endpoint: ''
+          api_endpoint: '',
+          requires_comments: false,
+          requires_custom_fields: false,
+          custom_fields_config: {}
         })
       } else {
         const data = await response.json()
@@ -349,7 +379,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
 
   // 삭제 함수들
   const handleDeleteCategory = async (categoryId) => {
-    if (!confirm('카테고리를 비활성화하시겠습니까?')) return
+    if (!confirm('카테고리를 삭제하시겠습니까?\n\n연결된 상품이나 패키지도 함께 삭제될 수 있습니다.')) return
 
     try {
       const response = await adminFetch(`/api/admin/categories/${categoryId}`, {
@@ -357,10 +387,19 @@ const AdminServiceManagement = ({ adminFetch }) => {
       })
 
       if (response.ok) {
+        const data = await response.json()
+        alert(data.message || '카테고리가 삭제되었습니다.')
         await loadCategories()
+        await loadProducts()
+        await loadVariants()
+        await loadPackages()
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || '카테고리 삭제 실패')
       }
     } catch (err) {
       console.error('카테고리 삭제 실패:', err)
+      alert('카테고리 삭제 중 오류가 발생했습니다.')
     }
   }
 
@@ -425,6 +464,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
         name: product.name,
         description: product.description || '',
         is_domestic: product.is_domestic,
+        is_auto: product.is_auto || false,
         auto_tag: product.auto_tag || false,
         is_package: false
       })
@@ -435,6 +475,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
           name: '',
           description: '',
           is_domestic: true,
+          is_auto: false,
           auto_tag: false,
           is_package: false
         })
@@ -467,7 +508,11 @@ const AdminServiceManagement = ({ adminFetch }) => {
         drip_quantity: meta.drip_quantity || '',
         is_active: variant.is_active,
         meta_json: variant.meta_json || {},
-        api_endpoint: variant.api_endpoint || ''
+        api_endpoint: variant.api_endpoint || '',
+        // 추가 정보 입력 필드 설정
+        requires_comments: (meta.requires_comments) || false,
+        requires_custom_fields: (meta.requires_custom_fields) || false,
+        custom_fields_config: (meta.custom_fields_config) || {}
       })
     } else {
       setEditingItem(null)
@@ -488,7 +533,10 @@ const AdminServiceManagement = ({ adminFetch }) => {
         drip_quantity: '',
         is_active: true,
         meta_json: {},
-        api_endpoint: ''
+        api_endpoint: '',
+        requires_comments: false,
+        requires_custom_fields: false,
+        custom_fields_config: {}
       })
     }
     setShowVariantModal(true)
@@ -693,12 +741,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
           >
             <Package size={16} /> 패키지 추가
           </button>
-          <button
-            className="btn-primary"
-            onClick={importSMM}
-          >
-            SMM 불러오기
-          </button>
+
         </div>
       </div>
 
@@ -722,7 +765,6 @@ const AdminServiceManagement = ({ adminFetch }) => {
                 {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 <Tag size={16} />
                 <span className="category-name">{category.name}</span>
-                {!category.is_active && <span className="inactive-badge">비활성</span>}
                 <div className="category-actions">
                   <button
                     className="btn-icon"
@@ -1044,11 +1086,31 @@ const AdminServiceManagement = ({ adminFetch }) => {
                 <label>
                   <input
                     type="checkbox"
+                    checked={productForm.is_auto}
+                    onChange={(e) => setProductForm({ ...productForm, is_auto: e.target.checked })}
+                  />
+                  자동상품
+                </label>
+                {productForm.is_auto && (
+                  <span className="badge" style={{ marginLeft: '8px', padding: '4px 8px', backgroundColor: '#4CAF50', color: 'white', borderRadius: '4px', fontSize: '12px' }}>
+                    자동
+                  </span>
+                )}
+              </div>
+              <div className="form-group">
+                <label>
+                  <input
+                    type="checkbox"
                     checked={productForm.auto_tag}
                     onChange={(e) => setProductForm({ ...productForm, auto_tag: e.target.checked })}
                   />
                   자동 태그
                 </label>
+                {productForm.auto_tag && (
+                  <span className="badge" style={{ marginLeft: '8px', padding: '4px 8px', backgroundColor: '#2196F3', color: 'white', borderRadius: '4px', fontSize: '12px' }}>
+                    자동 태그
+                  </span>
+                )}
               </div>
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowProductModal(false)}>
@@ -1195,8 +1257,66 @@ const AdminServiceManagement = ({ adminFetch }) => {
                   type="text"
                   value={variantForm.api_endpoint}
                   onChange={(e) => setVariantForm({ ...variantForm, api_endpoint: e.target.value })}
-                  placeholder="SMM Panel API 엔드포인트"
+                  placeholder="SMM Panel API 엔드포인트 (환경변수에서 자동 로드)"
                 />
+                <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                  환경변수 SMMPANEL_API_ENDPOINT에서 자동으로 로드됩니다. 필요시 수동으로 수정할 수 있습니다.
+                </small>
+              </div>
+
+              {/* 추가 정보 입력 필드 설정 */}
+              <div className="form-section">
+                <h4>추가 정보 입력 필드 설정</h4>
+                <div className="form-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={variantForm.requires_comments || false}
+                      onChange={(e) => setVariantForm({ ...variantForm, requires_comments: e.target.checked })}
+                    />
+                    댓글 필드 필요
+                  </label>
+                  <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                    주문 시 댓글을 입력받습니다
+                  </small>
+                </div>
+                <div className="form-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={variantForm.requires_custom_fields || false}
+                      onChange={(e) => setVariantForm({ ...variantForm, requires_custom_fields: e.target.checked })}
+                    />
+                    커스텀 필드 필요
+                  </label>
+                  <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                    주문 시 추가 정보를 입력받습니다
+                  </small>
+                </div>
+                {variantForm.requires_custom_fields && (
+                  <div className="form-group">
+                    <label>커스텀 필드 설정 (JSON)</label>
+                    <textarea
+                      value={typeof variantForm.custom_fields_config === 'string' 
+                        ? variantForm.custom_fields_config 
+                        : JSON.stringify(variantForm.custom_fields_config || {}, null, 2)}
+                      onChange={(e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value)
+                          setVariantForm({ ...variantForm, custom_fields_config: parsed })
+                        } catch {
+                          setVariantForm({ ...variantForm, custom_fields_config: e.target.value })
+                        }
+                      }}
+                      placeholder='{"field1": {"label": "필드명", "type": "text", "required": true}, ...}'
+                      rows={4}
+                      style={{ fontFamily: 'monospace', fontSize: '12px' }}
+                    />
+                    <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                      JSON 형식으로 커스텀 필드를 설정합니다. 예: {"field1": {"label": "사용자명", "type": "text", "required": true}}
+                    </small>
+                  </div>
+                )}
               </div>
               
               {/* Drip-feed 설정 */}

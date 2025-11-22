@@ -46,9 +46,7 @@ const Home = () => {
   const [isLoading, setIsLoading] = useState(false)
 
   
-  // 할인 쿠폰 관련 상태
-  const [selectedDiscountCoupon, setSelectedDiscountCoupon] = useState(null)
-  const [availableDiscountCoupons, setAvailableDiscountCoupons] = useState([])
+  // 할인 쿠폰 관련 상태 제거 - 추천인 시스템은 커미션 방식 (할인 쿠폰 아님)
   
   // SMM Panel 유효 서비스 ID 목록
   const [validServiceIds, setValidServiceIds] = useState([])
@@ -162,57 +160,108 @@ const Home = () => {
   // 카탈로그 데이터 로드 (카테고리, 상품, 세부서비스, 패키지)
   const loadCatalog = async () => {
     setIsLoadingCatalog(true)
+    const errors = []
+    
     try {
       // 카테고리 로드
-      const categoriesRes = await fetch('/api/categories')
-      if (categoriesRes.ok) {
-        const categoriesData = await categoriesRes.json()
-        setCategories(categoriesData.categories || [])
+      try {
+        const categoriesRes = await fetch('/api/categories')
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json()
+          setCategories(categoriesData.categories || [])
+          console.log('✅ 카테고리 로드 완료:', categoriesData.categories?.length || 0, '개')
+        } else {
+          const errorData = await categoriesRes.json().catch(() => ({}))
+          const errorMsg = errorData.error || `카테고리 로드 실패 (${categoriesRes.status})`
+          console.error('❌', errorMsg)
+          errors.push(errorMsg)
+        }
+      } catch (error) {
+        console.error('❌ 카테고리 로드 오류:', error)
+        errors.push('카테고리 로드 중 네트워크 오류가 발생했습니다.')
       }
 
       // 상품 로드
-      const productsRes = await fetch('/api/products')
-      if (productsRes.ok) {
-        const productsData = await productsRes.json()
-        setProducts(productsData.products || [])
+      try {
+        const productsRes = await fetch('/api/products')
+        if (productsRes.ok) {
+          const productsData = await productsRes.json()
+          setProducts(productsData.products || [])
+          console.log('✅ 상품 로드 완료:', productsData.products?.length || 0, '개')
+        } else {
+          const errorData = await productsRes.json().catch(() => ({}))
+          const errorMsg = errorData.error || `상품 로드 실패 (${productsRes.status})`
+          console.error('❌', errorMsg)
+          errors.push(errorMsg)
+        }
+      } catch (error) {
+        console.error('❌ 상품 로드 오류:', error)
+        errors.push('상품 로드 중 네트워크 오류가 발생했습니다.')
       }
 
       // 세부서비스 로드
-      const variantsRes = await fetch('/api/product-variants')
-      if (variantsRes.ok) {
-        const variantsData = await variantsRes.json()
-        // variants 형식 정규화 (API 응답 형식에 맞춤)
-        const normalizedVariants = (variantsData.variants || variantsData || []).map(v => ({
-          variant_id: v.variant_id || v.id,
-          product_id: v.product_id,
-          category_id: v.category_id,
-          name: v.name,
-          price: parseFloat(v.price || 0),
-          min_quantity: parseInt(v.min || v.min_quantity || 1),
-          max_quantity: parseInt(v.max || v.max_quantity || 1000000),
-          delivery_time_days: v.delivery_time_days,
-          meta_json: v.meta_json || (typeof v.meta_json === 'string' ? JSON.parse(v.meta_json) : {}),
-          api_endpoint: v.api_endpoint,
-          product_name: v.product_name,
-          category_name: v.category_name,
-          // 하위 호환성을 위한 필드
-          id: v.variant_id || v.id,
-          min: parseInt(v.min || v.min_quantity || 1),
-          max: parseInt(v.max || v.max_quantity || 1000000),
-        }))
-        setVariants(normalizedVariants)
-        console.log('✅ 세부서비스 로드 완료:', normalizedVariants.length, '개')
+      try {
+        const variantsRes = await fetch('/api/product-variants')
+        if (variantsRes.ok) {
+          const variantsData = await variantsRes.json()
+          // variants 형식 정규화 (API 응답 형식에 맞춤)
+          const normalizedVariants = (variantsData.variants || variantsData || []).map(v => ({
+            variant_id: v.variant_id || v.id,
+            product_id: v.product_id,
+            category_id: v.category_id,
+            name: v.name,
+            price: parseFloat(v.price || 0),
+            min_quantity: parseInt(v.min || v.min_quantity || 1),
+            max_quantity: parseInt(v.max || v.max_quantity || 1000000),
+            delivery_time_days: v.delivery_time_days,
+            meta_json: v.meta_json || (typeof v.meta_json === 'string' ? JSON.parse(v.meta_json) : {}),
+            api_endpoint: v.api_endpoint,
+            product_name: v.product_name,
+            category_name: v.category_name,
+            // 하위 호환성을 위한 필드
+            id: v.variant_id || v.id,
+            min: parseInt(v.min || v.min_quantity || 1),
+            max: parseInt(v.max || v.max_quantity || 1000000),
+          }))
+          setVariants(normalizedVariants)
+          console.log('✅ 세부서비스 로드 완료:', normalizedVariants.length, '개')
+        } else {
+          const errorData = await variantsRes.json().catch(() => ({}))
+          const errorMsg = errorData.error || `세부서비스 로드 실패 (${variantsRes.status})`
+          console.error('❌', errorMsg)
+          errors.push(errorMsg)
+        }
+      } catch (error) {
+        console.error('❌ 세부서비스 로드 오류:', error)
+        errors.push('세부서비스 로드 중 네트워크 오류가 발생했습니다.')
       }
 
       // 패키지 로드
-      const packagesRes = await fetch('/api/packages')
-      if (packagesRes.ok) {
-        const packagesData = await packagesRes.json()
-        setPackages(packagesData.packages || [])
-        console.log('✅ 패키지 로드 완료:', packagesData.packages?.length || 0, '개')
+      try {
+        const packagesRes = await fetch('/api/packages')
+        if (packagesRes.ok) {
+          const packagesData = await packagesRes.json()
+          setPackages(packagesData.packages || [])
+          console.log('✅ 패키지 로드 완료:', packagesData.packages?.length || 0, '개')
+        } else {
+          const errorData = await packagesRes.json().catch(() => ({}))
+          const errorMsg = errorData.error || `패키지 로드 실패 (${packagesRes.status})`
+          console.error('❌', errorMsg)
+          errors.push(errorMsg)
+        }
+      } catch (error) {
+        console.error('❌ 패키지 로드 오류:', error)
+        errors.push('패키지 로드 중 네트워크 오류가 발생했습니다.')
+      }
+
+      // 에러가 있으면 사용자에게 알림
+      if (errors.length > 0) {
+        console.warn('⚠️ 일부 카탈로그 데이터 로드 실패:', errors)
+        // 데이터베이스 연결 문제인 경우 하드코딩된 데이터 사용 가능
+        console.log('💡 데이터베이스 연결 문제로 하드코딩된 데이터를 사용합니다.')
       }
     } catch (error) {
-      console.error('❌ 카탈로그 로드 오류:', error)
+      console.error('❌ 카탈로그 로드 중 예기치 않은 오류:', error)
     } finally {
       setIsLoadingCatalog(false)
     }
@@ -241,63 +290,8 @@ const Home = () => {
     }
   }, [selectedPlatform, selectedService, selectedDetailedService, variants, packages])
 
-  // 할인 쿠폰 초기화 - 백엔드에서 실제 쿠폰 조회
-  useEffect(() => {
-    const loadUserCoupons = async () => {
-      if (!currentUser?.uid) {
-        // 로그인하지 않은 경우 기본 쿠폰만 표시
-        setAvailableDiscountCoupons([
-          { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
-        ])
-        return
-      }
-      
-      try {
-        // 백엔드에서 사용자의 사용 가능한 쿠폰 조회
-        const response = await fetch(`/api/user/coupons?user_id=${currentUser.uid}`)
-        if (response.ok) {
-          const data = await response.json()
-          const usableCoupons = data.coupons.filter(coupon => 
-            !coupon.is_used && new Date(coupon.expires_at) > new Date()
-          )
-          
-          if (usableCoupons.length > 0) {
-            // 백엔드에서 가져온 쿠폰 + 할인 없음 옵션
-            const couponOptions = [
-              ...usableCoupons.map(coupon => ({
-                id: coupon.id,
-                name: `추천인 ${coupon.discount_value}% 할인 쿠폰`,
-                discount: coupon.discount_value,
-                type: coupon.discount_type,
-                referralCode: coupon.referral_code
-              })),
-              { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
-            ]
-            setAvailableDiscountCoupons(couponOptions)
-            // 기본으로 첫 번째 쿠폰 선택
-            setSelectedDiscountCoupon(couponOptions[0])
-          } else {
-            // 사용 가능한 쿠폰이 없는 경우
-            setAvailableDiscountCoupons([
-              { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
-            ])
-          }
-        } else {
-          // API 오류 시 기본 쿠폰만 표시
-          setAvailableDiscountCoupons([
-            { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
-          ])
-        }
-      } catch (error) {
-        // 오류 발생 시 기본 쿠폰만 표시
-        setAvailableDiscountCoupons([
-          { id: 'no_discount', name: '할인 없음', discount: 0, type: 'none' }
-        ])
-      }
-    }
-    
-    loadUserCoupons()
-  }, [currentUser])
+  // 추천인 시스템은 커미션 방식 - 피추천인 구매 금액의 10%를 추천인에게 커미션으로 지급 (백엔드에서 자동 처리)
+  // 할인 쿠폰 관련 코드는 모두 제거됨
 
   // 인스타그램 세부 서비스 데이터
   const instagramDetailedServices = {
@@ -1487,18 +1481,9 @@ const Home = () => {
       basePrice = (selectedDetailedService.price / 1000) * quantity
     }
     
-    // 할인 적용
-    let discount = 0
-    
-    // 선택된 할인 쿠폰만 적용
-    if (selectedDiscountCoupon && selectedDiscountCoupon.discount > 0) {
-      discount = selectedDiscountCoupon.discount
-    }
-    
-    const totalDiscount = discount
-    
-    const finalPrice = basePrice * (1 - totalDiscount / 100)
-    setTotalPrice(Math.round(finalPrice))
+    // 할인 제거 - 추천인 시스템은 커미션 방식 (할인 쿠폰 아님)
+    // 추천인은 피추천인 구매 금액의 10%를 커미션으로 받음 (백엔드에서 자동 처리)
+    setTotalPrice(Math.round(basePrice))
   }, [selectedDetailedService, quantity, selectedPlatform])
 
   const handlePlatformSelect = (platformId) => {
@@ -2328,10 +2313,10 @@ const Home = () => {
         is_split_delivery: isSplitDelivery,
         split_days: isSplitDelivery ? splitDays : null,
         split_quantity: isSplitDelivery ? getDailyQuantity() : null,
-        // 선택된 할인 쿠폰 정보
-        use_coupon: selectedDiscountCoupon && selectedDiscountCoupon.discount > 0,
-        coupon_id: selectedDiscountCoupon && selectedDiscountCoupon.id !== 'no_discount' ? selectedDiscountCoupon.id : null,
-        coupon_discount: selectedDiscountCoupon ? selectedDiscountCoupon.discount : 0,
+        // 할인 쿠폰 제거 - 추천인 시스템은 커미션 방식
+        use_coupon: false,
+        coupon_id: null,
+        coupon_discount: 0,
         // 패키지 상품 정보 (drip-feed가 아닌 경우만)
         package_steps: !isDripFeed && selectedDetailedService?.package && selectedDetailedService?.steps ? selectedDetailedService.steps.map(step => ({
           ...step,
@@ -2437,7 +2422,7 @@ const Home = () => {
               link: safeLink,
               comments: safeComments,
             explanation: explanation || '',
-            discount: selectedDiscountCoupon ? selectedDiscountCoupon.discount : 0,
+            discount: 0, // 할인 쿠폰 제거 - 추천인 시스템은 커미션 방식
             userPoints: userPoints,
             isScheduledOrder: isScheduledOrder,
             scheduledDate: scheduledDate,
@@ -2750,37 +2735,6 @@ const Home = () => {
           </div>
           )}
 
-          {/* 할인 쿠폰 선택 */}
-          {availableDiscountCoupons.length > 1 && (
-            <div className="form-group">
-              <label>할인 쿠폰 선택</label>
-              <div className="discount-coupon-selection">
-                {availableDiscountCoupons.map((coupon) => (
-                  <div 
-                    key={coupon.id}
-                    className={`discount-coupon-option ${selectedDiscountCoupon?.id === coupon.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedDiscountCoupon(coupon)}
-                  >
-                    <div className="coupon-info">
-                      <span className="coupon-name">{coupon.name}</span>
-                      {coupon.discount > 0 && (
-                        <span className="coupon-discount">{coupon.discount}% 할인</span>
-              )}
-            </div>
-                    <div className="coupon-radio">
-                      <input 
-                        type="radio" 
-                        name="discountCoupon" 
-                        value={coupon.id}
-                        checked={selectedDiscountCoupon?.id === coupon.id}
-                        onChange={() => setSelectedDiscountCoupon(coupon)}
-                      />
-          </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="form-group">
             <label>링크 입력</label>

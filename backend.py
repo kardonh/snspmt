@@ -721,26 +721,76 @@ def create_scheduled_order():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # user_id를 내부 데이터베이스 user_id로 변환 (external_uid -> user_id)
+        db_user_id = user_id  # 기본값은 그대로 사용 (SQLite 호환)
+        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT user_id FROM users WHERE external_uid = %s OR email = %s LIMIT 1
+            """, (user_id, user_id))
+            user_result = cursor.fetchone()
+            if user_result:
+                db_user_id = user_result[0]
+                print(f"✅ 사용자 ID 변환 완료: external_uid={user_id} -> user_id={db_user_id}")
+            else:
+                print(f"⚠️ 사용자를 찾을 수 없음: external_uid={user_id}, external_uid를 그대로 사용")
+                db_user_id = user_id
+        
+        # service_id를 variant_id로 변환 (product_variants 테이블에서 meta_json->>'service_id'로 찾기)
+        variant_id = None
+        unit_price = price  # 기본값: 전체 금액을 단가로 사용
+        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+            try:
+                if service_id and str(service_id).isdigit():
+                    cursor.execute("""
+                        SELECT variant_id, price 
+                        FROM product_variants 
+                        WHERE (meta_json->>'service_id')::text = %s 
+                           OR (meta_json->>'smm_service_id')::text = %s
+                        LIMIT 1
+                    """, (str(service_id), str(service_id)))
+                    variant_result = cursor.fetchone()
+                    if variant_result:
+                        variant_id = variant_result[0]
+                        unit_price = float(variant_result[1]) if variant_result[1] else price
+                        print(f"✅ Variant ID 찾음: service_id={service_id} -> variant_id={variant_id}")
+            except Exception as variant_error:
+                print(f"⚠️ variant_id 변환 중 오류 (무시하고 계속): {variant_error}")
+        
         # 예약 주문 저장
         package_steps = data.get('package_steps', [])
         runs = data.get('runs', 1)  # Drip-feed: 기본값 1
         interval = data.get('interval', 0)  # Drip-feed: 기본값 0
-        print(f"🔍 예약 주문 저장: 사용자={user_id}, 서비스={service_id}, 예약시간={scheduled_datetime}, 패키지단계={len(package_steps)}개, runs={runs}, interval={interval}")
+        print(f"🔍 예약 주문 저장: 사용자={db_user_id}, 서비스={service_id}, 예약시간={scheduled_datetime}, 패키지단계={len(package_steps)}개, runs={runs}, interval={interval}")
         
-        # order_id 생성
+        # order_id 생성 (bigint 호환)
         import time
-        order_id = f"ORDER_{int(time.time())}_{user_id[:8]}"
+        order_id = int(time.time() * 1000)  # 밀리초 단위 타임스탬프
         
-        # orders 테이블에 예약 주문 저장
+        # orders 테이블에 예약 주문 저장 (실제 스키마에 맞게 수정)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 INSERT INTO orders 
-                (order_id, user_id, service_id, link, quantity, price, status, is_scheduled, scheduled_datetime, package_steps, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, 'pending', TRUE, %s, %s, NOW(), NOW())
+                (order_id, user_id, total_amount, final_amount, status, is_scheduled, scheduled_datetime, package_steps, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, 'pending', TRUE, %s, %s, NOW(), NOW())
+                RETURNING order_id
             """, (
-                order_id, user_id, service_id, link, quantity, price, scheduled_datetime,
+                order_id, db_user_id, price, price, scheduled_datetime,
                 json.dumps(package_steps) if package_steps else None
             ))
+            inserted_order_id = cursor.fetchone()[0] if cursor.rowcount > 0 else order_id
+            order_id = inserted_order_id
+            
+            # order_items 테이블에 상세 정보 저장 (새 스키마)
+            if DATABASE_URL.startswith('postgresql://') and variant_id:
+                try:
+                    line_amount = unit_price * quantity
+                    cursor.execute("""
+                        INSERT INTO order_items (order_id, variant_id, quantity, unit_price, line_amount, link, status, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), NOW())
+                    """, (order_id, variant_id, quantity, unit_price, line_amount, link))
+                    print(f"✅ 예약 주문 아이템 생성 완료 - variant_id: {variant_id}, quantity: {quantity}")
+                except Exception as item_error:
+                    print(f"⚠️ 예약 주문 아이템 생성 실패 (무시하고 계속): {item_error}")
             
             # package_steps가 있으면 execution_progress에 예약 정보 저장
             if package_steps and len(package_steps) > 0:
@@ -967,7 +1017,8 @@ def call_smm_panel_api(order_data):
             }
         
         print(f"📞 SMM Panel API 요청: {payload}")
-        response = requests.post(smm_panel_url, json=payload, timeout=3)
+        # 타임아웃을 10초로 증가 (네트워크 지연 대응)
+        response = requests.post(smm_panel_url, json=payload, timeout=10)
         print(f"📞 SMM Panel API 응답 상태: {response.status_code}")
         
         # 응답이 없거나 빈 경우 처리
@@ -1325,11 +1376,15 @@ def process_split_delivery(order_id, day_number):
         cursor = conn.cursor()
         
         # 분할 주문 정보 조회 (패키지 상품 포함)
+        # link와 variant_id는 order_items 테이블에서 가져옴
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT user_id, service_id, link, split_quantity, comments, split_days, package_steps
-                FROM orders 
-                WHERE order_id = %s AND (is_split_delivery = TRUE OR package_steps IS NOT NULL)
+                SELECT o.user_id, oi.variant_id, COALESCE(oi.link, ''), o.split_quantity, 
+                       COALESCE(o.comments, ''), o.split_days, o.package_steps
+                FROM orders o
+                LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                WHERE o.order_id = %s AND (o.is_split_delivery = TRUE OR o.package_steps IS NOT NULL)
+                LIMIT 1
             """, (order_id,))
         else:
             cursor.execute("""
@@ -1342,7 +1397,11 @@ def process_split_delivery(order_id, day_number):
         if not order:
             return False
         
-        user_id, service_id, link, split_quantity, comments, total_days, package_steps = order
+        if DATABASE_URL.startswith('postgresql://'):
+            user_id, variant_id, link, split_quantity, comments, total_days, package_steps = order
+            service_id = str(variant_id) if variant_id else None
+        else:
+            user_id, service_id, link, split_quantity, comments, total_days, package_steps = order
         
         # 패키지 상품인 경우 특별 처리
         if package_steps:
@@ -1465,16 +1524,19 @@ def process_package_step(order_id, step_index):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 주문 정보 조회
+        # 주문 정보 조회 (comments 컬럼은 nullable이므로 COALESCE 사용)
+        # link는 order_items 테이블에서 가져와야 함
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT user_id, link, package_steps, comments
-                FROM orders 
-                WHERE order_id = %s
+                SELECT o.user_id, COALESCE(oi.link, ''), o.package_steps, COALESCE(o.comments, '') as comments
+                FROM orders o
+                LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                WHERE o.order_id = %s
+                LIMIT 1
             """, (order_id,))
         else:
             cursor.execute("""
-                SELECT user_id, link, package_steps, comments
+                SELECT user_id, link, package_steps, COALESCE(comments, '') as comments
                 FROM orders 
                 WHERE order_id = ?
             """, (order_id,))
@@ -1485,6 +1547,7 @@ def process_package_step(order_id, step_index):
             return False
         
         user_id, link, package_steps_json, comments = order
+        comments = comments or ''  # None 체크 추가
         print(f"🔍 패키지 주문 데이터: user_id={user_id}, link={link}, package_steps_json={package_steps_json}")
         
         try:
@@ -2044,30 +2107,75 @@ def create_actual_order_from_scheduled(scheduled_id, user_id, service_id, link, 
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 새로운 주문 ID 생성 (더 작은 숫자 ID 사용)
-        new_order_id = int(time.time() * 100) % 2147483647  # PostgreSQL INTEGER 최대값 미만
+        # 새로운 주문 ID 생성 (bigint 호환)
+        import time
+        new_order_id = int(time.time() * 1000)  # 밀리초 단위 타임스탬프
         
-        # 실제 주문 생성
+        # service_id를 variant_id로 변환
+        variant_id = None
+        unit_price = price
+        if DATABASE_URL.startswith('postgresql://'):
+            try:
+                if service_id and str(service_id).isdigit():
+                    cursor.execute("""
+                        SELECT variant_id, price 
+                        FROM product_variants 
+                        WHERE (meta_json->>'service_id')::text = %s 
+                           OR (meta_json->>'smm_service_id')::text = %s
+                        LIMIT 1
+                    """, (str(service_id), str(service_id)))
+                    variant_result = cursor.fetchone()
+                    if variant_result:
+                        variant_id = variant_result[0]
+                        unit_price = float(variant_result[1]) if variant_result[1] else price
+            except Exception as variant_error:
+                print(f"⚠️ variant_id 변환 중 오류 (무시): {variant_error}")
+        
+        # user_id를 내부 데이터베이스 user_id로 변환
+        db_user_id = user_id
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor.execute("""
+                SELECT user_id FROM users WHERE external_uid = %s OR email = %s LIMIT 1
+            """, (user_id, user_id))
+            user_result = cursor.fetchone()
+            if user_result:
+                db_user_id = user_result[0]
+        
+        # 실제 주문 생성 (실제 스키마에 맞게 수정)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 INSERT INTO orders 
-                (order_id, user_id, platform, service_name, service_id, link, quantity, 
-                 price, status, created_at, updated_at, is_scheduled, package_steps)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(), FALSE, %s)
+                (order_id, user_id, total_amount, final_amount, status, created_at, updated_at, is_scheduled, package_steps, detailed_service)
+                VALUES (%s, %s, %s, %s, 'pending', NOW(), NOW(), FALSE, %s, %s)
+                RETURNING order_id
             """, (
-                new_order_id, user_id, 'Instagram', 'Scheduled Package',
-                service_id, link, quantity, price, 'pending', json.dumps(package_steps)
+                new_order_id, db_user_id, price, price,
+                json.dumps(package_steps) if package_steps else None, 'Scheduled Package'
             ))
+            inserted_order_id = cursor.fetchone()[0] if cursor.rowcount > 0 else new_order_id
+            new_order_id = inserted_order_id
         else:
+            # SQLite: 구 스키마 유지 (레거시 호환)
             cursor.execute("""
                 INSERT INTO orders 
-                (order_id, user_id, platform, service_name, service_id, link, quantity, 
-                 price, status, created_at, updated_at, is_scheduled, package_steps)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 0, ?)
+                (order_id, user_id, service_id, link, quantity, price, status, created_at, updated_at, is_scheduled, package_steps)
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'), 0, ?)
             """, (
-                new_order_id, user_id, 'Instagram', 'Scheduled Package',
-                service_id, link, quantity, price, 'pending', json.dumps(package_steps)
+                new_order_id, user_id, service_id, link, quantity, price,
+                json.dumps(package_steps) if package_steps else None
             ))
+        
+        # order_items 테이블에 상세 정보 저장
+        if DATABASE_URL.startswith('postgresql://') and variant_id:
+            try:
+                line_amount = unit_price * quantity
+                cursor.execute("""
+                    INSERT INTO order_items (order_id, variant_id, quantity, unit_price, line_amount, link, status, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), NOW())
+                """, (new_order_id, variant_id, quantity, unit_price, line_amount, link))
+                print(f"✅ 예약 주문 아이템 생성 완료 - variant_id: {variant_id}")
+            except Exception as item_error:
+                print(f"⚠️ 예약 주문 아이템 생성 실패 (무시): {item_error}")
         
         conn.commit()
         print(f"✅ 예약 주문에서 실제 주문 생성: {new_order_id}")
@@ -2138,12 +2246,14 @@ def process_scheduled_order(order_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 예약 주문 정보 조회
+        # 예약 주문 정보 조회 (link와 quantity는 order_items에서 가져옴)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT user_id, service_id, link, quantity, comments
-                FROM orders 
-                WHERE order_id = %s AND is_scheduled = TRUE
+                SELECT o.user_id, oi.variant_id, COALESCE(oi.link, ''), oi.quantity, COALESCE(o.comments, '')
+                FROM orders o
+                LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                WHERE o.order_id = %s AND o.is_scheduled = TRUE
+                LIMIT 1
             """, (order_id,))
         else:
             cursor.execute("""
@@ -2156,7 +2266,11 @@ def process_scheduled_order(order_id):
         if not order:
             return False
         
-        user_id, service_id, link, quantity, comments = order
+        if DATABASE_URL.startswith('postgresql://'):
+            user_id, variant_id, link, quantity, comments = order
+            service_id = str(variant_id) if variant_id else None
+        else:
+            user_id, service_id, link, quantity, comments = order
         
         # SMM Panel API 호출
         smm_result = call_smm_panel_api({
@@ -2217,112 +2331,194 @@ if os.environ.get('FLASK_ENV') != 'production':
 
 def get_db_connection():
     """데이터베이스 연결을 가져옵니다."""
-    # psycopg2가 읽을 수 있는 모든 데이터베이스 관련 환경 변수 제거
-    # 인코딩 문제를 완전히 회피하기 위해
-    saved_env_vars = {}
-    db_env_keys = ['DATABASE_URL', 'PGHOST', 'PGPORT', 'PGDATABASE', 'PGUSER', 'PGPASSWORD', 'PGPASSFILE']
-    for key in db_env_keys:
-        if key in os.environ:
-            saved_env_vars[key] = os.environ.pop(key)
+    # DATABASE_URL 환경 변수에서 연결 정보 추출
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    
+    if not DATABASE_URL:
+        raise Exception("DATABASE_URL 환경 변수가 설정되지 않았습니다.")
     
     try:
-        # ASCII bytes로 정의 (인코딩 문제 없음)
-        # Direct Connection 우선 시도 (가장 안정적)
-        host_bytes = b'db.gvtrizwkstaznrlloixi.supabase.co'
-        db_name_bytes = b'postgres'
-        db_user_bytes = b'postgres'  # Direct는 postgres 사용
-        # Supabase 데이터베이스 비밀번호
-        db_password_bytes = b'VEOdjCwztZm4oynz'
+        # DATABASE_URL 파싱
+        parsed = urlparse(DATABASE_URL)
         
-        # ASCII로 decode (항상 성공)
-        host_str = host_bytes.decode('ascii')
-        db_name_str = db_name_bytes.decode('ascii')
-        db_user_str = db_user_bytes.decode('ascii')
-        db_password_str = db_password_bytes.decode('ascii')
+        # 사용자 정보 추출 (user:password 형식)
+        user_info = parsed.username
+        password = unquote(parsed.password) if parsed.password else ''
         
-        # psycopg2.connect()에 전달 (모든 값이 ASCII 문자열)
-        # 모든 파라미터를 명시적으로 전달하여 환경 변수 의존성 제거
+        # 호스트, 포트, 데이터베이스명
+        host = parsed.hostname
+        port = parsed.port or 5432
+        database = parsed.path.lstrip('/') or 'postgres'
+        
+        # DNS 해석 문제 방지: 호스트명을 IP로 변환 시도
+        import socket
+        try:
+            # 호스트명이 IP 주소인지 확인
+            socket.inet_aton(host)
+            resolved_host = host  # 이미 IP 주소
+        except socket.error:
+            # 호스트명이므로 DNS 조회
+            try:
+                resolved_host = socket.gethostbyname(host)
+                print(f"🔍 DNS 조회 성공: {host} -> {resolved_host}")
+            except socket.gaierror as dns_error:
+                print(f"⚠️ DNS 조회 실패: {host} - {dns_error}")
+                # DNS 조회 실패 시 원본 호스트명 사용 (재시도용)
+                resolved_host = host
+        
+        # 사용자명이 postgres.PROJECT_REF 형식인 경우 처리
+        if user_info and '.' in user_info:
+            # Pooler 모드: postgres.gvtrizwkstaznrlloixi 형식
+            user = user_info
+        else:
+            # Direct 모드: postgres 형식
+            user = user_info or 'postgres'
+        
+        print(f"🔗 데이터베이스 연결 시도: {resolved_host}:{port}/{database} (user: {user[:20]}...)")
+        
         # psycopg2의 내부 로깅을 비활성화하여 인코딩 문제 회피
         import logging
         psycopg2_logger = logging.getLogger('psycopg2')
         psycopg2_logger.setLevel(logging.CRITICAL)
         
-        # Direct Connection 우선 시도
-        try:
-            conn = psycopg2.connect(
-                host=host_str,
-                port=5432,
-                database=db_name_str,
-                user=db_user_str,
-                password=db_password_str,
-                connect_timeout=30,
-                keepalives_idle=600,
-                keepalives_interval=30,
-                keepalives_count=3
-            )
-        except psycopg2.OperationalError as direct_error:
-            # Direct Connection 실패 시 Pooler Session mode 시도
+        # PostgreSQL 연결 시도 (IP 주소로 우선 시도)
+        conn = None
+        last_error = None
+        
+        # IP 주소가 있으면 IP로 먼저 시도, 없으면 호스트명으로 시도
+        hosts_to_try = []
+        if resolved_host != host and resolved_host:
+            hosts_to_try.append(resolved_host)  # IP 주소 먼저
+        hosts_to_try.append(host)  # 호스트명도 시도
+        
+        for attempt_host in hosts_to_try:
             try:
-                print(f"⚠️ Direct Connection 실패, Pooler Session mode 시도: {direct_error}")
-                host_bytes = b'aws-1-ap-southeast-2.pooler.supabase.com'  # aws-1 (not aws-0)
-                db_user_bytes = b'postgres.gvtrizwkstaznrlloixi'  # Pooler는 postgres.[PROJECT_REF] 형식
-                host_str = host_bytes.decode('ascii')
-                db_user_str = db_user_bytes.decode('ascii')
-                
+                # Supabase는 SSL이 필요하므로 명시적으로 설정
                 conn = psycopg2.connect(
-                    host=host_str,
-                    port=5432,  # Session mode
-                    database=db_name_str,
-                    user=db_user_str,
-                    password=db_password_str,
+                    host=attempt_host,
+                    port=port,
+                    database=database,
+                    user=user,
+                    password=password,
                     connect_timeout=30,
                     keepalives_idle=600,
                     keepalives_interval=30,
-                    keepalives_count=3
+                    keepalives_count=3,
+                    sslmode='require'  # SSL 모드 명시적 설정
                 )
-                print(f"✅ Pooler Session mode 연결 성공: {host_str}:5432")
-            except psycopg2.OperationalError as pooler_error:
-                # Pooler Session mode 실패 시 Transaction mode 시도
-                try:
-                    print(f"⚠️ Pooler Session mode 실패, Transaction mode 시도: {pooler_error}")
-                    conn = psycopg2.connect(
-                        host=host_str,
-                        port=6543,  # Transaction mode
-                        database=db_name_str,
-                        user=db_user_str,
-                        password=db_password_str,
-                        connect_timeout=30,
-                        keepalives_idle=600,
-                        keepalives_interval=30,
-                        keepalives_count=3
-                    )
-                    print(f"✅ Pooler Transaction mode 연결 성공: {host_str}:6543")
-                except psycopg2.OperationalError as pooler_error2:
-                    # 모든 연결 방법 실패
-                    raise Exception(f"모든 연결 방법 실패: Direct={direct_error}, Session={pooler_error}, Transaction={pooler_error2}")
+                print(f"✅ 데이터베이스 연결 성공: {attempt_host}:{port}/{database}")
+                conn.autocommit = False
+                # 연결이 살아있는지 확인
+                cursor_test = conn.cursor()
+                cursor_test.execute("SELECT 1")
+                cursor_test.close()
+                return conn
+            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+                last_error = e
+                error_msg = str(e)
+                # SSL 오류나 연결 끊김 오류인 경우 재시도
+                if 'SSL connection has been closed' in error_msg or 'connection has been closed' in error_msg or 'SSL' in error_msg:
+                    if attempt_host != hosts_to_try[-1]:  # 마지막 시도가 아니면 계속
+                        print(f"⚠️ {attempt_host} 연결 실패 (SSL/연결 끊김), 다음 호스트로 시도...")
+                        continue
+                    # 마지막 시도에서도 실패하면 다시 처음부터 시도 (최대 3회)
+                    print(f"⚠️ SSL 연결 실패, 재시도...")
+                    import time
+                    for retry_attempt in range(3):
+                        time.sleep(2 * (retry_attempt + 1))  # 2초, 4초, 6초 대기 (지수 백오프)
+                        try:
+                            conn = psycopg2.connect(
+                                host=attempt_host,
+                                port=port,
+                                database=database,
+                                user=user,
+                                password=password,
+                                connect_timeout=30,
+                                keepalives_idle=600,
+                                keepalives_interval=30,
+                                keepalives_count=3,
+                                sslmode='require'
+                            )
+                            print(f"✅ 데이터베이스 재연결 성공: {attempt_host}:{port}/{database} (재시도 {retry_attempt + 1}/3)")
+                            conn.autocommit = False
+                            # 연결 테스트
+                            cursor_test = conn.cursor()
+                            cursor_test.execute("SELECT 1")
+                            cursor_test.close()
+                            return conn
+                        except Exception as retry_error:
+                            if retry_attempt < 2:  # 마지막 재시도가 아니면 계속
+                                print(f"⚠️ 재연결 시도 {retry_attempt + 1}/3 실패, 다시 시도...")
+                                continue
+                            else:
+                                print(f"❌ 재연결 시도 실패 (최대 재시도 횟수 초과): {retry_error}")
+                # DNS 오류인 경우에만 다음 호스트로 시도
+                elif 'could not translate host name' in error_msg or 'Name or service not known' in error_msg:
+                    if attempt_host != hosts_to_try[-1]:  # 마지막 시도가 아니면 계속
+                        print(f"⚠️ {attempt_host} 연결 실패 (DNS 오류), 다음 호스트로 시도...")
+                        continue
+                # 다른 오류이거나 마지막 시도인 경우 즉시 실패
+                break
         
-        # 자동 커밋 비활성화 (트랜잭션 제어를 위해)
-        conn.autocommit = False
-        return conn
+        # 모든 시도 실패
+        raise last_error
         
-    except psycopg2.Error as e:
-        print(f"❌ PostgreSQL 연결 실패: {e}")
+    except psycopg2.OperationalError as e:
+        error_msg = str(e)
+        if 'could not translate host name' in error_msg or 'Name or service not known' in error_msg:
+            print(f"❌ 데이터베이스 연결 실패 (DNS 오류): {error_msg}")
+            print(f"💡 해결 방법:")
+            print(f"   1. 인터넷 연결 확인")
+            print(f"   2. DNS 서버 설정 확인 (nslookup {host} 테스트)")
+            print(f"   3. 방화벽에서 {host}:{port} 접근 허용 확인")
+        else:
+            print(f"❌ 데이터베이스 연결 실패: {error_msg}")
         raise
     except Exception as e:
-        print(f"❌ 데이터베이스 연결 오류: {e}")
+        print(f"❌ DATABASE_URL 파싱 오류: {e}")
+        print(f"   DATABASE_URL: {DATABASE_URL[:50]}...")
         import traceback
         traceback.print_exc()
         raise
-    finally:
-        # 환경 변수 복원 (다른 코드에서 사용할 수 있도록)
-        for key, value in saved_env_vars.items():
-            os.environ[key] = value
 
 def init_database():
     """데이터베이스 테이블을 초기화합니다."""
     conn = None
     try:
-        conn = get_db_connection()
+        # 연결 시도 (최대 3회 재시도)
+        max_retries = 3
+        retry_count = 0
+        while retry_count < max_retries:
+            try:
+                conn = get_db_connection()
+                break
+            except (psycopg2.OperationalError, psycopg2.InterfaceError) as conn_error:
+                retry_count += 1
+                error_msg = str(conn_error)
+                if 'SSL connection has been closed' in error_msg or 'connection has been closed' in error_msg:
+                    if retry_count < max_retries:
+                        print(f"⚠️ 데이터베이스 연결 실패 (재시도 {retry_count}/{max_retries}): {error_msg}")
+                        import time
+                        time.sleep(2 * retry_count)  # 지수 백오프: 2초, 4초, 6초
+                        continue
+                    else:
+                        print(f"❌ 데이터베이스 연결 실패 (최대 재시도 횟수 초과): {error_msg}")
+                        print(f"⚠️ 데이터베이스 초기화를 건너뜁니다. 앱은 계속 실행되지만 일부 기능이 제한될 수 있습니다.")
+                        return  # 연결 실패해도 앱은 계속 실행
+                else:
+                    # 다른 종류의 오류는 즉시 실패
+                    print(f"❌ 데이터베이스 연결 실패: {error_msg}")
+                    print(f"⚠️ 데이터베이스 초기화를 건너뜁니다. 앱은 계속 실행되지만 일부 기능이 제한될 수 있습니다.")
+                    return
+            except Exception as e:
+                print(f"❌ 데이터베이스 연결 중 예상치 못한 오류: {e}")
+                print(f"⚠️ 데이터베이스 초기화를 건너뜁니다. 앱은 계속 실행되지만 일부 기능이 제한될 수 있습니다.")
+                return
+        
+        if not conn:
+            print(f"⚠️ 데이터베이스 연결을 얻을 수 없습니다. 앱은 계속 실행되지만 일부 기능이 제한될 수 있습니다.")
+            return
+        
         cursor = conn.cursor()
         
         # PostgreSQL인지 SQLite인지 확인
@@ -2758,6 +2954,18 @@ def init_database():
             safe_add_order_col('detailed_service', 'TEXT')
             safe_add_order_col('package_steps', 'JSONB')
             
+            # wallets 테이블 생성 (새 스키마 사용)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS wallets (
+                    wallet_id BIGSERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL UNIQUE REFERENCES users (user_id),
+                    balance NUMERIC(14,2) NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            print("✅ wallets 테이블 생성 완료 (PostgreSQL)")
+            
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS point_purchases (
                 id SERIAL PRIMARY KEY,
@@ -3048,9 +3256,14 @@ def init_database():
         print("✅ 데이터베이스 인덱스 생성 완료")
             
     except Exception as e:
-        print(f"❌ 데이터베이스 초기화 실패: {e}")
-        import traceback
-        traceback.print_exc()
+        error_msg = str(e)
+        # SSL 연결 오류는 경고만 출력하고 계속 진행
+        if 'SSL connection has been closed' in error_msg or 'connection has been closed' in error_msg:
+            print(f"⚠️ 데이터베이스 초기화 중 SSL 연결 오류 (앱은 계속 실행됩니다): {error_msg}")
+        else:
+            print(f"❌ 데이터베이스 초기화 실패: {e}")
+            import traceback
+            traceback.print_exc()
         if conn:
             try:
                 conn.rollback()
@@ -3228,6 +3441,25 @@ def get_config():
         }), 200
     except Exception as e:
         print(f"❌ 설정 정보 조회 오류: {e}")
+        return jsonify({
+            'error': '설정 정보를 가져올 수 없습니다.',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/admin/config', methods=['GET'])
+@require_admin_auth
+def get_admin_config():
+    """관리자용 설정 정보 반환 (SMM API 엔드포인트 등)"""
+    try:
+        # SMM Panel API 엔드포인트 (환경변수 또는 기본값)
+        smm_api_endpoint = os.environ.get('SMMPANEL_API_ENDPOINT', 'https://smmpanel.kr/api/v2')
+        
+        return jsonify({
+            'smm_api_endpoint': smm_api_endpoint,
+            'smm_panel_url': smm_api_endpoint
+        }), 200
+    except Exception as e:
+        print(f"❌ 관리자 설정 정보 조회 오류: {e}")
         return jsonify({
             'error': '설정 정보를 가져올 수 없습니다.',
             'message': str(e)
@@ -3464,24 +3696,56 @@ def get_user_points():
                     'wallet_balance': 0
                 }), 200
             
-            # 지갑 조회 (없으면 생성)
-            cursor.execute("""
-                INSERT INTO wallets (user_id, balance, created_at, updated_at)
-                VALUES (%s, 0, NOW(), NOW())
-                ON CONFLICT (user_id) DO NOTHING
-            """, (user['user_id'],))
-            
-            cursor.execute("""
-                SELECT wallet_id, user_id, balance, created_at, updated_at
-                FROM wallets
-                WHERE user_id = %s
-            """, (user['user_id'],))
-            wallet = cursor.fetchone()
-            
-            conn.commit()
-            
-            balance = float(wallet['balance']) if wallet and wallet['balance'] else 0.0
-            print(f"✅ 포인트 조회 성공: {balance}")
+            # 지갑 조회 (없으면 생성) - 안전하게 처리
+            try:
+                # 먼저 지갑이 있는지 확인
+                cursor.execute("""
+                    SELECT wallet_id, user_id, balance, created_at, updated_at
+                    FROM wallets
+                    WHERE user_id = %s
+                """, (user['user_id'],))
+                wallet = cursor.fetchone()
+                
+                # 지갑이 없으면 생성
+                if not wallet:
+                    try:
+                        cursor.execute("""
+                            INSERT INTO wallets (user_id, balance, created_at, updated_at)
+                            VALUES (%s, 0, NOW(), NOW())
+                            RETURNING wallet_id, user_id, balance
+                        """, (user['user_id'],))
+                        wallet = cursor.fetchone()
+                        print(f"✅ 지갑 생성 완료: user_id={user['user_id']}")
+                        conn.commit()
+                    except Exception as insert_error:
+                        # UNIQUE 제약 조건 오류는 무시 (다른 요청에서 이미 생성됨)
+                        error_msg = str(insert_error).lower()
+                        if 'unique' in error_msg or 'duplicate' in error_msg:
+                            print(f"⚠️ 지갑이 이미 존재함 (재조회): {insert_error}")
+                            conn.rollback()
+                            # 다시 조회
+                            cursor.execute("""
+                                SELECT wallet_id, user_id, balance, created_at, updated_at
+                                FROM wallets
+                                WHERE user_id = %s
+                            """, (user['user_id'],))
+                            wallet = cursor.fetchone()
+                        else:
+                            raise
+                else:
+                    conn.commit()
+                
+                # 잔액 계산
+                balance = float(wallet['balance']) if wallet and wallet.get('balance') is not None else 0.0
+                print(f"✅ 포인트 조회 성공: {balance}")
+            except Exception as wallet_error:
+                print(f"⚠️ 지갑 조회/생성 오류: {wallet_error}")
+                import traceback
+                traceback.print_exc()
+                conn.rollback()
+                # 오류가 발생해도 기본값 반환
+                balance = 0.0
+                print(f"⚠️ 기본값 0 반환")
             
             return jsonify({
                 'user_id': str(user['user_id']),
@@ -3571,94 +3835,145 @@ def create_order():
         else:
             print("⚠️ SQLite 데이터베이스 사용 중 (로컬 개발용)")
         
-        # 사용자의 추천인 연결 확인
+        # 사용자의 추천인 연결 확인 (referrals 테이블 사용)
+        referrer_user_id = None
+        referral_id = None
         if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+            # referrals 테이블에서 추천인 찾기 (referred_user_id = 현재 사용자)
             cursor.execute("""
-                SELECT referral_code, referrer_email FROM user_referral_connections 
-                WHERE user_id = %s
-            """, (user_id,))
+                SELECT r.referral_id, r.referrer_user_id, u.email as referrer_email, u.referral_code
+                FROM referrals r
+                JOIN users u ON r.referrer_user_id = u.user_id
+                WHERE r.referred_user_id = (SELECT user_id FROM users WHERE external_uid = %s OR email = %s LIMIT 1)
+                AND r.status = 'approved'
+                ORDER BY r.created_at DESC
+                LIMIT 1
+            """, (user_id, user_id))
         else:
+            # SQLite: user_referral_connections 사용 (레거시 호환)
             cursor.execute("""
                 SELECT referral_code, referrer_email FROM user_referral_connections 
                 WHERE user_id = ?
             """, (user_id,))
         
         referral_data = cursor.fetchone()
+        if referral_data and DATABASE_URL.startswith('postgresql://'):
+            referral_id = referral_data[0]
+            referrer_user_id = referral_data[1]
+            referrer_email = referral_data[2]
+            referral_code = referral_data[3]
         discount_amount = 0
         final_price = price
         
-        # 프론트엔드에서 전달받은 쿠폰 ID 확인
-        coupon_id_from_request = data.get('coupon_id')
+        # 프론트엔드에서 전달받은 쿠폰 ID 확인 (user_coupon_id)
+        coupon_id_from_request = data.get('coupon_id') or data.get('user_coupon_id')
         
-        # 쿠폰 사용 여부 확인
+        # 쿠폰 사용 여부 확인 (실제 DB 스키마: user_coupons 테이블 사용)
+        user_coupon_id = None
         if coupon_id_from_request:
             print(f"🎫 쿠폰 사용 요청 - 쿠폰 ID: {coupon_id_from_request}")
             
-            # 쿠폰 유효성 확인
+            # 쿠폰 유효성 확인 (user_coupons와 coupons 조인)
             if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+                # external_uid로 사용자 찾기
                 cursor.execute("""
-                    SELECT id, discount_value, referral_code FROM coupons 
-                    WHERE id = %s AND user_id = %s AND is_used = false 
-                    AND expires_at > NOW()
-                """, (coupon_id_from_request, user_id))
+                    SELECT user_id FROM users WHERE external_uid = %s OR email = %s LIMIT 1
+                """, (user_id, user_id))
+                user_result = cursor.fetchone()
+                db_user_id_for_coupon = user_result[0] if user_result else None
+                
+                if db_user_id_for_coupon:
+                    # user_coupons와 coupons 조인해서 조회
+                    cursor.execute("""
+                        SELECT uc.user_coupon_id, c.discount_value, c.coupon_code, c.discount_type,
+                               uc.status, c.valid_until
+                        FROM user_coupons uc
+                        JOIN coupons c ON uc.coupon_id = c.coupon_id
+                        WHERE uc.user_coupon_id = %s 
+                          AND uc.user_id = %s
+                          AND uc.status = 'active'
+                          AND (c.valid_until IS NULL OR c.valid_until > NOW())
+                    """, (coupon_id_from_request, db_user_id_for_coupon))
+                    coupon_data = cursor.fetchone()
+                    
+                    if coupon_data:
+                        user_coupon_id, discount_value, coupon_code, discount_type, status, valid_until = coupon_data
+                        
+                        # 할인 계산
+                        if discount_type == 'percentage':
+                            discount_amount = price * (float(discount_value) / 100)
+                        else:
+                            discount_amount = float(discount_value) if discount_value else 0
+                        
+                        final_price = price - discount_amount
+                        
+                        print(f"✅ 쿠폰 적용 - 할인율: {discount_value}%, 할인액: {discount_amount}원, 최종가격: {final_price}원")
+                        
+                        # 쿠폰 사용 처리 (user_coupons.status를 'used'로 변경)
+                        cursor.execute("""
+                            UPDATE user_coupons SET status = 'used', used_at = NOW() 
+                            WHERE user_coupon_id = %s
+                        """, (user_coupon_id,))
+                        
+                        print(f"✅ 쿠폰 사용 처리 완료 - user_coupon_id: {user_coupon_id}")
+                    else:
+                        print(f"⚠️ 유효한 쿠폰을 찾을 수 없음 - 쿠폰 ID: {coupon_id_from_request}")
+                        user_coupon_id = None  # 쿠폰 사용 불가로 처리
+                else:
+                    print(f"⚠️ 사용자를 찾을 수 없음 - 쿠폰 사용 불가")
+                    user_coupon_id = None
             else:
+                # SQLite: 구 스키마 사용 (레거시 호환)
                 cursor.execute("""
                     SELECT id, discount_value, referral_code FROM coupons 
                     WHERE id = ? AND user_id = ? AND is_used = false 
                     AND expires_at > datetime('now')
                 """, (coupon_id_from_request, user_id))
-            
-            coupon_data = cursor.fetchone()
-            if coupon_data:
-                coupon_id, discount_value, referral_code = coupon_data
-                discount_amount = price * (discount_value / 100)
-                final_price = price - discount_amount
+                coupon_data = cursor.fetchone()
                 
-                print(f"✅ 쿠폰 적용 - 할인율: {discount_value}%, 할인액: {discount_amount}원, 최종가격: {final_price}원")
-                
-                # 쿠폰 사용 처리
-                if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-                    cursor.execute("""
-                        UPDATE coupons SET is_used = true, used_at = NOW() 
-                        WHERE id = %s
-                    """, (coupon_id,))
-                else:
+                if coupon_data:
+                    coupon_id, discount_value, referral_code = coupon_data
+                    discount_amount = price * (discount_value / 100)
+                    final_price = price - discount_amount
+                    
+                    print(f"✅ 쿠폰 적용 - 할인율: {discount_value}%, 할인액: {discount_amount}원, 최종가격: {final_price}원")
+                    
                     cursor.execute("""
                         UPDATE coupons SET is_used = true, used_at = datetime('now') 
                         WHERE id = ?
                     """, (coupon_id,))
-                
-                print(f"✅ 쿠폰 사용 처리 완료 - 쿠폰 ID: {coupon_id}")
-                
-                # 사용자의 추천인 연결 정보 조회 (커미션 적립용)
-                if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-                    cursor.execute("""
-                        SELECT referral_code, referrer_email FROM user_referral_connections 
-                        WHERE user_id = %s
-                    """, (user_id,))
+                    
+                    print(f"✅ 쿠폰 사용 처리 완료 - 쿠폰 ID: {coupon_id}")
                 else:
-                    cursor.execute("""
-                        SELECT referral_code, referrer_email FROM user_referral_connections 
-                        WHERE user_id = ?
-                    """, (user_id,))
-                
-                referral_data = cursor.fetchone()
-            else:
-                print(f"⚠️ 유효한 쿠폰을 찾을 수 없음 - 쿠폰 ID: {coupon_id_from_request}")
+                    print(f"⚠️ 유효한 쿠폰을 찾을 수 없음 - 쿠폰 ID: {coupon_id_from_request}")
         else:
-            # 쿠폰 미사용 시 추천인 연결 확인
+            # 쿠폰 미사용 시 추천인 연결 확인 - referrals 테이블 사용
             if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
-                    SELECT referral_code, referrer_email FROM user_referral_connections 
-                    WHERE user_id = %s
-                """, (user_id,))
+                    SELECT r.referral_id, r.referrer_user_id, u.email as referrer_email, u.referral_code
+                    FROM referrals r
+                    JOIN users u ON r.referrer_user_id = u.user_id
+                    WHERE r.referred_user_id = (SELECT user_id FROM users WHERE external_uid = %s OR email = %s LIMIT 1)
+                    AND r.status = 'approved'
+                    ORDER BY r.created_at DESC
+                    LIMIT 1
+                """, (user_id, user_id))
+                referral_result = cursor.fetchone()
+                if referral_result:
+                    referral_id = referral_result[0]
+                    referrer_user_id = referral_result[1]
+                    referrer_email = referral_result[2]
+                    referral_code = referral_result[3]
+                    referral_data = referral_result
+                else:
+                    referral_data = None
             else:
+                # SQLite: 구 스키마 사용
                 cursor.execute("""
                     SELECT referral_code, referrer_email FROM user_referral_connections 
                     WHERE user_id = ?
                 """, (user_id,))
-            
-            referral_data = cursor.fetchone()
+                referral_data = cursor.fetchone()
         
         # 예약/분할 주문 정보 추출
         is_scheduled = data.get('is_scheduled', False)
@@ -3694,11 +4009,16 @@ def create_order():
                     smm_panel_order_id = real_order_id
                     print(f"✅ SMM Panel 주문 생성 성공: {real_order_id}")
                 else:
-                    print(f"❌ SMM Panel API 호출 실패: {smm_result.get('message')}")
-                    return jsonify({'error': 'SMM Panel API 호출 실패'}), 500
+                    error_message = smm_result.get('message', '알 수 없는 오류')
+                    print(f"❌ SMM Panel API 호출 실패: {error_message}")
+                    print(f"❌ SMM Panel 응답 상세: {smm_result}")
+                    return jsonify({'error': f'SMM Panel API 호출 실패: {error_message}'}), 500
             except Exception as e:
-                print(f"❌ SMM Panel API 호출 실패: {e}")
-                return jsonify({'error': 'SMM Panel API 호출 실패'}), 500
+                error_message = str(e)
+                print(f"❌ SMM Panel API 호출 실패: {error_message}")
+                import traceback
+                print(traceback.format_exc())
+                return jsonify({'error': f'SMM Panel API 호출 실패: {error_message}'}), 500
         elif is_package:
             # 패키지 주문은 임시 ID 사용 (패키지 단계별로 개별 처리)
             real_order_id = int(time.time())
@@ -3721,107 +4041,151 @@ def create_order():
         else:
             order_type = 'single'
         
-        # 주문 생성 (SMM Panel 주문번호 사용)
+        # user_id를 내부 데이터베이스 user_id로 변환 (external_uid -> user_id)
+        db_user_id = user_id  # 기본값은 그대로 사용 (SQLite 호환)
         if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+            # external_uid로 내부 user_id 찾기
             cursor.execute("""
-                INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
-                                discount_amount, referral_code, status, created_at, updated_at,
-                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service, order_type)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(),
-                        %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (real_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
-                referral_data[0] if referral_data else None, '주문발송' if not is_scheduled else 'pending_payment',
-                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service, order_type))
-        else:
-            cursor.execute("""
-                INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
-                                discount_amount, referral_code, status, created_at, updated_at,
-                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service, order_type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                        ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (real_order_id, user_id, service_id, link, quantity, final_price, discount_amount,
-                referral_data[0] if referral_data else None, '주문발송' if not is_scheduled else 'pending_payment',
-                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service, order_type))
+                SELECT user_id FROM users WHERE external_uid = %s OR email = %s LIMIT 1
+            """, (user_id, user_id))
+            user_result = cursor.fetchone()
+            if user_result:
+                db_user_id = user_result[0]
+                print(f"✅ 사용자 ID 변환 완료: external_uid={user_id} -> user_id={db_user_id}")
+            else:
+                print(f"⚠️ 사용자를 찾을 수 없음: external_uid={user_id}, external_uid를 그대로 사용")
+                # 사용자가 없으면 external_uid를 그대로 사용 (호환성)
+                db_user_id = user_id
         
-        order_id = real_order_id
-        print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {user_id}, service_id: {service_id}, price: {final_price}")
-        
-        # 추천인이 있는 경우 커미션 포인트 적립
-        commission_amount = 0
-        commission_rate = 0.1  # 기본값 10%
-        if referral_data:
+        # service_id를 variant_id로 변환 (product_variants 테이블에서 meta_json->>'service_id'로 찾기)
+        variant_id = None
+        unit_price = final_price  # 기본값: 전체 금액을 단가로 사용
+        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
             try:
-                referrer_email = referral_data[1]
-                
-                # referral_code로 referrer_user_id 조회
-                referral_code = referral_data[0]
-                if DATABASE_URL.startswith('postgresql://'):
-                    # users 테이블에서 referral_code로 추천인 정보 조회 (commission_rate 포함)
+                # service_id가 숫자인지 확인
+                if service_id and str(service_id).isdigit():
+                    # meta_json->>'service_id'로 variant_id 찾기
                     cursor.execute("""
-                        SELECT u.user_id, COALESCE(u.commission_rate, 0.1) as commission_rate
-                        FROM users u
-                        WHERE u.referral_code = %s
+                        SELECT variant_id, price 
+                        FROM product_variants 
+                        WHERE (meta_json->>'service_id')::text = %s 
+                           OR (meta_json->>'smm_service_id')::text = %s
                         LIMIT 1
-                    """, (referral_code,))
-                else:
-                    # SQLite: referral_codes 테이블에서 user_id 조회 후 users 테이블에서 commission_rate 조회
-                    cursor.execute("SELECT user_id FROM referral_codes WHERE code = ?", (referral_code,))
-                    referrer_code_result = cursor.fetchone()
-                    if referrer_code_result:
-                        referrer_user_id_from_code = referrer_code_result[0]
-                        cursor.execute("""
-                            SELECT user_id, COALESCE(commission_rate, 0.1) as commission_rate
-                            FROM users
-                            WHERE user_id = ?
-                            LIMIT 1
-                        """, (referrer_user_id_from_code,))
+                    """, (str(service_id), str(service_id)))
+                    variant_result = cursor.fetchone()
+                    if variant_result:
+                        variant_id = variant_result[0]
+                        unit_price = float(variant_result[1]) if variant_result[1] else final_price
+                        print(f"✅ Variant ID 찾음: service_id={service_id} -> variant_id={variant_id}, unit_price={unit_price}")
                     else:
-                        cursor.execute("SELECT NULL, 0.1")
-                
-                referrer_result = cursor.fetchone()
-                if referrer_result:
-                    referrer_user_id = referrer_result[0]
-                    commission_rate = float(referrer_result[1]) if referrer_result[1] is not None else 0.1
-                else:
-                    # 폴백: referral_code로 직접 조회 (구 스키마 호환)
-                    if DATABASE_URL.startswith('postgresql://'):
-                        cursor.execute("SELECT user_id FROM referral_codes WHERE code = %s", (referral_code,))
-                    else:
-                        cursor.execute("SELECT user_id FROM referral_codes WHERE code = ?", (referral_code,))
-                    referrer_user_result = cursor.fetchone()
-                    referrer_user_id = referrer_user_result[0] if referrer_user_result else referrer_email
-                    commission_rate = 0.1  # 기본값
-                
-                # 커미션 금액 계산 (실제 설정된 비율 사용)
+                        print(f"⚠️ Variant를 찾을 수 없음: service_id={service_id} (order_items에는 variant_id 없이 저장)")
+                elif service_id:
+                    # service_id가 variant_id일 수도 있음 (숫자가 아닌 경우)
+                    try:
+                        variant_id = int(service_id)
+                        print(f"ℹ️ service_id를 variant_id로 사용: {variant_id}")
+                    except (ValueError, TypeError):
+                        print(f"⚠️ service_id를 variant_id로 변환 실패: {service_id}")
+            except Exception as variant_error:
+                print(f"⚠️ variant_id 변환 중 오류 (무시하고 계속): {variant_error}")
+        
+        # 주문 생성 (실제 DB 스키마에 맞게: total_amount, final_amount 사용)
+        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+            # 새 스키마: total_amount, final_amount 사용, service_id, link, quantity, price 제거
+            cursor.execute("""
+                INSERT INTO orders (order_id, user_id, total_amount, discount_amount, final_amount,
+                                status, created_at, updated_at,
+                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, 
+                                smm_panel_order_id, detailed_service, referrer_user_id, coupon_id)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW(),
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING order_id
+            """, (
+                real_order_id, db_user_id, price, discount_amount, final_price,
+                'pending' if is_scheduled else 'pending',  # status
+                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, 
+                smm_panel_order_id, detailed_service,
+                referrer_user_id if 'referrer_user_id' in locals() and referrer_user_id else None,
+                user_coupon_id if user_coupon_id else None
+            ))
+            inserted_order_id = cursor.fetchone()[0] if cursor.rowcount > 0 else real_order_id
+        else:
+            # SQLite: 구 스키마 유지 (레거시 호환)
+            cursor.execute("""
+                INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
+                                discount_amount, referral_code, status, created_at, updated_at,
+                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+                        ?, ?, ?, ?, ?, ?, ?)
+            """, (real_order_id, db_user_id, service_id, link, quantity, final_price, discount_amount,
+                referral_data[0] if referral_data and len(referral_data) > 0 else None, '주문발송' if not is_scheduled else 'pending_payment',
+                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service))
+            inserted_order_id = real_order_id
+        
+        order_id = inserted_order_id
+        print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {db_user_id} (external_uid: {user_id}), total_amount: {price}, final_amount: {final_price}")
+        
+        # order_items 테이블에 상세 정보 저장 (새 스키마)
+        if DATABASE_URL and DATABASE_URL.startswith('postgresql://') and variant_id:
+            try:
+                line_amount = unit_price * quantity
+                cursor.execute("""
+                    INSERT INTO order_items (order_id, variant_id, quantity, unit_price, line_amount, link, status, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), NOW())
+                    RETURNING order_item_id
+                """, (order_id, variant_id, quantity, unit_price, line_amount, link))
+                order_item_result = cursor.fetchone()
+                order_item_id = order_item_result[0] if order_item_result else None
+                print(f"✅ 주문 아이템 생성 완료 - order_item_id: {order_item_id}, variant_id: {variant_id}, quantity: {quantity}, unit_price: {unit_price}, line_amount: {line_amount}")
+            except Exception as item_error:
+                print(f"⚠️ 주문 아이템 생성 실패 (무시하고 계속): {item_error}")
+                import traceback
+                traceback.print_exc()
+        elif not variant_id:
+            print(f"⚠️ variant_id를 찾을 수 없어 order_items에 저장하지 않음: service_id={service_id}")
+        
+        # 추천인이 있는 경우 커미션 계산 및 저장 (피추천인 구매 금액의 10%)
+        commission_amount = 0
+        commission_rate = 0.1  # 고정 10%
+        if referral_data and 'referrer_user_id' in locals() and referrer_user_id and 'referral_id' in locals() and referral_id:
+            try:
+                # 커미션 금액 계산 (구매 금액의 10%)
                 commission_amount = final_price * commission_rate
                 
-                print(f"💰 커미션 계산 - 추천인: {referrer_email}, 구매금액: {final_price}, 커미션 비율: {commission_rate*100}%, 커미션: {commission_amount}")
+                print(f"💰 커미션 계산 - 추천인: {referrer_email} (user_id: {referrer_user_id}), 피추천인: {user_id}, 구매금액: {final_price}원, 커미션: {commission_amount}원 (10%)")
                 
-                # commission_ledger에 커미션 적립 기록 (실제 사용한 비율 저장)
+                # 새 스키마: commissions 테이블에 커미션 저장
                 if DATABASE_URL.startswith('postgresql://'):
+                    # 현재 사용자의 데이터베이스 내부 user_id 조회
                     cursor.execute("""
-                        INSERT INTO commission_ledger 
-                        (referral_code, referrer_user_id, referred_user_id, order_id, event, base_amount, commission_rate, amount, status, notes, created_at, confirmed_at)
-                        VALUES (%s, %s, %s, %s, 'earn', %s, %s, %s, 'confirmed', %s, NOW(), NOW())
-                    """, (
-                        referral_code, referrer_user_id, user_id, order_id,
-                        final_price, commission_rate, commission_amount,
-                        f'추천인 커미션 적립 - 주문 ID: {order_id} (비율: {commission_rate*100}%)'
-                    ))
+                        SELECT user_id FROM users WHERE external_uid = %s OR email = %s LIMIT 1
+                    """, (user_id, user_id))
+                    referred_user_result = cursor.fetchone()
+                    referred_user_db_id = referred_user_result[0] if referred_user_result else None
+                    
+                    if referred_user_db_id:
+                        # commissions 테이블에 커미션 저장 (referral_id, order_id, amount, status)
+                        cursor.execute("""
+                            INSERT INTO commissions (referral_id, order_id, amount, status, created_at)
+                            VALUES (%s, %s, %s, 'accrued', NOW())
+                            RETURNING commission_id
+                        """, (referral_id, order_id, commission_amount))
+                        commission_result = cursor.fetchone()
+                        commission_record_id = commission_result[0] if commission_result else None
+                        print(f"✅ 커미션 저장 완료 - commission_id: {commission_record_id}, referral_id: {referral_id}, order_id: {order_id}, 금액: {commission_amount}원")
+                    else:
+                        print(f"⚠️ 피추천인 user_id를 찾을 수 없음: {user_id}")
                 else:
+                    # SQLite: 구 스키마 사용 (레거시 호환)
                     cursor.execute("""
-                        INSERT INTO commission_ledger 
-                        (referral_code, referrer_user_id, referred_user_id, order_id, event, base_amount, commission_rate, amount, status, notes, created_at, confirmed_at)
-                        VALUES (?, ?, ?, ?, 'earn', ?, ?, ?, 'confirmed', ?, datetime('now'), datetime('now'))
-                    """, (
-                        referral_code, referrer_user_id, user_id, order_id,
-                        final_price, commission_rate, commission_amount,
-                        f'추천인 커미션 적립 - 주문 ID: {order_id} (비율: {commission_rate*100}%)'
-                    ))
+                        INSERT INTO commissions (referred_user, referrer_id, purchase_amount, commission_amount, commission_rate, is_paid, created_at)
+                        VALUES (?, ?, ?, ?, ?, false, datetime('now'))
+                    """, (user_id, referrer_user_id, final_price, commission_amount, commission_rate))
+                    print(f"✅ 커미션 저장 완료 (SQLite) - 금액: {commission_amount}원")
                 
-                print(f"✅ 커미션 포인트 적립 완료: {commission_amount}원")
+                print(f"✅ 추천인 커미션 적립 완료: {commission_amount}원 (구매 금액 {final_price}원의 10%)")
             except Exception as commission_error:
-                print(f"⚠️ 커미션 포인트 적립 실패 (주문은 계속 진행): {commission_error}")
+                print(f"⚠️ 커미션 적립 실패 (주문은 계속 진행): {commission_error}")
                 print(f"⚠️ 커미션 오류 상세: {type(commission_error).__name__}: {str(commission_error)}")
                 import traceback
                 print(f"⚠️ 커미션 오류 스택: {traceback.format_exc()}")
@@ -3972,12 +4336,14 @@ def start_package_processing():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 주문 정보 조회
+        # 주문 정보 조회 (link는 order_items 테이블에서 가져옴)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT order_id, user_id, link, package_steps, status 
-                FROM orders 
-                WHERE order_id = %s
+                SELECT o.order_id, o.user_id, COALESCE(oi.link, ''), o.package_steps, o.status 
+                FROM orders o
+                LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                WHERE o.order_id = %s
+                LIMIT 1
             """, (order_id,))
         else:
             cursor.execute("""
@@ -4214,12 +4580,13 @@ def get_orders():
                 db_user_id = user_result[0]
                 
                 cursor.execute("""
-                    SELECT o.order_id, o.status, o.total_amount, o.created_at,
+                    SELECT o.order_id, o.status, COALESCE(o.final_amount, o.total_amount, 0) as price, o.created_at,
                            oi.variant_id, oi.link, oi.quantity, oi.unit_price,
-                           wj.payload_json->>'smm_panel_order_id' as smm_panel_order_id
+                           o.smm_panel_order_id, o.detailed_service,
+                           pv.name as variant_name, pv.meta_json as variant_meta
                     FROM orders o
                     LEFT JOIN order_items oi ON o.order_id = oi.order_id
-                    LEFT JOIN work_jobs wj ON oi.order_item_id = wj.order_item_id AND wj.payload_json->>'smm_panel_order_id' IS NOT NULL
+                    LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
                     WHERE o.user_id = %s
                     ORDER BY o.created_at DESC
                     LIMIT 10
@@ -4247,7 +4614,7 @@ def get_orders():
             try:
                 # 주문 데이터 처리 (새 스키마에 맞게 수정)
                 if DATABASE_URL.startswith('postgresql://'):
-                    # 새 스키마: order_id, status, total_amount, created_at, variant_id, link, quantity, unit_price, smm_panel_order_id
+                    # 새 스키마: order_id, status, price (final_amount), created_at, variant_id, link, quantity, unit_price, smm_panel_order_id, detailed_service, variant_name, variant_meta
                     order_id = order[0]
                     db_status = order[1] if len(order) > 1 else 'pending'
                     price = float(order[2]) if len(order) > 2 and order[2] else 0.0
@@ -4257,8 +4624,27 @@ def get_orders():
                     quantity = order[6] if len(order) > 6 else 0
                     unit_price = float(order[7]) if len(order) > 7 and order[7] else 0.0
                     smm_panel_order_id = order[8] if len(order) > 8 else None
-                    service_id = str(variant_id) if variant_id else ''
-                    detailed_service = None
+                    detailed_service = order[9] if len(order) > 9 else None
+                    variant_name = order[10] if len(order) > 10 else None
+                    variant_meta = order[11] if len(order) > 11 else None
+                    
+                    # variant_meta에서 service_id 추출
+                    actual_service_id = None
+                    if variant_meta:
+                        try:
+                            if isinstance(variant_meta, dict):
+                                actual_service_id = variant_meta.get('service_id') or variant_meta.get('smm_service_id')
+                            elif isinstance(variant_meta, str):
+                                import json
+                                try:
+                                    meta_dict = json.loads(variant_meta)
+                                    actual_service_id = meta_dict.get('service_id') or meta_dict.get('smm_service_id')
+                                except:
+                                    pass
+                        except Exception as e:
+                            print(f"⚠️ variant_meta 파싱 실패: {e}")
+                    
+                    service_id = str(actual_service_id) if actual_service_id else (str(variant_id) if variant_id else '')
                 else:
                     # 구 스키마 (SQLite)
                     order_id = order[0]
@@ -4309,9 +4695,11 @@ def get_orders():
                         print(f"⚠️ SMM Panel charge 조회 오류: {e}")
                         charge = 0
                 
-                # 서비스 이름 결정 (우선순위: detailed_service > get_service_name > 기본값)
+                # 서비스 이름 결정 (우선순위: detailed_service > variant_name > get_service_name > 기본값)
                 if detailed_service:
                     service_name = detailed_service
+                elif DATABASE_URL.startswith('postgresql://') and variant_name:
+                    service_name = variant_name
                 else:
                     service_name = get_service_name(service_id)
                 
@@ -5559,80 +5947,150 @@ def update_purchase_status(purchase_id):
 # 포인트 차감 (주문 결제용)
 @app.route('/api/points/deduct', methods=['POST'])
 def deduct_points():
-    """포인트 차감 (주문 결제)"""
+    """포인트 차감 (주문 결제) - 새 스키마 사용"""
+    conn = None
+    cursor = None
     try:
         data = request.get_json()
-        user_id = data.get('user_id')
+        raw_user_id = data.get('user_id')  # external_uid 또는 email
         amount = data.get('amount')  # 차감할 포인트
         order_id = data.get('order_id')  # 주문 ID (선택사항)
         
-        if not all([user_id, amount]):
+        if not all([raw_user_id, amount]):
             return jsonify({'error': '필수 필드가 누락되었습니다.'}), 400
         
         if amount <= 0:
             return jsonify({'error': '차감할 포인트는 0보다 커야 합니다.'}), 400
         
+        print(f"🔍 포인트 차감 요청 - user_id: {raw_user_id}, amount: {amount}")
+        
         conn = get_db_connection()
-        cursor = conn.cursor()
+        
+        if DATABASE_URL.startswith('postgresql://'):
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
-        # 사용자 포인트 조회
-        if DATABASE_URL.startswith('postgresql://'):
+            # 1. external_uid 또는 email로 사용자 찾기
             cursor.execute("""
-                SELECT points FROM points WHERE user_id = %s
-            """, (user_id,))
-        else:
+                SELECT user_id, external_uid, email 
+                FROM users 
+                WHERE external_uid = %s OR email = %s
+                LIMIT 1
+            """, (raw_user_id, raw_user_id))
+            user = cursor.fetchone()
+            
+            if not user:
+                print(f"❌ 사용자를 찾을 수 없음: {raw_user_id}")
+                return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+            
+            db_user_id = user['user_id']
+            print(f"✅ 사용자 찾음 - user_id: {db_user_id}, email: {user.get('email')}")
+            
+            # 2. 지갑 조회 (없으면 생성)
             cursor.execute("""
-                SELECT points FROM points WHERE user_id = ?
-            """, (user_id,))
-        
-        user_points = cursor.fetchone()
-        
-        if not user_points:
-            return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
-        
-        current_points = user_points[0]
-        
-        if current_points < amount:
-            return jsonify({'error': '포인트가 부족합니다.'}), 400
-        
-        # 포인트 차감 (동시성 제어)
-        new_points = current_points - amount
-        
-        if DATABASE_URL.startswith('postgresql://'):
-            # PostgreSQL: SELECT FOR UPDATE로 락 설정
+                INSERT INTO wallets (user_id, balance, created_at, updated_at)
+                VALUES (%s, 0, NOW(), NOW())
+                ON CONFLICT (user_id) DO NOTHING
+            """, (db_user_id,))
+            
+            # 3. 현재 잔액 조회 (동시성 제어를 위해 SELECT FOR UPDATE)
             cursor.execute("""
-                UPDATE points
-                SET points = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE user_id = %s AND points = %s
-            """, (new_points, user_id, current_points))
+                SELECT balance 
+                FROM wallets 
+                WHERE user_id = %s
+                FOR UPDATE
+            """, (db_user_id,))
+            wallet = cursor.fetchone()
+            
+            if not wallet:
+                print(f"❌ 지갑을 찾을 수 없음: user_id={db_user_id}")
+                conn.rollback()
+                return jsonify({'error': '지갑을 찾을 수 없습니다.'}), 404
+            
+            current_balance = float(wallet['balance'] or 0)
+            print(f"💰 현재 포인트 잔액: {current_balance}")
+            
+            # 4. 잔액 확인
+            if current_balance < amount:
+                conn.rollback()
+                return jsonify({
+                    'error': '포인트가 부족합니다.',
+                    'current_balance': current_balance,
+                    'required_amount': amount
+                }), 400
+            
+            # 5. 포인트 차감 (동시성 제어)
+            new_balance = current_balance - amount
+            cursor.execute("""
+                UPDATE wallets
+                SET balance = %s, updated_at = NOW()
+                WHERE user_id = %s AND balance = %s
+            """, (new_balance, db_user_id, current_balance))
             
             if cursor.rowcount == 0:
                 conn.rollback()
+                print(f"⚠️ 포인트 잔액 변경 감지 (동시성 충돌)")
                 return jsonify({'error': '포인트 잔액이 변경되었습니다. 다시 시도해주세요.'}), 409
+            
+            conn.commit()
+            print(f"✅ 포인트 차감 완료: {current_balance} -> {new_balance} (차감: {amount})")
+            
+            return jsonify({
+                'message': '포인트가 성공적으로 차감되었습니다.',
+                'remaining_points': new_balance,
+                'deducted_amount': amount,
+                'previous_balance': current_balance
+            }), 200
         else:
-            # SQLite: 트랜잭션으로 동시성 제어
+            # SQLite: 구 스키마 유지
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT points FROM points WHERE user_id = ?
+            """, (raw_user_id,))
+            
+            user_points = cursor.fetchone()
+            
+            if not user_points:
+                return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+            
+            current_points = user_points[0]
+            
+            if current_points < amount:
+                return jsonify({'error': '포인트가 부족합니다.'}), 400
+            
+            new_points = current_points - amount
             cursor.execute("""
                 UPDATE points
                 SET points = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE user_id = ? AND points = ?
-            """, (new_points, user_id, current_points))
+            """, (new_points, raw_user_id, current_points))
             
             if cursor.rowcount == 0:
                 conn.rollback()
                 return jsonify({'error': '포인트 잔액이 변경되었습니다. 다시 시도해주세요.'}), 409
-        
-        conn.commit()
-        
-        return jsonify({
-            'message': '포인트가 성공적으로 차감되었습니다.',
-            'remaining_points': new_points,
-            'deducted_amount': amount
-        }), 200
+            
+            conn.commit()
+            
+            return jsonify({
+                'message': '포인트가 성공적으로 차감되었습니다.',
+                'remaining_points': new_points,
+                'deducted_amount': amount
+            }), 200
         
     except Exception as e:
-        return jsonify({'error': f'포인트 차감 실패: {str(e)}'}), 500
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        error_msg = str(e)
+        print(f"❌ 포인트 차감 오류: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'포인트 차감 실패: {error_msg}'}), 500
     finally:
-        if 'conn' in locals():
+        if cursor:
+            cursor.close()
+        if conn:
             conn.close()
 
 # 사용자 정보 조회
@@ -5730,6 +6188,118 @@ def sync_user():
                     """, (email, username, supabase_user_id, existing_user['user_id']))
                 updated_user = cursor.fetchone()
                 print(f"✅ 기존 사용자 업데이트 완료 - user_id: {updated_user['user_id']}")
+                
+                # 기존 사용자도 추천인 코드가 있으면 referrals 테이블에 저장 및 5% 할인쿠폰 발급 (중복 체크)
+                if referral_code:
+                    try:
+                        # 먼저 기존 추천인 관계 확인
+                        cursor.execute("""
+                            SELECT referral_id FROM referrals 
+                            WHERE referrer_user_id = (SELECT user_id FROM users WHERE referral_code = %s LIMIT 1)
+                            AND referred_user_id = %s
+                            LIMIT 1
+                        """, (referral_code, updated_user['user_id']))
+                        existing_relation = cursor.fetchone()
+                        
+                        is_new_referral = False
+                        if not existing_relation:
+                            # 추천인 코드로 추천인 user_id 찾기
+                            cursor.execute("""
+                                SELECT user_id FROM users WHERE referral_code = %s LIMIT 1
+                            """, (referral_code,))
+                            referrer = cursor.fetchone()
+                            
+                            if referrer:
+                                referrer_user_id = referrer['user_id']
+                                # referrals 테이블에 추천인 관계 저장
+                                # referrals 테이블의 PRIMARY KEY는 referral_id (자동 증가)이므로
+                                # ON CONFLICT는 (referrer_user_id, referred_user_id) UNIQUE 제약 조건이 있을 때만 작동
+                                # 먼저 중복 확인 후 INSERT
+                                cursor.execute("""
+                                    SELECT referral_id FROM referrals 
+                                    WHERE referrer_user_id = %s AND referred_user_id = %s
+                                    LIMIT 1
+                                """, (referrer_user_id, updated_user['user_id']))
+                                existing_referral = cursor.fetchone()
+                                
+                                if not existing_referral:
+                                    cursor.execute("""
+                                        INSERT INTO referrals (referrer_user_id, referred_user_id, status, created_at)
+                                        VALUES (%s, %s, 'approved', NOW())
+                                    """, (referrer_user_id, updated_user['user_id']))
+                                    print(f"✅ 기존 사용자 추천인 관계 저장 완료 - referrer: {referrer_user_id}, referred: {updated_user['user_id']}")
+                                    is_new_referral = True
+                                else:
+                                    print(f"ℹ️ 추천인 관계가 이미 존재합니다 - referral_id: {existing_referral['referral_id']}")
+                                    is_new_referral = False
+                                print(f"✅ 기존 사용자 추천인 관계 저장 완료 - referrer: {referrer_user_id}, referred: {updated_user['user_id']}")
+                                is_new_referral = True
+                            else:
+                                print(f"⚠️ 추천인 코드를 찾을 수 없음: {referral_code}")
+                        else:
+                            print(f"ℹ️ 추천인 관계가 이미 존재합니다 - user_id: {updated_user['user_id']}, referral_code: {referral_code}")
+                        
+                        # 새 추천인 관계인 경우 5% 할인쿠폰 발급 (실제 DB 스키마: user_coupons 사용)
+                        if is_new_referral:
+                            try:
+                                from datetime import datetime, timedelta
+                                expires_at = datetime.now() + timedelta(days=30)  # 30일 유효
+                                
+                                # 쿠폰 중복 체크 (user_coupons 테이블에서 확인)
+                                cursor.execute("""
+                                    SELECT uc.user_coupon_id 
+                                    FROM user_coupons uc
+                                    JOIN coupons c ON uc.coupon_id = c.coupon_id
+                                    WHERE uc.user_id = %s 
+                                      AND c.coupon_code = %s
+                                      AND c.discount_value = 5.0
+                                      AND c.discount_type = 'percentage'
+                                    LIMIT 1
+                                """, (updated_user['user_id'], f"REFERRAL_{referral_code}"))
+                                existing_user_coupon = cursor.fetchone()
+                                
+                                if not existing_user_coupon:
+                                    # 1. coupons 테이블에 쿠폰이 있는지 확인 (coupon_code로)
+                                    coupon_code = f"REFERRAL_{referral_code}"
+                                    cursor.execute("""
+                                        SELECT coupon_id FROM coupons 
+                                        WHERE coupon_code = %s 
+                                          AND discount_value = 5.0 
+                                          AND discount_type = 'percentage'
+                                        LIMIT 1
+                                    """, (coupon_code,))
+                                    coupon_result = cursor.fetchone()
+                                    
+                                    if coupon_result:
+                                        coupon_id = coupon_result[0]
+                                    else:
+                                        # 2. coupons 테이블에 쿠폰 생성
+                                        cursor.execute("""
+                                            INSERT INTO coupons (coupon_code, coupon_name, discount_type, discount_value, valid_until, created_at, updated_at)
+                                            VALUES (%s, %s, 'percentage', 5.0, %s, NOW(), NOW())
+                                            RETURNING coupon_id
+                                        """, (coupon_code, f"추천인 할인 쿠폰 ({referral_code})", expires_at))
+                                        coupon_id = cursor.fetchone()[0]
+                                        print(f"✅ 쿠폰 생성 완료 - coupon_id: {coupon_id}, coupon_code: {coupon_code}")
+                                    
+                                    # 3. user_coupons 테이블에 사용자에게 쿠폰 발급
+                                    cursor.execute("""
+                                        INSERT INTO user_coupons (user_id, coupon_id, status, issued_at)
+                                        VALUES (%s, %s, 'active', NOW())
+                                        RETURNING user_coupon_id
+                                    """, (updated_user['user_id'], coupon_id))
+                                    user_coupon_id = cursor.fetchone()[0]
+                                    print(f"🎁 피추천인 5% 할인쿠폰 발급 완료 - user_id: {updated_user['user_id']}, user_coupon_id: {user_coupon_id}, referral_code: {referral_code}")
+                                else:
+                                    print(f"ℹ️ 이미 발급된 쿠폰이 있습니다 - user_id: {updated_user['user_id']}, referral_code: {referral_code}")
+                            except Exception as coupon_error:
+                                print(f"⚠️ 할인쿠폰 발급 실패 (무시): {coupon_error}")
+                                import traceback
+                                traceback.print_exc()
+                    except Exception as e:
+                        print(f"⚠️ 기존 사용자 추천인 관계 저장 실패 (무시): {e}")
+                        import traceback
+                        traceback.print_exc()
             else:
                 # 새 사용자 생성
                 cursor.execute("""
@@ -5740,7 +6310,7 @@ def sync_user():
                 updated_user = cursor.fetchone()
                 print(f"✅ 새 사용자 생성 완료 - user_id: {updated_user['user_id']}")
                 
-                # 추천인 코드가 있으면 referrals 테이블에 저장
+                # 추천인 코드가 있으면 referrals 테이블에 저장 및 5% 할인쿠폰 발급
                 if referral_code:
                     try:
                         # 추천인 코드로 추천인 user_id 찾기
@@ -5751,17 +6321,90 @@ def sync_user():
                         
                         if referrer:
                             referrer_user_id = referrer['user_id']
-                            # referrals 테이블에 추천인 관계 저장
+                            
+                            # 중복 체크
                             cursor.execute("""
-                                INSERT INTO referrals (referrer_user_id, referred_user_id, created_at)
-                                VALUES (%s, %s, NOW())
-                                ON CONFLICT DO NOTHING
+                                SELECT referral_id FROM referrals 
+                                WHERE referrer_user_id = %s AND referred_user_id = %s
+                                LIMIT 1
                             """, (referrer_user_id, updated_user['user_id']))
-                            print(f"✅ 추천인 관계 저장 완료 - referrer: {referrer_user_id}, referred: {updated_user['user_id']}")
+                            existing_relation = cursor.fetchone()
+                            
+                            is_new_referral = False
+                            if not existing_relation:
+                                # referrals 테이블에 추천인 관계 저장 (status='approved'로 저장)
+                                cursor.execute("""
+                                    INSERT INTO referrals (referrer_user_id, referred_user_id, status, created_at)
+                                    VALUES (%s, %s, 'approved', NOW())
+                                """, (referrer_user_id, updated_user['user_id']))
+                                print(f"✅ 추천인 관계 저장 완료 - referrer: {referrer_user_id}, referred: {updated_user['user_id']}, status: approved")
+                                is_new_referral = True
+                            else:
+                                print(f"ℹ️ 추천인 관계가 이미 존재합니다 - user_id: {updated_user['user_id']}, referral_code: {referral_code}")
+                            
+                            # 새 추천인 관계인 경우 5% 할인쿠폰 발급 (실제 DB 스키마: user_coupons 사용)
+                            if is_new_referral:
+                                try:
+                                    from datetime import datetime, timedelta
+                                    expires_at = datetime.now() + timedelta(days=30)  # 30일 유효
+                                    
+                                    # 쿠폰 중복 체크 (user_coupons 테이블에서 확인)
+                                    cursor.execute("""
+                                        SELECT uc.user_coupon_id 
+                                        FROM user_coupons uc
+                                        JOIN coupons c ON uc.coupon_id = c.coupon_id
+                                        WHERE uc.user_id = %s 
+                                          AND c.coupon_code = %s
+                                          AND c.discount_value = 5.0
+                                          AND c.discount_type = 'percentage'
+                                        LIMIT 1
+                                    """, (updated_user['user_id'], f"REFERRAL_{referral_code}"))
+                                    existing_user_coupon = cursor.fetchone()
+                                    
+                                    if not existing_user_coupon:
+                                        # 1. coupons 테이블에 쿠폰이 있는지 확인 (coupon_code로)
+                                        coupon_code = f"REFERRAL_{referral_code}"
+                                        cursor.execute("""
+                                            SELECT coupon_id FROM coupons 
+                                            WHERE coupon_code = %s 
+                                              AND discount_value = 5.0 
+                                              AND discount_type = 'percentage'
+                                            LIMIT 1
+                                        """, (coupon_code,))
+                                        coupon_result = cursor.fetchone()
+                                        
+                                        if coupon_result:
+                                            coupon_id = coupon_result[0]
+                                        else:
+                                            # 2. coupons 테이블에 쿠폰 생성
+                                            cursor.execute("""
+                                                INSERT INTO coupons (coupon_code, coupon_name, discount_type, discount_value, valid_until, created_at, updated_at)
+                                                VALUES (%s, %s, 'percentage', 5.0, %s, NOW(), NOW())
+                                                RETURNING coupon_id
+                                            """, (coupon_code, f"추천인 할인 쿠폰 ({referral_code})", expires_at))
+                                            coupon_id = cursor.fetchone()[0]
+                                            print(f"✅ 쿠폰 생성 완료 - coupon_id: {coupon_id}, coupon_code: {coupon_code}")
+                                        
+                                        # 3. user_coupons 테이블에 사용자에게 쿠폰 발급
+                                        cursor.execute("""
+                                            INSERT INTO user_coupons (user_id, coupon_id, status, issued_at)
+                                            VALUES (%s, %s, 'active', NOW())
+                                            RETURNING user_coupon_id
+                                        """, (updated_user['user_id'], coupon_id))
+                                        user_coupon_id = cursor.fetchone()[0]
+                                        print(f"🎁 피추천인 5% 할인쿠폰 발급 완료 - user_id: {updated_user['user_id']}, user_coupon_id: {user_coupon_id}, referral_code: {referral_code}")
+                                    else:
+                                        print(f"ℹ️ 이미 발급된 쿠폰이 있습니다 - user_id: {updated_user['user_id']}, referral_code: {referral_code}")
+                                except Exception as coupon_error:
+                                    print(f"⚠️ 할인쿠폰 발급 실패 (무시): {coupon_error}")
+                                    import traceback
+                                    traceback.print_exc()
                         else:
                             print(f"⚠️ 추천인 코드를 찾을 수 없음: {referral_code}")
                     except Exception as e:
                         print(f"⚠️ 추천인 관계 저장 실패 (무시): {e}")
+                        import traceback
+                        traceback.print_exc()
             
             # 지갑 생성 (없으면)
             cursor.execute("""
@@ -6139,27 +6782,106 @@ def use_referral_code():
 # 추천인 수수료 조회
 @app.route('/api/referral/commissions', methods=['GET'])
 def get_commissions():
-    """추천인 수수료 조회"""
+    """추천인 수수료 조회 - 새 스키마 사용"""
+    conn = None
+    cursor = None
     try:
-        user_id = request.args.get('user_id')
+        user_id = request.args.get('user_id')  # external_uid 또는 email
         if not user_id:
             return jsonify({'error': 'user_id가 필요합니다.'}), 400
         
-        conn = None
-        cursor = None
+        print(f"🔍 커미션 내역 조회 - user_id: {user_id}", flush=True)
         
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         if DATABASE_URL.startswith('postgresql://'):
+            # 먼저 사용자 찾기 (external_uid 또는 email로)
             cursor.execute("""
-            SELECT id, referred_user, purchase_amount, commission_amount, 
-                commission_rate, created_at
-            FROM commissions 
-            WHERE referrer_id = %s
-            ORDER BY created_at DESC
-            """, (user_id,))
+                SELECT user_id, email, referral_code
+                FROM users 
+                WHERE external_uid = %s OR email = %s
+                LIMIT 1
+            """, (user_id, user_id))
+            user = cursor.fetchone()
+            
+            if not user:
+                print(f"⚠️ 사용자를 찾을 수 없음: {user_id}", flush=True)
+                return jsonify({'commissions': []}), 200
+            
+            referrer_user_id = user.get('user_id')
+            if not referrer_user_id:
+                print(f"⚠️ 사용자 user_id를 찾을 수 없음: {user}", flush=True)
+                return jsonify({'commissions': []}), 200
+            
+            print(f"✅ 사용자 찾음 - user_id: {referrer_user_id}, email: {user.get('email')}", flush=True)
+            
+            # 새 스키마: commissions 테이블과 referrals 테이블 조인하여 조회
+            # orders 테이블의 final_amount나 total_amount를 사용하되, 없으면 commissions.amount에서 역산
+            # 안전한 오류 처리 추가
+            try:
+                cursor.execute("""
+                    SELECT 
+                        c.commission_id as id,
+                        c.order_id,
+                        c.amount as commission_amount,
+                        c.status,
+                        c.created_at,
+                        r.referred_user_id,
+                        u_referred.email as referred_email,
+                        u_referred.username as referred_name,
+                        CASE 
+                            WHEN o.final_amount IS NOT NULL THEN o.final_amount
+                            WHEN o.total_amount IS NOT NULL THEN o.total_amount
+                            ELSE (c.amount / 0.1)  -- 커미션이 10%이므로 역산하여 구매금액 추정
+                        END as purchase_amount
+                    FROM commissions c
+                    JOIN referrals r ON c.referral_id = r.referral_id
+                    LEFT JOIN users u_referred ON r.referred_user_id = u_referred.user_id
+                    LEFT JOIN orders o ON c.order_id = o.order_id
+                    WHERE r.referrer_user_id = %s
+                    ORDER BY c.created_at DESC
+                """, [referrer_user_id])
+            except Exception as query_error:
+                print(f"❌ 커미션 조회 쿼리 오류: {query_error}", flush=True)
+                import traceback
+                print(traceback.format_exc(), flush=True)
+                # 오류 발생 시 빈 목록 반환
+                rows = []
+            
+            rows = cursor.fetchall()
+            print(f"📊 조회된 커미션 수: {len(rows)}개", flush=True)
+            
+            commissions = []
+            for row in rows:
+                # 날짜 형식 처리
+                created_at = row.get('created_at')
+                if created_at:
+                    if hasattr(created_at, 'isoformat'):
+                        payment_date = created_at.isoformat()[:10]
+                    elif hasattr(created_at, 'strftime'):
+                        payment_date = created_at.strftime('%Y-%m-%d')
+                    else:
+                        payment_date = str(created_at)[:10]
+                else:
+                    payment_date = None
+                
+                commission_amount = float(row.get('commission_amount') or 0)
+                purchase_amount = float(row.get('purchase_amount') or 0)
+                commission_rate = (commission_amount / purchase_amount * 100) if purchase_amount > 0 else 10.0
+                
+                commissions.append({
+                    'id': row.get('id'),
+                    'referredUser': row.get('referred_name') or row.get('referred_email') or '사용자',
+                    'purchaseAmount': purchase_amount,
+                    'commissionAmount': commission_amount,
+                    'commissionRate': f"{commission_rate:.1f}%",
+                    'paymentDate': payment_date,
+                    'isPaid': row.get('status') in ['paid', 'approved'] if row.get('status') else False,
+                    'status': row.get('status', 'accrued')
+                })
         else:
+            # SQLite - 레거시 호환
             cursor.execute("""
                 SELECT id, referred_user, purchase_amount, commission_amount, 
                     commission_rate, created_at
@@ -6167,33 +6889,44 @@ def get_commissions():
                 WHERE referrer_id = ?
                 ORDER BY created_at DESC
             """, (user_id,))
-        
-        commissions = []
-        for row in cursor.fetchall():
-            # 날짜 형식 처리 (created_at는 5번째 인덱스)
-            payment_date = row[5]
-            if hasattr(payment_date, 'strftime'):
-                payment_date = payment_date.strftime('%Y-%m-%d')
-            elif hasattr(payment_date, 'isoformat'):
-                payment_date = payment_date.isoformat()[:10]
-            else:
-                payment_date = str(payment_date)[:10]
             
-            commissions.append({
-                'id': row[0],
-                'referredUser': row[1],
-                'purchaseAmount': row[2],
-                'commissionAmount': row[3],
-                'commissionRate': f"{row[4] * 100}%" if row[4] else "0%",
-                'paymentDate': payment_date,
-                'isPaid': True  # 기본값으로 지급 완료 처리
-            })
+            rows = cursor.fetchall()
+            commissions = []
+            for row in rows:
+                # 날짜 형식 처리 (created_at는 5번째 인덱스)
+                payment_date = row[5]
+                if hasattr(payment_date, 'strftime'):
+                    payment_date = payment_date.strftime('%Y-%m-%d')
+                elif hasattr(payment_date, 'isoformat'):
+                    payment_date = payment_date.isoformat()[:10]
+                else:
+                    payment_date = str(payment_date)[:10]
+                
+                commissions.append({
+                    'id': row[0],
+                    'referredUser': row[1],
+                    'purchaseAmount': float(row[2]) if row[2] else 0.0,
+                    'commissionAmount': float(row[3]) if row[3] else 0.0,
+                    'commissionRate': f"{row[4] * 100}%" if row[4] else "0%",
+                    'paymentDate': payment_date,
+                    'isPaid': True  # 기본값으로 지급 완료 처리
+                })
+        
+        print(f"✅ 커미션 내역 조회 완료: {len(commissions)}건", flush=True)
         
         return jsonify({
             'commissions': commissions
         }), 200
     except Exception as e:
+        import traceback
+        print(f"❌ 커미션 내역 조회 실패: {e}", flush=True)
+        print(traceback.format_exc(), flush=True)
         return jsonify({'error': f'수수료 조회 실패: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # 추천인 코드로 쿠폰 발급
 @app.route('/api/referral/issue-coupon', methods=['POST'])
@@ -8939,10 +9672,13 @@ def get_scheduled_orders():
         
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT order_id, user_id, service_id, link, quantity, price, scheduled_datetime, status, created_at, updated_at
-                FROM orders 
-                WHERE is_scheduled = TRUE
-                ORDER BY scheduled_datetime DESC
+                SELECT o.order_id, o.user_id, oi.variant_id, COALESCE(oi.link, ''), 
+                       oi.quantity, COALESCE(o.final_amount, o.total_amount, 0),
+                       o.scheduled_datetime, o.status, o.created_at, o.updated_at
+                FROM orders o
+                LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                WHERE o.is_scheduled = TRUE
+                ORDER BY o.scheduled_datetime DESC
                 LIMIT 50
             """)
         else:
@@ -8958,19 +9694,35 @@ def get_scheduled_orders():
         
         order_list = []
         for order in orders:
-            order_list.append({
-                'id': order[0],  # order_id
-                'order_id': order[0],
-                'user_id': order[1],
-                'service_id': order[2],
-                'link': order[3],
-                'quantity': order[4],
-                'price': float(order[5]) if order[5] else 0,
-                'scheduled_datetime': order[6],
-                'status': order[7],
-                'created_at': order[8].isoformat() if order[8] else None,
-                'processed_at': order[9].isoformat() if order[9] else None
-            })
+            if DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: order_id, user_id, variant_id, link, quantity, price, scheduled_datetime, status, created_at, updated_at
+                order_list.append({
+                    'id': order[0],  # order_id
+                    'order_id': order[0],
+                    'user_id': order[1],
+                    'service_id': str(order[2]) if order[2] else None,  # variant_id
+                    'link': order[3],
+                    'quantity': order[4] if order[4] else 0,
+                    'price': float(order[5]) if order[5] else 0,
+                    'scheduled_datetime': order[6],
+                    'status': order[7],
+                    'created_at': order[8].isoformat() if order[8] and hasattr(order[8], 'isoformat') else None,
+                    'processed_at': order[9].isoformat() if order[9] and hasattr(order[9], 'isoformat') else None
+                })
+            else:
+                order_list.append({
+                    'id': order[0],  # order_id
+                    'order_id': order[0],
+                    'user_id': order[1],
+                    'service_id': order[2],
+                    'link': order[3],
+                    'quantity': order[4],
+                    'price': float(order[5]) if order[5] else 0,
+                    'scheduled_datetime': order[6],
+                    'status': order[7],
+                    'created_at': order[8].isoformat() if order[8] else None,
+                    'processed_at': order[9].isoformat() if order[9] else None
+                })
         
         return jsonify({
             'success': True,
@@ -9589,8 +10341,8 @@ def cron_process_scheduled_orders():
         if DATABASE_URL.startswith('postgresql://'):
             try:
                 cursor.execute("""
-                    SELECT o.order_id, o.user_id, oi.variant_id, oi.link, oi.quantity, o.total_amount, 
-                           o.scheduled_datetime, o.order_id
+                    SELECT o.order_id, o.user_id, oi.variant_id, COALESCE(oi.link, ''), oi.quantity, 
+                           COALESCE(o.final_amount, o.total_amount, 0), o.scheduled_datetime, o.package_steps
                     FROM orders o
                     LEFT JOIN order_items oi ON o.order_id = oi.order_id
                     WHERE o.is_scheduled = TRUE 
@@ -9622,16 +10374,26 @@ def cron_process_scheduled_orders():
         
         for order in scheduled_orders:
             if DATABASE_URL.startswith('postgresql://'):
-                # 새 스키마: order_id, user_id, variant_id, link, quantity, total_amount, scheduled_datetime, order_id
+                # 새 스키마: order_id, user_id, variant_id, link, quantity, total_amount, scheduled_datetime, package_steps
                 order_id = order[0]
                 user_id = order[1]
                 variant_id = order[2]  # service_id 대신 variant_id
                 link = order[3]
-                quantity = order[4]
+                quantity = order[4] if order[4] else 0
                 price = float(order[5]) if order[5] else 0.0
                 scheduled_datetime = order[6]
-                # 패키지 정보는 order_items에서 별도 조회 필요
-                package_steps = []
+                package_steps_json = order[7] if len(order) > 7 else None
+                # package_steps 파싱
+                try:
+                    if isinstance(package_steps_json, list):
+                        package_steps = package_steps_json
+                    elif isinstance(package_steps_json, str):
+                        package_steps = json.loads(package_steps_json) if package_steps_json else []
+                    else:
+                        package_steps = []
+                except (json.JSONDecodeError, TypeError):
+                    package_steps = []
+                service_id = str(variant_id) if variant_id else None
             else:
                 # 구 스키마 (SQLite)
                 order_id = order[0]
@@ -11110,25 +11872,87 @@ def update_admin_category(category_id):
 @app.route('/api/admin/categories/<int:category_id>', methods=['DELETE'])
 @require_admin_auth
 def delete_admin_category(category_id):
-    """카테고리 비활성화 (실제 삭제는 하지 않음)"""
+    """카테고리 삭제 (실제 삭제)"""
     conn = None
     cursor = None
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        cursor.execute("UPDATE categories SET is_active = FALSE, updated_at = NOW() WHERE category_id = %s", (category_id,))
+        # 카테고리 존재 여부 확인
+        cursor.execute("SELECT category_id, name FROM categories WHERE category_id = %s", (category_id,))
+        category = cursor.fetchone()
+        
+        if not category:
+            return jsonify({'error': '카테고리를 찾을 수 없습니다.'}), 404
+        
+        category_name = category.get('name', '')
+        print(f"🗑️ 카테고리 삭제 시도: {category_name} (category_id: {category_id})")
+        
+        # 관련 데이터 확인 (선택사항 - 삭제 전 경고용)
+        cursor.execute("SELECT COUNT(*) as count FROM products WHERE category_id = %s", (category_id,))
+        products_count = cursor.fetchone()['count']
+        
+        cursor.execute("SELECT COUNT(*) as count FROM packages WHERE category_id = %s", (category_id,))
+        packages_count = cursor.fetchone()['count']
+        
+        if products_count > 0 or packages_count > 0:
+            print(f"⚠️ 카테고리에 연결된 상품 {products_count}개, 패키지 {packages_count}개가 있습니다.")
+            # 외래 키 제약 조건에 따라 CASCADE 삭제되거나, 수동 삭제 필요
+        
+        # 관련 데이터가 있으면 함께 삭제 (외래 키 제약 조건 해결)
+        if products_count > 0:
+            print(f"📦 연결된 상품 {products_count}개 삭제 중...")
+            # order_items가 variant_id를 참조할 수 있으므로 먼저 삭제
+            cursor.execute("""
+                DELETE FROM order_items 
+                WHERE variant_id IN (
+                    SELECT variant_id FROM product_variants 
+                    WHERE product_id IN (SELECT product_id FROM products WHERE category_id = %s)
+                )
+            """, (category_id,))
+            # 상품의 variants 삭제
+            cursor.execute("""
+                DELETE FROM product_variants 
+                WHERE product_id IN (SELECT product_id FROM products WHERE category_id = %s)
+            """, (category_id,))
+            # 상품 삭제
+            cursor.execute("DELETE FROM products WHERE category_id = %s", (category_id,))
+            print(f"✅ 연결된 상품 {products_count}개 삭제 완료")
+        
+        if packages_count > 0:
+            print(f"📦 연결된 패키지 {packages_count}개 삭제 중...")
+            # 패키지의 items 먼저 삭제
+            cursor.execute("""
+                DELETE FROM package_items 
+                WHERE package_id IN (SELECT package_id FROM packages WHERE category_id = %s)
+            """, (category_id,))
+            # 패키지 삭제
+            cursor.execute("DELETE FROM packages WHERE category_id = %s", (category_id,))
+            print(f"✅ 연결된 패키지 {packages_count}개 삭제 완료")
+        
+        # 카테고리 삭제
+        cursor.execute("DELETE FROM categories WHERE category_id = %s", (category_id,))
         
         if cursor.rowcount == 0:
             return jsonify({'error': '카테고리를 찾을 수 없습니다.'}), 404
         
         conn.commit()
-        return jsonify({'success': True, 'message': '카테고리가 비활성화되었습니다.'}), 200
+        print(f"✅ 카테고리 삭제 완료: {category_name} (category_id: {category_id})")
+        return jsonify({
+            'success': True, 
+            'message': f'카테고리 "{category_name}"가 삭제되었습니다.',
+            'deleted_products': products_count,
+            'deleted_packages': packages_count
+        }), 200
     except Exception as e:
         if conn:
             conn.rollback()
-        print(f"❌ 카테고리 삭제 오류: {e}")
-        return jsonify({'error': f'카테고리 삭제 실패: {str(e)}'}), 500
+        error_msg = str(e)
+        print(f"❌ 카테고리 삭제 오류: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'카테고리 삭제 실패: {error_msg}'}), 500
     finally:
         if cursor:
             cursor.close()
@@ -11189,6 +12013,7 @@ def create_admin_product():
         name = data.get('name')
         description = data.get('description')
         is_domestic = data.get('is_domestic', True)
+        is_auto = data.get('is_auto', False)  # 자동상품 여부
         auto_tag = data.get('auto_tag', False)
         
         if not category_id or not name:
@@ -11197,11 +12022,27 @@ def create_admin_product():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
+        # is_auto 컬럼 존재 여부 확인 후 동적 INSERT
         cursor.execute("""
-            INSERT INTO products (category_id, name, description, is_domestic, auto_tag, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
-            RETURNING *
-        """, (category_id, name, description, is_domestic, auto_tag))
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'products' 
+            AND column_name = 'is_auto'
+        """)
+        has_is_auto = cursor.fetchone() is not None
+        
+        if has_is_auto:
+            cursor.execute("""
+                INSERT INTO products (category_id, name, description, is_domestic, is_auto, auto_tag, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                RETURNING *
+            """, (category_id, name, description, is_domestic, is_auto, auto_tag))
+        else:
+            cursor.execute("""
+                INSERT INTO products (category_id, name, description, is_domestic, auto_tag, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+                RETURNING *
+            """, (category_id, name, description, is_domestic, auto_tag))
         
         product = cursor.fetchone()
         conn.commit()
@@ -11273,14 +12114,32 @@ def update_admin_product(product_id):
         name = data.get('name', product['name'])
         description = data.get('description', product.get('description'))
         is_domestic = data.get('is_domestic', product.get('is_domestic', True))
+        is_auto = data.get('is_auto', product.get('is_auto', False))  # 자동상품 여부
         auto_tag = data.get('auto_tag', product.get('auto_tag', False))
         
+        # is_auto 컬럼 존재 여부 확인 후 동적 UPDATE
         cursor.execute("""
-            UPDATE products
-            SET category_id = %s, name = %s, description = %s, is_domestic = %s, auto_tag = %s, updated_at = NOW()
-            WHERE product_id = %s
-            RETURNING *
-        """, (category_id, name, description, is_domestic, auto_tag, product_id))
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'products' 
+            AND column_name = 'is_auto'
+        """)
+        has_is_auto = cursor.fetchone() is not None
+        
+        if has_is_auto:
+            cursor.execute("""
+                UPDATE products
+                SET category_id = %s, name = %s, description = %s, is_domestic = %s, is_auto = %s, auto_tag = %s, updated_at = NOW()
+                WHERE product_id = %s
+                RETURNING *
+            """, (category_id, name, description, is_domestic, is_auto, auto_tag, product_id))
+        else:
+            cursor.execute("""
+                UPDATE products
+                SET category_id = %s, name = %s, description = %s, is_domestic = %s, auto_tag = %s, updated_at = NOW()
+                WHERE product_id = %s
+                RETURNING *
+            """, (category_id, name, description, is_domestic, auto_tag, product_id))
         
         updated = cursor.fetchone()
         conn.commit()
@@ -11433,32 +12292,124 @@ def get_product_variants():
     """활성화된 세부 서비스 목록 조회 (공개)"""
     conn = None
     cursor = None
+    max_retries = 2
+    retry_count = 0
+    
+    # SSL 연결 오류 시 재시도
+    while retry_count < max_retries:
+        try:
+            product_id = request.args.get('product_id')
+            category_id = request.args.get('category_id')
+            conn = get_db_connection()
+            # 연결이 살아있는지 확인
+            test_cursor = conn.cursor()
+            test_cursor.execute("SELECT 1")
+            test_cursor.close()
+            break  # 연결 성공, 루프 탈출
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            error_msg = str(e)
+            if 'SSL connection has been closed' in error_msg or 'connection has been closed' in error_msg:
+                retry_count += 1
+                if retry_count < max_retries:
+                    print(f"⚠️ SSL 연결 끊김 감지, 재연결 시도 {retry_count}/{max_retries}...")
+                    if conn:
+                        try:
+                            conn.close()
+                        except:
+                            pass
+                    import time
+                    time.sleep(1)  # 1초 대기 후 재시도
+                    continue
+                else:
+                    print(f"❌ product-variants 조회 실패: SSL 연결 재시도 {max_retries}회 모두 실패")
+                    return jsonify({'error': '데이터베이스 연결 실패. 잠시 후 다시 시도해주세요.'}), 503
+            else:
+                # 다른 오류는 즉시 반환
+                raise
+    
+    # 연결이 없으면 (재시도 실패)
+    if not conn:
+        return jsonify({'error': '데이터베이스 연결 실패'}), 503
+    
     try:
-        product_id = request.args.get('product_id')
-        category_id = request.args.get('category_id')
-        conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        query = """
-            SELECT 
-                pv.variant_id as id,
-                pv.product_id,
-                pv.name,
-                pv.price,
-                pv.min_quantity as min,
-                pv.max_quantity as max,
-                pv.delivery_time_days,
-                pv.meta_json,
-                pv.api_endpoint,
-                p.name as product_name,
-                c.name as category_name,
-                c.category_id
-            FROM product_variants pv
-            LEFT JOIN products p ON pv.product_id = p.product_id
-            LEFT JOIN categories c ON p.category_id = c.category_id
-            WHERE pv.is_active = TRUE 
-              AND (c.is_active = TRUE OR c.is_active IS NULL)
-        """
+        # is_active 컬럼 존재 여부 확인 후 쿼리 작성
+        try:
+            # 먼저 is_active 컬럼이 있는지 확인
+            cursor.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'product_variants' 
+                  AND column_name = 'is_active'
+            """)
+            has_is_active = cursor.fetchone() is not None
+            
+            if has_is_active:
+                query = """
+                    SELECT 
+                        pv.variant_id as id,
+                        pv.product_id,
+                        pv.name,
+                        pv.price,
+                        pv.min_quantity as min,
+                        pv.max_quantity as max,
+                        pv.delivery_time_days,
+                        pv.meta_json,
+                        pv.api_endpoint,
+                        p.name as product_name,
+                        c.name as category_name,
+                        c.category_id
+                    FROM product_variants pv
+                    LEFT JOIN products p ON pv.product_id = p.product_id
+                    LEFT JOIN categories c ON p.category_id = c.category_id
+                    WHERE pv.is_active = TRUE 
+                      AND (c.is_active = TRUE OR c.is_active IS NULL)
+                """
+            else:
+                # is_active 컬럼이 없으면 모든 variant 조회
+                query = """
+                    SELECT 
+                        pv.variant_id as id,
+                        pv.product_id,
+                        pv.name,
+                        pv.price,
+                        pv.min_quantity as min,
+                        pv.max_quantity as max,
+                        pv.delivery_time_days,
+                        pv.meta_json,
+                        pv.api_endpoint,
+                        p.name as product_name,
+                        c.name as category_name,
+                        c.category_id
+                    FROM product_variants pv
+                    LEFT JOIN products p ON pv.product_id = p.product_id
+                    LEFT JOIN categories c ON p.category_id = c.category_id
+                    WHERE (c.is_active = TRUE OR c.is_active IS NULL)
+                """
+        except Exception as schema_check_error:
+            # 스키마 확인 실패 시 기본 쿼리 사용 (is_active 없이)
+            print(f"⚠️ 스키마 확인 실패, 기본 쿼리 사용: {schema_check_error}")
+            query = """
+                SELECT 
+                    pv.variant_id as id,
+                    pv.product_id,
+                    pv.name,
+                    pv.price,
+                    pv.min_quantity as min,
+                    pv.max_quantity as max,
+                    pv.delivery_time_days,
+                    pv.meta_json,
+                    pv.api_endpoint,
+                    p.name as product_name,
+                    c.name as category_name,
+                    c.category_id
+                FROM product_variants pv
+                LEFT JOIN products p ON pv.product_id = p.product_id
+                LEFT JOIN categories c ON p.category_id = c.category_id
+                WHERE (c.is_active = TRUE OR c.is_active IS NULL)
+            """
+        
         params = []
         
         if product_id:
@@ -11471,48 +12422,60 @@ def get_product_variants():
         
         query += " ORDER BY pv.created_at ASC"
         
-        cursor.execute(query, tuple(params))
+        cursor.execute(query, tuple(params) if params else ())
         variants = cursor.fetchall()
         
         # meta_json 파싱 및 형식 변환
         result = []
+        import json
         for v in variants:
-            variant_dict = dict(v)
-            
-            # meta_json 파싱
-            meta_json = variant_dict.get('meta_json')
-            if meta_json and isinstance(meta_json, str):
-                try:
-                    import json
-                    variant_dict['meta_json'] = json.loads(meta_json)
-                except:
+            try:
+                variant_dict = dict(v)
+                
+                # meta_json 파싱 (JSONB는 이미 dict일 수 있음)
+                meta_json = variant_dict.get('meta_json')
+                if meta_json and isinstance(meta_json, str):
+                    try:
+                        variant_dict['meta_json'] = json.loads(meta_json)
+                    except json.JSONDecodeError:
+                        variant_dict['meta_json'] = {}
+                elif meta_json is None:
                     variant_dict['meta_json'] = {}
-            elif meta_json is None:
-                variant_dict['meta_json'] = {}
-            
-            # SMM Panel 서비스 ID 추출
-            if variant_dict.get('meta_json') and isinstance(variant_dict['meta_json'], dict):
-                smm_service_id = variant_dict['meta_json'].get('service_id') or variant_dict['meta_json'].get('smm_service_id')
-                if smm_service_id:
-                    variant_dict['smmkings_id'] = int(smm_service_id) if str(smm_service_id).isdigit() else None
+                # 이미 dict인 경우 그대로 사용
+                
+                # SMM Panel 서비스 ID 추출
+                if variant_dict.get('meta_json') and isinstance(variant_dict['meta_json'], dict):
+                    smm_service_id = variant_dict['meta_json'].get('service_id') or variant_dict['meta_json'].get('smm_service_id')
+                    if smm_service_id:
+                        try:
+                            variant_dict['smmkings_id'] = int(smm_service_id) if str(smm_service_id).isdigit() else None
+                        except (ValueError, TypeError):
+                            variant_dict['smmkings_id'] = None
+                    else:
+                        variant_dict['smmkings_id'] = None
                 else:
                     variant_dict['smmkings_id'] = None
-            else:
-                variant_dict['smmkings_id'] = None
-            
-            # 배송 시간 포맷팅
-            delivery_days = variant_dict.get('delivery_time_days')
-            if delivery_days:
-                if delivery_days == 1:
-                    variant_dict['time'] = '1일'
-                elif delivery_days < 1:
-                    variant_dict['time'] = f'{int(delivery_days * 24)}시간'
+                
+                # 배송 시간 포맷팅
+                delivery_days = variant_dict.get('delivery_time_days')
+                if delivery_days:
+                    try:
+                        delivery_days = float(delivery_days)
+                        if delivery_days == 1:
+                            variant_dict['time'] = '1일'
+                        elif delivery_days < 1:
+                            variant_dict['time'] = f'{int(delivery_days * 24)}시간'
+                        else:
+                            variant_dict['time'] = f'{int(delivery_days)}일'
+                    except (ValueError, TypeError):
+                        variant_dict['time'] = '데이터가 충분하지 않습니다'
                 else:
-                    variant_dict['time'] = f'{delivery_days}일'
-            else:
-                variant_dict['time'] = '데이터가 충분하지 않습니다'
-            
-            result.append(variant_dict)
+                    variant_dict['time'] = '데이터가 충분하지 않습니다'
+                
+                result.append(variant_dict)
+            except Exception as variant_error:
+                print(f"⚠️ variant 처리 오류 (건너뜀): {variant_error}")
+                continue  # 개별 variant 오류는 건너뛰고 계속
         
         return jsonify({
             'variants': result,
@@ -11520,23 +12483,71 @@ def get_product_variants():
         }), 200
     except Exception as e:
         import traceback
-        print(f"❌ 세부 서비스 목록 조회 오류: {e}")
+        error_msg = str(e)
+        print(f"❌ 세부 서비스 목록 조회 오류: {error_msg}")
         print(traceback.format_exc())
-        return jsonify({'error': f'세부 서비스 조회 실패: {str(e)}'}), 500
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
+        return jsonify({'error': f'세부 서비스 조회 실패: {error_msg}'}), 500
     finally:
         if cursor:
-            cursor.close()
+            try:
+                cursor.close()
+            except:
+                pass
         if conn:
-            conn.close()
+            try:
+                conn.close()
+            except:
+                pass
 
 @app.route('/api/packages', methods=['GET'])
 def get_packages():
     """활성화된 패키지 목록 조회 (공개)"""
     conn = None
     cursor = None
+    max_retries = 2
+    retry_count = 0
+    
+    # SSL 연결 오류 시 재시도
+    while retry_count < max_retries:
+        try:
+            category_id = request.args.get('category_id')
+            conn = get_db_connection()
+            # 연결이 살아있는지 확인
+            test_cursor = conn.cursor()
+            test_cursor.execute("SELECT 1")
+            test_cursor.close()
+            break  # 연결 성공, 루프 탈출
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            error_msg = str(e)
+            if 'SSL connection has been closed' in error_msg or 'connection has been closed' in error_msg:
+                retry_count += 1
+                if retry_count < max_retries:
+                    print(f"⚠️ SSL 연결 끊김 감지, 재연결 시도 {retry_count}/{max_retries}...")
+                    if conn:
+                        try:
+                            conn.close()
+                        except:
+                            pass
+                    import time
+                    time.sleep(1)  # 1초 대기 후 재시도
+                    continue
+                else:
+                    print(f"❌ 패키지 조회 실패: SSL 연결 재시도 {max_retries}회 모두 실패")
+                    return jsonify({'error': '데이터베이스 연결 실패. 잠시 후 다시 시도해주세요.'}), 503
+            else:
+                # 다른 오류는 즉시 반환
+                raise
+    
+    # 연결이 없으면 (재시도 실패)
+    if not conn:
+        return jsonify({'error': '데이터베이스 연결 실패'}), 503
+    
     try:
-        category_id = request.args.get('category_id')
-        conn = get_db_connection()
         is_postgres = DATABASE_URL.startswith('postgresql://')
         
         if is_postgres:
@@ -11741,21 +12752,29 @@ def create_admin_product_variant():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # meta_json을 JSON 문자열로 변환
+        # meta_json을 JSON 문자열 또는 JSONB로 변환
         import json
-        meta_json_str = None
+        meta_json_value = None
         if meta_json:
-            meta_json_str = json.dumps(meta_json) if not isinstance(meta_json, str) else meta_json
+            if isinstance(meta_json, str):
+                try:
+                    # 문자열이면 파싱 후 다시 JSON 문자열로 변환
+                    meta_json_value = json.dumps(json.loads(meta_json))
+                except:
+                    meta_json_value = meta_json
+            else:
+                meta_json_value = json.dumps(meta_json)
         
+        # 필수 컬럼만 사용하는 안전한 INSERT 쿼리
+        # 다른 INSERT 쿼리(backend.py:595)와 동일한 스키마 사용
         cursor.execute("""
             INSERT INTO product_variants (
-                product_id, name, price, original_cost, min_quantity, max_quantity,
-                delivery_time_days, is_active, meta_json, api_endpoint,
-                created_at, updated_at
+                product_id, name, price, min_quantity, max_quantity,
+                delivery_time_days, is_active, meta_json, created_at, updated_at
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, NOW(), NOW())
             RETURNING *
-        """, (product_id, name, price, original_cost, min_quantity, max_quantity, delivery_time_days, is_active, meta_json_str, api_endpoint))
+        """, (product_id, name, price, min_quantity, max_quantity, delivery_time_days, is_active, meta_json_value))
         
         variant = cursor.fetchone()
         conn.commit()
@@ -11774,8 +12793,11 @@ def create_admin_product_variant():
     except Exception as e:
         if conn:
             conn.rollback()
-        print(f"❌ 상품 옵션 생성 오류: {e}")
-        return jsonify({'error': f'상품 옵션 생성 실패: {str(e)}'}), 500
+        error_msg = str(e)
+        print(f"❌ 상품 옵션 생성 오류: {error_msg}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'error': f'상품 옵션 생성 실패: {error_msg}'}), 500
     finally:
         if cursor:
             cursor.close()

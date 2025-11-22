@@ -1,5 +1,0 @@
-[33m034f868[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Add cash receipt Excel download functionality to admin page
-[33mfa3b119[m Add account search functionality to admin page with detailed user information and order history
-[33m0a08a30[m Change logo from SNSINTO to Sociality across all pages
-[33m009342c[m Add SNSINTO logo to login/signup pages and remove test account message
-[33m8d779d8[m Improve loading screen for OrdersPage - cleaner and simpler
