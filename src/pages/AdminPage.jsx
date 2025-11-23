@@ -45,6 +45,76 @@ const AdminPage = () => {
   const [isAdmin, setIsAdmin] = useState(null)  // null: 체크 중, true: 관리자, false: 일반 사용자
   const [checkingAdmin, setCheckingAdmin] = useState(true)
   
+  // 모든 상태를 조건부 return 이전에 선언 (Hooks 규칙 준수)
+  const [activeTab, setActiveTab] = useState('dashboard')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [lastUpdate, setLastUpdate] = useState(null)
+  
+  // 탭별 상태 유지를 위한 상태
+  const [tabStates, setTabStates] = useState({
+    dashboard: { lastUpdate: null },
+    users: { searchTerm: '', lastUpdate: null },
+    orders: { searchTerm: '', lastUpdate: null },
+    purchases: { searchTerm: '', statusFilter: 'all', lastUpdate: null },
+    referrals: { lastUpdate: null },
+    notices: { lastUpdate: null }
+  })
+
+  // 대시보드 데이터
+  const [dashboardData, setDashboardData] = useState({
+    totalUsers: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    pendingPurchases: 0,
+    todayOrders: 0,
+    todayRevenue: 0,
+    monthlyRevenue: 0
+  })
+
+  // 사용자 데이터
+  const [users, setUsers] = useState([])
+
+  // 주문 데이터
+  const [orders, setOrders] = useState([])
+
+  // 포인트 구매 신청 데이터
+  const [pendingPurchases, setPendingPurchases] = useState([])
+
+  // 추천인 데이터
+  const [referrals, setReferrals] = useState([])
+  const [showReferralModal, setShowReferralModal] = useState(false)
+  const [showReferralDetailModal, setShowReferralDetailModal] = useState(false)
+  const [selectedReferralCode, setSelectedReferralCode] = useState(null)
+  const [filteredPurchases, setFilteredPurchases] = useState([])
+  
+  // 공지사항 데이터
+  const [notices, setNotices] = useState([])
+  const [showNoticeModal, setShowNoticeModal] = useState(false)
+  const [editingNotice, setEditingNotice] = useState(null)
+  const [noticeForm, setNoticeForm] = useState({
+    title: '',
+    content: '',
+    image_url: '',
+    is_pinned: false,
+    is_published: false
+  })
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [referralCodes, setReferralCodes] = useState([])
+  const [referralCommissions, setReferralCommissions] = useState([])
+  
+  // 커미션 관련 상태
+  const [commissionOverview, setCommissionOverview] = useState([])
+  const [commissionStats, setCommissionStats] = useState({})
+  const [paymentHistory, setPaymentHistory] = useState([])
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedReferrer, setSelectedReferrer] = useState(null)
+  const [paymentData, setPaymentData] = useState({
+    amount: '',
+    payment_method: 'bank_transfer',
+    notes: ''
+  })
+
   // 관리자 권한 체크
   useEffect(() => {
     let timeoutId = null
@@ -248,14 +318,19 @@ const AdminPage = () => {
           timeoutId = null
         }
         
+        // AbortError는 React Strict Mode의 이중 실행이나 컴포넌트 언마운트로 인한 정상적인 취소
+        // 오류로 처리하지 않고 조용히 종료
+        if (error.name === 'AbortError') {
+          console.log('ℹ️ API 호출이 취소되었습니다 (정상적인 취소)')
+          return
+        }
+        
+        // 실제 오류인 경우에만 로그 출력
         console.error('❌ 관리자 권한 체크 오류 발생!')
         console.error('❌ 오류 타입:', error.name)
         console.error('❌ 오류 메시지:', error.message)
-        console.error('❌ 전체 오류 객체:', error)
         
-        if (error.name === 'AbortError') {
-          console.error('❌ API 호출이 취소되었습니다 (타임아웃 또는 컴포넌트 언마운트)')
-        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
           console.error('❌ 네트워크 오류 또는 CORS 문제일 수 있습니다.')
           console.error('❌ API 서버가 실행 중인지 확인하세요.')
         } else {
@@ -324,6 +399,85 @@ const AdminPage = () => {
     }
   }
   
+  // 함수 선언을 위한 ref (조건부 return 이후에 정의되므로)
+  // 이 ref들은 조건부 return 이후에 실제 함수로 할당됨
+  const loadFunctionsRef = React.useRef({
+    loadAdminData: null,
+    loadReferralData: null,
+    loadCommissionData: null,
+    loadPendingPurchases: null
+  })
+  
+  // 관리자 데이터 로드 useEffect (조건부 return 이전에 선언)
+  // 함수들이 조건부 return 이후에 정의되므로, ref에 할당될 때까지 기다림
+  useEffect(() => {
+    if (isAdmin === true && !checkingAdmin) {
+      // 함수들이 준비될 때까지 짧은 딜레이 후 실행
+      const checkAndLoad = () => {
+        if (loadFunctionsRef.current.loadAdminData) {
+          console.log('🔄 관리자 데이터 로드 시작')
+          loadFunctionsRef.current.loadAdminData()
+          if (loadFunctionsRef.current.loadReferralData) {
+            loadFunctionsRef.current.loadReferralData()
+          }
+          if (loadFunctionsRef.current.loadCommissionData) {
+            loadFunctionsRef.current.loadCommissionData()
+          }
+        } else {
+          // 함수가 아직 준비되지 않았으면 다시 시도
+          setTimeout(checkAndLoad, 50)
+        }
+      }
+      
+      // 초기 체크 (함수들이 이미 준비되었을 수 있음)
+      const timer = setTimeout(checkAndLoad, 0)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [isAdmin, checkingAdmin])
+  
+  // 탭 변경 시 데이터 로드 useEffect
+  useEffect(() => {
+    if (isAdmin === true && !checkingAdmin && activeTab === 'purchases' && loadFunctionsRef.current.loadPendingPurchases) {
+      loadFunctionsRef.current.loadPendingPurchases()
+    }
+  }, [isAdmin, checkingAdmin, activeTab])
+  
+  // 구매 신청 검색 및 상태 필터링 useEffect
+  useEffect(() => {
+    if (isAdmin === true && !checkingAdmin) {
+    const searchTerm = tabStates.purchases.searchTerm || ''
+    const statusFilter = tabStates.purchases.statusFilter || 'all'
+    
+    const filtered = (pendingPurchases || []).filter(purchase => {
+      try {
+        if (statusFilter !== 'all') {
+          const purchaseStatus = purchase.status || 'pending'
+            if (statusFilter === 'pending' && purchaseStatus !== 'pending') return false
+            if (statusFilter === 'approved' && purchaseStatus !== 'approved') return false
+            if (statusFilter === 'rejected' && purchaseStatus !== 'rejected') return false
+          }
+          
+        if (searchTerm) {
+          const userId = String(purchase?.userId || '')
+          const email = String(purchase?.email || '')
+          const buyerName = String(purchase?.buyerName || '')
+          const searchLower = String(searchTerm || '').toLowerCase()
+          
+          return userId.toLowerCase().includes(searchLower) ||
+                 email.toLowerCase().includes(searchLower) ||
+                 buyerName.toLowerCase().includes(searchLower)
+        }
+        
+        return true
+      } catch (error) {
+        return false
+      }
+    })
+    setFilteredPurchases(filtered)
+    }
+  }, [isAdmin, checkingAdmin, pendingPurchases, tabStates.purchases.searchTerm, tabStates.purchases.statusFilter])
+  
   // 관리자 권한 체크 중
   if (checkingAdmin) {
     return (
@@ -390,132 +544,6 @@ const AdminPage = () => {
     )
   }
 
-  // 상태 관리
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [lastUpdate, setLastUpdate] = useState(null)
-
-  // 탭별 상태 유지를 위한 상태
-  const [tabStates, setTabStates] = useState({
-    dashboard: { lastUpdate: null },
-    users: { searchTerm: '', lastUpdate: null },
-    orders: { searchTerm: '', lastUpdate: null },
-    purchases: { searchTerm: '', statusFilter: 'all', lastUpdate: null },
-    referrals: { lastUpdate: null },
-    notices: { lastUpdate: null }
-  })
-
-  // 대시보드 데이터
-  const [dashboardData, setDashboardData] = useState({
-    totalUsers: 0,
-    totalOrders: 0,
-    totalRevenue: 0,
-    pendingPurchases: 0,
-    todayOrders: 0,
-    todayRevenue: 0,
-    monthlyRevenue: 0
-  })
-
-  // 사용자 데이터
-  const [users, setUsers] = useState([])
-
-  // 주문 데이터
-  const [orders, setOrders] = useState([])
-
-  // 포인트 구매 신청 데이터
-  const [pendingPurchases, setPendingPurchases] = useState([])
-
-  // 추천인 데이터
-  const [referrals, setReferrals] = useState([])
-  const [showReferralModal, setShowReferralModal] = useState(false)
-  const [showReferralDetailModal, setShowReferralDetailModal] = useState(false)
-  const [selectedReferralCode, setSelectedReferralCode] = useState(null)
-  const [filteredPurchases, setFilteredPurchases] = useState([])
-
-  // 공지사항 데이터
-  const [notices, setNotices] = useState([])
-  const [showNoticeModal, setShowNoticeModal] = useState(false)
-  const [editingNotice, setEditingNotice] = useState(null)
-  const [noticeForm, setNoticeForm] = useState({
-    title: '',
-    content: '',
-    image_url: '',
-    login_popup_image_url: '',
-    popup_type: 'notice', // 'notice' or 'login'
-    is_active: true
-  })
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const [referralCodes, setReferralCodes] = useState([])
-  const [referralCommissions, setReferralCommissions] = useState([])
-
-  // 추천인 커미션 관리 상태
-  const [commissionOverview, setCommissionOverview] = useState([])
-  const [commissionStats, setCommissionStats] = useState({})
-  const [paymentHistory, setPaymentHistory] = useState([])
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [selectedReferrer, setSelectedReferrer] = useState(null)
-  const [paymentData, setPaymentData] = useState({
-    amount: '',
-    payment_method: 'bank_transfer',
-    notes: ''
-  })
-
-  // 컴포넌트 마운트 시 데이터 로드
-  useEffect(() => {
-    loadAdminData()
-    loadReferralData()
-    loadCommissionData()
-  }, [])
-
-  // 탭 변경 시 해당 탭 데이터 로드
-  useEffect(() => {
-    if (activeTab === 'purchases') {
-      loadPendingPurchases()
-    }
-  }, [activeTab])
-
-  // 구매 신청 검색 및 상태 필터링
-  useEffect(() => {
-    const searchTerm = tabStates.purchases.searchTerm || ''
-    const statusFilter = tabStates.purchases.statusFilter || 'all'
-
-    const filtered = (pendingPurchases || []).filter(purchase => {
-      try {
-        // 상태 필터링
-        if (statusFilter !== 'all') {
-          const purchaseStatus = purchase.status || 'pending'
-          if (statusFilter === 'pending' && purchaseStatus !== 'pending') {
-            return false
-          }
-          if (statusFilter === 'approved' && purchaseStatus !== 'approved') {
-            return false
-          }
-          if (statusFilter === 'rejected' && purchaseStatus !== 'rejected') {
-            return false
-          }
-        }
-
-        // 검색어 필터링
-        if (searchTerm) {
-          const userId = String(purchase?.userId || '')
-          const email = String(purchase?.email || '')
-          const buyerName = String(purchase?.buyerName || '')
-          const searchLower = String(searchTerm || '').toLowerCase()
-
-          return userId.toLowerCase().includes(searchLower) ||
-            email.toLowerCase().includes(searchLower) ||
-            buyerName.toLowerCase().includes(searchLower)
-        }
-
-        return true
-      } catch (error) {
-        return false
-      }
-    })
-    setFilteredPurchases(filtered)
-  }, [pendingPurchases, tabStates.purchases.searchTerm, tabStates.purchases.statusFilter])
-
   // 검색어 업데이트 함수들
   const updateSearchTerm = (tab, searchTerm) => {
     setTabStates(prev => ({
@@ -574,6 +602,9 @@ const AdminPage = () => {
       setIsLoading(false)
     }
   }
+  
+  // 함수들을 ref에 저장 (조건부 return 이후에 정의되므로)
+  loadFunctionsRef.current.loadAdminData = loadAdminData
 
   // 대시보드 통계 로드
   const loadDashboardStats = async () => {
@@ -691,6 +722,9 @@ const AdminPage = () => {
       setFilteredPurchases([])
     }
   }
+  
+  // 함수들을 ref에 저장
+  loadFunctionsRef.current.loadPendingPurchases = loadPendingPurchases
 
   // 포인트 구매 신청 승인
   const handleApprovePurchase = async (purchaseId) => {
@@ -1015,6 +1049,9 @@ const AdminPage = () => {
       setReferralCommissions(commissions)
     }
   }
+  
+  // 함수들을 ref에 저장
+  loadFunctionsRef.current.loadReferralData = loadReferralData
 
   // 커미션 데이터 로드 (환급신청 포함)
   const loadCommissionData = async () => {
@@ -1044,6 +1081,9 @@ const AdminPage = () => {
       console.error('커미션 데이터 로드 실패:', error)
     }
   }
+  
+  // 함수들을 ref에 저장
+  loadFunctionsRef.current.loadCommissionData = loadCommissionData
 
   // 환급신청 승인
   const handleApprovePayoutRequest = async (requestId) => {
