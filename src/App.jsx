@@ -12,6 +12,7 @@ import HomeBackup from './pages/HomeBackup'
 
 // 지연 로딩으로 성능 최적화
 const PaymentPage = lazy(() => import('./pages/PaymentPage'))
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'))
 const OrderCompletePage = lazy(() => import('./pages/OrderCompletePage'))
 const OrdersPage = lazy(() => import('./pages/OrdersPage'))
 const PointsPage = lazy(() => import('./pages/PointsPage'))
@@ -43,6 +44,7 @@ function App() {
                   <Routes>
                     <Route path="/" element={<Home/>} />
                     <Route path="/HomeBackup" element={<HomeBackup />} />
+                    <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
                     <Route path="/payment/:platform" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
                     <Route path="/order-complete/:orderId" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
                     <Route path="/order-complete" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />

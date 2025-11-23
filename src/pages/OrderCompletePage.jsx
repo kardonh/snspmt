@@ -1,6 +1,6 @@
 import React from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { CheckCircle, Home, FileText, Clock, Users, TrendingUp } from 'lucide-react'
+import { CheckCircle, Home, FileText, Clock, Users, TrendingUp, Package } from 'lucide-react'
 import './OrderCompletePage.css'
 
 const OrderCompletePage = () => {
@@ -14,8 +14,7 @@ const OrderCompletePage = () => {
   }
 
   const handleViewOrders = () => {
-    // 주문 내역 페이지로 이동 (구현 예정)
-    navigate('/')
+    navigate('/orders')
   }
 
   return (
@@ -25,7 +24,7 @@ const OrderCompletePage = () => {
         <div className="success-section">
           <CheckCircle className="success-icon" />
           <h1>주문이 완료되었습니다!</h1>
-          <p className="order-id">주문번호: {orderId}</p>
+          <p className="order-id">주문번호: {orderId || location.state?.orderId}</p>
           <p className="success-message">
             결제가 성공적으로 완료되었습니다. 서비스가 곧 시작됩니다.
           </p>
@@ -41,19 +40,45 @@ const OrderCompletePage = () => {
                   <Users />
                 </div>
                 <div className="item-content">
-                  <h3>서비스</h3>
-                  <p>{orderData.serviceName}</p>
+                  <h3>카테고리</h3>
+                  <p>{orderData.category?.name || '알 수 없음'}</p>
                 </div>
               </div>
+              
               <div className="summary-item">
                 <div className="item-icon">
-                  <TrendingUp />
+                  {orderData.type === 'package' ? <Package /> : <TrendingUp />}
                 </div>
                 <div className="item-content">
-                  <h3>수량</h3>
-                  <p>{orderData.quantity.toLocaleString()}개</p>
+                  <h3>{orderData.type === 'package' ? '패키지' : '서비스'}</h3>
+                  <p>{orderData.type === 'package' ? orderData.package?.name : orderData.product?.name}</p>
                 </div>
               </div>
+
+              {orderData.type === 'product' && (
+                <div className="summary-item">
+                  <div className="item-icon">
+                    <FileText />
+                  </div>
+                  <div className="item-content">
+                    <h3>상세 서비스</h3>
+                    <p>{orderData.variant?.name}</p>
+                  </div>
+                </div>
+              )}
+
+              {orderData.type === 'product' && (
+                <div className="summary-item">
+                  <div className="item-icon">
+                    <TrendingUp />
+                  </div>
+                  <div className="item-content">
+                    <h3>수량</h3>
+                    <p>{orderData.orderDetails?.quantity?.toLocaleString()}개</p>
+                  </div>
+                </div>
+              )}
+
               <div className="summary-item">
                 <div className="item-icon">
                   <Clock />
@@ -64,6 +89,38 @@ const OrderCompletePage = () => {
                 </div>
               </div>
             </div>
+
+            {/* 추가 정보 */}
+            <div className="additional-info">
+              <div className="info-row">
+                <span className="info-label">링크:</span>
+                <span className="info-value">{orderData.orderDetails?.link}</span>
+              </div>
+              {orderData.orderDetails?.comments && (
+                <div className="info-row">
+                  <span className="info-label">댓글:</span>
+                  <span className="info-value">{orderData.orderDetails.comments}</span>
+                </div>
+              )}
+              <div className="info-row">
+                <span className="info-label">결제 금액:</span>
+                <span className="info-value total-price">{orderData.pricing?.formatted || `₩${orderData.pricing?.total?.toLocaleString()}`}</span>
+              </div>
+            </div>
+
+            {/* 패키지 구성 표시 */}
+            {orderData.type === 'package' && orderData.package?.steps?.length > 0 && (
+              <div className="package-steps-info">
+                <h3>📦 패키지 구성</h3>
+                <ul>
+                  {orderData.package.steps.map((step, index) => (
+                    <li key={index}>
+                      Step {step.step}: {step.variant_name} (x{step.quantity})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
@@ -130,7 +187,6 @@ const OrderCompletePage = () => {
           <h3>고객센터</h3>
           <p>문의사항이 있으시면 하단의 카카오채널로 문의 부탁드립니다!</p>
           <div className="contact-info">
-
             <p>⏰ 운영시간: 평일 운영시간: 10:00 ~ 18:00</p>
           </div>
         </div>
