@@ -1,5 +1,5 @@
 import React from 'react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect,useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { createOrderData, saveOrderForCheckout } from '../utils/orderManager'
@@ -11,7 +11,7 @@ import VariantList from '../components/home/VariantList'
 import OrderForm from '../components/home/OrderForm'
 import './Home.css'
 
-function Home() {
+function Home2() {
   const navigate = useNavigate()
   const [selectedPlatform, setSelectedPlatform] = useState('recommended')
   const [selectedTab, setSelectedTab] = useState('korean')
@@ -24,6 +24,18 @@ function Home() {
   const [packages, setPackages] = useState([])
   const [variants, setVariants] = useState([])
   const [currentStep, setCurrentStep] = useState(null)
+
+  // Refs for scrolling
+  const platformRef = useRef(null)
+  const serviceRef = useRef(null)
+  const variantRef = useRef(null)
+  const orderFormRef = useRef(null)
+
+  const scrollToRef = (ref) => {
+    if (ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
 
 
   const categoryColors = {
@@ -80,12 +92,14 @@ function Home() {
     setSelectedVariant(null)
     setSelectedPackage(null)
     setSelectedPackageDetail(null)
+    setTimeout(() => scrollToRef(serviceRef), 100)
   }
 
   const handleServiceSelect = (serviceId) => {
     setSelectedService(serviceId)
     handleFetchVariants(serviceId)
     setCurrentStep(3)
+    setTimeout(() => scrollToRef(variantRef), 100)
   }
 
   const handlePackageSelect = (packageId) => {
@@ -93,11 +107,13 @@ function Home() {
     const packageDetail = packages.find(pkg => pkg.package_id === packageId)
     setSelectedPackageDetail(packageDetail)
     setCurrentStep(3)
+    setTimeout(() => scrollToRef(variantRef), 100)
   }
 
   const handleVariantSelect = (variant) => {
     setSelectedVariant(variant)
     setCurrentStep(4)
+    setTimeout(() => scrollToRef(orderFormRef), 100)
   }
 
   const handleClosePackageDetail = () => {
@@ -189,113 +205,83 @@ function Home() {
 
   return (
     <div>
-      <div className='step-indicator'>
-        <div className={`step-item ${currentStep === null || currentStep >= 1 ? 'active' : ''}`}>
-          <div className='step-circle'>1</div>
-          <span className='step-text'>플랫폼 선택</span>
-        </div>
-        <div className='step-line'></div>
-        <div className={`step-item ${currentStep >= 2 ? 'active' : ''}`}>
-          <div className='step-circle'>2</div>
-          <span className='step-text'>서비스 선택</span>
-        </div>
-        <div className='step-line'></div>
-        <div className={`step-item ${currentStep >= 3 ? 'active' : ''}`}>
-          <div className='step-circle'>3</div>
-          <span className='step-text'>세부 서비스 선택</span>
-        </div>
-        <div className='step-line'></div>
-        <div className={`step-item ${currentStep >= 4 ? 'active' : ''}`}>
-          <div className='step-circle'>4</div>
-          <span className='step-text'>상세 정보 입력</span>
-        </div>
-      </div>
-
       {/* Step 1: Platform Selection */}
-      {(currentStep === null || currentStep === 1) && (
+      <div ref={platformRef}>
         <PlatformGrid
           categories={categories}
           selectedPlatform={selectedPlatform}
           onSelectPlatform={handlePlatformSelect}
           categoryColors={categoryColors}
         />
-      )}
+      </div>
 
       {/* Step 2: Package List or Service Selector */}
-      {currentStep === 2 && selectedPlatform === 'recommended' && (
-        <PackageList
-          packages={packages}
-          selectedPackage={selectedPackage}
-          onSelectPackage={handlePackageSelect}
-        />
-      )}
-
-      {currentStep === 2 && selectedPlatform && selectedPlatform !== 'recommended' && (
-        <ServiceTypeSelector
-          categories={categories}
-          selectedPlatform={selectedPlatform}
-          selectedTab={selectedTab}
-          onTabChange={setSelectedTab}
-          products={products}
-          selectedService={selectedService}
-          onServiceSelect={handleServiceSelect}
-        />
-      )}
-
-      {/* Step 3: Package Detail or Variant List */}
-      {currentStep === 3 && selectedPackageDetail && (
-        <PackageDetailView
-          packageDetail={selectedPackageDetail}
-          onClose={handleClosePackageDetail}
-        />
-      )}
-
-      {currentStep === 3 && selectedService && variants.length > 0 && selectedPlatform !== 'recommended' && (
-        <VariantList
-          variants={variants}
-          selectedVariant={selectedVariant}
-          onSelectVariant={handleVariantSelect}
-        />
-      )}
-
-      {/* Step 4: Order Form */}
-      {currentStep === 4 && selectedPackageDetail && (
-        <OrderForm
-          packageDetail={selectedPackageDetail}
-          category={categories.find(c => c.category_id === selectedPackageDetail.category_id)}
-          onSubmit={(formData) => handleOrderSubmit('package', formData)}
-        />
-      )}
-
-      {currentStep === 4 && selectedVariant && (
-        <OrderForm
-          variant={selectedVariant}
-          category={categories.find(c => c.category_id === selectedPlatform)}
-          onSubmit={(formData) => handleOrderSubmit('product', formData)}
-        />
-      )}
-
-      {/* Navigation Buttons */}
-      {currentStep && currentStep <= 4 && (
-        <div className="step-navigation">
-          <button className="btn-back" onClick={handleBackStep}>
-            ← 이전
-          </button>
-          {canGoNext() && (
-            <button className="btn-next" onClick={handleNextStep}>
-              다음 →
-            </button>
-          )}
+      {selectedPlatform === 'recommended' && (
+        <div ref={serviceRef}>
+          <PackageList
+            packages={packages}
+            selectedPackage={selectedPackage}
+            onSelectPackage={handlePackageSelect}
+          />
         </div>
       )}
 
-      {currentStep && currentStep >= 2 && (
-        <button className="btn-back-floating" onClick={handleBackStep}>
-          ← 이전 단계
-        </button>
+      {selectedPlatform && selectedPlatform !== 'recommended' && (
+        <div ref={serviceRef}>
+          <ServiceTypeSelector
+            categories={categories}
+            selectedPlatform={selectedPlatform}
+            selectedTab={selectedTab}
+            onTabChange={setSelectedTab}
+            products={products}
+            selectedService={selectedService}
+            onServiceSelect={handleServiceSelect}
+          />
+        </div>
+      )}
+
+      {/* Step 3: Package Detail or Variant List */}
+      {selectedPackageDetail && (
+        <div ref={variantRef}>
+          <PackageDetailView
+            packageDetail={selectedPackageDetail}
+            onClose={handleClosePackageDetail}
+          />
+        </div>
+      )}
+
+      {selectedService && variants.length > 0 && selectedPlatform !== 'recommended' && (
+        <div ref={variantRef}>
+          <VariantList
+            variants={variants}
+            selectedVariant={selectedVariant}
+            onSelectVariant={handleVariantSelect}
+          />
+        </div>
+      )}
+
+      {/* Step 4: Order Form */}
+      {selectedPackageDetail && (
+        <div ref={orderFormRef}>
+          <OrderForm
+            packageDetail={selectedPackageDetail}
+            category={categories.find(c => c.category_id === selectedPackageDetail.category_id)}
+            onSubmit={(formData) => handleOrderSubmit('package', formData)}
+          />
+        </div>
+      )}
+
+      {selectedVariant && (
+        <div ref={orderFormRef}>
+          <OrderForm
+            variant={selectedVariant}
+            category={categories.find(c => c.category_id === selectedPlatform)}
+            onSubmit={(formData) => handleOrderSubmit('product', formData)}
+          />
+        </div>
       )}
     </div>
   )
 }
 
-export default Home
+export default Home2

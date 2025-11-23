@@ -3863,7 +3863,8 @@
 
 @media (max-width: 480px) {
   .step-text {
-    display: none;
+    display: block;
+    font-size: 9px;
   }
 
   .step-line {
@@ -3951,7 +3952,7 @@
   }
 
   .btn-back-floating {
-    bottom: 20px;
+    bottom: 80px;
     left: 20px;
     padding: 10px 20px;
     font-size: 13px;
