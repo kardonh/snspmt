@@ -3154,8 +3154,27 @@ def init_database():
                 added_cols.append('commission_rate')
             if safe_add_column('referral_code', 'VARCHAR(50)'):
                 added_cols.append('referral_code')
+            if safe_add_column('phone_number', 'VARCHAR(20)'):
+                added_cols.append('phone_number')
+            if safe_add_column('signup_source', 'VARCHAR(50)'):
+                added_cols.append('signup_source')
+            if safe_add_column('account_type', 'VARCHAR(20)'):
+                added_cols.append('account_type')
+            if safe_add_column('external_uid', 'VARCHAR(255)'):
+                added_cols.append('external_uid')
             if safe_add_column('username', 'VARCHAR(255)'):
                 added_cols.append('username')
+            # 비즈니스 계정 관련 컬럼 추가
+            if safe_add_column('business_number', 'VARCHAR(50)'):
+                added_cols.append('business_number')
+            if safe_add_column('business_name', 'VARCHAR(255)'):
+                added_cols.append('business_name')
+            if safe_add_column('representative', 'VARCHAR(100)'):
+                added_cols.append('representative')
+            if safe_add_column('contact_phone', 'VARCHAR(20)'):
+                added_cols.append('contact_phone')
+            if safe_add_column('contact_email', 'VARCHAR(255)'):
+                added_cols.append('contact_email')
             if added_cols:
                 print(f"✅ 사용자 테이블 컬럼 추가 완료 (PostgreSQL): {', '.join(added_cols)}")
             else:
@@ -3499,6 +3518,63 @@ def init_database():
             safe_add_order_col('detailed_service', 'TEXT')
             safe_add_order_col('package_steps', 'JSONB')
             
+            # product_variants 테이블에 original_cost 컬럼 추가
+            def safe_add_variant_column(column_name, column_type):
+                """product_variants 테이블에 컬럼이 없으면 추가"""
+                try:
+                    cursor.execute("""
+                        SELECT EXISTS (
+                            SELECT 1 
+                            FROM information_schema.columns 
+                            WHERE table_name = 'product_variants' 
+                            AND column_name = %s
+                        )
+                    """, (column_name,))
+                    exists = cursor.fetchone()[0]
+                    if not exists:
+                        cursor.execute(f"ALTER TABLE product_variants ADD COLUMN {column_name} {column_type}")
+                        conn.commit()
+                        print(f"✅ product_variants.{column_name} 필드 추가 완료")
+                        return True
+                    else:
+                        print(f"ℹ️ product_variants.{column_name} 필드 이미 존재")
+                        return False
+                except Exception as e:
+                    error_str = str(e).lower()
+                    if 'current transaction is aborted' in error_str:
+                        try:
+                            conn.rollback()
+                            cursor.execute("""
+                                SELECT EXISTS (
+                                    SELECT 1 
+                                    FROM information_schema.columns 
+                                    WHERE table_name = 'product_variants' 
+                                    AND column_name = %s
+                                )
+                            """, (column_name,))
+                            exists = cursor.fetchone()[0]
+                            if not exists:
+                                cursor.execute(f"ALTER TABLE product_variants ADD COLUMN {column_name} {column_type}")
+                                conn.commit()
+                                print(f"✅ product_variants.{column_name} 필드 추가 완료 (재시도)")
+                                return True
+                        except Exception as retry_error:
+                            print(f"⚠️ product_variants.{column_name} 필드 추가 실패: {retry_error}")
+                            try:
+                                conn.rollback()
+                            except:
+                                pass
+                            return False
+                    else:
+                        print(f"⚠️ product_variants.{column_name} 필드 추가 실패: {e}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        return False
+            
+            safe_add_variant_column('original_cost', 'NUMERIC(14,2) DEFAULT 0')
+            
             # wallets 테이블 생성 (새 스키마 사용)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS wallets (
@@ -3582,6 +3658,25 @@ def init_database():
                 added_sqlite_cols.append('referral_code')
             if safe_add_sqlite_column('username', 'TEXT'):
                 added_sqlite_cols.append('username')
+            if safe_add_sqlite_column('phone_number', 'TEXT'):
+                added_sqlite_cols.append('phone_number')
+            if safe_add_sqlite_column('signup_source', 'TEXT'):
+                added_sqlite_cols.append('signup_source')
+            if safe_add_sqlite_column('account_type', 'TEXT'):
+                added_sqlite_cols.append('account_type')
+            if safe_add_sqlite_column('external_uid', 'TEXT'):
+                added_sqlite_cols.append('external_uid')
+            # 비즈니스 계정 관련 컬럼 추가 (SQLite)
+            if safe_add_sqlite_column('business_number', 'TEXT'):
+                added_sqlite_cols.append('business_number')
+            if safe_add_sqlite_column('business_name', 'TEXT'):
+                added_sqlite_cols.append('business_name')
+            if safe_add_sqlite_column('representative', 'TEXT'):
+                added_sqlite_cols.append('representative')
+            if safe_add_sqlite_column('contact_phone', 'TEXT'):
+                added_sqlite_cols.append('contact_phone')
+            if safe_add_sqlite_column('contact_email', 'TEXT'):
+                added_sqlite_cols.append('contact_email')
             if added_sqlite_cols:
                 print(f"✅ 사용자 테이블 컬럼 추가 완료 (SQLite): {', '.join(added_sqlite_cols)}")
             else:
@@ -7733,15 +7828,37 @@ def sync_user():
         phone_number = data.get('phone_number')
         referral_code = data.get('referral_code')  # 사용자가 입력한 추천인 코드
         signup_source = data.get('signup_source')
+        account_type = data.get('account_type')
         metadata = data.get('metadata', {})
         
-        # metadata에서도 추출 시도
-        if not phone_number and metadata:
-            phone_number = metadata.get('phone_number') or metadata.get('contactPhone')
-        if not referral_code and metadata:
-            referral_code = metadata.get('referral_code')
-        if not signup_source and metadata:
-            signup_source = metadata.get('signup_source')
+        # 비즈니스 계정 정보 추출
+        business_number = data.get('business_number')
+        business_name = data.get('business_name')
+        representative = data.get('representative')
+        contact_phone = data.get('contact_phone')
+        contact_email = data.get('contact_email')
+        
+        # metadata에서도 추출 시도 (우선순위: metadata > 직접 전달)
+        if metadata:
+            if not phone_number:
+                phone_number = metadata.get('phone_number') or metadata.get('contactPhone')
+            if not referral_code:
+                referral_code = metadata.get('referral_code')
+            if not signup_source:
+                signup_source = metadata.get('signup_source')
+            if not account_type:
+                account_type = metadata.get('account_type')
+            # 비즈니스 정보도 metadata에서 추출
+            if not business_number:
+                business_number = metadata.get('business_number')
+            if not business_name:
+                business_name = metadata.get('business_name')
+            if not representative:
+                representative = metadata.get('representative')
+            if not contact_phone:
+                contact_phone = metadata.get('contact_phone') or metadata.get('contactPhone')
+            if not contact_email:
+                contact_email = metadata.get('contact_email') or metadata.get('contactEmail')
         
         if not supabase_user_id or not email:
             print(f"❌ 사용자 정보 부족 - user_id: {supabase_user_id}, email: {email}")
@@ -7763,30 +7880,80 @@ def sync_user():
             existing_user = cursor.fetchone()
             
             if existing_user:
-                # 기존 사용자 업데이트 (전화번호, 가입 경로 업데이트)
-                # users 테이블에 phone_number, signup_source 컬럼이 있는지 확인 후 업데이트
+                # 기존 사용자 업데이트 (전화번호, 가입 경로, 계정 타입 등 업데이트)
+                # users 테이블에 phone_number, signup_source, account_type 컬럼이 있는지 확인 후 업데이트
                 try:
-                    cursor.execute("""
+                    # 모든 필드를 업데이트 시도
+                    update_fields = []
+                    update_values = []
+                    
+                    update_fields.append("email = %s")
+                    update_values.append(email)
+                    
+                    if username:
+                        update_fields.append("username = COALESCE(%s, username)")
+                        update_values.append(username)
+                    
+                    update_fields.append("external_uid = %s")
+                    update_values.append(supabase_user_id)
+                    
+                    if phone_number:
+                        update_fields.append("phone_number = COALESCE(%s, phone_number)")
+                        update_values.append(phone_number)
+                    
+                    if signup_source:
+                        update_fields.append("signup_source = COALESCE(%s, signup_source)")
+                        update_values.append(signup_source)
+                    
+                    if account_type:
+                        update_fields.append("account_type = COALESCE(%s, account_type)")
+                        update_values.append(account_type)
+                    
+                    # 비즈니스 계정 정보 업데이트
+                    if business_number:
+                        update_fields.append("business_number = COALESCE(%s, business_number)")
+                        update_values.append(business_number)
+                    if business_name:
+                        update_fields.append("business_name = COALESCE(%s, business_name)")
+                        update_values.append(business_name)
+                    if representative:
+                        update_fields.append("representative = COALESCE(%s, representative)")
+                        update_values.append(representative)
+                    if contact_phone:
+                        update_fields.append("contact_phone = COALESCE(%s, contact_phone)")
+                        update_values.append(contact_phone)
+                    if contact_email:
+                        update_fields.append("contact_email = COALESCE(%s, contact_email)")
+                        update_values.append(contact_email)
+                    
+                    update_fields.append("updated_at = NOW()")
+                    update_values.append(existing_user['user_id'])
+                    
+                    update_query = f"""
                         UPDATE users
-                        SET email = %s,
-                            username = COALESCE(%s, username),
-                            external_uid = %s,
-                            updated_at = NOW()
+                        SET {', '.join(update_fields)}
                         WHERE user_id = %s
-                        RETURNING user_id, external_uid, email, username
-                    """, (email, username, supabase_user_id, existing_user['user_id']))
+                        RETURNING user_id, external_uid, email, username, phone_number, signup_source, account_type, business_number, business_name, representative
+                    """
+                    cursor.execute(update_query, tuple(update_values))
                 except Exception as e:
-                    # phone_number 컬럼이 없을 수 있으므로 기본 업데이트만 수행
-                    print(f"⚠️ 사용자 업데이트 중 일부 컬럼 누락 (무시): {e}")
-                    cursor.execute("""
-                        UPDATE users
-                        SET email = %s,
-                            username = COALESCE(%s, username),
-                            external_uid = %s,
-                            updated_at = NOW()
-                        WHERE user_id = %s
-                        RETURNING user_id, external_uid, email, username
-                    """, (email, username, supabase_user_id, existing_user['user_id']))
+                    # 일부 컬럼이 없을 수 있으므로 기본 필드만 업데이트
+                    print(f"⚠️ 사용자 업데이트 중 일부 컬럼 누락 (기본 필드만 업데이트): {e}")
+                    import traceback
+                    print(traceback.format_exc())
+                    try:
+                        cursor.execute("""
+                            UPDATE users
+                            SET email = %s,
+                                username = COALESCE(%s, username),
+                                external_uid = %s,
+                                updated_at = NOW()
+                            WHERE user_id = %s
+                            RETURNING user_id, external_uid, email, username
+                        """, (email, username, supabase_user_id, existing_user['user_id']))
+                    except Exception as e2:
+                        print(f"❌ 기본 필드 업데이트도 실패: {e2}")
+                        raise
                 updated_user = cursor.fetchone()
                 print(f"✅ 기존 사용자 업데이트 완료 - user_id: {updated_user['user_id']}")
                 
@@ -7902,12 +8069,31 @@ def sync_user():
                         import traceback
                         traceback.print_exc()
             else:
-                # 새 사용자 생성
-                cursor.execute("""
-                    INSERT INTO users (external_uid, email, username, created_at, updated_at)
-                    VALUES (%s, %s, %s, NOW(), NOW())
-                    RETURNING user_id, external_uid, email, username
-                """, (supabase_user_id, email, username))
+                # 새 사용자 생성 (phone_number, signup_source, account_type, 비즈니스 정보 포함)
+                try:
+                    cursor.execute("""
+                        INSERT INTO users (external_uid, email, username, phone_number, signup_source, account_type, 
+                                         business_number, business_name, representative, contact_phone, contact_email, 
+                                         created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                        RETURNING user_id, external_uid, email, username, phone_number, signup_source, account_type, 
+                                 business_number, business_name, representative
+                    """, (supabase_user_id, email, username, phone_number, signup_source, account_type,
+                          business_number, business_name, representative, contact_phone, contact_email))
+                except Exception as e:
+                    # 일부 컬럼이 없을 수 있으므로 기본 필드만 사용
+                    print(f"⚠️ 새 사용자 생성 중 일부 컬럼 누락 (기본 필드만 사용): {e}")
+                    import traceback
+                    print(traceback.format_exc())
+                    try:
+                        cursor.execute("""
+                            INSERT INTO users (external_uid, email, username, created_at, updated_at)
+                            VALUES (%s, %s, %s, NOW(), NOW())
+                            RETURNING user_id, external_uid, email, username
+                        """, (supabase_user_id, email, username))
+                    except Exception as e2:
+                        print(f"❌ 기본 필드 생성도 실패: {e2}")
+                        raise
                 updated_user = cursor.fetchone()
                 print(f"✅ 새 사용자 생성 완료 - user_id: {updated_user['user_id']}")
                 
@@ -8026,15 +8212,72 @@ def sync_user():
                 }
             }), 200
         else:
-            # SQLite는 구 스키마 유지
+            # SQLite는 구 스키마 유지 (phone_number, signup_source, account_type 포함)
             cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (supabase_user_id,))
             existing = cursor.fetchone()
             
             if not existing:
-                cursor.execute("""
-                    INSERT INTO users (user_id, email, name, created_at, updated_at)
-                    VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                """, (supabase_user_id, email, username))
+                try:
+                    cursor.execute("""
+                        INSERT INTO users (user_id, email, name, phone_number, signup_source, account_type, 
+                                         business_number, business_name, representative, contact_phone, contact_email, 
+                                         created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """, (supabase_user_id, email, username, phone_number, signup_source, account_type,
+                          business_number, business_name, representative, contact_phone, contact_email))
+                except Exception as e:
+                    # 일부 컬럼이 없을 수 있으므로 기본 필드만 사용
+                    print(f"⚠️ SQLite 새 사용자 생성 중 일부 컬럼 누락 (기본 필드만 사용): {e}")
+                    cursor.execute("""
+                        INSERT INTO users (user_id, email, name, created_at, updated_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """, (supabase_user_id, email, username))
+            else:
+                # 기존 사용자 업데이트 (SQLite)
+                try:
+                    update_fields = []
+                    update_values = []
+                    
+                    if email:
+                        update_fields.append("email = ?")
+                        update_values.append(email)
+                    if username:
+                        update_fields.append("name = COALESCE(?, name)")
+                        update_values.append(username)
+                    if phone_number:
+                        update_fields.append("phone_number = COALESCE(?, phone_number)")
+                        update_values.append(phone_number)
+                    if signup_source:
+                        update_fields.append("signup_source = COALESCE(?, signup_source)")
+                        update_values.append(signup_source)
+                    if account_type:
+                        update_fields.append("account_type = COALESCE(?, account_type)")
+                        update_values.append(account_type)
+                    
+                    # 비즈니스 계정 정보 업데이트 (SQLite)
+                    if business_number:
+                        update_fields.append("business_number = COALESCE(?, business_number)")
+                        update_values.append(business_number)
+                    if business_name:
+                        update_fields.append("business_name = COALESCE(?, business_name)")
+                        update_values.append(business_name)
+                    if representative:
+                        update_fields.append("representative = COALESCE(?, representative)")
+                        update_values.append(representative)
+                    if contact_phone:
+                        update_fields.append("contact_phone = COALESCE(?, contact_phone)")
+                        update_values.append(contact_phone)
+                    if contact_email:
+                        update_fields.append("contact_email = COALESCE(?, contact_email)")
+                        update_values.append(contact_email)
+                    
+                    if update_fields:
+                        update_fields.append("updated_at = CURRENT_TIMESTAMP")
+                        update_values.append(supabase_user_id)
+                        update_query = f"UPDATE users SET {', '.join(update_fields)} WHERE user_id = ?"
+                        cursor.execute(update_query, tuple(update_values))
+                except Exception as e:
+                    print(f"⚠️ SQLite 사용자 업데이트 중 일부 컬럼 누락 (무시): {e}")
                 
                 cursor.execute("""
                     INSERT OR IGNORE INTO points (user_id, points, created_at, updated_at)
@@ -8582,38 +8825,63 @@ def get_commissions():
             # 새 스키마: commissions 테이블과 referrals 테이블 조인하여 조회
             # orders 테이블의 final_amount나 total_amount를 사용하되, 없으면 commissions.amount에서 역산
             # 안전한 오류 처리 추가
+            rows = []
+            commission_rate = 0.1  # 기본값
+            
             try:
-                cursor.execute("""
-                    SELECT 
-                        c.commission_id as id,
-                        c.order_id,
-                        c.amount as commission_amount,
-                        c.status,
-                        c.created_at,
-                        r.referred_user_id,
-                        u_referred.email as referred_email,
-                        u_referred.username as referred_name,
-                        CASE 
-                            WHEN o.final_amount IS NOT NULL THEN o.final_amount
-                            WHEN o.total_amount IS NOT NULL THEN o.total_amount
-                            ELSE (c.amount / 0.1)  -- 커미션이 10%이므로 역산하여 구매금액 추정
-                        END as purchase_amount
-                    FROM commissions c
-                    JOIN referrals r ON c.referral_id = r.referral_id
-                    LEFT JOIN users u_referred ON r.referred_user_id = u_referred.user_id
-                    LEFT JOIN orders o ON c.order_id = o.order_id
-                    WHERE r.referrer_user_id = %s
-                    ORDER BY c.created_at DESC
-                """, [referrer_user_id])
-            except Exception as query_error:
-                print(f"❌ 커미션 조회 쿼리 오류: {query_error}", flush=True)
+                # 먼저 사용자의 commission_rate 가져오기
+                try:
+                    cursor.execute("""
+                        SELECT COALESCE(commission_rate, 0.1) as commission_rate
+                        FROM users
+                        WHERE user_id = %s
+                        LIMIT 1
+                    """, [referrer_user_id])
+                    rate_result = cursor.fetchone()
+                    if rate_result:
+                        commission_rate = float(rate_result.get('commission_rate', 0.1))
+                except Exception as rate_error:
+                    print(f"⚠️ 커미션율 조회 오류 (기본값 사용): {rate_error}", flush=True)
+                    commission_rate = 0.1
+                
+                # 커미션 내역 조회
+                try:
+                    cursor.execute("""
+                        SELECT 
+                            c.commission_id as id,
+                            c.order_id,
+                            c.amount as commission_amount,
+                            c.status,
+                            c.created_at,
+                            r.referred_user_id,
+                            u_referred.email as referred_email,
+                            u_referred.username as referred_name,
+                            CASE 
+                                WHEN o.final_amount IS NOT NULL THEN o.final_amount
+                                WHEN o.total_amount IS NOT NULL THEN o.total_amount
+                                ELSE (c.amount / %s)  -- 사용자의 실제 커미션율 사용
+                            END as purchase_amount
+                        FROM commissions c
+                        JOIN referrals r ON c.referral_id = r.referral_id
+                        LEFT JOIN users u_referred ON r.referred_user_id = u_referred.user_id
+                        LEFT JOIN orders o ON c.order_id = o.order_id
+                        WHERE r.referrer_user_id = %s
+                        ORDER BY c.created_at DESC
+                    """, [commission_rate, referrer_user_id])
+                    rows = cursor.fetchall()
+                    print(f"📊 조회된 커미션 수: {len(rows)}개", flush=True)
+                except Exception as query_error:
+                    print(f"❌ 커미션 조회 쿼리 오류: {query_error}", flush=True)
+                    import traceback
+                    print(traceback.format_exc(), flush=True)
+                    # 오류 발생 시 빈 목록 반환
+                    rows = []
+            except Exception as general_error:
+                print(f"❌ 커미션 조회 전체 오류: {general_error}", flush=True)
                 import traceback
                 print(traceback.format_exc(), flush=True)
                 # 오류 발생 시 빈 목록 반환
                 rows = []
-            
-            rows = cursor.fetchall()
-            print(f"📊 조회된 커미션 수: {len(rows)}개", flush=True)
             
             commissions = []
             for row in rows:
@@ -8631,14 +8899,19 @@ def get_commissions():
                 
                 commission_amount = float(row.get('commission_amount') or 0)
                 purchase_amount = float(row.get('purchase_amount') or 0)
-                commission_rate = (commission_amount / purchase_amount * 100) if purchase_amount > 0 else 10.0
+                # 위에서 가져온 commission_rate 사용
+                if purchase_amount > 0:
+                    calculated_rate = commission_amount / purchase_amount
+                    # 계산된 비율과 사용자 커미션율 중 더 정확한 값 사용
+                    commission_rate = commission_rate if abs(calculated_rate - commission_rate) < 0.01 else calculated_rate
+                # purchase_amount가 0이면 위에서 설정한 commission_rate 사용
                 
                 commissions.append({
                     'id': row.get('id'),
                     'referredUser': row.get('referred_name') or row.get('referred_email') or '사용자',
                     'purchaseAmount': purchase_amount,
                     'commissionAmount': commission_amount,
-                    'commissionRate': f"{commission_rate:.1f}%",
+                    'commissionRate': commission_rate,  # 숫자로 저장 (프론트엔드에서 포맷팅)
                     'paymentDate': payment_date,
                     'isPaid': row.get('status') in ['paid', 'approved'] if row.get('status') else False,
                     'status': row.get('status', 'accrued')
@@ -9808,9 +10081,9 @@ def get_referral_stats():
         print(f"🔍 추천인 통계 조회 - user_id: {user_id}", flush=True)
         
         if DATABASE_URL.startswith('postgresql://'):
-            # 먼저 사용자 찾기 (external_uid 또는 email로)
+            # 먼저 사용자 찾기 (external_uid 또는 email로) - commission_rate 포함
             cursor.execute("""
-                SELECT user_id, email, referral_code
+                SELECT user_id, email, referral_code, COALESCE(commission_rate, 0.1) as commission_rate
                 FROM users 
                 WHERE external_uid = %s OR email = %s
                 LIMIT 1
@@ -9823,10 +10096,12 @@ def get_referral_stats():
                     'totalCommission': 0,
                     'activeReferrals': 0,
                     'thisMonthReferrals': 0,
-                    'thisMonthCommission': 0
+                    'thisMonthCommission': 0,
+                    'commissionRate': 0.1
                 }), 200
             
             referrer_user_id = user['user_id']
+            commission_rate = float(user.get('commission_rate', 0.1))
             
             # 총 추천인 수 (referrals 테이블에서 referrer_user_id로 조회)
             cursor.execute("""
@@ -9873,6 +10148,21 @@ def get_referral_stats():
             this_month_commission = float(cursor.fetchone()['this_month_commission'] or 0)
         else:
             # SQLite - 레거시 호환
+            # 사용자 정보 조회 (commission_rate 포함)
+            cursor.execute("""
+                SELECT user_id, COALESCE(commission_rate, 0.1) as commission_rate
+                FROM users 
+                WHERE user_id = ? OR email = ?
+                LIMIT 1
+            """, (user_id, user_id))
+            user_result = cursor.fetchone()
+            commission_rate = 0.1  # 기본값
+            if user_result:
+                try:
+                    commission_rate = float(user_result.get('commission_rate', 0.1) if isinstance(user_result, dict) else (user_result[1] if len(user_result) > 1 else 0.1))
+                except:
+                    commission_rate = 0.1
+            
             cursor.execute("""
                 SELECT COUNT(*) FROM user_referral_connections 
                 WHERE referrer_email = ?
@@ -9905,7 +10195,8 @@ def get_referral_stats():
             'totalCommission': total_commission,
             'activeReferrals': active_referrals,
             'thisMonthReferrals': this_month_referrals,
-            'thisMonthCommission': this_month_commission
+            'thisMonthCommission': this_month_commission,
+            'commissionRate': commission_rate
         }), 200
         
     except Exception as e:
@@ -16878,23 +17169,27 @@ def get_categories():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # 실제 스키마에 맞게 쿼리 수정 (description 제거, image_url도 확인 필요)
+        # 실제 스키마에 맞게 쿼리 수정 (image_url 포함)
         try:
             cursor.execute("""
-                SELECT category_id, name, slug, created_at, updated_at
+                SELECT category_id, name, slug, image_url, created_at, updated_at
                 FROM categories
                 WHERE is_active = TRUE
                 ORDER BY created_at ASC
             """)
         except Exception as schema_error:
-            # image_url이 없을 수도 있으므로 다시 시도
-            print(f"⚠️ 첫 번째 쿼리 실패, image_url 제거 후 재시도: {schema_error}")
-            cursor.execute("""
-                SELECT category_id, name, slug, created_at, updated_at
-                FROM categories
-                WHERE is_active = TRUE
-                ORDER BY created_at ASC
-            """)
+            # image_url 컬럼이 없을 수도 있으므로 image_url 없이 재시도
+            print(f"⚠️ image_url 컬럼이 없어 image_url 제외하고 재시도: {schema_error}")
+            try:
+                cursor.execute("""
+                    SELECT category_id, name, slug, created_at, updated_at
+                    FROM categories
+                    WHERE is_active = TRUE
+                    ORDER BY created_at ASC
+                """)
+            except Exception as retry_error:
+                print(f"❌ 카테고리 조회 실패: {retry_error}")
+                return jsonify({'categories': []}), 200
         
         categories = cursor.fetchall()
         return jsonify({
@@ -17836,14 +18131,58 @@ def update_admin_product_variant(variant_id):
         if meta_json:
             meta_json_str = json.dumps(meta_json) if not isinstance(meta_json, str) else meta_json
         
-        cursor.execute("""
-            UPDATE product_variants
-            SET product_id = %s, name = %s, price = %s, original_cost = %s, min_quantity = %s, max_quantity = %s,
-                delivery_time_days = %s, is_active = %s, meta_json = %s, api_endpoint = %s,
-                updated_at = NOW()
-            WHERE variant_id = %s
-            RETURNING *
-        """, (product_id, name, price, original_cost, min_quantity, max_quantity, delivery_time_days, is_active, meta_json_str, api_endpoint, variant_id))
+        # original_cost 컬럼 존재 여부 확인 및 자동 추가 시도
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'product_variants' 
+                    AND column_name = 'original_cost'
+                )
+            """)
+            has_original_cost = cursor.fetchone()[0]
+            
+            if not has_original_cost:
+                # 컬럼이 없으면 자동으로 추가 시도
+                try:
+                    print("⚠️ original_cost 컬럼이 없어 자동으로 추가합니다.")
+                    cursor.execute("ALTER TABLE product_variants ADD COLUMN original_cost NUMERIC(14,2) DEFAULT 0")
+                    conn.commit()
+                    has_original_cost = True
+                    print("✅ original_cost 컬럼 추가 완료")
+                except Exception as add_error:
+                    print(f"⚠️ original_cost 컬럼 추가 실패 (계속 진행): {add_error}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
+                    has_original_cost = False
+        except Exception as check_error:
+            print(f"⚠️ original_cost 컬럼 확인 실패 (계속 진행): {check_error}")
+            has_original_cost = False
+        
+        if has_original_cost:
+            # original_cost 컬럼이 있으면 포함하여 업데이트
+            cursor.execute("""
+                UPDATE product_variants
+                SET product_id = %s, name = %s, price = %s, original_cost = %s, min_quantity = %s, max_quantity = %s,
+                    delivery_time_days = %s, is_active = %s, meta_json = %s, api_endpoint = %s,
+                    updated_at = NOW()
+                WHERE variant_id = %s
+                RETURNING *
+            """, (product_id, name, price, original_cost, min_quantity, max_quantity, delivery_time_days, is_active, meta_json_str, api_endpoint, variant_id))
+        else:
+            # original_cost 컬럼이 없으면 제외하고 업데이트
+            print("⚠️ original_cost 컬럼이 없어 제외하고 업데이트합니다.")
+            cursor.execute("""
+                UPDATE product_variants
+                SET product_id = %s, name = %s, price = %s, min_quantity = %s, max_quantity = %s,
+                    delivery_time_days = %s, is_active = %s, meta_json = %s, api_endpoint = %s,
+                    updated_at = NOW()
+                WHERE variant_id = %s
+                RETURNING *
+            """, (product_id, name, price, min_quantity, max_quantity, delivery_time_days, is_active, meta_json_str, api_endpoint, variant_id))
         
         updated = cursor.fetchone()
         conn.commit()

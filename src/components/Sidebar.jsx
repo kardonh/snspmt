@@ -172,8 +172,12 @@ const Sidebar = ({ onClose }) => {
         if (onClose) {
           onClose();
         }
-        // 홈페이지로 리다이렉트
-        navigate('/');
+        // 모바일에서 페이지 리로드하여 상태 완전히 초기화
+        if (window.innerWidth <= 1200) {
+          window.location.href = '/';
+        } else {
+          navigate('/');
+        }
       } else {
         console.error('logout 함수가 정의되지 않았습니다.');
         alert('로그아웃 함수를 찾을 수 없습니다.');
@@ -183,6 +187,10 @@ const Sidebar = ({ onClose }) => {
       // 오류가 있어도 포인트 초기화
       setUserPoints(0);
       alert('로그아웃 중 오류가 발생했습니다.');
+      // 모바일에서 오류 발생 시에도 페이지 리로드
+      if (window.innerWidth <= 1200) {
+        window.location.href = '/';
+      }
     }
   }
 

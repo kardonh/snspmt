@@ -100,21 +100,35 @@ const StatusBar = () => {
     try {
       console.log('🔐 StatusBar 로그아웃 버튼 클릭');
       if (typeof logout === 'function') {
+        // 로딩 상태 설정 (버튼 비활성화 방지)
+        setPointsLoading(true);
         await logout();
         console.log('✅ StatusBar 로그아웃 처리 완료');
         // 포인트 초기화
         setUserPoints(0);
+        setPointsLoading(false);
         alert('로그아웃되었습니다.');
-        navigate('/');
+        // 모바일에서 페이지 리로드하여 상태 완전히 초기화
+        if (window.innerWidth <= 1200) {
+          window.location.href = '/';
+        } else {
+          navigate('/');
+        }
       } else {
         console.error('logout 함수가 정의되지 않았습니다.');
+        setPointsLoading(false);
         alert('로그아웃 함수를 찾을 수 없습니다.');
       }
     } catch (error) {
       console.error('로그아웃 실패:', error);
       // 오류가 있어도 포인트 초기화
       setUserPoints(0);
+      setPointsLoading(false);
       alert('로그아웃 중 오류가 발생했습니다.');
+      // 모바일에서 오류 발생 시에도 페이지 리로드
+      if (window.innerWidth <= 1200) {
+        window.location.href = '/';
+      }
     }
   }
 
