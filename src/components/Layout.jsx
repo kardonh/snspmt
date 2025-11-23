@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import StatusBar from './StatusBar'
@@ -12,9 +13,12 @@ import './GuidePanel.css'
 import '../pages/Home.css'
 
 const Layout = ({ children }) => {
+  const location = useLocation()
   const { currentUser, showAuthModal, setShowAuthModal, authModalMode, showOrderMethodModal, setShowOrderMethodModal } = useAuth()
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const isAdminPage = location?.pathname?.includes('/admin')
+  
 
   // 화면 크기 감지
   useEffect(() => {
@@ -25,7 +29,6 @@ const Layout = ({ children }) => {
     
     checkIsMobile()
     window.addEventListener('resize', checkIsMobile)
-    
     return () => window.removeEventListener('resize', checkIsMobile)
   }, [])
 
@@ -53,7 +56,9 @@ const Layout = ({ children }) => {
         <main className="main-content">
           {children}
         </main>
-        <GuidePanel />
+
+        
+        {!isAdminPage && <GuidePanel />}
         
         {/* Bottom Tab Bar - 모바일에서만 표시 */}
         <BottomTabBar />

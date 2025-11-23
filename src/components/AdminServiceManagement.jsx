@@ -1,16 +1,21 @@
 ﻿import React, { useState, useEffect } from 'react'
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Package, 
-  Tag, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Package,
+  Tag,
   Layers,
   X,
   Save,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  RefreshCw
 } from 'lucide-react'
+import CategoryManager from './admin_service/CategoryManager'
+import ProductManager from './admin_service/ProductManager'
+import VariantManager from './admin_service/VariantManager'
+import PackageManager from './admin_service/PackageManager'
 import './AdminServiceManagement.css'
 
 const AdminServiceManagement = ({ adminFetch }) => {
@@ -18,8 +23,8 @@ const AdminServiceManagement = ({ adminFetch }) => {
   const [products, setProducts] = useState([])
   const [variants, setVariants] = useState([])
   const [packages, setPackages] = useState([])
-  const [selectedCategory, setSelectedCategory] = useState(null)
-  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null)
+  const [selectedProductId, setSelectedProductId] = useState(null)
   const [expandedCategories, setExpandedCategories] = useState(new Set())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -110,6 +115,29 @@ const AdminServiceManagement = ({ adminFetch }) => {
     loadSmmEndpoint()
   }, [])
 
+  useEffect(() => {
+    if (
+      selectedCategoryId &&
+      !categories.some((category) => category.category_id === selectedCategoryId)
+    ) {
+      setSelectedCategoryId(null)
+      setSelectedProductId(null)
+    }
+  }, [categories, selectedCategoryId])
+
+  useEffect(() => {
+    if (
+      selectedProductId &&
+      !products.some(
+        (product) =>
+          product.product_id === selectedProductId &&
+          (!selectedCategoryId || product.category_id === selectedCategoryId)
+      )
+    ) {
+      setSelectedProductId(null)
+    }
+  }, [products, selectedCategoryId, selectedProductId])
+
   const importSMM = async () => {
     try {
       setLoading(true)
@@ -179,6 +207,15 @@ const AdminServiceManagement = ({ adminFetch }) => {
     } catch (err) {
       console.error('패키지 로드 실패:', err)
     }
+  }
+
+  const handleSelectCategory = (categoryId) => {
+    setSelectedCategoryId(categoryId)
+    setSelectedProductId(null)
+  }
+
+  const handleSelectProduct = (productId) => {
+    setSelectedProductId(productId)
   }
 
   // 카테고리 ?��?
@@ -439,6 +476,26 @@ const AdminServiceManagement = ({ adminFetch }) => {
     }
   }
 
+  const handleDeletePackage = async (packageId) => {
+    if (!confirm('패키지를 삭제하시겠습니까?')) return
+
+    try {
+      const response = await adminFetch(`/api/admin/packages/${packageId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        await loadPackages()
+      } else {
+        const data = await response.json()
+        alert(data.error || '패키지 삭제 실패')
+      }
+    } catch (err) {
+      console.error('패키지 삭제 실패:', err)
+      alert('패키지 삭제 중 오류가 발생했습니다.')
+    }
+  }
+
   // 모달 열기 함수들
   const openCategoryModal = (category = null) => {
     if (category) {
@@ -470,15 +527,15 @@ const AdminServiceManagement = ({ adminFetch }) => {
       })
     } else {
       setEditingItem(null)
-        setProductForm({
-          category_id: categoryId || null,
-          name: '',
-          description: '',
-          is_domestic: true,
-          is_auto: false,
-          auto_tag: false,
-          is_package: false
-        })
+      setProductForm({
+        category_id: categoryId || selectedCategoryId || null,
+        name: '',
+        description: '',
+        is_domestic: true,
+        is_auto: false,
+        auto_tag: false,
+        is_package: false
+      })
     }
     setShowProductModal(true)
   }
@@ -517,8 +574,8 @@ const AdminServiceManagement = ({ adminFetch }) => {
     } else {
       setEditingItem(null)
       setVariantForm({
-        category_id: categoryId || null,
-        product_id: productId || null,
+        category_id: categoryId || selectedCategoryId || null,
+        product_id: productId || selectedProductId || null,
         name: '',
         price: '',
         min_quantity: '',
@@ -715,259 +772,65 @@ const AdminServiceManagement = ({ adminFetch }) => {
   return (
     <div className="admin-service-management">
       <div className="service-header">
-        <h2>서비스 관리</h2>
+        <div>
+          <h2>서비스 관리</h2>
+          <p className="service-subtitle">
+            카테고리 → 상품 → 세부서비스 → 패키지 순서로 구성하세요.
+          </p>
+        </div>
         <div className="header-actions">
-          <button 
-            className="btn-primary"
-            onClick={() => openCategoryModal()}
-          >
-            <Plus size={16} /> 카테고리 추가
+          <button className="btn-secondary" onClick={importSMM} disabled={loading}>
+            <RefreshCw size={16} className={loading ? 'spinning' : ''} />
+            SMM 서비스 동기화
           </button>
-          <button 
-            className="btn-primary"
-            onClick={() => openProductModal()}
-          >
-            <Plus size={16} /> 상품 추가
-          </button>
-          <button 
-            className="btn-primary"
-            onClick={() => openVariantModal()}
-          >
-            <Plus size={16} /> 세부서비스 추가
-          </button>
-          <button 
-            className="btn-primary"
-            onClick={() => openPackageModal()}
-          >
-            <Package size={16} /> 패키지 추가
-          </button>
-
         </div>
       </div>
 
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
+      {error && <div className="error-message">{error}</div>}
 
-      <div className="service-tree">
-        {categories.map(category => {
-          const categoryProducts = getProductsByCategory(category.category_id)
-          const isExpanded = expandedCategories.has(category.category_id)
-
-          return (
-            <div key={category.category_id} className="category-item">
-              <div 
-                className="category-header"
-                onClick={() => toggleCategory(category.category_id)}
-              >
-                {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                <Tag size={16} />
-                <span className="category-name">{category.name}</span>
-                <div className="category-actions">
-                  <button
-                    className="btn-icon"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openProductModal(null, category.category_id)
-                    }}
-                    title="상품 추가"
-                  >
-                    <Plus size={14} />
-                  </button>
-                  <button
-                    className="btn-icon"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openCategoryModal(category)
-                    }}
-                    title="수정"
-                  >
-                    <Edit size={14} />
-                  </button>
-                  <button
-                    className="btn-icon"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteCategory(category.category_id)
-                    }}
-                    title="삭제"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-
-              {isExpanded && (
-                <div className="category-content">
-                  {categoryProducts.length === 0 ? (
-                    <div className="empty-state">
-                      상품이 없습니다. 상품을 추가해주세요.
-                    </div>
-                  ) : (
-                    categoryProducts.map(product => {
-                      const productVariants = getVariantsByProduct(product.product_id)
-
-                      return (
-                        <div key={product.product_id} className="product-item">
-                          <div className="product-header">
-                            <Layers size={14} />
-                            <span className="product-name">{product.name}</span>
-                            <div className="product-actions">
-                              <button
-                                className="btn-icon"
-                                onClick={() => openVariantModal(null, product.product_id)}
-                                title="세부서비스 추가"
-                              >
-                                <Plus size={14} />
-                              </button>
-                              <button
-                                className="btn-icon"
-                                onClick={() => openProductModal(product)}
-                                title="수정"
-                              >
-                                <Edit size={14} />
-                              </button>
-                              <button
-                                className="btn-icon"
-                                onClick={() => handleDeleteProduct(product.product_id)}
-                                title="삭제"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="variants-list">
-                            {productVariants.length === 0 ? (
-                              <div className="empty-state-small">
-                                세부서비스가 없습니다.
-                              </div>
-                            ) : (
-                              productVariants.map(variant => (
-                                <div key={variant.variant_id} className="variant-item">
-                                  <span className="variant-name">{variant.name}</span>
-                                  <span className="variant-price">{parseFloat(variant.price).toLocaleString()}원</span>
-                                  <div className="variant-actions">
-                                    <button
-                                      className="btn-icon-small"
-                                      onClick={() => openVariantModal(variant)}
-                                      title="수정"
-                                    >
-                                      <Edit size={12} />
-                                    </button>
-                                    <button
-                                      className="btn-icon-small"
-                                      onClick={() => handleDeleteVariant(variant.variant_id)}
-                                      title="삭제"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
+      <div className="service-flow-grid">
+        <CategoryManager
+          categories={categories}
+          selectedCategoryId={selectedCategoryId}
+          onSelectCategory={handleSelectCategory}
+          onAddCategory={() => openCategoryModal()}
+          onEditCategory={openCategoryModal}
+          onDeleteCategory={handleDeleteCategory}
+        />
+        <ProductManager
+          categories={categories}
+          products={products}
+          selectedCategoryId={selectedCategoryId}
+          selectedProductId={selectedProductId}
+          onSelectProduct={handleSelectProduct}
+          onAddProduct={(categoryId) => openProductModal(null, categoryId)}
+          onEditProduct={openProductModal}
+          onDeleteProduct={handleDeleteProduct}
+          onAddVariant={(productId, categoryId) => openVariantModal(null, productId, categoryId)}
+        />
+        <VariantManager
+          variants={variants}
+          products={products}
+          selectedProductId={selectedProductId}
+          onAddVariant={(productId, categoryId) => openVariantModal(null, productId, categoryId)}
+          onEditVariant={openVariantModal}
+          onDeleteVariant={handleDeleteVariant}
+        />
       </div>
 
-      {/* ?�체 ?�품 목록 ?�션 */}
-      <div className="all-products-section">
-        <div className="section-header">
-          <h3>전체 세부서비스 목록</h3>
-          <span className="product-count">총 {variants.length}개 세부서비스</span>
-        </div>
-        <div className="all-products-grid">
-          {variants.length === 0 ? (
-            <div className="empty-state">
-              등록된 세부서비스가 없습니다. 상품을 추가해주세요.
-            </div>
-          ) : (
-            variants.map(variant => {
-              const product = products.find(p => p.product_id === variant.product_id)
-              const category = product ? categories.find(c => c.category_id === product.category_id) : null
-              
-              return (
-                <div key={variant.variant_id} className="product-card">
-                  <div className="product-card-header">
-                    <div className="product-card-title">
-                      <Layers size={16} />
-                      <span className="product-name">{variant.name}</span>
-                      {category && (
-                        <span className="category-badge">{category.name}</span>
-                      )}
-                      {product && (
-                        <span className="product-badge">{product.name}</span>
-                      )}
-                    </div>
-                    <div className="product-card-actions">
-                      <button
-                        className="btn-icon"
-                        onClick={() => openVariantModal(variant)}
-                        title="수정"
-                      >
-                        <Edit size={14} />
-                      </button>
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleDeleteVariant(variant.variant_id)}
-                        title="삭제"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="variant-details">
-                    <div className="detail-row">
-                      <span className="detail-label">가격:</span>
-                      <span className="detail-value price">{parseFloat(variant.price).toLocaleString()}원</span>
-                    </div>
-                    {variant.min_quantity && (
-                      <div className="detail-row">
-                        <span className="detail-label">최소 수량:</span>
-                        <span className="detail-value">{variant.min_quantity.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {variant.max_quantity && (
-                      <div className="detail-row">
-                        <span className="detail-label">최대 수량:</span>
-                        <span className="detail-value">{variant.max_quantity.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {variant.delivery_time_days && (
-                      <div className="detail-row">
-                        <span className="detail-label">배송 시간:</span>
-                        <span className="detail-value">{variant.delivery_time_days}일</span>
-                      </div>
-                    )}
-                    <div className="detail-row">
-                      <span className="detail-label">상태:</span>
-                      <span className={`detail-value status ${variant.is_active ? 'active' : 'inactive'}`}>
-                        {variant.is_active ? '활성' : '비활성'}
-                      </span>
-                    </div>
-                    {variant.api_endpoint && (
-                      <div className="detail-row">
-                        <span className="detail-label">API:</span>
-                        <span className="detail-value api-endpoint">{variant.api_endpoint}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
+      <PackageManager
+        packages={packages}
+        categories={categories}
+        onAddPackage={() => openPackageModal()}
+        onEditPackage={openPackageModal}
+        onDeletePackage={handleDeletePackage}
+      />
+
+      <div className="section-header" style={{ marginTop: '40px' }}>
+        <h3>전체 서비스 구조</h3>
+        <p>트리 구조로 한눈에 확인하세요.</p>
       </div>
+
 
       {/* 카테고리 모달 */}
       {showCategoryModal && (
@@ -1586,11 +1449,17 @@ const AdminServiceManagement = ({ adminFetch }) => {
                         required
                       >
                         <option value="">선택하세요</option>
-                        {variants.filter(v => v.is_active).map(variant => (
-                          <option key={variant.variant_id} value={variant.variant_id}>
-                            {variant.name} ({variant.product_name})
-                          </option>
-                        ))}
+                        {variants.filter(v => v.is_active).map(variant => {
+                          const product =
+                            products.find(p => p.product_id === variant.product_id)
+                          const productLabel = product ? ` (${product.name})` : ''
+                          return (
+                            <option key={variant.variant_id} value={variant.variant_id}>
+                              {variant.name}
+                              {productLabel}
+                            </option>
+                          )
+                        })}
                       </select>
                     </div>
 

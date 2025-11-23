@@ -1,9 +1,10 @@
 // Supabase 클라이언트 설정
 import { createClient } from '@supabase/supabase-js'
 
-// 환경 변수에서 Supabase 설정 읽기
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// 환경 변수에서 Supabase 설정 읽기 (Vite 전용)
+const { VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY } = import.meta.env
+const supabaseUrl = VITE_SUPABASE_URL
+const supabaseAnonKey = VITE_SUPABASE_ANON_KEY
 
 // 환경 변수 확인 및 디버깅
 console.log('🔍 Supabase 환경 변수 확인:', {
