@@ -60,21 +60,11 @@ const OrderCard = ({ order, onCopyOrderId, onCopyLink, onRefill }) => {
         </button>
       </div>
       
-      <div className="order-link">
-        <a href={order.link} target="_blank" rel="noopener noreferrer">
-          {order.link}
-        </a>
-      </div>
-      
       <div className="order-details">
         <div className="order-details-left">
           <div className="detail-item">
             <span className="detail-label">사용금액 :</span>
             <span className="detail-value amount">{order.charge ? order.charge.toLocaleString() : '0'}</span>
-          </div>
-          <div className="detail-item">
-            <span className="detail-label">남은수량:</span>
-            <span className="detail-value">{order.remains || 0}</span>
           </div>
           <div className="detail-item">
             <span className="detail-label">주문번호 :</span>
@@ -92,16 +82,24 @@ const OrderCard = ({ order, onCopyOrderId, onCopyLink, onRefill }) => {
               {ORDER_STATUS_LABELS[order.status] || '알 수 없음'}
             </span>
           </div>
+          <div className="detail-item">
+            <span className="detail-label">링크 :</span>
+            <span className="detail-value">
+              {order.link ? (
+                <a href={order.link} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none', wordBreak: 'break-all' }}>
+                  {order.link}
+                </a>
+              ) : (
+                <span style={{ color: '#9ca3af' }}>링크 없음</span>
+              )}
+            </span>
+          </div>
         </div>
         
         <div className="order-details-right">
           <div className="detail-item">
             <span className="detail-label">주문수량 :</span>
             <span className="detail-value">{order.quantity || 0}</span>
-          </div>
-          <div className="detail-item">
-            <span className="detail-label">상품번호:</span>
-            <span className="detail-value">{order.service_id || '-'}</span>
           </div>
           <div className="detail-item">
             <span className="detail-label">주문일시:</span>

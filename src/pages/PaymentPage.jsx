@@ -251,46 +251,61 @@ const PaymentPage = () => {
       const dripFeedQuantity = isDripFeed ? (orderData.detailedService?.drip_quantity || orderData.quantity) : orderData.quantity
       const dripFeedServiceId = isDripFeed ? (orderData.detailedService?.smmkings_id || orderData.detailedService?.id) : (orderData.detailedService?.id || orderData.detailedService?.smmkings_id)
 
+      const orderPayload = {
+        user_id: orderData.userId || orderData.user_id,
+        platform: orderData.platform,
+        service: orderData.service,
+        detailed_service: orderData.detailedService?.name || orderData.service_name,
+        service_id: dripFeedServiceId || orderData.detailedService?.id || orderData.detailedService?.smmkings_id,
+        link: orderData.link,
+        quantity: dripFeedQuantity,
+        runs: dripFeedRuns,  // Drip-feed 상품: 30일간 하루에 1번씩 → runs: 30, interval: 1440
+        interval: dripFeedInterval,  // interval 단위: 분 (1440 = 24시간)
+        comments: orderData.comments || '',
+        explanation: orderData.explanation || '',
+        total_price: finalPrice,
+        discount: selectedCoupon ? (selectedCoupon.type === 'percentage' ? selectedCoupon.discount : (orderData.totalPrice - finalPrice)) : (orderData.discount || 0),
+        is_scheduled: orderData.isScheduledOrder || false,
+        scheduled_datetime: orderData.isScheduledOrder ? `${orderData.scheduledDate} ${orderData.scheduledTime}` : null,
+        is_split_delivery: orderData.isSplitDelivery || false,
+        split_days: orderData.splitDays || null,
+        split_quantity: orderData.dailyQuantity || null,
+        package_steps: !isDripFeed && orderData.detailedService?.package && orderData.detailedService?.steps ? orderData.detailedService.steps.map(step => ({
+          ...step,
+          quantity: step.quantity || 0  // 각 단계별 수량 보장
+        })) : [],
+        use_coupon: selectedCoupon ? true : (orderData.discount > 0),
+        coupon_id: selectedCoupon?.id || (orderData.discount > 0 ? 'manual_discount' : null),
+        coupon_discount: selectedCoupon ? (selectedCoupon.type === 'percentage' ? selectedCoupon.discount : (orderData.totalPrice - finalPrice)) : (orderData.discount || 0)
+      }
+      
+      console.log('📤 주문 생성 요청 데이터:', orderPayload)
+      
       const orderResponse = await fetch('/api/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-User-ID': orderData.userId || orderData.user_id
         },
-        body: JSON.stringify({
-          user_id: orderData.userId || orderData.user_id,
-          platform: orderData.platform,
-          service: orderData.service,
-          detailed_service: orderData.detailedService?.name || orderData.service_name,
-          service_id: dripFeedServiceId || orderData.detailedService?.id || orderData.detailedService?.smmkings_id,
-          link: orderData.link,
-          quantity: dripFeedQuantity,
-          runs: dripFeedRuns,  // Drip-feed 상품: 30일간 하루에 1번씩 → runs: 30, interval: 1440
-          interval: dripFeedInterval,  // interval 단위: 분 (1440 = 24시간)
-          comments: orderData.comments || '',
-          explanation: orderData.explanation || '',
-          total_price: finalPrice,
-          discount: selectedCoupon ? (selectedCoupon.type === 'percentage' ? selectedCoupon.discount : (orderData.totalPrice - finalPrice)) : (orderData.discount || 0),
-          is_scheduled: orderData.isScheduledOrder || false,
-          scheduled_datetime: orderData.isScheduledOrder ? `${orderData.scheduledDate} ${orderData.scheduledTime}` : null,
-          is_split_delivery: orderData.isSplitDelivery || false,
-          split_days: orderData.splitDays || null,
-          split_quantity: orderData.dailyQuantity || null,
-          package_steps: !isDripFeed && orderData.detailedService?.package && orderData.detailedService?.steps ? orderData.detailedService.steps.map(step => ({
-            ...step,
-            quantity: step.quantity || 0  // 각 단계별 수량 보장
-          })) : [],
-          use_coupon: selectedCoupon ? true : (orderData.discount > 0),
-          coupon_id: selectedCoupon?.id || (orderData.discount > 0 ? 'manual_discount' : null),
-          coupon_discount: selectedCoupon ? (selectedCoupon.type === 'percentage' ? selectedCoupon.discount : (orderData.totalPrice - finalPrice)) : (orderData.discount || 0)
-        })
+        body: JSON.stringify(orderPayload)
       })
 
-      if (!orderResponse.ok) {
-        const orderError = await orderResponse.json()
-        
-        // 주문 생성 실패 시 포인트 환불
-        if (orderError.refund_required && orderError.refund_amount) {
+      // 응답이 JSON인지 확인
+      let orderResult
+      try {
+        const responseText = await orderResponse.text()
+        console.log('📋 주문 생성 응답 (raw):', responseText)
+        orderResult = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('❌ 주문 생성 응답 파싱 실패:', parseError)
+        throw new Error('주문 생성 응답을 파싱할 수 없습니다.')
+      }
+      
+      console.log('📋 주문 생성 응답:', orderResult)
+      console.log('📋 응답 상태:', orderResponse.status, orderResponse.ok)
+      
+      // 주문 생성 실패 시 포인트 환불 (200 OK이지만 refund_required가 있는 경우 포함)
+      if ((!orderResponse.ok || orderResult.refund_required) && orderResult.refund_required && orderResult.refund_amount) {
           console.log('💰 주문 실패로 인한 포인트 환불 시작')
           try {
             const refundResponse = await fetch('/api/points/refund', {
@@ -300,8 +315,8 @@ const PaymentPage = () => {
               },
               body: JSON.stringify({
                 user_id: orderData.userId || orderData.user_id,
-                amount: orderError.refund_amount,
-                order_id: orderError.order_id
+                amount: orderResult.refund_amount,
+                order_id: orderResult.order_id
               })
             })
             
@@ -315,11 +330,10 @@ const PaymentPage = () => {
             console.error('❌ 포인트 환불 중 오류:', refundError)
           }
         }
-        
-        throw new Error(orderError.error || '주문 생성 실패')
+      
+      if (!orderResponse.ok) {
+        throw new Error(orderResult.error || orderResult.message || '주문 생성 실패')
       }
-
-      const orderResult = await orderResponse.json()
 
       // 4. 패키지 주문인 경우 결제 완료 후 처리 시작
       if (orderData.detailedService?.package && orderData.detailedService?.steps && orderData.detailedService.steps.length > 0) {

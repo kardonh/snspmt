@@ -47,49 +47,258 @@ const AdminPage = () => {
   
   // 관리자 권한 체크
   useEffect(() => {
+    let timeoutId = null
+    let abortController = null
+    let isMounted = true
+    
     const checkAdminAccess = async () => {
+      console.log('🔍 관리자 권한 체크 시작...')
+      
       if (!currentUser) {
-        setIsAdmin(false)
-        setCheckingAdmin(false)
+        console.log('⚠️ currentUser가 없습니다.')
+        if (isMounted) {
+          setIsAdmin(false)
+          setCheckingAdmin(false)
+        }
         return
       }
       
       try {
-        // Supabase 세션 가져오기
-        const session = await supabase.auth.getSession()
-        const accessToken = session.data?.session?.access_token
+        // 먼저 localStorage에서 토큰 확인 (더 빠름)
+        console.log('🔍 localStorage에서 토큰 확인...')
+        let accessToken = null
         
+        // 모든 localStorage 키를 확인하여 Supabase 토큰 찾기
+        console.log('🔍 localStorage 전체 스캔 중...')
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && (key.includes('supabase') || key.includes('sb-') || key.includes('auth'))) {
+            const value = localStorage.getItem(key)
+            if (value) {
+              try {
+                // JSON 파싱 시도 (Supabase는 JSON으로 저장)
+                const parsed = JSON.parse(value)
+                if (parsed && typeof parsed === 'object') {
+                  // access_token 찾기
+                  if (parsed.access_token) {
+                    accessToken = parsed.access_token
+                    console.log(`✅ localStorage에서 토큰 발견 (JSON): ${key}`)
+                    break
+                  }
+                  // 중첩된 객체에서도 찾기
+                  if (parsed.currentSession?.access_token) {
+                    accessToken = parsed.currentSession.access_token
+                    console.log(`✅ localStorage에서 토큰 발견 (currentSession): ${key}`)
+                    break
+                  }
+                }
+              } catch (e) {
+                // JSON이 아니면 문자열로 처리
+                if (value.length > 100 && value.startsWith('eyJ')) {
+                  // JWT 토큰처럼 보이면 사용
+                  accessToken = value
+                  console.log(`✅ localStorage에서 토큰 발견 (직접): ${key}`)
+                  break
+                }
+              }
+            }
+          }
+        }
+        
+        // localStorage에 토큰이 없으면 Supabase 세션 가져오기 시도
         if (!accessToken) {
-          setIsAdmin(false)
-          setCheckingAdmin(false)
+          console.log('🔍 localStorage에 토큰 없음, Supabase 세션 가져오기...')
+          
+          // 세션 가져오기에 타임아웃 설정 (5초로 증가)
+          const sessionTimeout = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('세션 가져오기 타임아웃 (5초)')), 5000)
+          })
+          
+          try {
+            const session = await Promise.race([
+              supabase.auth.getSession(),
+              sessionTimeout
+            ])
+            accessToken = session?.data?.session?.access_token
+            console.log('🔍 세션에서 토큰 획득:', !!accessToken)
+            
+            // 세션에서 토큰을 얻었으면 localStorage에 저장
+            if (accessToken) {
+              localStorage.setItem('supabase_access_token', accessToken)
+              console.log('✅ 토큰을 localStorage에 저장')
+            }
+          } catch (sessionError) {
+            console.warn('⚠️ 세션 가져오기 실패 또는 타임아웃:', sessionError.message)
+            // 토큰이 없으면 관리자가 아닌 것으로 처리
+          }
+        }
+        
+        // currentUser에서 직접 토큰 가져오기 시도
+        if (!accessToken && currentUser) {
+          console.log('🔍 currentUser에서 토큰 확인...')
+          // AuthContext에서 토큰을 가져올 수 있는지 확인
+          if (currentUser.access_token) {
+            accessToken = currentUser.access_token
+            console.log('✅ currentUser에서 토큰 발견')
+          }
+        }
+        
+        // currentUser의 email 확인 (토큰이 없어도 email만으로 체크 가능)
+        const userEmail = currentUser?.email
+        if (!accessToken && !userEmail) {
+          console.warn('⚠️ 액세스 토큰과 email 모두 찾을 수 없습니다.')
+          if (isMounted) {
+            setIsAdmin(false)
+            setCheckingAdmin(false)
+          }
           return
         }
         
-        // 백엔드 API로 관리자 권한 확인
-        const response = await fetch('/api/users/check-admin', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
+        console.log('🔍 API 호출 준비 완료')
+        console.log('🔍 토큰 존재:', !!accessToken)
+        console.log('🔍 Email:', userEmail)
+        
+        // AbortController로 요청 취소 가능하게 만들기
+        abortController = new AbortController()
+        
+        // 타임아웃 설정 (5초)
+        timeoutId = setTimeout(() => {
+          console.error('⏱️ API 호출 타임아웃 (5초 초과)')
+          if (abortController) {
+            abortController.abort()
           }
+        }, 5000)
+        
+        // 백엔드 API로 관리자 권한 확인
+        console.log('🔍 /api/users/check-admin 호출 중...')
+        
+        // 헤더 준비
+        const headers = {
+          'Content-Type': 'application/json'
+        }
+        
+        // 토큰이 있으면 추가
+        if (accessToken) {
+          headers['Authorization'] = `Bearer ${accessToken}`
+        }
+        
+        // currentUser의 email이 있으면 쿼리 파라미터로 전달 (토큰 없이도 가능)
+        const url = userEmail ? `/api/users/check-admin?email=${encodeURIComponent(userEmail)}` : '/api/users/check-admin'
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: headers,
+          signal: abortController.signal
         })
         
-        if (response.ok) {
-          const data = await response.json()
+        // 타임아웃 클리어
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+        
+        if (!isMounted) {
+          console.log('⚠️ 컴포넌트가 언마운트되어 응답 무시')
+          return
+        }
+        
+        console.log('✅ API 응답 받음, status:', response.status)
+        
+        // 응답이 성공이든 실패든 항상 JSON 파싱 시도
+        let data
+        try {
+          data = await response.json()
+        } catch (parseError) {
+          console.error('❌ 응답 JSON 파싱 실패:', parseError)
+          data = { is_admin: false, error: '응답 파싱 실패' }
+        }
+        
+        console.log('✅ 관리자 권한 확인 응답:', data, 'status:', response.status)
+        
+        // 디버깅 정보 출력
+        if (data.debug) {
+          console.log('🔍 디버깅 정보:', data.debug)
+          if (data.debug.jwt_user_id && data.debug.user_external_uid) {
+            console.log(`🔍 JWT user_id: ${data.debug.jwt_user_id}`)
+            console.log(`🔍 DB external_uid: ${data.debug.user_external_uid}`)
+            if (data.debug.jwt_user_id !== data.debug.user_external_uid) {
+              console.error('❌ JWT의 user_id와 DB의 external_uid가 일치하지 않습니다!')
+              console.error('   이것이 관리자 접속이 안 되는 원인일 수 있습니다.')
+            }
+          }
+        }
+        
+        if (isMounted) {
+          // 응답이 성공이든 실패든 is_admin 값으로 설정
           setIsAdmin(data.is_admin === true)
-        } else {
-          setIsAdmin(false)
+          setCheckingAdmin(false)
+          
+          if (response.status !== 200 || data.error) {
+            console.warn('⚠️ 관리자 권한 확인 경고:', data.error || '알 수 없는 오류')
+          }
+          
+          if (!data.is_admin && data.debug) {
+            console.error('❌ 관리자 권한이 없습니다. 디버깅 정보를 확인하세요.')
+          }
         }
       } catch (error) {
-        console.error('관리자 권한 체크 실패:', error)
-        setIsAdmin(false)
-      } finally {
-        setCheckingAdmin(false)
+        // 타임아웃 클리어
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+        
+        console.error('❌ 관리자 권한 체크 오류 발생!')
+        console.error('❌ 오류 타입:', error.name)
+        console.error('❌ 오류 메시지:', error.message)
+        console.error('❌ 전체 오류 객체:', error)
+        
+        if (error.name === 'AbortError') {
+          console.error('❌ API 호출이 취소되었습니다 (타임아웃 또는 컴포넌트 언마운트)')
+        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+          console.error('❌ 네트워크 오류 또는 CORS 문제일 수 있습니다.')
+          console.error('❌ API 서버가 실행 중인지 확인하세요.')
+        } else {
+          console.error('❌ 알 수 없는 오류:', error)
+          if (error.stack) {
+            console.error('❌ 스택 트레이스:', error.stack)
+          }
+        }
+        
+        if (isMounted) {
+          setIsAdmin(false)
+          setCheckingAdmin(false)
+        }
       }
     }
     
     checkAdminAccess()
+    
+    // 클린업 함수
+    return () => {
+      console.log('🧹 관리자 권한 체크 클린업')
+      isMounted = false
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+      if (abortController) {
+        abortController.abort()
+      }
+    }
   }, [currentUser])
+  
+  // 추가 안전장치: 6초 이상 checkingAdmin이 true면 자동으로 false로 변경
+  useEffect(() => {
+    if (checkingAdmin) {
+      const fallbackTimeout = setTimeout(() => {
+        console.warn('⚠️ 관리자 권한 체크가 6초 이상 지연되었습니다. 자동으로 일반 사용자로 처리합니다.')
+        setIsAdmin(false)
+        setCheckingAdmin(false)
+      }, 6000)
+      
+      return () => clearTimeout(fallbackTimeout)
+    }
+  }, [checkingAdmin])
   
   // 관리자 API 호출 헬퍼 함수 - Authorization 헤더 사용
   const adminFetch = async (url, options = {}) => {
@@ -128,6 +337,9 @@ const AdminPage = () => {
       }}>
         <div style={{ fontSize: '18px', color: '#333' }}>
           관리자 권한 확인 중...
+        </div>
+        <div style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+          응답이 없으면 자동으로 일반 사용자로 처리됩니다.
         </div>
         <div style={{ 
           width: '40px', 
