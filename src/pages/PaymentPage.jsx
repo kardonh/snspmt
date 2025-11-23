@@ -288,6 +288,34 @@ const PaymentPage = () => {
 
       if (!orderResponse.ok) {
         const orderError = await orderResponse.json()
+        
+        // 주문 생성 실패 시 포인트 환불
+        if (orderError.refund_required && orderError.refund_amount) {
+          console.log('💰 주문 실패로 인한 포인트 환불 시작')
+          try {
+            const refundResponse = await fetch('/api/points/refund', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                user_id: orderData.userId || orderData.user_id,
+                amount: orderError.refund_amount,
+                order_id: orderError.order_id
+              })
+            })
+            
+            if (refundResponse.ok) {
+              const refundResult = await refundResponse.json()
+              console.log('✅ 포인트 환불 완료:', refundResult)
+            } else {
+              console.error('❌ 포인트 환불 실패:', await refundResponse.json())
+            }
+          } catch (refundError) {
+            console.error('❌ 포인트 환불 중 오류:', refundError)
+          }
+        }
+        
         throw new Error(orderError.error || '주문 생성 실패')
       }
 

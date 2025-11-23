@@ -41,10 +41,18 @@ export function AuthProvider({ children }) {
         const session = await supabase.auth.getSession();
         const accessToken = session.data?.session?.access_token;
         
-        // 전화번호, 추천인 코드, 가입 경로 정보 추출
+        // 전화번호, 추천인 코드, 가입 경로, 계정 타입 정보 추출
         const phoneNumber = user.user_metadata?.phone_number || user.user_metadata?.contactPhone || null;
         const referralCode = user.user_metadata?.referral_code || null;
         const signupSource = user.user_metadata?.signup_source || null;
+        const accountType = user.user_metadata?.account_type || null;
+        
+        // 비즈니스 계정 정보 추출
+        const businessNumber = user.user_metadata?.business_number || null;
+        const businessName = user.user_metadata?.business_name || null;
+        const representative = user.user_metadata?.representative || null;
+        const contactPhone = user.user_metadata?.contact_phone || user.user_metadata?.contactPhone || null;
+        const contactEmail = user.user_metadata?.contact_email || user.user_metadata?.contactEmail || null;
         
         const response = await fetch('/api/users/sync', {
           method: 'POST',
@@ -59,6 +67,12 @@ export function AuthProvider({ children }) {
             phone_number: phoneNumber,
             referral_code: referralCode,
             signup_source: signupSource,
+            account_type: accountType,
+            business_number: businessNumber,
+            business_name: businessName,
+            representative: representative,
+            contact_phone: contactPhone,
+            contact_email: contactEmail,
             metadata: user.user_metadata
           })
         });
@@ -443,13 +457,36 @@ export function AuthProvider({ children }) {
           console.log('⚠️ Supabase 로그아웃 오류 발생했지만 로컬 상태는 정리됨');
         }
         
-        // 세션 확인 (확인용)
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          console.warn('⚠️ 세션이 아직 존재함, 강제 정리 시도');
-          // 세션이 남아있으면 다시 시도
+        // 세션 확인 및 강제 정리
+        let attempts = 0
+        while (attempts < 3) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            break
+          }
+          console.warn(`⚠️ 세션이 아직 존재함 (시도 ${attempts + 1}/3), 강제 정리 시도`);
           await supabase.auth.signOut();
+          attempts++
+          // 잠시 대기 후 다시 확인
+          await new Promise(resolve => setTimeout(resolve, 500))
         }
+        
+        // 최종 세션 확인
+        const { data: { finalSession } } = await supabase.auth.getSession();
+        if (finalSession) {
+          console.warn('⚠️ 세션이 여전히 존재함, localStorage 강제 정리');
+          // localStorage에서 모든 인증 관련 데이터 제거
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('userEmail');
+          localStorage.removeItem('supabase_access_token');
+          localStorage.removeItem('sb-access-token');
+          localStorage.removeItem('sb-refresh-token');
+        }
+        
+        // 로딩 상태 확실히 초기화
+        setLoading(false);
+        setCurrentUser(null);
         
         console.log('✅ 로그아웃 완료');
         resolve();

@@ -38,6 +38,20 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
     setIsLogin(initialMode === 'login')
   }, [initialMode])
 
+  // 모달이 열릴 때 상태 초기화 (로딩 상태 포함)
+  useEffect(() => {
+    if (isOpen) {
+      setLoading(false)
+      setError('')
+      setReferralCodeValidating(false)
+      // 로그인 모드로 전환 시 잠금 상태도 초기화
+      if (isLogin) {
+        setIsLocked(false)
+        setLockoutTime(0)
+      }
+    }
+  }, [isOpen, isLogin])
+
   // 추천인 코드 검증
   const validateReferralCode = async (code) => {
     if (!code.trim()) {

@@ -8,7 +8,8 @@ const ReferralDashboard = () => {
     totalCommission: 0,
     activeReferrals: 0,
     thisMonthReferrals: 0,
-    thisMonthCommission: 0
+    thisMonthCommission: 0,
+    commissionRate: 0.1  // 기본값 10%
   })
   const [referralHistory, setReferralHistory] = useState([])
   const [commissionHistory, setCommissionHistory] = useState([])
@@ -163,6 +164,7 @@ const ReferralDashboard = () => {
           activeReferrals: 0,
           thisMonthReferrals: 0,
           thisMonthCommission: 0,
+          commissionRate: 0.1
         })
       }
 
@@ -194,6 +196,7 @@ const ReferralDashboard = () => {
         activeReferrals: 0,
         thisMonthReferrals: 0,
         thisMonthCommission: 0,
+        commissionRate: 0.1
       })
     }
   }
@@ -581,7 +584,7 @@ const ReferralDashboard = () => {
             </div>
             <div className="summary-item">
               <span className="summary-label">커미션율</span>
-              <span className="summary-value">10%</span>
+              <span className="summary-value">{(referralStats.commissionRate * 100).toFixed(1)}%</span>
             </div>
           </div>
           <div className="table-container">
@@ -608,7 +611,11 @@ const ReferralDashboard = () => {
                       <td className="commission-amount">
                         <span className="amount">+{commission.commissionAmount.toLocaleString()}원</span>
                       </td>
-                      <td className="commission-rate">{(commission.commissionRate * 100).toFixed(1)}%</td>
+                      <td className="commission-rate">
+                        {typeof commission.commissionRate === 'number' 
+                          ? (commission.commissionRate * 100).toFixed(1) + '%'
+                          : commission.commissionRate || '10.0%'}
+                      </td>
                       <td className="payment-date">{commission.paymentDate}</td>
                       <td className="status">
                         <span className="status-badge completed">지급완료</span>
