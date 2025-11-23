@@ -69,9 +69,135 @@ def get_parameter_value(key: str, default: str = "") -> str:
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
 
+# Swagger 설정
+try:
+    from flasgger import Swagger
+    
+    swagger_config = {
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": "apispec",
+                "route": "/apispec.json",
+                "rule_filter": lambda rule: True,
+                "model_filter": lambda tag: True,
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/api-docs"
+    }
+    
+    swagger_template = {
+        "swagger": "2.0",
+        "info": {
+            "title": "SNS PMT API",
+            "description": "SNS PMT 서비스 API 문서",
+            "version": "1.0.0",
+            "contact": {
+                "name": "API Support"
+            }
+        },
+        "basePath": "/",
+        "schemes": ["http", "https"],
+        "securityDefinitions": {
+            "Bearer": {
+                "type": "apiKey",
+                "name": "Authorization",
+                "in": "header",
+                "description": "JWT 토큰을 Bearer 형식으로 전달 (예: Bearer {token})"
+            }
+        },
+        "tags": [
+            {
+                "name": "Health",
+                "description": "헬스 체크 관련 API"
+            },
+            {
+                "name": "Users",
+                "description": "사용자 관련 API"
+            },
+            {
+                "name": "Orders",
+                "description": "주문 관련 API"
+            },
+            {
+                "name": "Points",
+                "description": "포인트 관련 API"
+            },
+            {
+                "name": "Referral",
+                "description": "추천인 코드 관련 API"
+            },
+            {
+                "name": "Admin",
+                "description": "관리자 관련 API"
+            }
+        ]
+    }
+    
+    swagger = Swagger(app, config=swagger_config, template=swagger_template)
+    
+    # Swagger 엔드포인트에 캐시 제어 헤더 추가 (304 에러 방지)
+    @app.after_request
+    def add_cache_control_for_swagger(response):
+        """Swagger 관련 엔드포인트에 캐시 제어 헤더 추가"""
+        if request.path.startswith('/api-docs') or request.path.startswith('/apispec') or request.path.startswith('/flasgger_static'):
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
+    
+    print("✅ Swagger 문서화 설정 완료 - /api-docs에서 확인 가능")
+except ImportError as e:
+    print(f"⚠️ Swagger 설정 실패: flasgger가 설치되지 않았습니다. pip install flasgger로 설치해주세요.")
+    print(f"   오류 상세: {e}")
+except Exception as e:
+    print(f"⚠️ Swagger 설정 중 오류 발생: {e}")
+    import traceback
+    traceback.print_exc()
+
 # 정적 파일 서빙 설정
 @app.route('/static/uploads/<filename>')
 def uploaded_file(filename):
+    """Uploaded File
+    ---
+    tags:
+      - API
+    summary: Uploaded File
+    description: "Uploaded File API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """업로드된 파일 서빙"""
     return send_from_directory(UPLOAD_FOLDER, filename)
 
@@ -211,11 +337,87 @@ def monitor_performance(func):
 # sitemap.xml 서빙
 @app.route('/sitemap.xml')
 def sitemap():
+    """Sitemap
+    ---
+    tags:
+      - API
+    summary: Sitemap
+    description: "Sitemap API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     return app.send_static_file('sitemap.xml')
 
 # rss.xml 서빙
 @app.route('/rss.xml')
 def rss():
+    """Rss
+    ---
+    tags:
+      - API
+    summary: Rss
+    description: "Rss API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     return app.send_static_file('rss.xml')
 
 # -----------------------------
@@ -224,6 +426,46 @@ def rss():
 @app.route('/api/admin/coupons', methods=['GET'])
 @require_admin_auth
 def admin_get_coupons():
+    """Admin Get Coupons
+    ---
+    tags:
+      - Admin
+    summary: Admin Get Coupons
+    description: "Admin Get Coupons API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """쿠폰 목록 조회(간단 버전)"""
     conn = None
     cursor = None
@@ -294,6 +536,50 @@ def admin_get_coupons():
 @app.route('/api/admin/coupons', methods=['POST', 'OPTIONS'])
 @require_admin_auth
 def admin_create_coupon():
+    """Admin Create Coupon
+    ---
+    tags:
+      - Admin
+    summary: Admin Create Coupon
+    description: "Admin Create Coupon API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """쿠폰 생성"""
     # OPTIONS 요청 처리 (CORS preflight)
     if request.method == 'OPTIONS':
@@ -366,6 +652,56 @@ def admin_create_coupon():
 @app.route('/api/admin/coupons/<int:coupon_id>', methods=['PUT'])
 @require_admin_auth
 def admin_update_coupon(coupon_id):
+    """Admin Update Coupon
+    ---
+    tags:
+      - Admin
+    summary: Admin Update Coupon
+    description: "Admin Update Coupon API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: coupon_id
+        in: path
+        type: int
+        required: true
+        description: Coupon Id
+        example: "example_coupon_id"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """쿠폰 수정"""
     conn = None
     cursor = None
@@ -444,6 +780,47 @@ def admin_update_coupon(coupon_id):
 @app.route('/api/admin/coupons/<int:coupon_id>', methods=['DELETE'])
 @require_admin_auth
 def admin_delete_coupon(coupon_id):
+    """Admin Delete Coupon
+    ---
+    tags:
+      - Admin
+    summary: Admin Delete Coupon
+    description: "Admin Delete Coupon API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: coupon_id
+        in: path
+        type: int
+        required: true
+        description: Coupon Id
+        example: "example_coupon_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """쿠폰 삭제"""
     conn = None
     cursor = None
@@ -481,6 +858,50 @@ def admin_delete_coupon(coupon_id):
 @app.route('/api/admin/catalog/import-smm', methods=['POST', 'OPTIONS'])
 @require_admin_auth
 def admin_import_smm_services():
+    """Admin Import Smm Services
+    ---
+    tags:
+      - Admin
+    summary: Admin Import Smm Services
+    description: "Admin Import Smm Services API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """SMM Panel 서비스 목록을 불러와 categories/products/product_variants에 일괄 등록"""
     # CORS preflight 요청 처리
     if request.method == 'OPTIONS':
@@ -627,6 +1048,50 @@ def admin_import_smm_services():
 @app.route('/api/admin/reprocess-package-orders', methods=['POST'])
 @require_admin_auth
 def reprocess_package_orders():
+    """Reprocess Package Orders
+    ---
+    tags:
+      - Admin
+    summary: Reprocess Package Orders
+    description: "Reprocess Package Orders API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """멈춰있는 패키지 주문들을 재처리"""
     conn = None
     cursor = None
@@ -675,6 +1140,48 @@ def reprocess_package_orders():
 # 예약 발송 주문 처리
 @app.route('/api/scheduled-orders', methods=['POST'])
 def create_scheduled_order():
+    """Create Scheduled Order
+    ---
+    tags:
+      - API
+    summary: Create Scheduled Order
+    description: "Create Scheduled Order API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """예약 발송 주문 생성"""
     conn = None
     cursor = None
@@ -867,6 +1374,44 @@ def create_scheduled_order():
 # robots.txt 서빙
 @app.route('/robots.txt')
 def robots():
+    """Robots
+    ---
+    tags:
+      - API
+    summary: Robots
+    description: "Robots API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     return app.send_static_file('robots.txt')
 
 # 전역 오류 처리
@@ -3289,6 +3834,44 @@ def initialize_app():
 # 데이터베이스 연결 테스트
 @app.route('/api/test/db', methods=['GET'])
 def test_database_connection():
+    """Test Database Connection
+    ---
+    tags:
+      - API
+    summary: Test Database Connection
+    description: "Test Database Connection API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """데이터베이스 연결 테스트"""
     try:
         print("🔍 데이터베이스 연결 테스트 시작")
@@ -3339,6 +3922,44 @@ def test_database_connection():
 # 사용자 테이블 테스트
 @app.route('/api/test/users', methods=['GET'])
 def test_users_table():
+    """Test Users Table
+    ---
+    tags:
+      - API
+    summary: Test Users Table
+    description: "Test Users Table API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """사용자 테이블 테스트"""
     try:
         print("🔍 사용자 테이블 테스트 시작")
@@ -3398,7 +4019,49 @@ def test_users_table():
 @app.route('/health', methods=['GET'])
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """헬스 체크 엔드포인트"""
+    """헬스 체크 엔드포인트
+    ---
+    tags:
+      - Health
+    summary: 서버 및 데이터베이스 상태 확인
+    description: "서버가 정상적으로 동작 중인지, 데이터베이스 연결이 정상인지 확인합니다."
+    responses:
+      200:
+        description: 서버가 정상적으로 동작 중
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: healthy
+            timestamp:
+              type: string
+              example: "2024-01-01T00:00:00"
+            database:
+              type: string
+              example: connected
+            version:
+              type: string
+              example: "1.0.0"
+            environment:
+              type: string
+              example: development
+      500:
+        description: 서버 또는 데이터베이스 오류
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: unhealthy
+            error:
+              type: string
+            timestamp:
+              type: string
+            database:
+              type: string
+              example: disconnected
+    """
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -3423,6 +4086,44 @@ def health_check():
 
 @app.route('/api/config', methods=['GET'])
 def get_config():
+    """Get Config
+    ---
+    tags:
+      - Config
+    summary: Get Config
+    description: "Get Config API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """프론트엔드 설정 정보 반환"""
     try:
         google_client_id = os.environ.get('REACT_APP_GOOGLE_CLIENT_ID', '')
@@ -3449,6 +4150,46 @@ def get_config():
 @app.route('/api/admin/config', methods=['GET'])
 @require_admin_auth
 def get_admin_config():
+    """Get Admin Config
+    ---
+    tags:
+      - Admin
+    summary: Get Admin Config
+    description: "Get Admin Config API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자용 설정 정보 반환 (SMM API 엔드포인트 등)"""
     try:
         # SMM Panel API 엔드포인트 (환경변수 또는 기본값)
@@ -3467,6 +4208,44 @@ def get_admin_config():
 
 @app.route('/api/deployment-status', methods=['GET'])
 def deployment_status():
+    """Deployment Status
+    ---
+    tags:
+      - API
+    summary: Deployment Status
+    description: "Deployment Status API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """배포 상태 확인"""
     try:
         # 필수 환경 변수 확인
@@ -3526,6 +4305,44 @@ def deployment_status():
 # 추천인 연결 확인 API (디버깅용)
 @app.route('/api/debug/referral-connection/<user_id>', methods=['GET'])
 def check_referral_connection(user_id):
+    """Check Referral Connection
+    ---
+    tags:
+      - API
+    summary: Check Referral Connection
+    description: "Check Referral Connection API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """사용자의 추천인 연결 상태 확인"""
     try:
         conn = get_db_connection()
@@ -3567,6 +4384,48 @@ def check_referral_connection(user_id):
 # 사용자 등록
 @app.route('/api/register', methods=['POST'])
 def register():
+    """Register
+    ---
+    tags:
+      - API
+    summary: Register
+    description: "Register API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """사용자 등록"""
     try:
         data = request.get_json()
@@ -3661,7 +4520,54 @@ def register():
 # 사용자 포인트 조회
 @app.route('/api/points', methods=['GET'])
 def get_user_points():
-    """사용자 지갑(포인트) 잔액 조회 - 새 스키마 사용"""
+    """사용자 포인트 잔액 조회
+    ---
+    tags:
+      - Points
+    summary: 사용자 포인트 잔액 조회
+    description: "사용자의 현재 포인트 잔액을 조회합니다."
+    security:
+      - Bearer: []
+    parameters:
+      - name: user_id
+        in: query
+        type: string
+        required: true
+        description: 사용자 ID
+        example: "user123"
+    responses:
+      200:
+        description: 포인트 조회 성공
+        schema:
+          type: object
+          properties:
+            user_id:
+              type: string
+              example: "user123"
+            balance:
+              type: number
+              description: 포인트 잔액
+              example: 10000.0
+            external_uid:
+              type: string
+              example: "user123"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "user_id가 필요합니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "포인트 조회 실패: ..."
+    """
     conn = None
     cursor = None
     
@@ -3784,7 +4690,90 @@ def get_user_points():
 # 주문 생성
 @app.route('/api/orders', methods=['POST'])
 def create_order():
-    """주문 생성 (할인 및 커미션 적용)"""
+    """주문 생성
+    ---
+    tags:
+      - Orders
+    summary: 새로운 주문 생성
+    description: "사용자의 주문을 생성하고 할인 및 커미션을 적용합니다."
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - user_id
+            - service_id
+            - link
+            - quantity
+            - price
+          properties:
+            user_id:
+              type: string
+              description: 사용자 ID
+              example: "user123"
+            service_id:
+              type: integer
+              description: 서비스 ID
+              example: 1
+            link:
+              type: string
+              description: "주문할 링크 (예: 인스타그램 게시물 URL)"
+              example: "https://instagram.com/p/abc123"
+            quantity:
+              type: integer
+              description: 주문 수량
+              example: 100
+            price:
+              type: number
+              description: 주문 가격
+              example: 10000
+            coupon_id:
+              type: integer
+              description: 사용할 쿠폰 ID (선택사항)
+            user_coupon_id:
+              type: integer
+              description: 사용자 쿠폰 ID (선택사항)
+    responses:
+      200:
+        description: 주문 생성 성공
+        schema:
+          type: object
+          properties:
+            order_id:
+              type: integer
+              example: 123
+            message:
+              type: string
+              example: "주문이 성공적으로 생성되었습니다."
+            final_price:
+              type: number
+              description: 최종 가격 (할인 적용 후)
+              example: 9500
+            discount_amount:
+              type: number
+              description: 할인 금액
+              example: 500
+      400:
+        description: 필수 필드 누락 또는 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "필수 필드가 누락되었습니다: user_id, service_id"
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "주문 생성 중 오류가 발생했습니다."
+    """
     conn = None
     cursor = None
     
@@ -4319,6 +5308,48 @@ def create_order():
 # 패키지 주문 처리 시작
 @app.route('/api/orders/start-package-processing', methods=['POST'])
 def start_package_processing():
+    """Start Package Processing
+    ---
+    tags:
+      - Orders
+    summary: Start Package Processing
+    description: "Start Package Processing API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """결제 완료 후 패키지 주문 처리 시작"""
     conn = None
     cursor = None
@@ -4459,6 +5490,45 @@ def start_package_processing():
 # 패키지 상품 진행 상황 조회
 @app.route('/api/orders/<int:order_id>/package-progress', methods=['GET'])
 def get_package_progress(order_id):
+    """Get Package Progress
+    ---
+    tags:
+      - Orders
+    summary: Get Package Progress
+    description: "Get Package Progress API"
+    parameters:
+      - name: order_id
+        in: path
+        type: int
+        required: true
+        description: Order Id
+        example: "example_order_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """패키지 상품 진행 상황 조회"""
     conn = None
     cursor = None
@@ -4550,7 +5620,86 @@ def get_package_progress(order_id):
 # 주문 목록 조회
 @app.route('/api/orders', methods=['GET'])
 def get_orders():
-    """주문 목록 조회 (최적화된 버전)"""
+    """주문 목록 조회
+    ---
+    tags:
+      - Orders
+    summary: 사용자의 주문 목록 조회
+    description: "현재 사용자의 주문 목록을 조회합니다."
+    security:
+      - Bearer: []
+    parameters:
+      - name: user_id
+        in: query
+        type: string
+        required: true
+        description: 사용자 ID
+        example: "user123"
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        description: 조회할 주문 수 제한
+        example: 10
+      - name: offset
+        in: query
+        type: integer
+        required: false
+        description: 조회 시작 위치
+        example: 0
+    responses:
+      200:
+        description: 주문 목록 조회 성공
+        schema:
+          type: object
+          properties:
+            orders:
+              type: array
+              items:
+                type: object
+                properties:
+                  order_id:
+                    type: integer
+                    example: 123
+                  service_id:
+                    type: integer
+                    example: 1
+                  link:
+                    type: string
+                    example: "https://instagram.com/p/abc123"
+                  quantity:
+                    type: integer
+                    example: 100
+                  price:
+                    type: number
+                    example: 10000
+                  status:
+                    type: string
+                    example: "pending"
+                  created_at:
+                    type: string
+                    example: "2024-01-01T00:00:00"
+            total:
+              type: integer
+              description: 전체 주문 수
+              example: 50
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "user_id가 필요합니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "주문 목록 조회 중 오류가 발생했습니다."
+    """
     conn = None
     cursor = None
     
@@ -4748,7 +5897,74 @@ def get_orders():
 # 포인트 구매 신청
 @app.route('/api/points/purchase', methods=['POST'])
 def purchase_points():
-    """포인트 구매 신청"""
+    """포인트 구매 신청
+    ---
+    tags:
+      - Points
+    summary: 포인트 구매 신청
+    description: "사용자가 포인트를 구매하기 위해 신청합니다."
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - user_id
+            - amount
+            - price
+          properties:
+            user_id:
+              type: string
+              description: 사용자 ID
+              example: "user123"
+            amount:
+              type: integer
+              description: 구매할 포인트 양
+              example: 10000
+            price:
+              type: number
+              description: 결제 금액
+              example: 10000
+            buyer_name:
+              type: string
+              description: 구매자 이름 (선택사항)
+              example: "홍길동"
+            bank_info:
+              type: string
+              description: 은행 정보 (선택사항)
+              example: "국민은행"
+    responses:
+      200:
+        description: 포인트 구매 신청 성공
+        schema:
+          type: object
+          properties:
+            purchase_id:
+              type: integer
+              example: 123
+            message:
+              type: string
+              example: "포인트 구매 신청이 완료되었습니다."
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "필수 필드가 누락되었습니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "포인트 구매 신청 실패: ..."
+    """
     try:
         data = request.get_json()
         user_id = data.get('user_id')
@@ -4955,6 +6171,48 @@ def purchase_points():
 # KCP 표준결제 - 거래등록 (Mobile)
 @app.route('/api/points/purchase-kcp/register', methods=['POST'])
 def kcp_register_transaction():
+    """Kcp Register Transaction
+    ---
+    tags:
+      - Points
+    summary: Kcp Register Transaction
+    description: "Kcp Register Transaction API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """KCP 표준결제 거래등록 (Mobile)"""
     try:
         data = request.get_json()
@@ -5151,6 +6409,48 @@ def kcp_register_transaction():
 # KCP 표준결제 - 결제창 호출 데이터 생성
 @app.route('/api/points/purchase-kcp/payment-form', methods=['POST'])
 def kcp_payment_form():
+    """Kcp Payment Form
+    ---
+    tags:
+      - Points
+    summary: Kcp Payment Form
+    description: "Kcp Payment Form API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """KCP 표준결제 결제창 호출 데이터 생성"""
     try:
         data = request.get_json()
@@ -5196,6 +6496,48 @@ def kcp_payment_form():
 # KCP 결제창 인증결과 처리 (Ret_URL)
 @app.route('/api/points/purchase-kcp/return', methods=['POST'])
 def kcp_payment_return():
+    """Kcp Payment Return
+    ---
+    tags:
+      - Points
+    summary: Kcp Payment Return
+    description: "Kcp Payment Return API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """KCP 결제창 인증결과 처리"""
     try:
         # KCP에서 전달받은 인증결과 데이터
@@ -5234,6 +6576,48 @@ def kcp_payment_return():
 # KCP 결제요청 (승인)
 @app.route('/api/points/purchase-kcp/approve', methods=['POST'])
 def kcp_payment_approve():
+    """Kcp Payment Approve
+    ---
+    tags:
+      - Points
+    summary: Kcp Payment Approve
+    description: "Kcp Payment Approve API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """KCP 결제요청 (승인)"""
     try:
         data = request.get_json()
@@ -5370,7 +6754,38 @@ def kcp_payment_approve():
 @app.route('/api/admin/stats', methods=['GET'])
 @require_admin_auth
 def get_admin_stats():
-    """관리자 통계"""
+    """관리자 통계 조회
+    ---
+    tags:
+      - Admin
+    summary: 관리자 통계 조회
+    description: "관리자 대시보드용 통계 정보를 조회합니다."
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: 통계 조회 성공
+        schema:
+          type: object
+          properties:
+            total_users:
+              type: integer
+              example: 100
+            total_orders:
+              type: integer
+              example: 500
+            total_revenue:
+              type: number
+              example: 1000000
+      401:
+        description: 인증 실패
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "인증이 필요합니다."
+    """
     conn = None
     cursor = None
     
@@ -5592,7 +7007,47 @@ def get_admin_stats():
 # 관리자 포인트 구매 목록
 @app.route('/api/admin/purchases', methods=['GET'])
 def get_admin_purchases():
-    """관리자 포인트 구매 목록"""
+    """관리자 포인트 구매 목록 조회
+    ---
+    tags:
+      - Admin
+    summary: 관리자 포인트 구매 목록 조회
+    description: "전체 포인트 구매 내역을 조회합니다."
+    security:
+      - Bearer: []
+    parameters:
+      - name: status
+        in: query
+        type: string
+        required: false
+        description: 구매 상태 필터 (pending, completed, cancelled)
+        example: "pending"
+    responses:
+      200:
+        description: 구매 목록 조회 성공
+        schema:
+          type: object
+          properties:
+            purchases:
+              type: array
+              items:
+                type: object
+                properties:
+                  purchase_id:
+                    type: integer
+                    example: 123
+                  user_id:
+                    type: string
+                    example: "user123"
+                  amount:
+                    type: number
+                    example: 10000
+                  status:
+                    type: string
+                    example: "pending"
+      401:
+        description: 인증 실패
+    """
     conn = None
     cursor = None
     try:
@@ -5699,6 +7154,56 @@ def get_admin_purchases():
 # 포인트 구매 승인/거절
 @app.route('/api/admin/purchases/<int:purchase_id>', methods=['PUT'])
 def update_purchase_status(purchase_id):
+    """Update Purchase Status
+    ---
+    tags:
+      - Admin
+    summary: Update Purchase Status
+    description: "Update Purchase Status API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: purchase_id
+        in: path
+        type: int
+        required: true
+        description: Purchase Id
+        example: "example_purchase_id"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     # 임시로 데코레이터 제거하여 테스트
     # @require_admin_auth
     """포인트 구매 승인/거절"""
@@ -5947,6 +7452,48 @@ def update_purchase_status(purchase_id):
 # 포인트 차감 (주문 결제용)
 @app.route('/api/points/deduct', methods=['POST'])
 def deduct_points():
+    """Deduct Points
+    ---
+    tags:
+      - Points
+    summary: Deduct Points
+    description: "Deduct Points API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """포인트 차감 (주문 결제) - 새 스키마 사용"""
     conn = None
     cursor = None
@@ -6097,7 +7644,61 @@ def deduct_points():
 # Supabase 사용자 동기화 엔드포인트
 @app.route('/api/users/sync', methods=['POST'])
 def sync_user():
-    """Supabase Auth 사용자를 백엔드 users 테이블에 동기화"""
+    """사용자 동기화
+    ---
+    tags:
+      - Users
+    summary: Supabase Auth 사용자 동기화
+    description: "Supabase Auth의 사용자 정보를 백엔드 users 테이블에 동기화합니다."
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: false
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              description: 이메일
+              example: "user@example.com"
+            phone_number:
+              type: string
+              description: 전화번호
+              example: "010-1234-5678"
+            referral_code:
+              type: string
+              description: 추천인 코드 (선택사항)
+              example: "ABC123"
+            account_type:
+              type: string
+              description: 계정 타입 (personal 또는 business)
+              example: "personal"
+    responses:
+      200:
+        description: 사용자 동기화 성공
+        schema:
+          type: object
+          properties:
+            user_id:
+              type: integer
+              example: 1
+            email:
+              type: string
+              example: "user@example.com"
+            message:
+              type: string
+              example: "사용자 동기화 완료"
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "사용자 동기화 실패: ..."
+    """
     conn = None
     cursor = None
     try:
@@ -6463,7 +8064,51 @@ def sync_user():
 
 @app.route('/api/users/<path:user_id>', methods=['GET'])
 def get_user(user_id):
-    """사용자 정보 조회 (없으면 자동 생성) - 항상 200 반환"""
+    """사용자 정보 조회
+    ---
+    tags:
+      - Users
+    summary: 사용자 정보 조회
+    description: "사용자 정보를 조회합니다. 사용자가 없으면 자동으로 생성합니다."
+    security:
+      - Bearer: []
+    parameters:
+      - name: user_id
+        in: path
+        type: string
+        required: true
+        description: 사용자 ID
+        example: "user123"
+    responses:
+      200:
+        description: 사용자 정보 조회 성공
+        schema:
+          type: object
+          properties:
+            user_id:
+              type: integer
+              example: 1
+            email:
+              type: string
+              example: "user@example.com"
+            external_uid:
+              type: string
+              example: "user123"
+            phone_number:
+              type: string
+              example: "010-1234-5678"
+            created_at:
+              type: string
+              example: "2024-01-01T00:00:00"
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "사용자 조회 실패: ..."
+    """
     import sys
     # user_id 정규화 (앞뒤 공백 및 슬래시 제거)
     user_id = str(user_id).strip().rstrip('/')
@@ -6648,6 +8293,44 @@ def get_user(user_id):
 # 추천인 코드 조회
 @app.route('/api/referral/my-codes', methods=['GET'])
 def get_my_codes():
+    """Get My Codes
+    ---
+    tags:
+      - Referral
+    summary: Get My Codes
+    description: "Get My Codes API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """내 추천인 코드 조회"""
     try:
         user_id = request.args.get('user_id')
@@ -6761,6 +8444,48 @@ def get_my_codes():
 # 추천인 코드 사용
 @app.route('/api/referral/use-code', methods=['POST'])
 def use_referral_code():
+    """Use Referral Code
+    ---
+    tags:
+      - Referral
+    summary: Use Referral Code
+    description: "Use Referral Code API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """추천인 코드 사용"""
     try:
         data = request.get_json()
@@ -6782,6 +8507,44 @@ def use_referral_code():
 # 추천인 수수료 조회
 @app.route('/api/referral/commissions', methods=['GET'])
 def get_commissions():
+    """Get Commissions
+    ---
+    tags:
+      - Referral
+    summary: Get Commissions
+    description: "Get Commissions API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """추천인 수수료 조회 - 새 스키마 사용"""
     conn = None
     cursor = None
@@ -6931,6 +8694,48 @@ def get_commissions():
 # 추천인 코드로 쿠폰 발급
 @app.route('/api/referral/issue-coupon', methods=['POST'])
 def issue_referral_coupon():
+    """Issue Referral Coupon
+    ---
+    tags:
+      - Referral
+    summary: Issue Referral Coupon
+    description: "Issue Referral Coupon API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """추천인 코드로 5% 할인 쿠폰 발급"""
     try:
         data = request.get_json()
@@ -7053,7 +8858,66 @@ def issue_referral_coupon():
 # 추천인 코드 검증
 @app.route('/api/referral/validate-code', methods=['GET'])
 def validate_referral_code():
-    """추천인 코드 유효성 검증 - 새 스키마 사용 (users.referral_code)"""
+    """추천인 코드 유효성 검증
+    ---
+    tags:
+      - Referral
+    summary: 추천인 코드 유효성 검증
+    description: "입력된 추천인 코드가 유효한지 확인합니다."
+    parameters:
+      - name: code
+        in: query
+        type: string
+        required: true
+        description: 검증할 추천인 코드
+        example: "ABC123"
+    responses:
+      200:
+        description: 검증 결과
+        schema:
+          type: object
+          properties:
+            valid:
+              type: boolean
+              description: 코드 유효성 여부
+              example: true
+            code:
+              type: string
+              description: 추천인 코드 (유효한 경우)
+              example: "ABC123"
+            user_id:
+              type: integer
+              description: 추천인 사용자 ID (유효한 경우)
+            email:
+              type: string
+              description: 추천인 이메일 (유효한 경우)
+            error:
+              type: string
+              description: 에러 메시지 (유효하지 않은 경우)
+              example: "유효하지 않은 코드입니다."
+      400:
+        description: 필수 파라미터 누락
+        schema:
+          type: object
+          properties:
+            valid:
+              type: boolean
+              example: false
+            error:
+              type: string
+              example: "코드가 필요합니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            valid:
+              type: boolean
+              example: false
+            error:
+              type: string
+              example: "코드 검증 실패: ..."
+    """
     try:
         code = request.args.get('code')
         if not code:
@@ -7099,6 +8963,48 @@ def validate_referral_code():
 # 쿠폰 번호로 쿠폰 검증 및 사용자에게 추가 (더 구체적인 라우트를 먼저 정의해야 함)
 @app.route('/api/user/coupons/add-by-code', methods=['POST', 'OPTIONS'])
 def add_coupon_by_code():
+    """Add Coupon By Code
+    ---
+    tags:
+      - Users
+    summary: Add Coupon By Code
+    description: "Add Coupon By Code API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """쿠폰 번호로 쿠폰을 검증하고 사용자에게 추가"""
     try:
         data = request.get_json()
@@ -7247,6 +9153,44 @@ def add_coupon_by_code():
 # 사용자 쿠폰 조회
 @app.route('/api/user/coupons', methods=['GET'])
 def get_user_coupons():
+    """Get User Coupons
+    ---
+    tags:
+      - Users
+    summary: Get User Coupons
+    description: "Get User Coupons API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """사용자의 쿠폰 목록 조회"""
     try:
         user_id = request.args.get('user_id')
@@ -7351,6 +9295,46 @@ def get_user_coupons():
 # 관리자용 추천인 커미션 현황 조회
 @app.route('/api/admin/referral/commission-overview', methods=['GET'])
 def get_referral_commission_overview():
+    """Get Referral Commission Overview
+    ---
+    tags:
+      - Admin
+    summary: Get Referral Commission Overview
+    description: "Get Referral Commission Overview API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자용 추천인 커미션 현황 조회"""
     conn = None
     cursor = None
@@ -7533,6 +9517,50 @@ def get_referral_commission_overview():
 # 관리자용 커미션 환급 처리
 @app.route('/api/admin/referral/pay-commission', methods=['POST'])
 def pay_commission():
+    """Pay Commission
+    ---
+    tags:
+      - Admin
+    summary: Pay Commission
+    description: "Pay Commission API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자용 커미션 환급 처리"""
     try:
         data = request.get_json()
@@ -7623,6 +9651,46 @@ def pay_commission():
 # 관리자용 환급 내역 조회
 @app.route('/api/admin/referral/payment-history', methods=['GET'])
 def get_payment_history():
+    """Get Payment History
+    ---
+    tags:
+      - Admin
+    summary: Get Payment History
+    description: "Get Payment History API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자용 환급 내역 조회"""
     try:
         conn = get_db_connection()
@@ -7633,11 +9701,11 @@ def get_payment_history():
             try:
                 cursor.execute("""
                     SELECT 
-                        NOW() AS paid_at,
-                        p.amount,
-                        p.notes
+                        p.processed_at AS paid_at,
+                        p.paid_amount AS amount,
+                        COALESCE(p.notes, '') AS notes
                     FROM payouts p
-                    WHERE p.status IN ('paid','completed')
+                    WHERE p.processed_at IS NOT NULL
                     ORDER BY p.payout_id DESC
                 """)
             except Exception as e:
@@ -7688,6 +9756,44 @@ def get_payment_history():
 # 사용자용 추천인 통계 조회
 @app.route('/api/referral/stats', methods=['GET'])
 def get_referral_stats():
+    """Get Referral Stats
+    ---
+    tags:
+      - Referral
+    summary: Get Referral Stats
+    description: "Get Referral Stats API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """사용자용 추천인 통계 조회 - 새 스키마 사용"""
     conn = None
     cursor = None
@@ -7816,6 +9922,44 @@ def get_referral_stats():
 # 사용자용 추천인 목록 조회 (피추천인 목록)
 @app.route('/api/referral/referrals', methods=['GET'])
 def get_user_referrals():
+    """Get User Referrals
+    ---
+    tags:
+      - Referral
+    summary: Get User Referrals
+    description: "Get User Referrals API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """사용자용 추천인 목록 조회 (내가 추천한 사용자들) - 새 스키마 사용"""
     user_id = request.args.get('user_id')  # external_uid 또는 email
     if not user_id:
@@ -7938,6 +10082,50 @@ def get_user_referrals():
 # 관리자용 추천인 등록
 @app.route('/api/admin/referral/register', methods=['POST'])
 def admin_register_referral():
+    """Admin Register Referral
+    ---
+    tags:
+      - Admin
+    summary: Admin Register Referral
+    description: "Admin Register Referral API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자용 추천인 등록 - 새 스키마 사용 (users.referral_code)"""
     conn = None
     cursor = None
@@ -8111,6 +10299,46 @@ def admin_register_referral():
 # 관리자용 추천인 목록 조회
 @app.route('/api/admin/referral/list', methods=['GET'])
 def admin_get_referrals():
+    """Admin Get Referrals
+    ---
+    tags:
+      - Admin
+    summary: Admin Get Referrals
+    description: "Admin Get Referrals API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자용 추천인 목록 조회"""
     conn = None
     cursor = None
@@ -8189,6 +10417,46 @@ def admin_get_referrals():
 # 관리자용 추천인 코드 목록 조회
 @app.route('/api/admin/referral/codes', methods=['GET'])
 def admin_get_referral_codes():
+    """Admin Get Referral Codes
+    ---
+    tags:
+      - Admin
+    summary: Admin Get Referral Codes
+    description: "Admin Get Referral Codes API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자용 추천인 코드 목록 조회"""
     conn = None
     cursor = None
@@ -8300,6 +10568,46 @@ def admin_get_referral_codes():
 # 관리자용 커미션 내역 조회
 @app.route('/api/admin/referral/commissions', methods=['GET'])
 def admin_get_commissions():
+    """Admin Get Commissions
+    ---
+    tags:
+      - Admin
+    summary: Admin Get Commissions
+    description: "Admin Get Commissions API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자용 커미션 내역 조회"""
     try:
         conn = get_db_connection()
@@ -8358,7 +10666,64 @@ def admin_get_commissions():
 # 포인트 구매 내역 조회
 @app.route('/api/points/purchase-history', methods=['GET'])
 def get_purchase_history():
-    """포인트 구매 내역 조회"""
+    """포인트 구매 내역 조회
+    ---
+    tags:
+      - Points
+    summary: 포인트 구매 내역 조회
+    description: "사용자의 포인트 구매 내역을 조회합니다."
+    security:
+      - Bearer: []
+    parameters:
+      - name: user_id
+        in: query
+        type: string
+        required: true
+        description: 사용자 ID
+        example: "user123"
+    responses:
+      200:
+        description: 구매 내역 조회 성공
+        schema:
+          type: object
+          properties:
+            purchases:
+              type: array
+              items:
+                type: object
+                properties:
+                  purchase_id:
+                    type: integer
+                    example: 123
+                  amount:
+                    type: number
+                    example: 10000
+                  price:
+                    type: number
+                    example: 10000
+                  status:
+                    type: string
+                    example: "completed"
+                  created_at:
+                    type: string
+                    example: "2024-01-01T00:00:00"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "user_id가 필요합니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "구매 내역 조회 실패: ..."
+    """
     try:
         user_id = request.args.get('user_id')
         if not user_id:
@@ -8440,7 +10805,53 @@ def get_purchase_history():
 # 관리자 사용자 목록
 @app.route('/api/admin/users', methods=['GET'])
 def get_admin_users():
-    """관리자 사용자 목록"""
+    """관리자 사용자 목록 조회
+    ---
+    tags:
+      - Admin
+    summary: 관리자 사용자 목록 조회
+    description: "전체 사용자 목록을 조회합니다."
+    security:
+      - Bearer: []
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: 페이지 번호
+        example: 1
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        description: 페이지당 항목 수
+        example: 20
+    responses:
+      200:
+        description: 사용자 목록 조회 성공
+        schema:
+          type: object
+          properties:
+            users:
+              type: array
+              items:
+                type: object
+                properties:
+                  user_id:
+                    type: integer
+                    example: 1
+                  email:
+                    type: string
+                    example: "user@example.com"
+                  created_at:
+                    type: string
+                    example: "2024-01-01T00:00:00"
+            total:
+              type: integer
+              example: 100
+      401:
+        description: 인증 실패
+    """
     try:
         print("🔍 관리자 사용자 목록 조회 시작")
         conn = get_db_connection()
@@ -8541,6 +10952,56 @@ def get_admin_users():
 @app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
 @require_admin_auth
 def update_admin_user(user_id):
+    """Update Admin User
+    ---
+    tags:
+      - Admin
+    summary: Update Admin User
+    description: "Update Admin User API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: user_id
+        in: path
+        type: int
+        required: true
+        description: User Id
+        example: "example_user_id"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자 사용자 정보 수정"""
     try:
         data = request.get_json()
@@ -8629,6 +11090,47 @@ def update_admin_user(user_id):
 @app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
 @require_admin_auth
 def delete_admin_user(user_id):
+    """Delete Admin User
+    ---
+    tags:
+      - Admin
+    summary: Delete Admin User
+    description: "Delete Admin User API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: user_id
+        in: path
+        type: int
+        required: true
+        description: User Id
+        example: "example_user_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자 사용자 삭제"""
     try:
         conn = get_db_connection()
@@ -8657,6 +11159,40 @@ def delete_admin_user(user_id):
 @app.route('/api/admin/referral/codes/<code>', methods=['DELETE'])
 @require_admin_auth
 def delete_referral_code(code):
+    """Delete Referral Code
+    ---
+    tags:
+      - Admin
+    summary: Delete Referral Code
+    description: "Delete Referral Code API"
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """추천인 코드 삭제"""
     try:
         conn = get_db_connection()
@@ -8689,6 +11225,46 @@ def delete_referral_code(code):
 @app.route('/api/admin/payout-requests', methods=['GET'])
 @require_admin_auth
 def get_payout_requests():
+    """Get Payout Requests
+    ---
+    tags:
+      - Admin
+    summary: Get Payout Requests
+    description: "Get Payout Requests API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """환급신청 목록 조회"""
     try:
         conn = get_db_connection()
@@ -8729,6 +11305,56 @@ def get_payout_requests():
 @app.route('/api/admin/payout-requests/<int:request_id>/approve', methods=['PUT'])
 @require_admin_auth
 def approve_payout_request(request_id):
+    """Approve Payout Request
+    ---
+    tags:
+      - Admin
+    summary: Approve Payout Request
+    description: "Approve Payout Request API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: request_id
+        in: path
+        type: int
+        required: true
+        description: Request Id
+        example: "example_request_id"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """환급신청 승인"""
     try:
         conn = get_db_connection()
@@ -8802,6 +11428,56 @@ def approve_payout_request(request_id):
 @app.route('/api/admin/payout-requests/<int:request_id>/reject', methods=['PUT'])
 @require_admin_auth
 def reject_payout_request(request_id):
+    """Reject Payout Request
+    ---
+    tags:
+      - Admin
+    summary: Reject Payout Request
+    description: "Reject Payout Request API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: request_id
+        in: path
+        type: int
+        required: true
+        description: Request Id
+        example: "example_request_id"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """환급신청 거절"""
     try:
         conn = get_db_connection()
@@ -8840,6 +11516,46 @@ def reject_payout_request(request_id):
 # 관리자 거래 내역
 @app.route('/api/admin/transactions', methods=['GET'])
 def get_admin_transactions():
+    """Get Admin Transactions
+    ---
+    tags:
+      - Admin
+    summary: Get Admin Transactions
+    description: "Get Admin Transactions API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자 거래 내역"""
     try:
         conn = get_db_connection()
@@ -8914,6 +11630,46 @@ def get_admin_transactions():
 # 관리자 페이지 라우트
 @app.route('/admin')
 def serve_admin():
+    """Serve Admin
+    ---
+    tags:
+      - API
+    summary: Serve Admin
+    description: "Serve Admin API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자 페이지 서빙"""
     try:
         return app.send_static_file('index.html')
@@ -8923,6 +11679,44 @@ def serve_admin():
 # 루트 경로 서빙
 @app.route('/', methods=['GET', 'POST'])
 def serve_index():
+    """Serve Index
+    ---
+    tags:
+      - API
+    summary: Serve Index
+    description: "Serve Index API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """메인 페이지 서빙"""
     try:
         return app.send_static_file('index.html')
@@ -8956,6 +11750,44 @@ def serve_index():
 # SMM Panel API 테스트 엔드포인트
 @app.route('/api/smm-panel/test', methods=['GET'])
 def smm_panel_test():
+    """Smm Panel Test
+    ---
+    tags:
+      - SMM Panel
+    summary: Smm Panel Test
+    description: "Smm Panel Test API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """SMM Panel API 연결 테스트"""
     try:
         import requests
@@ -8990,6 +11822,48 @@ def smm_panel_test():
 # SMM Panel API 프록시 엔드포인트
 @app.route('/api/smm-panel', methods=['POST'])
 def smm_panel_proxy():
+    """Smm Panel Proxy
+    ---
+    tags:
+      - SMM Panel
+    summary: Smm Panel Proxy
+    description: "Smm Panel Proxy API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """SMM Panel API 프록시 - CORS 문제 해결"""
     try:
         import requests
@@ -9037,6 +11911,50 @@ def smm_panel_proxy():
 
 @app.route('/api/admin/referral/activate-all', methods=['POST'])
 def activate_all_referral_codes():
+    """Activate All Referral Codes
+    ---
+    tags:
+      - Admin
+    summary: Activate All Referral Codes
+    description: "Activate All Referral Codes API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """모든 추천인 코드를 활성화하는 엔드포인트"""
     print("🚀 추천인 코드 활성화 요청 시작")
     
@@ -9125,6 +12043,44 @@ def activate_all_referral_codes():
 # 추천인 커미션 포인트 조회
 @app.route('/api/referral/commission-points', methods=['GET'])
 def get_commission_points():
+    """Get Commission Points
+    ---
+    tags:
+      - Referral
+    summary: Get Commission Points
+    description: "Get Commission Points API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """추천인 커미션 포인트 조회 - 새 스키마 사용"""
     conn = None
     cursor = None
@@ -9238,6 +12194,44 @@ def get_commission_points():
 # 커미션 포인트 거래 내역 조회
 @app.route('/api/referral/commission-transactions', methods=['GET'])
 def get_commission_transactions():
+    """Get Commission Transactions
+    ---
+    tags:
+      - Referral
+    summary: Get Commission Transactions
+    description: "Get Commission Transactions API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """커미션 포인트 거래 내역 조회 - 새 스키마 사용"""
     conn = None
     cursor = None
@@ -9383,6 +12377,48 @@ def get_commission_transactions():
 # 환급 신청
 @app.route('/api/referral/withdrawal-request', methods=['POST'])
 def request_withdrawal():
+    """Request Withdrawal
+    ---
+    tags:
+      - Referral
+    summary: Request Withdrawal
+    description: "Request Withdrawal API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """환급 신청"""
     try:
         data = request.get_json()
@@ -9464,6 +12500,46 @@ def request_withdrawal():
 # 관리자용 환급 신청 목록 조회
 @app.route('/api/admin/withdrawal-requests', methods=['GET'])
 def get_withdrawal_requests():
+    """Get Withdrawal Requests
+    ---
+    tags:
+      - Admin
+    summary: Get Withdrawal Requests
+    description: "Get Withdrawal Requests API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자용 환급 신청 목록 조회"""
     try:
         conn = get_db_connection()
@@ -9509,6 +12585,50 @@ def get_withdrawal_requests():
 # 관리자용 환급 신청 처리
 @app.route('/api/admin/process-withdrawal', methods=['POST'])
 def process_withdrawal():
+    """Process Withdrawal
+    ---
+    tags:
+      - Admin
+    summary: Process Withdrawal
+    description: "Process Withdrawal API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자용 환급 신청 처리"""
     try:
         data = request.get_json()
@@ -9662,6 +12782,46 @@ def process_withdrawal():
 @app.route('/api/admin/scheduled-orders', methods=['GET'])
 @require_admin_auth
 def get_scheduled_orders():
+    """Get Scheduled Orders
+    ---
+    tags:
+      - Admin
+    summary: Get Scheduled Orders
+    description: "Get Scheduled Orders API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """예약 주문 목록 조회 (관리자용)"""
     conn = None
     cursor = None
@@ -9743,6 +12903,48 @@ def get_scheduled_orders():
 @app.route('/api/orders/check-status', methods=['POST'])
 @require_admin_auth
 def check_order_status():
+    """Check Order Status
+    ---
+    tags:
+      - Orders
+    summary: Check Order Status
+    description: "Check Order Status API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """주문 상태 확인 및 수정"""
     try:
         data = request.get_json()
@@ -9827,6 +13029,48 @@ def check_order_status():
 @app.route('/api/orders/<order_id>/status', methods=['PUT'])
 @require_admin_auth
 def update_order_status(order_id):
+    """Update Order Status
+    ---
+    tags:
+      - Orders
+    summary: Update Order Status
+    description: "Update Order Status API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """주문 상태 업데이트 (관리자 전용)"""
     conn = None
     cursor = None
@@ -9896,6 +13140,46 @@ def update_order_status(order_id):
 @app.route('/api/admin/notices', methods=['GET'])
 @require_admin_auth
 def get_notices():
+    """Get Notices
+    ---
+    tags:
+      - Admin
+    summary: Get Notices
+    description: "Get Notices API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """공지사항 목록 조회"""
     try:
         conn = get_db_connection()
@@ -9937,6 +13221,50 @@ def get_notices():
 @app.route('/api/admin/referral/update-commission-rate', methods=['PUT'])
 @require_admin_auth
 def update_referral_commission_rate():
+    """Update Referral Commission Rate
+    ---
+    tags:
+      - Admin
+    summary: Update Referral Commission Rate
+    description: "Update Referral Commission Rate API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """추천인별 커미션 비율 변경"""
     conn = None
     cursor = None
@@ -10119,6 +13447,50 @@ def update_referral_commission_rate():
 @app.route('/api/admin/notices', methods=['POST'])
 @require_admin_auth
 def create_notice():
+    """Create Notice
+    ---
+    tags:
+      - Admin
+    summary: Create Notice
+    description: "Create Notice API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """공지사항 생성"""
     try:
         data = request.get_json()
@@ -10162,6 +13534,56 @@ def create_notice():
 @app.route('/api/admin/notices/<int:notice_id>', methods=['PUT'])
 @require_admin_auth
 def update_notice(notice_id):
+    """Update Notice
+    ---
+    tags:
+      - Admin
+    summary: Update Notice
+    description: "Update Notice API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: notice_id
+        in: path
+        type: int
+        required: true
+        description: Notice Id
+        example: "example_notice_id"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """공지사항 수정"""
     try:
         data = request.get_json()
@@ -10199,6 +13621,47 @@ def update_notice(notice_id):
 @app.route('/api/admin/notices/<int:notice_id>', methods=['DELETE'])
 @require_admin_auth
 def delete_notice(notice_id):
+    """Delete Notice
+    ---
+    tags:
+      - Admin
+    summary: Delete Notice
+    description: "Delete Notice API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: notice_id
+        in: path
+        type: int
+        required: true
+        description: Notice Id
+        example: "example_notice_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """공지사항 삭제"""
     try:
         conn = get_db_connection()
@@ -10220,6 +13683,44 @@ def delete_notice(notice_id):
 # 사용자용 활성 공지사항 조회
 @app.route('/api/notices/active', methods=['GET'])
 def get_active_notices():
+    """Get Active Notices
+    ---
+    tags:
+      - API
+    summary: Get Active Notices
+    description: "Get Active Notices API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """활성화된 공지사항 조회"""
     try:
         conn = get_db_connection()
@@ -10261,6 +13762,44 @@ def get_active_notices():
 # SMM Panel 서비스 목록 조회
 @app.route('/api/smm-panel/services', methods=['GET'])
 def get_smm_services():
+    """Get Smm Services
+    ---
+    tags:
+      - SMM Panel
+    summary: Get Smm Services
+    description: "Get Smm Services API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """SMM Panel에서 사용 가능한 서비스 목록 조회"""
     try:
         # API 키 확인 (전역 변수 사용)
@@ -10328,6 +13867,48 @@ def get_smm_services():
 # 스케줄러 작업: 예약/분할 주문 처리
 @app.route('/api/cron/process-scheduled-orders', methods=['POST'])
 def cron_process_scheduled_orders():
+    """Cron Process Scheduled Orders
+    ---
+    tags:
+      - Cron
+    summary: Cron Process Scheduled Orders
+    description: "Cron Process Scheduled Orders API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """예약 주문 처리 크론잡"""
     try:
         conn = get_db_connection()
@@ -10525,6 +14106,48 @@ def cron_process_scheduled_orders():
 
 @app.route('/api/cron/process-split-deliveries', methods=['POST'])
 def cron_process_split_deliveries():
+    """Cron Process Split Deliveries
+    ---
+    tags:
+      - Cron
+    summary: Cron Process Split Deliveries
+    description: "Cron Process Split Deliveries API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """분할 발송 처리 크론잡"""
     try:
         conn = get_db_connection()
@@ -10626,6 +14249,50 @@ def background_scheduler():
 # 데이터베이스 마이그레이션 강제 실행 엔드포인트
 @app.route('/api/admin/migrate-database', methods=['POST', 'GET'])
 def migrate_database():
+    """Migrate Database
+    ---
+    tags:
+      - Admin
+    summary: Migrate Database
+    description: "Migrate Database API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """데이터베이스 마이그레이션 강제 실행 (인증 불필요 - 일회성)"""
     try:
         print("🔄 수동 데이터베이스 마이그레이션 시작...")
@@ -10718,6 +14385,50 @@ def migrate_database():
 # 카카오 OAuth 토큰 교환
 @app.route('/api/auth/kakao-token', methods=['POST'])
 def kakao_token():
+    """Kakao Token
+    ---
+    tags:
+      - Auth
+    summary: Kakao Token
+    description: "Kakao Token API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """카카오 인가 코드를 액세스 토큰으로 교환"""
     try:
         data = request.get_json()
@@ -10805,6 +14516,50 @@ def kakao_token():
 # 일반 로그인 처리
 @app.route('/api/auth/login', methods=['POST'])
 def auth_login():
+    """Auth Login
+    ---
+    tags:
+      - Auth
+    summary: Auth Login
+    description: "Auth Login API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """일반 로그인 처리"""
     try:
         data = request.get_json()
@@ -10922,6 +14677,50 @@ def auth_login():
 # 카카오 로그인 처리
 @app.route('/api/auth/kakao-login', methods=['POST'])
 def kakao_login():
+    """Kakao Login
+    ---
+    tags:
+      - Auth
+    summary: Kakao Login
+    description: "Kakao Login API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """카카오 로그인 처리"""
     try:
         data = request.get_json()
@@ -11003,6 +14802,46 @@ def kakao_login():
 
 @app.route('/api/auth/google-callback', methods=['GET'])
 def google_callback():
+    """Google Callback
+    ---
+    tags:
+      - Auth
+    summary: Google Callback
+    description: "Google Callback API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """구글 OAuth 콜백 처리"""
     try:
         # Authorization code 받기
@@ -11111,6 +14950,50 @@ def google_callback():
 
 @app.route('/api/auth/google-login', methods=['POST'])
 def google_login():
+    """Google Login
+    ---
+    tags:
+      - Auth
+    summary: Google Login
+    description: "Google Login API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """구글 로그인 처리"""
     try:
         data = request.get_json()
@@ -11257,6 +15140,44 @@ def google_login():
 
 @app.route('/api/blog/posts', methods=['GET'])
 def get_blog_posts():
+    """Get Blog Posts
+    ---
+    tags:
+      - Blog
+    summary: Get Blog Posts
+    description: "Get Blog Posts API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """블로그 글 목록 조회"""
     try:
         page = int(request.args.get('page', 1))
@@ -11385,6 +15306,45 @@ def get_blog_posts():
 
 @app.route('/api/blog/posts/<int:post_id>', methods=['GET'])
 def get_blog_post(post_id):
+    """Get Blog Post
+    ---
+    tags:
+      - Blog
+    summary: Get Blog Post
+    description: "Get Blog Post API"
+    parameters:
+      - name: post_id
+        in: path
+        type: int
+        required: true
+        description: Post Id
+        example: "example_post_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """블로그 글 상세 조회"""
     try:
         conn = get_db_connection()
@@ -11450,6 +15410,44 @@ def get_blog_post(post_id):
 
 @app.route('/api/blog/categories', methods=['GET'])
 def get_blog_categories():
+    """Get Blog Categories
+    ---
+    tags:
+      - Blog
+    summary: Get Blog Categories
+    description: "Get Blog Categories API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """블로그 카테고리 목록 조회"""
     try:
         conn = get_db_connection()
@@ -11493,6 +15491,44 @@ def get_blog_categories():
 
 @app.route('/api/blog/tags', methods=['GET'])
 def get_blog_tags():
+    """Get Blog Tags
+    ---
+    tags:
+      - Blog
+    summary: Get Blog Tags
+    description: "Get Blog Tags API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """블로그 태그 목록 조회"""
     try:
         conn = get_db_connection()
@@ -11531,6 +15567,48 @@ def get_blog_tags():
 @app.route('/api/blog/posts', methods=['POST'])
 @require_admin_auth
 def create_blog_post():
+    """Create Blog Post
+    ---
+    tags:
+      - Blog
+    summary: Create Blog Post
+    description: "Create Blog Post API"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """블로그 글 생성 (관리자 전용)"""
     try:
         data = request.get_json()
@@ -11584,6 +15662,54 @@ def create_blog_post():
 @app.route('/api/blog/posts/<int:post_id>', methods=['PUT'])
 @require_admin_auth
 def update_blog_post(post_id):
+    """Update Blog Post
+    ---
+    tags:
+      - Blog
+    summary: Update Blog Post
+    description: "Update Blog Post API"
+    parameters:
+      - name: post_id
+        in: path
+        type: int
+        required: true
+        description: Post Id
+        example: "example_post_id"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """블로그 글 수정 (관리자 전용)"""
     try:
         data = request.get_json()
@@ -11639,6 +15765,45 @@ def update_blog_post(post_id):
 @app.route('/api/blog/posts/<int:post_id>', methods=['DELETE'])
 @require_admin_auth
 def delete_blog_post(post_id):
+    """Delete Blog Post
+    ---
+    tags:
+      - Blog
+    summary: Delete Blog Post
+    description: "Delete Blog Post API"
+    parameters:
+      - name: post_id
+        in: path
+        type: int
+        required: true
+        description: Post Id
+        example: "example_post_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """블로그 글 삭제 (관리자 전용)"""
     try:
         conn = get_db_connection()
@@ -11673,6 +15838,50 @@ def delete_blog_post(post_id):
 @app.route('/api/admin/upload-image', methods=['POST'])
 @require_admin_auth
 def upload_admin_image():
+    """Upload Admin Image
+    ---
+    tags:
+      - Admin
+    summary: Upload Admin Image
+    description: "Upload Admin Image API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """관리자 이미지 업로드"""
     try:
         if 'image' not in request.files:
@@ -11724,7 +15933,37 @@ def upload_admin_image():
 @app.route('/api/admin/categories', methods=['GET'])
 @require_admin_auth
 def get_admin_categories():
-    """카테고리 목록 조회"""
+    """카테고리 목록 조회
+    ---
+    tags:
+      - Admin
+    summary: 카테고리 목록 조회
+    description: "전체 카테고리 목록을 조회합니다."
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: 카테고리 목록 조회 성공
+        schema:
+          type: object
+          properties:
+            categories:
+              type: array
+              items:
+                type: object
+                properties:
+                  category_id:
+                    type: integer
+                    example: 1
+                  name:
+                    type: string
+                    example: "인스타그램"
+                  description:
+                    type: string
+                    example: "인스타그램 관련 서비스"
+      401:
+        description: 인증 실패
+    """
     conn = None
     cursor = None
     try:
@@ -11754,6 +15993,50 @@ def get_admin_categories():
 @app.route('/api/admin/categories', methods=['POST'])
 @require_admin_auth
 def create_admin_category():
+    """Create Admin Category
+    ---
+    tags:
+      - Admin
+    summary: Create Admin Category
+    description: "Create Admin Category API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """카테고리 생성"""
     conn = None
     cursor = None
@@ -11797,6 +16080,47 @@ def create_admin_category():
 @app.route('/api/admin/categories/<int:category_id>', methods=['GET'])
 @require_admin_auth
 def get_admin_category(category_id):
+    """Get Admin Category
+    ---
+    tags:
+      - Admin
+    summary: Get Admin Category
+    description: "Get Admin Category API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: category_id
+        in: path
+        type: int
+        required: true
+        description: Category Id
+        example: "example_category_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """카테고리 상세 조회"""
     conn = None
     cursor = None
@@ -11823,6 +16147,56 @@ def get_admin_category(category_id):
 @app.route('/api/admin/categories/<int:category_id>', methods=['PUT'])
 @require_admin_auth
 def update_admin_category(category_id):
+    """Update Admin Category
+    ---
+    tags:
+      - Admin
+    summary: Update Admin Category
+    description: "Update Admin Category API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: category_id
+        in: path
+        type: int
+        required: true
+        description: Category Id
+        example: "example_category_id"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """카테고리 수정"""
     conn = None
     cursor = None
@@ -11872,6 +16246,47 @@ def update_admin_category(category_id):
 @app.route('/api/admin/categories/<int:category_id>', methods=['DELETE'])
 @require_admin_auth
 def delete_admin_category(category_id):
+    """Delete Admin Category
+    ---
+    tags:
+      - Admin
+    summary: Delete Admin Category
+    description: "Delete Admin Category API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: category_id
+        in: path
+        type: int
+        required: true
+        description: Category Id
+        example: "example_category_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """카테고리 삭제 (실제 삭제)"""
     conn = None
     cursor = None
@@ -11963,6 +16378,46 @@ def delete_admin_category(category_id):
 @app.route('/api/admin/products', methods=['GET'])
 @require_admin_auth
 def get_admin_products():
+    """Get Admin Products
+    ---
+    tags:
+      - Admin
+    summary: Get Admin Products
+    description: "Get Admin Products API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """상품 목록 조회"""
     conn = None
     cursor = None
@@ -12004,6 +16459,50 @@ def get_admin_products():
 @app.route('/api/admin/products', methods=['POST'])
 @require_admin_auth
 def create_admin_product():
+    """Create Admin Product
+    ---
+    tags:
+      - Admin
+    summary: Create Admin Product
+    description: "Create Admin Product API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """상품 생성"""
     conn = None
     cursor = None
@@ -12065,6 +16564,47 @@ def create_admin_product():
 @app.route('/api/admin/products/<int:product_id>', methods=['GET'])
 @require_admin_auth
 def get_admin_product(product_id):
+    """Get Admin Product
+    ---
+    tags:
+      - Admin
+    summary: Get Admin Product
+    description: "Get Admin Product API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: product_id
+        in: path
+        type: int
+        required: true
+        description: Product Id
+        example: "example_product_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """상품 상세 조회"""
     conn = None
     cursor = None
@@ -12096,6 +16636,56 @@ def get_admin_product(product_id):
 @app.route('/api/admin/products/<int:product_id>', methods=['PUT'])
 @require_admin_auth
 def update_admin_product(product_id):
+    """Update Admin Product
+    ---
+    tags:
+      - Admin
+    summary: Update Admin Product
+    description: "Update Admin Product API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: product_id
+        in: path
+        type: int
+        required: true
+        description: Product Id
+        example: "example_product_id"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """상품 수정"""
     conn = None
     cursor = None
@@ -12162,6 +16752,47 @@ def update_admin_product(product_id):
 @app.route('/api/admin/products/<int:product_id>', methods=['DELETE'])
 @require_admin_auth
 def delete_admin_product(product_id):
+    """Delete Admin Product
+    ---
+    tags:
+      - Admin
+    summary: Delete Admin Product
+    description: "Delete Admin Product API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: product_id
+        in: path
+        type: int
+        required: true
+        description: Product Id
+        example: "example_product_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """상품 삭제 (옵션이 있으면 오류)"""
     conn = None
     cursor = None
@@ -12202,6 +16833,44 @@ def delete_admin_product(product_id):
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
+    """Get Categories
+    ---
+    tags:
+      - Products
+    summary: Get Categories
+    description: "Get Categories API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """활성화된 카테고리 목록 조회 (공개)"""
     conn = None
     cursor = None
@@ -12246,6 +16915,44 @@ def get_categories():
 
 @app.route('/api/products', methods=['GET'])
 def get_products():
+    """Get Products
+    ---
+    tags:
+      - Products
+    summary: Get Products
+    description: "Get Products API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """활성화된 상품 목록 조회 (공개)"""
     conn = None
     cursor = None
@@ -12289,6 +16996,44 @@ def get_products():
 
 @app.route('/api/product-variants', methods=['GET'])
 def get_product_variants():
+    """Get Product Variants
+    ---
+    tags:
+      - API
+    summary: Get Product Variants
+    description: "Get Product Variants API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """활성화된 세부 서비스 목록 조회 (공개)"""
     conn = None
     cursor = None
@@ -12506,6 +17251,44 @@ def get_product_variants():
 
 @app.route('/api/packages', methods=['GET'])
 def get_packages():
+    """Get Packages
+    ---
+    tags:
+      - Products
+    summary: Get Packages
+    description: "Get Packages API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """활성화된 패키지 목록 조회 (공개)"""
     conn = None
     cursor = None
@@ -12675,6 +17458,46 @@ def get_packages():
 @app.route('/api/admin/product-variants', methods=['GET'])
 @require_admin_auth
 def get_admin_product_variants():
+    """Get Admin Product Variants
+    ---
+    tags:
+      - Admin
+    summary: Get Admin Product Variants
+    description: "Get Admin Product Variants API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """상품 옵션 목록 조회"""
     conn = None
     cursor = None
@@ -12730,6 +17553,50 @@ def get_admin_product_variants():
 @app.route('/api/admin/product-variants', methods=['POST'])
 @require_admin_auth
 def create_admin_product_variant():
+    """Create Admin Product Variant
+    ---
+    tags:
+      - Admin
+    summary: Create Admin Product Variant
+    description: "Create Admin Product Variant API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """상품 옵션 생성"""
     conn = None
     cursor = None
@@ -12807,6 +17674,47 @@ def create_admin_product_variant():
 @app.route('/api/admin/product-variants/<int:variant_id>', methods=['GET'])
 @require_admin_auth
 def get_admin_product_variant(variant_id):
+    """Get Admin Product Variant
+    ---
+    tags:
+      - Admin
+    summary: Get Admin Product Variant
+    description: "Get Admin Product Variant API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: variant_id
+        in: path
+        type: int
+        required: true
+        description: Variant Id
+        example: "example_variant_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """상품 옵션 상세 조회"""
     conn = None
     cursor = None
@@ -12847,6 +17755,56 @@ def get_admin_product_variant(variant_id):
 @app.route('/api/admin/product-variants/<int:variant_id>', methods=['PUT'])
 @require_admin_auth
 def update_admin_product_variant(variant_id):
+    """Update Admin Product Variant
+    ---
+    tags:
+      - Admin
+    summary: Update Admin Product Variant
+    description: "Update Admin Product Variant API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: variant_id
+        in: path
+        type: int
+        required: true
+        description: Variant Id
+        example: "example_variant_id"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """상품 옵션 수정"""
     conn = None
     cursor = None
@@ -12915,6 +17873,47 @@ def update_admin_product_variant(variant_id):
 @app.route('/api/admin/product-variants/<int:variant_id>', methods=['DELETE'])
 @require_admin_auth
 def delete_admin_product_variant(variant_id):
+    """Delete Admin Product Variant
+    ---
+    tags:
+      - Admin
+    summary: Delete Admin Product Variant
+    description: "Delete Admin Product Variant API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: variant_id
+        in: path
+        type: int
+        required: true
+        description: Variant Id
+        example: "example_variant_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """상품 옵션 삭제"""
     conn = None
     cursor = None
@@ -12944,6 +17943,46 @@ def delete_admin_product_variant(variant_id):
 @app.route('/api/admin/packages', methods=['GET'])
 @require_admin_auth
 def get_admin_packages():
+    """Get Admin Packages
+    ---
+    tags:
+      - Admin
+    summary: Get Admin Packages
+    description: "Get Admin Packages API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """패키지 목록 조회"""
     conn = None
     cursor = None
@@ -12998,6 +18037,50 @@ def get_admin_packages():
 @app.route('/api/admin/packages', methods=['POST'])
 @require_admin_auth
 def create_admin_package():
+    """Create Admin Package
+    ---
+    tags:
+      - Admin
+    summary: Create Admin Package
+    description: "Create Admin Package API"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """패키지 생성"""
     conn = None
     cursor = None
@@ -13116,6 +18199,47 @@ def create_admin_package():
 @app.route('/api/admin/packages/<int:package_id>', methods=['GET'])
 @require_admin_auth
 def get_admin_package(package_id):
+    """Get Admin Package
+    ---
+    tags:
+      - Admin
+    summary: Get Admin Package
+    description: "Get Admin Package API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: package_id
+        in: path
+        type: int
+        required: true
+        description: Package Id
+        example: "example_package_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """패키지 상세 조회"""
     conn = None
     cursor = None
@@ -13166,6 +18290,56 @@ def get_admin_package(package_id):
 @app.route('/api/admin/packages/<int:package_id>', methods=['PUT'])
 @require_admin_auth
 def update_admin_package(package_id):
+    """Update Admin Package
+    ---
+    tags:
+      - Admin
+    summary: Update Admin Package
+    description: "Update Admin Package API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: package_id
+        in: path
+        type: int
+        required: true
+        description: Package Id
+        example: "example_package_id"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """패키지 수정 (items 배열 전달 시 전체 교체)"""
     conn = None
     cursor = None
@@ -13289,6 +18463,47 @@ def update_admin_package(package_id):
 @app.route('/api/admin/packages/<int:package_id>', methods=['DELETE'])
 @require_admin_auth
 def delete_admin_package(package_id):
+    """Delete Admin Package
+    ---
+    tags:
+      - Admin
+    summary: Delete Admin Package
+    description: "Delete Admin Package API"
+    security:
+      - Bearer: []
+    parameters:
+      - name: package_id
+        in: path
+        type: int
+        required: true
+        description: Package Id
+        example: "example_package_id"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """패키지 삭제"""
     conn = None
     cursor = None
@@ -13328,6 +18543,44 @@ def delete_admin_package(package_id):
 @app.route('/blog/<path:blog_path>', methods=['GET'])
 @app.route('/kakao-callback', methods=['GET'])
 def serve_spa_routes():
+    """Serve Spa Routes
+    ---
+    tags:
+      - API
+    summary: Serve Spa Routes
+    description: "Serve Spa Routes API"
+    parameters:
+      - name: example
+        in: query
+        type: string
+        required: false
+        description: 예시 파라미터
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """SPA 라우팅 지원 - 구체적인 라우트들을 index.html로 서빙"""
     try:
         return app.send_static_file('index.html')
@@ -13339,6 +18592,45 @@ def serve_spa_routes():
 # 주의: 이 라우트는 모든 API 라우트보다 나중에 등록되어야 함
 @app.route('/<path:path>', methods=['GET'])
 def serve_spa(path):
+    """Serve Spa
+    ---
+    tags:
+      - API
+    summary: Serve Spa
+    description: "Serve Spa API"
+    parameters:
+      - name: path
+        in: path
+        type: string
+        required: true
+        description: Path
+        example: "example_path"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
     """SPA 라우팅 지원 - 정적 파일은 서빙하고, 나머지는 index.html로 서빙"""
     print(f"🔍 SPA 라우팅 요청: /{path}")
     
