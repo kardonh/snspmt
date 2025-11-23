@@ -1979,7 +1979,7 @@ def process_split_delivery(order_id, day_number):
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
                 SELECT o.user_id, oi.variant_id, COALESCE(oi.link, ''), o.split_quantity, 
-                       COALESCE(o.comments, ''), o.split_days, o.package_steps
+                       '', o.split_days, o.package_steps
                 FROM orders o
                 LEFT JOIN order_items oi ON o.order_id = oi.order_id
                 WHERE o.order_id = %s AND (o.is_split_delivery = TRUE OR o.package_steps IS NOT NULL)
@@ -1987,7 +1987,7 @@ def process_split_delivery(order_id, day_number):
             """, (order_id,))
         else:
             cursor.execute("""
-                SELECT user_id, service_id, link, split_quantity, comments, split_days, package_steps
+                SELECT user_id, service_id, link, split_quantity, '' as comments, split_days, package_steps
                 FROM orders 
                 WHERE order_id = ? AND (is_split_delivery = TRUE OR package_steps IS NOT NULL)
             """, (order_id,))
@@ -2126,8 +2126,9 @@ def process_package_step(order_id, step_index):
         # 주문 정보 조회 (comments 컬럼은 nullable이므로 COALESCE 사용)
         # link는 order_items 테이블에서 가져와야 함
         if DATABASE_URL.startswith('postgresql://'):
+            # comments 또는 notes 컬럼이 없을 수 있으므로 빈 문자열 사용
             cursor.execute("""
-                SELECT o.user_id, COALESCE(oi.link, ''), o.package_steps, COALESCE(o.comments, '') as comments
+                SELECT o.user_id, COALESCE(oi.link, ''), o.package_steps, '' as comments
                 FROM orders o
                 LEFT JOIN order_items oi ON o.order_id = oi.order_id
                 WHERE o.order_id = %s
@@ -2135,7 +2136,7 @@ def process_package_step(order_id, step_index):
             """, (order_id,))
         else:
             cursor.execute("""
-                SELECT user_id, link, package_steps, COALESCE(comments, '') as comments
+                SELECT user_id, link, package_steps, '' as comments
                 FROM orders 
                 WHERE order_id = ?
             """, (order_id,))
@@ -2848,7 +2849,7 @@ def process_scheduled_order(order_id):
         # 예약 주문 정보 조회 (link와 quantity는 order_items에서 가져옴)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT o.user_id, oi.variant_id, COALESCE(oi.link, ''), oi.quantity, COALESCE(o.comments, '')
+                SELECT o.user_id, oi.variant_id, COALESCE(oi.link, ''), oi.quantity, ''
                 FROM orders o
                 LEFT JOIN order_items oi ON o.order_id = oi.order_id
                 WHERE o.order_id = %s AND o.is_scheduled = TRUE
@@ -2856,7 +2857,7 @@ def process_scheduled_order(order_id):
             """, (order_id,))
         else:
             cursor.execute("""
-                SELECT user_id, service_id, link, quantity, comments
+                SELECT user_id, service_id, link, quantity, '' as comments
                 FROM orders 
                 WHERE order_id = ? AND is_scheduled = TRUE
             """, (order_id,))
@@ -3156,6 +3157,64 @@ def init_database():
                     return False
         
         if is_postgresql:
+            # order_status ENUM 타입에 'failed' 값 추가 (없는 경우에만)
+            # 참고: ALTER TYPE ... ADD VALUE는 트랜잭션 내에서 실행할 수 없으므로 별도로 실행
+            try:
+                # ENUM 타입이 존재하는지 확인
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM pg_type WHERE typname = 'order_status'
+                    )
+                """)
+                enum_exists = cursor.fetchone()[0] if cursor.rowcount > 0 else False
+                
+                if enum_exists:
+                    # 'failed' 값이 이미 있는지 확인
+                    cursor.execute("""
+                        SELECT EXISTS (
+                            SELECT 1 
+                            FROM pg_enum 
+                            WHERE enumlabel = 'failed' 
+                            AND enumtypid = (
+                                SELECT oid FROM pg_type WHERE typname = 'order_status'
+                            )
+                        )
+                    """)
+                    failed_exists = cursor.fetchone()[0] if cursor.rowcount > 0 else False
+                    
+                    if not failed_exists:
+                        # 트랜잭션 커밋 후 ENUM 값 추가 시도
+                        conn.commit()
+                        print("🔄 order_status ENUM에 'failed' 값 추가 시도...")
+                        try:
+                            # ENUM 값 추가 (트랜잭션 외부에서 실행)
+                            # 참고: PostgreSQL에서는 ALTER TYPE ... ADD VALUE를 트랜잭션 내에서 실행할 수 없음
+                            cursor.execute("ALTER TYPE order_status ADD VALUE 'failed'")
+                            conn.commit()
+                            print("✅ order_status ENUM에 'failed' 값 추가 완료")
+                        except Exception as add_enum_error:
+                            # 이미 존재하는 경우나 다른 오류는 무시
+                            error_str = str(add_enum_error).lower()
+                            if 'already exists' in error_str or 'duplicate' in error_str or 'already present' in error_str:
+                                print("ℹ️ order_status ENUM에 'failed' 값이 이미 존재합니다.")
+                            else:
+                                print(f"⚠️ order_status ENUM에 'failed' 값 추가 실패: {add_enum_error}")
+                                print(f"⚠️ 마이그레이션 스크립트를 실행하여 수동으로 추가해야 할 수 있습니다.")
+                            try:
+                                conn.rollback()
+                            except:
+                                pass
+                    else:
+                        print("ℹ️ order_status ENUM에 'failed' 값이 이미 존재합니다.")
+                else:
+                    print("ℹ️ order_status ENUM 타입이 아직 생성되지 않았습니다. (마이그레이션 스크립트에서 생성됨)")
+            except Exception as enum_check_error:
+                print(f"⚠️ order_status ENUM 확인 중 오류 (무시하고 계속): {enum_check_error}")
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            
             # PostgreSQL 테이블 생성
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
@@ -4846,7 +4905,34 @@ def create_order():
     tags:
       - Orders
     summary: 새로운 주문 생성
-    description: "사용자의 주문을 생성하고 할인 및 커미션을 적용합니다."
+    description: |
+      사용자의 주문을 생성하고 할인 및 커미션을 적용합니다.
+      
+      ## 주문 타입 판단 기준
+      
+      ### 패키지 주문
+      - **판단 기준**: `package_steps` 배열의 길이가 0보다 큰 경우 (`len(package_steps) > 0`)
+      - **전달 조건**:
+        - Drip-feed가 아님 (`isDripFeed = false`)
+        - 상품이 패키지 타입 (`package: true`)
+        - 단계 정보(`steps`)가 존재함
+      - **처리 방식**: `package_steps`를 JSON으로 데이터베이스에 저장한 후, 각 단계를 순차적으로 처리합니다.
+      
+      ### 일반 주문
+      - **판단 기준**: `package_steps`가 빈 배열이거나 없는 경우
+      - **처리 방식**: 즉시 SMM Panel API를 호출하여 주문을 생성합니다.
+      
+      ### 예약 주문
+      - `is_scheduled = true`이고 패키지가 아닌 경우
+      - `scheduled_datetime`에 지정된 시간에 스케줄러가 자동으로 처리합니다.
+      
+      ### 분할 발송 주문
+      - `is_split_delivery = true`인 경우
+      - 매일 자정에 스케줄러가 자동으로 분할 발송을 처리합니다.
+      
+      ### Drip-feed 주문
+      - `runs`와 `interval` 파라미터를 사용하여 지정된 간격으로 반복 발송합니다.
+      - 예: 30일간 하루에 1번씩 → `runs: 30, interval: 1440` (1440분 = 24시간)
     security:
       - Bearer: []
     parameters:
@@ -4888,18 +4974,87 @@ def create_order():
             user_coupon_id:
               type: integer
               description: 사용자 쿠폰 ID (선택사항)
+            package_steps:
+              type: array
+              description: |
+                패키지 주문의 단계별 정보 (선택사항).
+                
+                패키지 주문 판단 기준: 이 배열의 길이가 0보다 크면 패키지 주문으로 처리됩니다.
+                
+                각 단계는 다음 정보를 포함합니다:
+                - id: 서비스 ID
+                - name: 단계 이름
+                - quantity: 단계별 수량
+                - delay: 다음 단계까지의 지연 시간 (분)
+                - repeat: 반복 횟수
+              example:
+                - id: 515
+                  name: "인스타그램 프로필 방문"
+                  quantity: 400
+                  delay: 1440
+                  repeat: 30
+            is_scheduled:
+              type: boolean
+              description: 예약 주문 여부 (선택사항, 기본값: false)
+              example: false
+            scheduled_datetime:
+              type: string
+              format: date-time
+              description: 예약 주문 실행 시간 (is_scheduled가 true인 경우 필수)
+              example: "2024-01-01 12:00:00"
+            is_split_delivery:
+              type: boolean
+              description: 분할 발송 여부 (선택사항, 기본값: false)
+              example: false
+            split_days:
+              type: integer
+              description: 분할 발송 일수 (is_split_delivery가 true인 경우 필수)
+              example: 30
+            split_quantity:
+              type: integer
+              description: 일일 발송 수량 (is_split_delivery가 true인 경우 필수)
+              example: 400
+            runs:
+              type: integer
+              description: Drip-feed 반복 횟수 (선택사항, 기본값: 1)
+              example: 30
+            interval:
+              type: integer
+              description: Drip-feed 반복 간격(분) (선택사항, 기본값: 0). 예: 1440 = 24시간
+              example: 1440
+            comments:
+              type: string
+              description: 주문 메모 (선택사항)
+              example: "특별 요청사항"
     responses:
       200:
-        description: 주문 생성 성공
+        description: |
+          주문 생성 성공
+          
+          **일반 주문**: 즉시 SMM Panel API 호출 후 결과 반환
+          **패키지 주문**: 패키지 단계 정보를 저장하고 순차 처리 시작
+          **예약 주문**: pending 상태로 저장되어 지정 시간에 자동 처리
+          **분할 발송 주문**: pending 상태로 저장되어 매일 자동 분할 발송
         schema:
           type: object
           properties:
             order_id:
               type: integer
+              description: 생성된 주문 ID
               example: 123
             message:
               type: string
+              description: 주문 처리 결과 메시지
               example: "주문이 성공적으로 생성되었습니다."
+            status:
+              type: string
+              description: |
+                주문 상태
+                - '주문발송': 일반 주문 (SMM Panel API 호출 성공)
+                - 'processing': 패키지 주문 (단계별 처리 중)
+                - 'pending': 예약/분할 주문 (대기 중)
+                - 'failed': 주문 실패 (SMM Panel API 호출 실패 등)
+              example: "주문발송"
             final_price:
               type: number
               description: 최종 가격 (할인 적용 후)
@@ -4908,6 +5063,22 @@ def create_order():
               type: number
               description: 할인 금액
               example: 500
+            is_package:
+              type: boolean
+              description: 패키지 주문 여부
+              example: false
+            package_steps:
+              type: array
+              description: 패키지 주문인 경우 단계 정보
+              example: []
+            refund_required:
+              type: boolean
+              description: 포인트 환불 필요 여부 (주문 실패 시 true)
+              example: false
+            refund_amount:
+              type: number
+              description: 환불할 포인트 금액 (refund_required가 true인 경우)
+              example: 0
       400:
         description: 필수 필드 누락 또는 잘못된 요청
         schema:
@@ -4917,13 +5088,37 @@ def create_order():
               type: string
               example: "필수 필드가 누락되었습니다: user_id, service_id"
       500:
-        description: 서버 오류
+        description: |
+          서버 오류 또는 SMM Panel API 호출 실패
+          
+          **SMM Panel API 실패 시**:
+          - 주문은 데이터베이스에 'failed' 상태로 저장됩니다.
+          - 주문 금액은 0으로 설정됩니다.
+          - `refund_required: true`와 `refund_amount`가 포함되어 포인트 환불이 필요합니다.
+          - 추천인 커미션은 생성되지 않습니다.
         schema:
           type: object
           properties:
             error:
               type: string
+              description: 오류 메시지
               example: "주문 생성 중 오류가 발생했습니다."
+            order_id:
+              type: integer
+              description: 생성된 주문 ID (실패 주문도 저장됨)
+              example: 123
+            status:
+              type: string
+              description: 주문 상태 (실패 시 'failed')
+              example: "failed"
+            refund_required:
+              type: boolean
+              description: 포인트 환불 필요 여부
+              example: true
+            refund_amount:
+              type: number
+              description: 환불할 포인트 금액
+              example: 10000
     """
     conn = None
     cursor = None
@@ -5122,9 +5317,9 @@ def create_order():
         split_days = data.get('split_days', 0)
         split_quantity = data.get('split_quantity', 0)
         
-        # SMM Panel API 호출을 먼저 실행하여 실제 주문번호를 받아옴
+        # 주문 ID 먼저 생성 (SMM Panel 결과와 무관하게 항상 생성)
         import time
-        real_order_id = None
+        real_order_id = int(time.time() * 1000)  # 밀리초 단위 타임스탬프
         smm_panel_order_id = None
         
         # 패키지 상품 여부 확인
@@ -5150,16 +5345,20 @@ def create_order():
                 })
                 
                 if smm_result.get('status') == 'success':
-                    real_order_id = smm_result.get('order')
-                    smm_panel_order_id = real_order_id
+                    # SMM Panel에서 받은 주문번호를 사용 (실제 주문번호로 업데이트)
+                    smm_panel_order_id = smm_result.get('order')
+                    if smm_panel_order_id:
+                        real_order_id = smm_panel_order_id  # SMM Panel 주문번호로 업데이트
                     smm_success = True
-                    print(f"✅ SMM Panel 주문 생성 성공: {real_order_id}")
+                    print(f"✅ SMM Panel 주문 생성 성공: {smm_panel_order_id} (내부 주문 ID: {real_order_id})")
                 else:
                     error_message = smm_result.get('message', '알 수 없는 오류')
                     smm_error = error_message
                     print(f"❌ SMM Panel API 호출 실패: {error_message}")
                     print(f"❌ SMM Panel 응답 상세: {smm_result}")
                     # SMM Panel 실패 시에도 주문은 저장하되 "failed" 상태로
+                    # real_order_id는 이미 위에서 생성됨
+                    print(f"⚠️ SMM Panel 실패 - 주문은 저장되지만 실패 상태로: order_id={real_order_id}")
             except Exception as e:
                 error_message = str(e)
                 smm_error = error_message
@@ -5167,17 +5366,18 @@ def create_order():
                 import traceback
                 print(traceback.format_exc())
                 # SMM Panel 실패 시에도 주문은 저장하되 "failed" 상태로
+                # real_order_id는 이미 위에서 생성됨
+                print(f"⚠️ SMM Panel 예외 발생 - 주문은 저장되지만 실패 상태로: order_id={real_order_id}")
         elif is_package:
-            # 패키지 주문은 임시 ID 사용 (패키지 단계별로 개별 처리)
-            real_order_id = int(time.time())
-            print(f"📦 패키지 주문 - 임시 ID 사용: {real_order_id} (패키지 단계별 개별 처리)")
+            # 패키지 주문 (real_order_id는 이미 위에서 생성됨)
+            print(f"📦 패키지 주문 - 주문 ID: {real_order_id} (패키지 단계별 개별 처리)")
         else:
-            # 예약 주문은 임시 ID 사용 (나중에 예약 시간에 SMM Panel API 호출)
-            real_order_id = int(time.time())
-            print(f"📅 예약 주문 - 임시 ID 사용: {real_order_id}")
+            # 예약 주문 (real_order_id는 이미 위에서 생성됨)
+            print(f"📅 예약 주문 - 주문 ID: {real_order_id}")
         
         # detailed_service 정보 가져오기
         detailed_service = data.get('detailed_service', '')
+        print(f"📋 detailed_service: {detailed_service}")
         
         # 주문 타입 결정
         if is_package:
@@ -5189,21 +5389,29 @@ def create_order():
         else:
             order_type = 'single'
         
+        print(f"📋 주문 타입: {order_type}, real_order_id: {real_order_id}")
+        
         # user_id를 내부 데이터베이스 user_id로 변환 (external_uid -> user_id)
         db_user_id = user_id  # 기본값은 그대로 사용 (SQLite 호환)
         if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
             # external_uid로 내부 user_id 찾기
-            cursor.execute("""
-                SELECT user_id FROM users WHERE external_uid = %s OR email = %s LIMIT 1
-            """, (user_id, user_id))
-            user_result = cursor.fetchone()
-            if user_result:
-                db_user_id = user_result[0]
-                print(f"✅ 사용자 ID 변환 완료: external_uid={user_id} -> user_id={db_user_id}")
-            else:
-                print(f"⚠️ 사용자를 찾을 수 없음: external_uid={user_id}, external_uid를 그대로 사용")
-                # 사용자가 없으면 external_uid를 그대로 사용 (호환성)
+            try:
+                cursor.execute("""
+                    SELECT user_id FROM users WHERE external_uid = %s OR email = %s LIMIT 1
+                """, (user_id, user_id))
+                user_result = cursor.fetchone()
+                if user_result:
+                    db_user_id = user_result[0]
+                    print(f"✅ 사용자 ID 변환 완료: external_uid={user_id} -> user_id={db_user_id}")
+                else:
+                    print(f"⚠️ 사용자를 찾을 수 없음: external_uid={user_id}, external_uid를 그대로 사용")
+                    # 사용자가 없으면 external_uid를 그대로 사용 (호환성)
+                    db_user_id = user_id
+            except Exception as user_error:
+                print(f"⚠️ 사용자 ID 변환 중 오류: {user_error}")
                 db_user_id = user_id
+        
+        print(f"📋 db_user_id: {db_user_id}, price: {price}, final_price: {final_price}")
         
         # service_id를 variant_id로 변환 (product_variants 테이블에서 meta_json->>'service_id'로 찾기)
         variant_id = None
@@ -5238,41 +5446,83 @@ def create_order():
                 print(f"⚠️ variant_id 변환 중 오류 (무시하고 계속): {variant_error}")
         
         # 주문 생성 (실제 DB 스키마에 맞게: total_amount, final_amount 사용)
-        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-            # 새 스키마: total_amount, final_amount 사용, service_id, link, quantity, price 제거
-            cursor.execute("""
-                INSERT INTO orders (order_id, user_id, total_amount, discount_amount, final_amount,
-                                status, created_at, updated_at,
-                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, 
-                                smm_panel_order_id, detailed_service, referrer_user_id, coupon_id)
-                VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW(),
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING order_id
-            """, (
-                real_order_id, db_user_id, price, discount_amount, final_price,
-                'failed' if smm_error else ('pending' if is_scheduled else 'pending'),  # SMM 실패 시 failed 상태
-                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, 
-                smm_panel_order_id, detailed_service,
-                referrer_user_id if 'referrer_user_id' in locals() and referrer_user_id else None,
-                user_coupon_id if user_coupon_id else None
-            ))
-            inserted_order_id = cursor.fetchone()[0] if cursor.rowcount > 0 else real_order_id
-        else:
-            # SQLite: 구 스키마 유지 (레거시 호환)
-            cursor.execute("""
-                INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
-                                discount_amount, referral_code, status, created_at, updated_at,
-                                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                        ?, ?, ?, ?, ?, ?, ?)
-            """, (real_order_id, db_user_id, service_id, link, quantity, final_price, discount_amount,
-                referral_data[0] if referral_data and len(referral_data) > 0 else None, 
-                'failed' if smm_error else ('주문발송' if not is_scheduled else 'pending_payment'),  # SMM 실패 시 failed 상태
-                is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service))
-            inserted_order_id = real_order_id
-        
-        order_id = inserted_order_id
-        print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {db_user_id} (external_uid: {user_id}), total_amount: {price}, final_amount: {final_price}")
+        # SMM Panel 실패 여부와 관계없이 주문은 반드시 저장되어야 함 (실패 시 금액 0으로)
+        print(f"🔍 주문 INSERT 시작 - real_order_id: {real_order_id}, db_user_id: {db_user_id}, price: {price}, final_price: {final_price}, smm_error: {smm_error}")
+        try:
+            if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+                # 새 스키마: total_amount, final_amount 사용, service_id, link, quantity, price 제거
+                cursor.execute("""
+                    INSERT INTO orders (order_id, user_id, total_amount, discount_amount, final_amount,
+                                    status, created_at, updated_at,
+                                    is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, 
+                                    smm_panel_order_id, detailed_service, referrer_user_id, coupon_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW(),
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING order_id
+                """, (
+                    real_order_id, db_user_id, price, discount_amount, final_price,
+                    'failed' if smm_error else ('pending' if is_scheduled else 'pending'),  # SMM 실패 시 failed 상태
+                    is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, 
+                    smm_panel_order_id, detailed_service,
+                    referrer_user_id if 'referrer_user_id' in locals() and referrer_user_id else None,
+                    user_coupon_id if 'user_coupon_id' in locals() and user_coupon_id else None
+                ))
+                inserted_order_id = cursor.fetchone()[0] if cursor.rowcount > 0 else real_order_id
+                print(f"✅ 주문 INSERT 완료 (PostgreSQL) - order_id: {inserted_order_id}")
+            else:
+                # SQLite: 구 스키마 유지 (레거시 호환)
+                cursor.execute("""
+                    INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, 
+                                    discount_amount, referral_code, status, created_at, updated_at,
+                                    is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+                            ?, ?, ?, ?, ?, ?, ?)
+                """, (real_order_id, db_user_id, service_id, link, quantity, final_price, discount_amount,
+                    referral_data[0] if referral_data and len(referral_data) > 0 else None, 
+                    'failed' if smm_error else ('주문발송' if not is_scheduled else 'pending_payment'),  # SMM 실패 시 failed 상태
+                    is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, smm_panel_order_id, detailed_service))
+                inserted_order_id = real_order_id
+                print(f"✅ 주문 INSERT 완료 (SQLite) - order_id: {inserted_order_id}")
+            
+            order_id = inserted_order_id
+            print(f"✅ 주문 생성 완료 - order_id: {order_id}, user_id: {db_user_id} (external_uid: {user_id}), total_amount: {price}, final_amount: {final_price}, smm_error: {smm_error}")
+        except Exception as insert_error:
+            print(f"❌ 주문 INSERT 실패: {insert_error}")
+            import traceback
+            print(traceback.format_exc())
+            # INSERT 실패 시에도 최소한의 정보로 주문 저장 시도
+            try:
+                failed_order_id = int(time.time() * 1000)
+                if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        INSERT INTO orders (order_id, user_id, total_amount, discount_amount, final_amount,
+                                        status, created_at, updated_at, detailed_service)
+                        VALUES (%s, %s, 0, 0, 0, 'failed', NOW(), NOW(), %s)
+                        ON CONFLICT (order_id) DO NOTHING
+                        RETURNING order_id
+                    """, (failed_order_id, db_user_id if 'db_user_id' in locals() else user_id, detailed_service if 'detailed_service' in locals() else ''))
+                    result = cursor.fetchone()
+                    order_id = result[0] if result else failed_order_id
+                else:
+                    cursor.execute("""
+                        INSERT INTO orders (order_id, user_id, service_id, link, quantity, price, status, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, 0, 'failed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """, (failed_order_id, db_user_id if 'db_user_id' in locals() else user_id, service_id if 'service_id' in locals() else '', link if 'link' in locals() else '', quantity if 'quantity' in locals() else 0))
+                    order_id = failed_order_id
+                conn.commit()
+                print(f"✅ 실패한 주문 최소 정보 저장 완료 - order_id: {order_id}")
+            except Exception as fallback_error:
+                print(f"❌ 실패한 주문 저장도 실패: {fallback_error}")
+                order_id = int(time.time() * 1000)
+            
+            # INSERT 실패 시에도 포인트 환불 정보 반환
+            return jsonify({
+                'error': f'주문 생성 실패: {str(insert_error)}',
+                'order_id': order_id if 'order_id' in locals() else None,
+                'status': 'failed',
+                'refund_required': True,
+                'refund_amount': final_price if 'final_price' in locals() else price if 'price' in locals() else 0
+            }), 500
         
         # order_items 테이블에 상세 정보 저장 (새 스키마)
         if DATABASE_URL and DATABASE_URL.startswith('postgresql://') and variant_id:
@@ -5293,12 +5543,13 @@ def create_order():
         elif not variant_id:
             print(f"⚠️ variant_id를 찾을 수 없어 order_items에 저장하지 않음: service_id={service_id}")
         
+        # 주문 저장 확정 (commit 전에 SMM 에러 처리)
         # SMM Panel 실패 시 주문 금액을 0으로 업데이트하고 포인트 환불 및 커미션 저장 건너뛰기
         if smm_error:
             print(f"⚠️ SMM Panel 실패로 인해 주문이 'failed' 상태로 저장되었습니다. 주문 금액을 0으로 설정하고 포인트 환불 및 커미션 저장을 건너뜁니다.")
             print(f"⚠️ 오류 메시지: {smm_error}")
             
-            # 주문 금액을 0으로 업데이트
+            # 주문 금액을 0으로 업데이트 (INSERT 후 바로 UPDATE)
             try:
                 if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
@@ -5312,21 +5563,35 @@ def create_order():
                         SET price = 0, discount_amount = 0, updated_at = CURRENT_TIMESTAMP
                         WHERE order_id = ?
                     """, (order_id,))
+                # 변경사항 commit (주문 저장 확정)
                 conn.commit()
-                print(f"✅ 주문 금액을 0으로 업데이트 완료: order_id={order_id}")
+                print(f"✅ SMM 실패 주문 저장 완료 - order_id: {order_id}, 금액: 0원, 상태: failed")
             except Exception as update_error:
-                print(f"⚠️ 주문 금액 업데이트 실패 (무시하고 계속): {update_error}")
+                print(f"⚠️ 주문 금액 업데이트 실패: {update_error}")
+                import traceback
+                traceback.print_exc()
                 conn.rollback()
-                conn.commit()
+                # 롤백 후에도 최소한의 주문 정보는 저장 시도
+                try:
+                    conn.commit()
+                except:
+                    pass
             
-            # 포인트 환불은 프론트엔드에서 처리하도록 오류 메시지에 포함
+            # 주문은 저장되었지만 SMM Panel 실패로 인해 실패 처리
+            # 포인트 환불은 프론트엔드에서 처리하도록 정보 포함
             return jsonify({
-                'error': f'주문 생성 실패: {smm_error}',
+                'success': False,
+                'message': f'주문은 저장되었지만 SMM Panel API 호출이 실패했습니다: {smm_error}',
                 'order_id': order_id,
                 'status': 'failed',
                 'refund_required': True,
                 'refund_amount': final_price
-            }), 500
+            }), 200  # 주문이 저장되었으므로 200 OK 반환
+        
+        # SMM Panel 성공한 경우에만 commit (일반 주문)
+        if not is_scheduled and not is_package:
+            conn.commit()
+            print(f"✅ 일반 주문 저장 완료 - order_id: {order_id}")
         
         # 추천인이 있는 경우 커미션 계산 및 저장 (피추천인 구매 금액의 10%)
         # SMM Panel 성공한 경우에만 커미션 저장
@@ -5494,8 +5759,17 @@ def create_order():
     except Exception as e:
         print(f"❌ 주문 생성 실패: {str(e)}")
         print(f"❌ 오류 타입: {type(e).__name__}")
+        print(f"❌ 오류 발생 위치: create_order 함수")
         import traceback
-        print(f"❌ 스택 트레이스: {traceback.format_exc()}")
+        error_traceback = traceback.format_exc()
+        print(f"❌ 스택 트레이스:\n{error_traceback}")
+        
+        # 요청 데이터도 로깅
+        try:
+            data = request.get_json()
+            print(f"❌ 요청 데이터: {data}")
+        except:
+            print(f"❌ 요청 데이터 파싱 실패")
         
         # 오류 발생 시에도 주문을 "failed" 상태로 저장 시도
         try:
@@ -6007,17 +6281,24 @@ def get_orders():
                     return jsonify({'orders': []}), 200
                 db_user_id = user_result[0]
                 
+                # 주문 조회 (order_items와 LEFT JOIN)
                 cursor.execute("""
                     SELECT o.order_id, o.status, COALESCE(o.final_amount, o.total_amount, 0) as price, o.created_at,
-                           oi.variant_id, oi.link, oi.quantity, oi.unit_price,
+                           oi.variant_id, COALESCE(oi.link, '') as link, COALESCE(oi.quantity, 0) as quantity, 
+                           COALESCE(oi.unit_price, 0) as unit_price,
                            o.smm_panel_order_id, o.detailed_service,
                            pv.name as variant_name, pv.meta_json as variant_meta
                     FROM orders o
-                    LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                    LEFT JOIN order_items oi ON o.order_id = oi.order_id AND oi.order_item_id = (
+                        SELECT order_item_id FROM order_items 
+                        WHERE order_id = o.order_id 
+                        ORDER BY order_item_id ASC 
+                        LIMIT 1
+                    )
                     LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
                     WHERE o.user_id = %s
                     ORDER BY o.created_at DESC
-                    LIMIT 10
+                    LIMIT 50
                 """, (db_user_id,))
             except Exception as e:
                 print(f"⚠️ 새 스키마 쿼리 실패, 빈 결과 반환: {e}")
@@ -6048,13 +6329,34 @@ def get_orders():
                     price = float(order[2]) if len(order) > 2 and order[2] else 0.0
                     created_at = order[3] if len(order) > 3 else None
                     variant_id = order[4] if len(order) > 4 else None
-                    link = order[5] if len(order) > 5 else ''
-                    quantity = order[6] if len(order) > 6 else 0
+                    link_raw = order[5] if len(order) > 5 else None
+                    # 링크 처리: order_items의 link를 사용, 없으면 별도 조회
+                    link = ''
+                    if link_raw and isinstance(link_raw, str) and link_raw.strip() and link_raw.strip() != 'None' and link_raw.strip() != 'null':
+                        link = link_raw.strip()
+                    else:
+                        # JOIN에서 링크가 없으면 별도로 조회 시도
+                        try:
+                            cursor.execute("""
+                                SELECT link FROM order_items 
+                                WHERE order_id = %s AND link IS NOT NULL AND link != '' AND link != 'null'
+                                ORDER BY order_item_id ASC
+                                LIMIT 1
+                            """, (order_id,))
+                            link_result = cursor.fetchone()
+                            if link_result and link_result[0]:
+                                link = str(link_result[0]).strip()
+                        except Exception as link_err:
+                            print(f"⚠️ 링크 별도 조회 실패: {link_err}")
+                    
+                    quantity = int(order[6]) if len(order) > 6 and order[6] is not None else 0  # None 체크 추가
                     unit_price = float(order[7]) if len(order) > 7 and order[7] else 0.0
                     smm_panel_order_id = order[8] if len(order) > 8 else None
                     detailed_service = order[9] if len(order) > 9 else None
                     variant_name = order[10] if len(order) > 10 else None
                     variant_meta = order[11] if len(order) > 11 else None
+                    
+                    print(f"🔍 주문 데이터 추출 - order_id: {order_id}, link_raw: {link_raw}, 최종 link: '{link}', quantity: {quantity}, variant_id: {variant_id}")
                     
                     # variant_meta에서 service_id 추출
                     actual_service_id = None
@@ -6086,7 +6388,7 @@ def get_orders():
                     detailed_service = order[8] if len(order) > 8 else None
                 # 일부 DB에는 start_count, remains 컬럼이 없을 수 있으므로 기본값 사용
                 start_count = 0
-                remains = quantity
+                remains = quantity  # 기본값: 전체 수량
                 
                 # 간단한 상태 매핑
                 if db_status in ['completed', '완료']:
@@ -6104,9 +6406,9 @@ def get_orders():
                 # SMM Panel 주문번호 우선 사용
                 display_order_id = smm_panel_order_id if smm_panel_order_id else order_id
                 
-                # SMM Panel API에서 실제 사용 금액 조회 (성능을 위해 간소화)
+                # SMM Panel API에서 실제 사용 금액 및 남은 수량 조회
                 charge = 0
-                if smm_panel_order_id and status in ['주문 실행중', '주문 실행완료']:
+                if smm_panel_order_id and status in ['주문 실행중', '주문 실행완료', '주문발송']:
                     try:
                         # 처리 중이거나 완료된 주문만 SMM Panel API 호출
                         smm_status = call_smm_panel_api({
@@ -6115,13 +6417,21 @@ def get_orders():
                         })
                         
                         if smm_status.get('status') == 'success':
-                            charge = smm_status.get('charge', 0)
-                            print(f"✅ SMM Panel charge 조회 성공: {charge}")
+                            charge = float(smm_status.get('charge', 0)) or 0
+                            start_count = int(smm_status.get('start_count', 0)) or 0
+                            api_remains = smm_status.get('remains')
+                            # API에서 남은 수량이 있으면 사용, 없으면 원래 수량 사용
+                            if api_remains is not None:
+                                remains = int(api_remains)
+                            else:
+                                remains = quantity
+                            print(f"✅ SMM Panel 상태 조회 성공: charge={charge}, start_count={start_count}, remains={remains}")
                         else:
-                            print(f"⚠️ SMM Panel charge 조회 실패: {smm_status.get('message')}")
+                            print(f"⚠️ SMM Panel 상태 조회 실패: {smm_status.get('message')}")
                     except Exception as e:
-                        print(f"⚠️ SMM Panel charge 조회 오류: {e}")
+                        print(f"⚠️ SMM Panel 상태 조회 오류: {e}")
                         charge = 0
+                        remains = quantity  # 오류 시 전체 수량으로 설정
                 
                 # 서비스 이름 결정 (우선순위: detailed_service > variant_name > get_service_name > 기본값)
                 if detailed_service:
@@ -6131,12 +6441,18 @@ def get_orders():
                 else:
                     service_name = get_service_name(service_id)
                 
+                # 링크 최종 검증
+                if not link or link == 'None' or link == 'null' or link.strip() == '':
+                    link = ''
+                
+                print(f"🔍 주문 데이터 구성 - order_id: {display_order_id}, link: '{link}', quantity: {quantity}, service_id: {service_id}")
+                
                 order_list.append({
                     'id': display_order_id,
                     'order_id': display_order_id,
                     'service_id': service_id,
                     'service_name': service_name,
-                    'link': link,
+                    'link': link,  # 링크 필수 포함
                     'quantity': quantity,
                     'price': price,
                     'charge': charge,  # 사용한 금액 추가
@@ -8112,28 +8428,82 @@ def check_admin():
     conn = None
     cursor = None
     try:
-        # 현재 사용자 정보 가져오기
-        current_user = get_current_user()
-        if not current_user:
-            return jsonify({'error': '로그인이 필요합니다.'}), 401
+        auth_header = request.headers.get('Authorization')
+        query_email = request.args.get('email')  # 쿼리 파라미터에서 email 받기
         
-        user_email = current_user.get('email')
-        user_id = current_user.get('user_id')
+        print(f"🔍 관리자 권한 확인 요청 수신")
+        print(f"🔍 Authorization 헤더 존재: {bool(auth_header)}")
+        print(f"🔍 쿼리 파라미터 email: {query_email}")
         
+        user_email = None
+        user_id = None
+        
+        # 먼저 JWT에서 사용자 정보 가져오기 시도 (PyJWT가 설치되어 있으면)
+        try:
+            current_user = get_current_user()
+            if current_user:
+                user_email = current_user.get('email')
+                user_id = current_user.get('user_id')
+                print(f"✅ JWT에서 사용자 정보 추출: email={user_email}, user_id={user_id}")
+        except Exception as jwt_error:
+            print(f"⚠️ JWT 검증 오류 (무시하고 계속): {jwt_error}")
+            current_user = None
+        
+        # JWT에서 못 가져왔으면 쿼리 파라미터에서 가져오기
+        if not user_email and query_email:
+            user_email = query_email
+            print(f"✅ 쿼리 파라미터에서 email 추출: {user_email}")
+        
+        # 둘 다 없으면 오류
         if not user_email and not user_id:
-            return jsonify({'error': '사용자 정보를 찾을 수 없습니다.'}), 401
+            print(f"⚠️ 관리자 권한 확인 실패: 사용자 정보 없음 (JWT와 쿼리 파라미터 모두 없음)")
+            return jsonify({'error': '로그인이 필요합니다.', 'is_admin': False}), 200
+        
+        print(f"🔍 관리자 권한 확인 - user_id: {user_id}, email: {user_email}")
+        print(f"🔍 데이터베이스에서 찾아야 할 값:")
+        if user_email:
+            print(f"   - email: {user_email}")
+        if user_id:
+            print(f"   - external_uid: {user_id}")
         
         # 데이터베이스에서 is_admin 체크
+        print(f"🔍 데이터베이스 연결 시도...")
         conn = get_db_connection()
+        if not conn:
+            print(f"❌ 데이터베이스 연결 실패")
+            return jsonify({'error': '데이터베이스 연결 실패', 'is_admin': False}), 500
+        
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
+        print(f"🔍 데이터베이스 쿼리 실행 - external_uid='{user_id}', email='{user_email}'")
+        user = None
+        
         if DATABASE_URL.startswith('postgresql://'):
-            cursor.execute("""
-                SELECT is_admin 
-                FROM users 
-                WHERE external_uid = %s OR email = %s
-                LIMIT 1
-            """, (user_id, user_email))
+            # 단순화: email로 먼저 조회 (가장 확실함)
+            if user_email:
+                print(f"🔍 email로 조회 시도: {user_email}")
+                cursor.execute("""
+                    SELECT is_admin, external_uid, email
+                    FROM users 
+                    WHERE email = %s
+                    LIMIT 1
+                """, (user_email,))
+                user = cursor.fetchone()
+                if user:
+                    print(f"✅ email로 사용자 발견!")
+            
+            # email로 못 찾았으면 external_uid로 시도
+            if not user and user_id:
+                print(f"🔍 external_uid로 조회 시도: {user_id}")
+                cursor.execute("""
+                    SELECT is_admin, external_uid, email
+                    FROM users 
+                    WHERE external_uid = %s
+                    LIMIT 1
+                """, (user_id,))
+                user = cursor.fetchone()
+                if user:
+                    print(f"✅ external_uid로 사용자 발견!")
         else:
             cursor.execute("""
                 SELECT is_admin 
@@ -8141,36 +8511,64 @@ def check_admin():
                 WHERE user_id = ? OR email = ?
                 LIMIT 1
             """, (user_id, user_email))
+            user = cursor.fetchone()
         
-        user = cursor.fetchone()
-        
+        print(f"🔍 사용자 조회 결과: {user}")
         if not user:
-            return jsonify({'is_admin': False}), 200
+            print(f"❌ 사용자를 찾을 수 없음 - email: '{user_email}', external_uid: '{user_id}'")
+            return jsonify({
+                'is_admin': False, 
+                'error': '사용자를 찾을 수 없습니다.'
+            }), 200
+        
+        print(f"✅ 사용자 발견 - email: {user.get('email')}, external_uid: {user.get('external_uid')}, is_admin: {user.get('is_admin')}")
         
         is_admin = user.get('is_admin') if isinstance(user, dict) else user[0]
+        print(f"🔍 is_admin 원본 값: {is_admin} (타입: {type(is_admin)})")
         
         # SQLite의 경우 0/1로 저장되므로 변환
         if is_admin is None:
             is_admin = False
+            print(f"⚠️ is_admin이 None이므로 False로 설정")
         elif isinstance(is_admin, (int, float)):
             is_admin = bool(is_admin and is_admin != 0)
-        else:
+            print(f"🔍 is_admin 숫자 값 변환: {is_admin}")
+        elif isinstance(is_admin, bool):
             is_admin = bool(is_admin)
+            print(f"🔍 is_admin 불린 값: {is_admin}")
+        else:
+            # 문자열인 경우 처리
+            if str(is_admin).lower() in ['true', '1', 'yes', 't']:
+                is_admin = True
+            else:
+                is_admin = False
+            print(f"🔍 is_admin 문자열 값 변환: {is_admin}")
         
+        print(f"✅ 관리자 권한 확인 완료 - 최종 is_admin: {is_admin} (타입: {type(is_admin)})")
         return jsonify({
-            'is_admin': is_admin
+            'is_admin': bool(is_admin),
+            'debug': {
+                'raw_is_admin': str(is_admin),
+                'is_admin_type': str(type(is_admin)),
+                'user_email': user.get('email') if user else None,
+                'user_external_uid': user.get('external_uid') if user else None
+            }
         }), 200
         
     except Exception as e:
         print(f"❌ 관리자 권한 확인 오류: {e}")
         import traceback
         print(traceback.format_exc())
-        return jsonify({'error': f'관리자 권한 확인 실패: {str(e)}', 'is_admin': False}), 500
+        # 항상 is_admin을 포함한 응답 반환 (500 대신 200으로 변경하여 프론트에서 처리 가능하게)
+        return jsonify({'error': f'관리자 권한 확인 실패: {str(e)}', 'is_admin': False}), 200
     finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        try:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+        except Exception as close_error:
+            print(f"⚠️ 리소스 정리 중 오류 (무시): {close_error}")
 
 # 사용자 정보 조회
 # Supabase 사용자 동기화 엔드포인트
@@ -12308,7 +12706,7 @@ def get_admin_transactions():
         else:
             cursor.execute("""
                 SELECT o.order_id, o.user_id, o.service_id, o.price, o.status, o.created_at,
-                       o.platform, o.service_name, o.quantity, o.link, o.comments
+                       o.platform, o.service_name, o.quantity, o.link, '' as comments
                 FROM orders o
                 ORDER BY o.created_at DESC
             """)
@@ -15112,6 +15510,59 @@ def migrate_database():
                 messages.append(f"⚠️ smm_panel_order_id: {str(e)}")
                 print(f"⚠️ smm_panel_order_id 필드 추가 실패: {e}")
                 conn.rollback()
+            
+            # order_status ENUM에 'failed' 값 추가
+            try:
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM pg_type WHERE typname = 'order_status'
+                    )
+                """)
+                enum_exists = cursor.fetchone()[0] if cursor.rowcount > 0 else False
+                
+                if enum_exists:
+                    cursor.execute("""
+                        SELECT EXISTS (
+                            SELECT 1 
+                            FROM pg_enum 
+                            WHERE enumlabel = 'failed' 
+                            AND enumtypid = (
+                                SELECT oid FROM pg_type WHERE typname = 'order_status'
+                            )
+                        )
+                    """)
+                    failed_exists = cursor.fetchone()[0] if cursor.rowcount > 0 else False
+                    
+                    if not failed_exists:
+                        # ENUM 값 추가 (트랜잭션 커밋 후 실행)
+                        conn.commit()
+                        try:
+                            cursor.execute("ALTER TYPE order_status ADD VALUE 'failed'")
+                            conn.commit()
+                            messages.append("✅ order_status ENUM에 'failed' 값 추가 완료")
+                            print("✅ order_status ENUM에 'failed' 값 추가 완료")
+                        except Exception as add_enum_error:
+                            error_str = str(add_enum_error).lower()
+                            if 'already exists' in error_str or 'duplicate' in error_str or 'already present' in error_str:
+                                messages.append("ℹ️ order_status ENUM에 'failed' 값이 이미 존재합니다.")
+                                print("ℹ️ order_status ENUM에 'failed' 값이 이미 존재합니다.")
+                            else:
+                                messages.append(f"⚠️ order_status ENUM에 'failed' 값 추가 실패: {str(add_enum_error)}")
+                                print(f"⚠️ order_status ENUM에 'failed' 값 추가 실패: {add_enum_error}")
+                                conn.rollback()
+                    else:
+                        messages.append("ℹ️ order_status ENUM에 'failed' 값이 이미 존재합니다.")
+                        print("ℹ️ order_status ENUM에 'failed' 값이 이미 존재합니다.")
+                else:
+                    messages.append("ℹ️ order_status ENUM 타입이 아직 생성되지 않았습니다.")
+                    print("ℹ️ order_status ENUM 타입이 아직 생성되지 않았습니다.")
+            except Exception as e:
+                messages.append(f"⚠️ order_status ENUM 확인 중 오류: {str(e)}")
+                print(f"⚠️ order_status ENUM 확인 중 오류: {e}")
+                try:
+                    conn.rollback()
+                except:
+                    pass
             
             # detailed_service 컬럼 추가
             try:
@@ -18476,7 +18927,67 @@ def get_packages():
                 items = [dict(row) for row in cursor.fetchall()]
             
             pkg_dict['items'] = [dict(item) if not isinstance(item, dict) else item for item in items]
-            pkg_dict['steps'] = pkg_dict['items']  # 호환성을 위해 steps도 추가
+            
+            # items를 steps 형식으로 변환 (하드코딩된 패키지와 호환)
+            # 하드코딩 형식: { id, name, quantity, delay, repeat }
+            # DB items 형식: { variant_id, step, quantity, term_value, term_unit, repeat_count, variant_name }
+            converted_steps = []
+            for item in pkg_dict['items']:
+                item_dict = dict(item) if not isinstance(item, dict) else item
+                
+                # variant_id로부터 service_id 찾기
+                variant_id = item_dict.get('variant_id')
+                service_id = None
+                variant_name = item_dict.get('variant_name', '')
+                
+                if variant_id:
+                    try:
+                        if is_postgres:
+                            cursor.execute("""
+                                SELECT meta_json 
+                                FROM product_variants 
+                                WHERE variant_id = %s
+                                LIMIT 1
+                            """, (variant_id,))
+                        else:
+                            cursor.execute("""
+                                SELECT meta_json 
+                                FROM product_variants 
+                                WHERE variant_id = ?
+                                LIMIT 1
+                            """, (variant_id,))
+                        
+                        variant_result = cursor.fetchone()
+                        if variant_result:
+                            meta_json = variant_result[0]
+                            if isinstance(meta_json, dict):
+                                service_id = meta_json.get('service_id') or meta_json.get('smm_service_id')
+                            elif isinstance(meta_json, str):
+                                import json
+                                try:
+                                    meta_dict = json.loads(meta_json)
+                                    service_id = meta_dict.get('service_id') or meta_dict.get('smm_service_id')
+                                except:
+                                    pass
+                    except Exception as e:
+                        print(f"⚠️ variant_id {variant_id}에서 service_id 찾기 실패: {e}")
+                
+                # steps 형식으로 변환
+                step_dict = {
+                    'id': service_id or variant_id,  # service_id가 없으면 variant_id 사용
+                    'name': variant_name or f"단계 {item_dict.get('step', 0)}",
+                    'quantity': int(item_dict.get('quantity', 0)),
+                    'delay': int(item_dict.get('term_value', 0)) if item_dict.get('term_unit') == 'minute' else 0,
+                    'repeat': int(item_dict.get('repeat_count', 1))
+                }
+                
+                # term_unit이 'hour'인 경우 분으로 변환
+                if item_dict.get('term_unit') == 'hour':
+                    step_dict['delay'] = int(item_dict.get('term_value', 0)) * 60
+                
+                converted_steps.append(step_dict)
+            
+            pkg_dict['steps'] = converted_steps  # 변환된 steps 형식 사용
             
             result.append(pkg_dict)
         

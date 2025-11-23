@@ -180,7 +180,7 @@ def run_migrations():
                 CREATE TYPE coupon_status AS ENUM ('active','used','expired','revoked')
                 """,
                 """
-                CREATE TYPE order_status AS ENUM ('pending','paid','processing','completed','canceled','refunded')
+                CREATE TYPE order_status AS ENUM ('pending','paid','processing','completed','canceled','refunded','failed')
                 """,
                 """
                 CREATE TYPE order_item_status AS ENUM ('pending','in_progress','done','canceled')
