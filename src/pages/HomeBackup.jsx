@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { 
-  Instagram, 
-  Youtube, 
+import {
+  Instagram,
+  Youtube,
   MessageCircle,
   Users,
   Heart,
@@ -25,9 +25,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { useGuest } from '../contexts/GuestContext'
 import { smmpanelApi, transformOrderData } from '../services/snspopApi'
 import './Home.css'
-import instagramDetailedServices from '../data/instagramDetailed'
+import {instagramDetailedServices, platforms} from '../data/instagramDetailed'
 
-const Home = () => {
+const HomeBackup = () => {
   const { currentUser, setShowAuthModal, setShowOrderMethodModal } = useAuth()
   const { isGuest } = useGuest()
   const navigate = useNavigate()
@@ -46,29 +46,29 @@ const Home = () => {
   const [explanation, setExplanation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  
+
   // 할인 쿠폰 관련 상태 제거 - 추천인 시스템은 커미션 방식 (할인 쿠폰 아님)
-  
+
   // SMM Panel 유효 서비스 ID 목록
   const [validServiceIds, setValidServiceIds] = useState([])
   const [isLoadingServices, setIsLoadingServices] = useState(false)
-  
+
   // 데이터베이스에서 가져온 상품 데이터
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [variants, setVariants] = useState([])
   const [packages, setPackages] = useState([])
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false)
-  
+
   // 예약 발송 관련 상태
   const [isScheduledOrder, setIsScheduledOrder] = useState(false)
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
-  
+
   // 분할 발송 관련 상태
   const [isSplitDelivery, setIsSplitDelivery] = useState(false)
   const [splitDays, setSplitDays] = useState(1)
-  
+
   // 예약 발송과 분할 발송 상호 배타적 선택
   const handleScheduledOrderChange = (checked) => {
     setIsScheduledOrder(checked)
@@ -76,32 +76,32 @@ const Home = () => {
       setIsSplitDelivery(false)
     }
   }
-  
+
   const handleSplitDeliveryChange = (checked) => {
     setIsSplitDelivery(checked)
     if (checked && isScheduledOrder) {
       setIsScheduledOrder(false)
     }
   }
-  
+
   // 일일 수량 자동 계산
   const getDailyQuantity = () => {
     if (!isSplitDelivery || !quantity || !splitDays) return 0
     return Math.ceil(quantity / splitDays)
   }
-  
+
   // 분할 발송 가능 여부 확인
   const isSplitDeliveryValid = () => {
     if (!isSplitDelivery || !quantity || !splitDays || splitDays === 0 || !selectedDetailedService) return true
-    
+
     const dailyQty = getDailyQuantity()
     const minQuantity = selectedDetailedService.min || 1
     const totalSplitQuantity = dailyQty * splitDays
-    
+
     // 최소 수량 미달 또는 총 수량 초과 시 유효하지 않음
     return dailyQty >= minQuantity && totalSplitQuantity <= quantity
   }
-  
+
   // 분할 발송 정보 표시
   const getSplitInfo = () => {
     if (!isSplitDelivery || !quantity || !splitDays) return ''
@@ -110,9 +110,9 @@ const Home = () => {
     const minQuantity = selectedDetailedService?.min || 1
     const totalSplitQuantity = dailyQty * splitDays
     const isValid = isSplitDeliveryValid()
-    
+
     let info = `총 ${quantity}개를 ${totalDays}일 동안 하루 ${dailyQty}개씩 분할 발송`
-    
+
     if (!isValid) {
       if (dailyQty < minQuantity) {
         info += ` ⚠️ (최소 수량 ${minQuantity}개/일 미달)`
@@ -120,7 +120,7 @@ const Home = () => {
         info += ` ⚠️ (총 수량 ${totalSplitQuantity}개 초과)`
       }
     }
-    
+
     return info
   }
 
@@ -162,7 +162,7 @@ const Home = () => {
   const loadCatalog = async () => {
     setIsLoadingCatalog(true)
     const errors = []
-    
+
     try {
       // 카테고리 로드
       try {
@@ -222,7 +222,7 @@ const Home = () => {
             // 하위 호환성을 위한 필드
             id: v.variant_id || v.id,
             min: parseInt(v.min || v.min_quantity || 1),
-          max: parseInt(v.max || v.max_quantity || 1000000),
+            max: parseInt(v.max || v.max_quantity || 1000000),
           }))
           setVariants(normalizedVariants)
           console.log('✅ 세부서비스 로드 완료:', normalizedVariants.length, '개')
@@ -285,7 +285,7 @@ const Home = () => {
         if (detailedServices[0].package || detailedServices[0].drip_feed) {
           setQuantity(1)
         } else {
-        setQuantity(detailedServices[0].min)
+          setQuantity(detailedServices[0].min)
         }
       }
     }
@@ -295,13 +295,13 @@ const Home = () => {
   // 할인 쿠폰 관련 코드는 모두 제거됨
 
   // 인스타그램 세부 서비스 데이터
-  
-  
+
+
   // 세부 서비스 목록 가져오기 (데이터베이스 우선, 하드코딩 fallback)
   const getDetailedServices = (platform, serviceType) => {
     // 먼저 데이터베이스에서 가져온 variants와 packages 사용 시도
     let dbServices = []
-    
+
     // 카테고리 이름으로 필터링 (예: '인스타그램', '유튜브' 등)
     const categoryNameMap = {
       'instagram': '인스타그램',
@@ -314,32 +314,32 @@ const Home = () => {
       'whatsapp': 'WhatsApp',
       'kakao': '카카오'
     }
-    
+
     // 플랫폼에 맞는 카테고리 찾기
-    const targetCategory = categories.find(c => 
-      c.name?.includes(categoryNameMap[platform] || platform) || 
+    const targetCategory = categories.find(c =>
+      c.name?.includes(categoryNameMap[platform] || platform) ||
       c.slug === platform
     )
-    
+
     if (targetCategory) {
       // serviceType(상품 ID)에 해당하는 상품 찾기
-      const targetProduct = products.find(p => 
+      const targetProduct = products.find(p =>
         p.category_id === targetCategory.category_id && (
           p.name?.toLowerCase().includes(serviceType?.toLowerCase() || '') ||
           p.description?.toLowerCase().includes(serviceType?.toLowerCase() || '')
         )
       )
-      
+
       // serviceType으로 직접 매칭 시도 (상품 이름이나 설명에 serviceType이 포함된 경우)
       // 또는 products 배열에서 serviceType과 일치하는 상품 찾기
       let matchedProduct = products.find(p => {
         if (p.category_id !== targetCategory.category_id) return false
-        
+
         // serviceType이 상품 이름이나 설명에 포함되어 있는지 확인
         const productNameLower = (p.name || '').toLowerCase()
         const productDescLower = (p.description || '').toLowerCase()
         const serviceTypeLower = (serviceType || '').toLowerCase()
-        
+
         // 정확한 매칭: serviceType이 상품 이름의 키워드와 일치하는지
         // 예: serviceType='likes_korean' -> 상품 이름에 '좋아요' 또는 'likes' 포함
         const serviceTypeKeywords = {
@@ -368,17 +368,17 @@ const Home = () => {
           'auto_reels_views_foreign': ['외국인', '자동', '릴스', '조회수', 'foreign', 'auto'],
           'auto_exposure_save_share_foreign': ['외국인', '자동', '노출', '저장', '공유', 'foreign', 'auto'],
         }
-        
+
         const keywords = serviceTypeKeywords[serviceType] || [serviceTypeLower]
-        return keywords.some(keyword => 
-          productNameLower.includes(keyword.toLowerCase()) || 
+        return keywords.some(keyword =>
+          productNameLower.includes(keyword.toLowerCase()) ||
           productDescLower.includes(keyword.toLowerCase())
         )
       })
-      
+
       if (matchedProduct) {
         // 해당 상품의 variants만 필터링하고 형식 변환
-        dbServices = variants.filter(v => 
+        dbServices = variants.filter(v =>
           v.product_id === matchedProduct.product_id
         ).map(v => ({
           id: v.variant_id || v.id,
@@ -391,14 +391,14 @@ const Home = () => {
           smm_service_id: v.meta_json?.smm_service_id || v.smm_service_id,
           meta_json: v.meta_json || {},
         }))
-        
+
         // 해당 상품의 패키지도 추가
-        const productPackages = packages.filter(p => 
-          p.category_id === targetCategory.category_id && 
+        const productPackages = packages.filter(p =>
+          p.category_id === targetCategory.category_id &&
           (p.name?.toLowerCase().includes(serviceType?.toLowerCase() || '') ||
-           p.description?.toLowerCase().includes(serviceType?.toLowerCase() || ''))
+            p.description?.toLowerCase().includes(serviceType?.toLowerCase() || ''))
         )
-        
+
         // 패키지를 variant 형식으로 변환
         productPackages.forEach(pkg => {
           dbServices.push({
@@ -420,15 +420,15 @@ const Home = () => {
         })
       } else {
         // 상품을 찾지 못한 경우, 카테고리 전체 variants 사용 (fallback)
-        dbServices = variants.filter(v => 
+        dbServices = variants.filter(v =>
           v.category_id === targetCategory.category_id
         )
-        
+
         // 패키지도 추가
-        const categoryPackages = packages.filter(p => 
+        const categoryPackages = packages.filter(p =>
           p.category_id === targetCategory.category_id
         )
-        
+
         categoryPackages.forEach(pkg => {
           dbServices.push({
             id: pkg.package_id,
@@ -449,16 +449,16 @@ const Home = () => {
         })
       }
     }
-    
+
     // 데이터베이스에서 서비스를 찾았으면 반환
     if (dbServices.length > 0) {
       console.log(`✅ 데이터베이스에서 ${dbServices.length}개 서비스 로드: ${platform}/${serviceType}`)
       return filterValidServices(dbServices)
     }
-    
+
     // 데이터베이스에 없으면 기존 하드코딩된 데이터 사용 (fallback)
     console.log(`⚠️ 데이터베이스에 서비스 없음, 하드코딩 데이터 사용: ${platform}/${serviceType}`)
-    
+
     // 추천서비스 매핑 (기존 하드코딩)
     if (platform === 'recommended') {
       if (serviceType === 'top_exposure_30days') {
@@ -480,35 +480,35 @@ const Home = () => {
       }
       return filterValidServices([])
     }
-  
-  // 이벤트 매핑
-  if (platform === 'event') {
-    if (serviceType === 'instagram_korean_followers_bulk') {
-      return filterValidServices(instagramDetailedServices.followers_korean || [])
-    } else if (serviceType === 'instagram_korean_likes_bulk') {
-      return filterValidServices(instagramDetailedServices.likes_korean || [])
+
+    // 이벤트 매핑
+    if (platform === 'event') {
+      if (serviceType === 'instagram_korean_followers_bulk') {
+        return filterValidServices(instagramDetailedServices.followers_korean || [])
+      } else if (serviceType === 'instagram_korean_likes_bulk') {
+        return filterValidServices(instagramDetailedServices.likes_korean || [])
+      }
+      return filterValidServices([])
     }
-    return filterValidServices([])
-  }
-  
-  // 상위노출 매핑
-  if (platform === 'top-exposure') {
-    const services = instagramDetailedServices.top_exposure || {}
-    if (serviceType === 'top_exposure_30days') {
-      return filterValidServices(services.manual?.filter(s => s.id === 1005) || [])
-    } else if (serviceType === 'instagram_optimization_30days') {
-      return filterValidServices(services.manual?.filter(s => s.id === 1002) || [])
-    } else if (serviceType === 'recommended_tab_entry') {
-      return filterValidServices(services.manual?.filter(s => s.id === 1003) || [])
-    } else if (serviceType === 'recommended_tab_maintenance') {
-      return filterValidServices(services.manual?.filter(s => s.id === 1004) || [])
-    }
-    return filterValidServices([])
+
+    // 상위노출 매핑
+    if (platform === 'top-exposure') {
+      const services = instagramDetailedServices.top_exposure || {}
+      if (serviceType === 'top_exposure_30days') {
+        return filterValidServices(services.manual?.filter(s => s.id === 1005) || [])
+      } else if (serviceType === 'instagram_optimization_30days') {
+        return filterValidServices(services.manual?.filter(s => s.id === 1002) || [])
+      } else if (serviceType === 'recommended_tab_entry') {
+        return filterValidServices(services.manual?.filter(s => s.id === 1003) || [])
+      } else if (serviceType === 'recommended_tab_maintenance') {
+        return filterValidServices(services.manual?.filter(s => s.id === 1004) || [])
+      }
+      return filterValidServices([])
     }
     if (platform === 'instagram' && instagramDetailedServices[serviceType]) {
       return filterValidServices(instagramDetailedServices[serviceType])
     }
-    
+
     // 인스타그램 외국인 서비스 매핑
     if (platform === 'instagram' && instagramDetailedServices) {
       if (serviceType === 'foreign_package') {
@@ -537,7 +537,7 @@ const Home = () => {
         return filterValidServices(instagramDetailedServices.auto_exposure_save_share_foreign || [])
       }
     }
-    
+
     // 유튜브 서비스 매핑
     if (platform === 'youtube' && instagramDetailedServices.youtube) {
       if (serviceType === 'views_korean') {
@@ -566,7 +566,7 @@ const Home = () => {
         return filterValidServices(instagramDetailedServices.youtube.live_streaming || [])
       }
     }
-    
+
     // 페이스북 서비스 매핑
     if (platform === 'facebook' && instagramDetailedServices.facebook) {
       if (serviceType === 'page_likes_korean') {
@@ -578,28 +578,28 @@ const Home = () => {
       } else if (serviceType === 'profile_follows_korean') {
         return instagramDetailedServices.facebook.profile_follows_korean || []
       } else if (serviceType === 'event_page_likes_foreign') {
-        return (instagramDetailedServices.facebook.foreign_services || []).filter(service => 
+        return (instagramDetailedServices.facebook.foreign_services || []).filter(service =>
           service.name.includes('페이지 좋아요') || service.name.includes('페이지 팔로워')
         )
       } else if (serviceType === 'page_followers_foreign') {
-        return (instagramDetailedServices.facebook.foreign_services || []).filter(service => 
+        return (instagramDetailedServices.facebook.foreign_services || []).filter(service =>
           service.name.includes('페이지 팔로워') || service.name.includes('페이지 팔로우')
         )
       } else if (serviceType === 'post_likes_foreign') {
-        return (instagramDetailedServices.facebook.foreign_services || []).filter(service => 
+        return (instagramDetailedServices.facebook.foreign_services || []).filter(service =>
           service.name.includes('게시물 좋아요')
         )
       } else if (serviceType === 'profile_followers_foreign') {
-        return (instagramDetailedServices.facebook.foreign_services || []).filter(service => 
+        return (instagramDetailedServices.facebook.foreign_services || []).filter(service =>
           service.name.includes('프로필 팔로워') || service.name.includes('프로필 팔로우')
         )
       } else if (serviceType === 'post_comments_foreign') {
-        return (instagramDetailedServices.facebook.foreign_services || []).filter(service => 
+        return (instagramDetailedServices.facebook.foreign_services || []).filter(service =>
           service.name.includes('댓글') || service.name.includes('리액션')
         )
       }
     }
-    
+
     // 스레드 서비스 매핑
     if (platform === 'threads' && instagramDetailedServices.threads) {
       if (serviceType === 'likes') {
@@ -612,7 +612,7 @@ const Home = () => {
         return [instagramDetailedServices.threads.likes_korean[3]] // 공유 서비스
       }
     }
-    
+
     // 틱톡 서비스 매핑
     if (platform === 'tiktok' && instagramDetailedServices.tiktok) {
       if (serviceType === 'likes_foreign') {
@@ -629,14 +629,14 @@ const Home = () => {
         return instagramDetailedServices.tiktok.live_streaming || []
       }
     }
-    
+
     // 트위터 서비스 매핑
     if (platform === 'twitter' && instagramDetailedServices.twitter) {
       if (serviceType === 'twitter_services') {
         return instagramDetailedServices.twitter.followers_foreign || []
       }
     }
-    
+
     // 텔레그램 서비스 매핑
     if (platform === 'telegram' && instagramDetailedServices.telegram) {
       if (serviceType === 'telegram_services') {
@@ -646,21 +646,21 @@ const Home = () => {
         ]
       }
     }
-    
+
     // 왓츠앱 서비스 매핑
     if (platform === 'whatsapp' && instagramDetailedServices.whatsapp) {
       if (serviceType === 'whatsapp_services') {
         return instagramDetailedServices.whatsapp.followers || []
       }
     }
-    
+
     // 카카오 서비스 매핑
     if (platform === 'kakao' && instagramDetailedServices.kakao_naver) {
       if (serviceType === 'kakao_services') {
         return instagramDetailedServices.kakao_naver.kakao_services || []
       }
     }
-    
+
     // 기존 로직 사용
     const services = getDetailedServicesLegacy(platform, serviceType)
     return filterValidServices(services)
@@ -701,17 +701,17 @@ const Home = () => {
     { id: 'whatsapp', name: '왓츠앱', icon: '/whatsapp-logo-new.svg', color: '#25d366' },
     // { id: 'news-media', name: '뉴스언론보도', icon: FileText, color: '#3b82f6' },
     // { id: 'experience-group', name: '체험단', icon: Users, color: '#10b981' },
-   
+
     // { id: 'store-marketing', name: '스토어마케팅', icon: HomeIcon, color: '#f59e0b' },
     // { id: 'app-marketing', name: '어플마케팅', icon: Smartphone, color: '#3b82f6' },
     // { id: 'seo-traffic', name: 'SEO트래픽', icon: TrendingUp, color: '#8b5cf6' }
   ]
 
-    // 플랫폼별 서비스 목록
+  // 플랫폼별 서비스 목록
 
 
 
-    
+
   const getServicesForPlatform = (platform) => {
     switch (platform) {
       case 'recommended':
@@ -752,12 +752,12 @@ const Home = () => {
           { id: 'auto_followers', name: '팔로워 늘리기', description: '자동 팔로워 서비스' },
           { id: 'comments_korean', name: '인스타 댓글 늘리기', description: '한국인 댓글 서비스' },
           { id: 'auto_regram', name: '리그램', description: '자동 리그램 서비스' },
-          
+
           // 외국인 서비스 (12개)
           { id: 'foreign_package', name: '인스타 외국인 패키지', description: '외국인 종합 패키지 서비스' },
           { id: 'followers_foreign', name: '인스타 팔로워 늘리기', description: '외국인 팔로워 서비스' },
           { id: 'likes_foreign', name: '인스타 좋아요 늘리기', description: '외국인 좋아요 서비스' },
-          
+
           { id: 'auto_reels_views_foreign', name: '조회수 늘리기', description: '외국인 자동 릴스 조회수 서비스' },
           { id: 'reels_views_foreign', name: '인스타 릴스 조회수 늘리기', description: '외국인 릴스 조회수 서비스' },
           { id: 'auto_followers_foreign', name: '팔로워 늘리기', description: '외국인 자동 팔로워 서비스' },
@@ -776,10 +776,10 @@ const Home = () => {
           { id: 'likes_korean', name: '유튜브 좋아요 늘리기', description: '한국인 좋아요 서비스' },
           { id: 'subscribers_korean', name: '유튜브 구독자 늘리기', description: '한국인 구독자 서비스' },
           { id: 'no', name: 'no', description: ' ' },
-          
+
           { id: 'comments_korean', name: '유튜브 댓글 늘리기', description: '한국인 댓글 서비스' },
           { id: 'shares_korean', name: '유튜브 공유 늘리기', description: '한국인 공유 서비스' },
-          
+
           // 외국인 서비스 (7개)
           { id: 'views_foreign', name: '유튜브 조회수 늘리기', description: '외국인 조회수 서비스' },
           { id: 'empty_service_foreign', name: ' ', description: ' ' },
@@ -806,7 +806,7 @@ const Home = () => {
           { id: 'post_likes_korean', name: '페이스북 게시물 좋아요', description: '한국인 게시물 좋아요 서비스' },
           { id: 'post_comments_korean', name: '페이스북 게시물 댓글', description: '한국인 게시물 댓글 서비스' },
           { id: 'profile_follows_korean', name: '페이스북 개인계정 팔로우', description: '한국인 개인계정 팔로우 서비스' },
-          
+
           // 외국인 서비스 (5개)
           { id: 'event_page_likes_foreign', name: '이벤트 : 페이스북 페이지 좋아요 + 팔로워', description: '외국인 이벤트 페이지 좋아요+팔로워 서비스' },
           { id: 'empty_service', name: ' ', description: ' ' },
@@ -870,7 +870,7 @@ const Home = () => {
     } else if (platform === 'kakao' && instagramDetailedServices.kakao) {
       return Object.values(instagramDetailedServices.kakao).flat()
     }
-    
+
     // 기본 서비스 목록 (실제로는 API에서 가져와야 함)
     return [
       //{ id: 'followers_korean', name: '한국인 팔로워', price: 1000, min: 10, max: 10000 },
@@ -902,7 +902,7 @@ const Home = () => {
     } else if (platform === 'kakao' && instagramDetailedServices.kakao_naver) {
       availableServices = Object.values(instagramDetailedServices.kakao_naver).flat()
     }
-    
+
     // 플랫폼별 서비스 이름 필터링 추가
     availableServices = availableServices.filter(service => {
       if (platform === 'youtube') {
@@ -924,7 +924,7 @@ const Home = () => {
       }
       return true // 인스타그램은 모든 서비스 허용
     })
-    
+
     return availableServices.filter(service => {
       // 서비스 타입에 따라 필터링
       if (serviceType === 'followers_korean') {
@@ -1001,7 +1001,7 @@ const Home = () => {
           return String(service.id).includes('followers') && (service.name.includes('트위터') || service.name.includes('Twitter') || service.name.includes('X'))
         }
       }
-      
+
       // 외국인 서비스들
       if (serviceType === 'foreign_package') {
         return service.id === 999
@@ -1026,7 +1026,7 @@ const Home = () => {
       } else if (serviceType === 'auto_exposure_save_share_foreign') {
         return service.id === 109
       }
-      
+
       return false
     })
   }
@@ -1047,28 +1047,28 @@ const Home = () => {
     if (selectedDetailedService) {
       const min = selectedDetailedService.min
       const max = selectedDetailedService.max
-      
+
       // 10개 단위로 수량 옵션 생성
       const options = []
       let current = min
-      
+
       // 최소값을 10의 배수로 조정
       const adjustedMin = Math.ceil(min / 10) * 10
       current = Math.max(min, adjustedMin)
-      
+
       while (current <= max && options.length < 50) {
         options.push(current)
         current += 10
       }
-      
+
       // 최대값이 포함되지 않았다면 추가
       if (options.length > 0 && options[options.length - 1] < max) {
         options.push(max)
       }
-      
+
       return options
     }
-    
+
     // 기본 수량 옵션 (10개 단위)
     return [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000]
   }
@@ -1082,9 +1082,9 @@ const Home = () => {
       setTotalPrice(0)
       return
     }
-    
+
     let basePrice = 0
-    
+
     // 패키지 상품 또는 drip-feed 상품인 경우 수량과 상관없이 고정 가격
     if (selectedDetailedService && (selectedDetailedService.package || selectedDetailedService.drip_feed)) {
       basePrice = selectedDetailedService.price / 1000  // 패키지/드립피드 전체 가격
@@ -1095,7 +1095,7 @@ const Home = () => {
       // 기존 SMM KINGS 가격 사용
       basePrice = (selectedDetailedService.price / 1000) * quantity
     }
-    
+
     // 할인 제거 - 추천인 시스템은 커미션 방식 (할인 쿠폰 아님)
     // 추천인은 피추천인 구매 금액의 10%를 커미션으로 받음 (백엔드에서 자동 처리)
     setTotalPrice(Math.round(basePrice))
@@ -1105,7 +1105,7 @@ const Home = () => {
     setSelectedPlatform(platformId)
     setSelectedServiceType('recommended')
     setSelectedDetailedService(null)
-    
+
     // 플랫폼에 따라 기본 서비스 설정
     if (platformId === 'recommended') {
       setSelectedService('top_exposure_30days')
@@ -1123,7 +1123,7 @@ const Home = () => {
       setSelectedService('followers_korean')
       setQuantity(200)
     }
-    
+
     setLink('')
     setComments('')
     setExplanation('')
@@ -1132,7 +1132,7 @@ const Home = () => {
   const handleServiceSelect = (serviceId) => {
     setSelectedService(serviceId)
     setSelectedDetailedService(null)
-    
+
     // 세부 서비스가 있으면 첫 번째 것을 기본 선택
     const detailedServices = getDetailedServices(selectedPlatform, serviceId)
     if (detailedServices && detailedServices.length > 0) {
@@ -1159,7 +1159,7 @@ const Home = () => {
   const handleQuantityChange = (newQuantity) => {
     if (selectedDetailedService) {
       const max = selectedDetailedService.max
-      
+
       // 최대값만 체크하고, 0 이상이면 허용
       if (newQuantity >= 0 && newQuantity <= max) {
         setQuantity(newQuantity)
@@ -1195,7 +1195,7 @@ const Home = () => {
           ],
           settings: [
             "1. 인스타그램 설정(앱화면 오른쪽 최상단 삼선 클릭)",
-            "2. 친구 팔로우 및 초대 클릭", 
+            "2. 친구 팔로우 및 초대 클릭",
             "3. 검토를 위해 플래그 지정 끄기(회색으로)"
           ]
         },
@@ -1752,7 +1752,7 @@ const Home = () => {
     return (
       <div className="product-description-detail">
         <div className="product-title">{product.title}</div>
-        
+
         <div className="specs-section">
           <h5>📊 상품 정보</h5>
           <ul>
@@ -1799,7 +1799,7 @@ const Home = () => {
 
   const handlePurchase = async () => {
     try {
-      
+
       // 게스트 모드인 경우 주문 불가
       if (isGuest) {
         alert('게스트 모드에서는 주문할 수 없습니다. 로그인 후 주문해주세요!')
@@ -1826,14 +1826,14 @@ const Home = () => {
         alert('수량을 입력해주세요.')
         return
       }
-      
+
       if (quantity < selectedDetailedService.min) {
         alert(`수량은 최소 ${(selectedDetailedService.min || 0).toLocaleString()}개 이상이어야 합니다.`)
         return
       }
 
-      if (((selectedPlatform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
-           (selectedPlatform === 'youtube' && selectedService === 'comments_korean')) && (!comments || !comments.trim())) {
+      if (((selectedPlatform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) ||
+        (selectedPlatform === 'youtube' && selectedService === 'comments_korean')) && (!comments || !comments.trim())) {
         alert('댓글 내용을 입력해주세요!')
         return
       }
@@ -1857,24 +1857,24 @@ const Home = () => {
         const dailyQty = getDailyQuantity()
         const minQuantity = selectedDetailedService?.min || 1
         const totalSplitQuantity = dailyQty * splitDays
-        
+
         if (dailyQty < 1) {
           alert('일일 수량이 1개 미만입니다. 기간을 조정해주세요.')
           return
         }
-        
+
         // 일일 수량이 상품의 최소 수량을 만족하는지 검증
         if (dailyQty < minQuantity) {
           alert(`일일 수량이 상품의 최소 수량(${minQuantity}개)보다 적습니다. 기간을 줄이거나 총 수량을 늘려주세요.`)
           return
         }
-        
+
         // 일일 수량 × 기간이 총 수량을 초과하는지 검증
         if (totalSplitQuantity > quantity) {
           alert(`분할 발송 수량(${totalSplitQuantity}개)이 선택한 총 수량(${quantity}개)을 초과합니다. 기간을 변경해주세요.`)
           return
         }
-        
+
         if (dailyQty > 1000) {
           alert('일일 수량이 너무 많습니다. 기간을 늘리거나 총 수량을 줄여주세요.')
           return
@@ -1895,20 +1895,20 @@ const Home = () => {
 
     try {
       const userId = currentUser?.uid || currentUser?.email || 'anonymous'
-      
+
       // 안전한 변수 초기화
       const safeServiceId = selectedDetailedService?.id || selectedDetailedService?.smmkings_id || 'unknown'
       const safeQuantity = quantity || 0
       const safeTotalPrice = totalPrice || 0
       const safeLink = (link || '').trim()
       const safeComments = (comments || '').trim()
-      
+
       // Drip-feed 상품인 경우 runs와 interval 설정
       const isDripFeed = selectedDetailedService?.drip_feed === true
       const dripFeedRuns = isDripFeed ? (selectedDetailedService?.runs || 1) : 1
       const dripFeedInterval = isDripFeed ? (selectedDetailedService?.interval || 0) : 0
       const dripFeedQuantity = isDripFeed ? (selectedDetailedService?.drip_quantity || safeQuantity) : safeQuantity
-      
+
       // Drip-feed 상품인 경우 서비스 ID와 수량 설정
       const finalServiceId = isDripFeed ? (selectedDetailedService?.smmkings_id || selectedDetailedService?.id || safeServiceId) : safeServiceId
       const finalQuantity = isDripFeed ? dripFeedQuantity : safeQuantity
@@ -1949,19 +1949,19 @@ const Home = () => {
       if (!orderData.user_id || orderData.user_id === 'anonymous') {
         throw new Error('사용자 ID가 유효하지 않습니다. 다시 로그인해주세요.')
       }
-      
+
       if (!orderData.service_id || orderData.service_id === 'unknown') {
         throw new Error('서비스 ID가 유효하지 않습니다. 서비스를 다시 선택해주세요.')
       }
-      
+
       if (!orderData.link || orderData.link.trim() === '') {
         throw new Error('링크를 입력해주세요.')
       }
-      
+
       if (!orderData.quantity || orderData.quantity <= 0) {
         throw new Error('수량을 올바르게 입력해주세요.')
       }
-      
+
       if (!orderData.price || orderData.price <= 0) {
         throw new Error('가격이 올바르지 않습니다.')
       }
@@ -1971,28 +1971,28 @@ const Home = () => {
         if (!scheduledDate || !scheduledTime) {
           throw new Error('예약 날짜와 시간을 모두 선택해주세요.')
         }
-        
+
         const scheduledDateTime = new Date(`${scheduledDate} ${scheduledTime}`)
         const now = new Date()
-        
+
         if (scheduledDateTime <= now) {
           throw new Error('예약 시간은 현재 시간보다 늦어야 합니다.')
         }
-        
+
         // 예약 시간이 5분~7일 이내인지 확인
         const timeDiff = scheduledDateTime.getTime() - now.getTime()
         const minutesDiff = timeDiff / (1000 * 60) // 분 단위로 계산
-        
+
         if (minutesDiff < 5) {
           throw new Error('예약 시간은 최소 5분 후여야 합니다.')
         }
-        
+
         if (minutesDiff > 10080) { // 7일 = 7 * 24 * 60 = 10080분
           throw new Error('예약 시간은 최대 7일 이내여야 합니다.')
         }
       }
 
-      
+
       // 예약 발송 데이터 추가
       if (isScheduledOrder) {
         orderData.is_scheduled = true
@@ -2001,15 +2001,15 @@ const Home = () => {
           is_scheduled: orderData.is_scheduled,
           scheduled_datetime: orderData.scheduled_datetime
         })
-        }
+      }
 
-        // 주문 데이터에 서비스 이름 추가
-        const orderDataWithService = {
-          ...orderData,
-          service_name: selectedDetailedService?.name || '선택된 서비스',
-          unit_price: selectedDetailedService?.price || 0,
-          total_price: safeTotalPrice
-        }
+      // 주문 데이터에 서비스 이름 추가
+      const orderDataWithService = {
+        ...orderData,
+        service_name: selectedDetailedService?.name || '선택된 서비스',
+        unit_price: selectedDetailedService?.price || 0,
+        total_price: safeTotalPrice
+      }
 
       // 사용자 포인트 조회
       let userPoints = null
@@ -2023,19 +2023,19 @@ const Home = () => {
       }
 
       // 결제 페이지로 이동 (주문 생성 없이)
-        navigate(`/payment/${selectedPlatform}`, { 
-          state: { 
-            orderData: {
-              ...orderDataWithService,
-              userId: userId,
-              platform: selectedPlatform,
-              service: selectedService,
-              detailedService: selectedDetailedService,
-              quantity: safeQuantity,
-              unitPrice: selectedDetailedService?.price || 0,
-              totalPrice: safeTotalPrice,
-              link: safeLink,
-              comments: safeComments,
+      navigate(`/payment/${selectedPlatform}`, {
+        state: {
+          orderData: {
+            ...orderDataWithService,
+            userId: userId,
+            platform: selectedPlatform,
+            service: selectedService,
+            detailedService: selectedDetailedService,
+            quantity: safeQuantity,
+            unitPrice: selectedDetailedService?.price || 0,
+            totalPrice: safeTotalPrice,
+            link: safeLink,
+            comments: safeComments,
             explanation: explanation || '',
             discount: 0, // 할인 쿠폰 제거 - 추천인 시스템은 커미션 방식
             userPoints: userPoints,
@@ -2094,17 +2094,17 @@ const Home = () => {
       <div className="service-selection">
         <div className="service-header">
           <div className="header-title">
-        <h2>주문하기</h2>
-        <p>원하는 서비스를 선택하고 주문해보세요!</p>
+            <h2>주문하기</h2>
+            <p>원하는 서비스를 선택하고 주문해보세요!</p>
           </div>
-          <button 
+          <button
             className="order-method-btn"
             onClick={() => setShowOrderMethodModal(true)}
           >
             📋 주문방법
           </button>
         </div>
-        
+
         <div className="platform-grid">
           {platforms.map(({ id, name, icon, color, description }) => (
             <div
@@ -2113,19 +2113,19 @@ const Home = () => {
               onClick={() => handlePlatformSelect(id)}
               style={{
                 '--platform-color': color,
-                '--platform-color-secondary': color === '#f59e0b' ? '#d97706' : 
-                                            color === '#8b5cf6' ? '#7c3aed' :
-                                            color === '#10b981' ? '#059669' :
-                                            color === '#3b82f6' ? '#2563eb' :
-                                            color === '#e4405f' ? '#dc2626' :
-                                            color === '#ff0000' ? '#dc2626' :
-                                            color === '#1877f2' ? '#0d6efd' :
-                                            color === '#000000' ? '#374151' :
-                                            color === '#1da1f2' ? '#0ea5e9' :
-                                            color === '#03c75a' ? '#059669' :
-                                            color === '#fbbf24' ? '#f59e0b' :
-                                            color === '#8b5cf6' ? '#7c3aed' :
-                                            color === '#6b7280' ? '#4b5563' : '#667eea'
+                '--platform-color-secondary': color === '#f59e0b' ? '#d97706' :
+                  color === '#8b5cf6' ? '#7c3aed' :
+                    color === '#10b981' ? '#059669' :
+                      color === '#3b82f6' ? '#2563eb' :
+                        color === '#e4405f' ? '#dc2626' :
+                          color === '#ff0000' ? '#dc2626' :
+                            color === '#1877f2' ? '#0d6efd' :
+                              color === '#000000' ? '#374151' :
+                                color === '#1da1f2' ? '#0ea5e9' :
+                                  color === '#03c75a' ? '#059669' :
+                                    color === '#fbbf24' ? '#f59e0b' :
+                                      color === '#8b5cf6' ? '#7c3aed' :
+                                        color === '#6b7280' ? '#4b5563' : '#667eea'
               }}
             >
               {typeof icon === 'string' ? (
@@ -2135,32 +2135,32 @@ const Home = () => {
               )}
               <div className="platform-name">{name}</div>
               <div className="platform-description">{description}</div>
-        </div>
+            </div>
           ))}
         </div>
-          </div>
-      
+      </div>
+
       {/* Service Type Selection */}
       <div className="service-type-selection">
-        
+
         {/* Service Selection */}
         <div className="service-category">
           <h3 className="category-title">
             {platforms.find(p => p.id === selectedPlatform)?.name} 서비스
           </h3>
           <p className="category-description">상세 서비스를 선택해주세요</p>
-          
+
           {/* Tab Navigation - 특정 플랫폼에서는 숨김 */}
           {!['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp', 'recommended', 'event', 'top-exposure'].includes(selectedPlatform) && (
             <div className="service-tabs">
-              <button 
+              <button
                 className={`tab-button ${selectedTab === 'korean' ? 'active' : ''}`}
                 onClick={() => setSelectedTab('korean')}
               >
                 <img src="https://upload.wikimedia.org/wikipedia/commons/0/09/Flag_of_South_Korea.svg" alt="태극기" style={{ width: 20, height: 20 }} />
                 한국인
               </button>
-              <button 
+              <button
                 className={`tab-button ${selectedTab === 'foreign' ? 'active' : ''}`}
                 onClick={() => setSelectedTab('foreign')}
               >
@@ -2185,39 +2185,39 @@ const Home = () => {
                 if (service.id === 'empty_service' || service.id === 'empty_service_foreign') {
                   return selectedTab === 'foreign'
                 }
-                
+
                 // 유튜브 한국인 빈 서비스는 한국인 탭에서만 표시
                 if (service.id === 'empty_service_korean') {
                   return selectedTab === 'korean'
                 }
-                
+
                 // 특정 플랫폼들은 탭 구분 없이 모든 서비스 표시
                 if (['tiktok', 'threads', 'twitter', 'kakao', 'telegram', 'whatsapp', 'recommended', 'event', 'top-exposure'].includes(selectedPlatform)) {
                   return true
                 }
-                
+
                 // 한국인/외국인 탭에 따라 필터링
                 if (selectedTab === 'korean') {
-                  return String(service.id).includes('korean') || 
-                         service.id === 'popular_posts' || 
-                         service.id === 'views' || 
-                         service.id === 'exposure_save_share' || 
-                         service.id === 'auto_exposure_save_share' ||
-                         service.id === 'n_k_services' ||
-                         service.id === 'auto_likes' ||
-                         service.id === 'auto_comments' ||
-                         service.id === 'auto_followers' ||
-                         service.id === 'auto_regram'
+                  return String(service.id).includes('korean') ||
+                    service.id === 'popular_posts' ||
+                    service.id === 'views' ||
+                    service.id === 'exposure_save_share' ||
+                    service.id === 'auto_exposure_save_share' ||
+                    service.id === 'n_k_services' ||
+                    service.id === 'auto_likes' ||
+                    service.id === 'auto_comments' ||
+                    service.id === 'auto_followers' ||
+                    service.id === 'auto_regram'
                 } else if (selectedTab === 'foreign') {
-                  return String(service.id).includes('foreign') || 
-                         service.id === 'live_streaming' ||
-                         service.id === 'auto_likes_foreign' ||
-                         service.id === 'auto_views_foreign' || 
-                         service.id === 'auto_comments_foreign' ||
-                         service.id === 'auto_followers_foreign' ||
-                         service.id === 'auto_regram_foreign' ||
-                         service.id === 'auto_reels_views_foreign' ||
-                         service.id === 'auto_exposure_save_share_foreign'
+                  return String(service.id).includes('foreign') ||
+                    service.id === 'live_streaming' ||
+                    service.id === 'auto_likes_foreign' ||
+                    service.id === 'auto_views_foreign' ||
+                    service.id === 'auto_comments_foreign' ||
+                    service.id === 'auto_followers_foreign' ||
+                    service.id === 'auto_regram_foreign' ||
+                    service.id === 'auto_reels_views_foreign' ||
+                    service.id === 'auto_exposure_save_share_foreign'
                 }
                 return true
               })
@@ -2234,43 +2234,43 @@ const Home = () => {
                 }
 
                 return (
-              <div 
-                key={id} 
-                className={`service-item ${special ? 'special' : ''} ${featured ? 'featured' : ''} ${selectedService === id ? 'selected' : ''}`}
-                onClick={() => handleServiceSelect(id)}
-              >
-                <div className="service-content">
+                  <div
+                    key={id}
+                    className={`service-item ${special ? 'special' : ''} ${featured ? 'featured' : ''} ${selectedService === id ? 'selected' : ''}`}
+                    onClick={() => handleServiceSelect(id)}
+                  >
+                    <div className="service-content">
                       <div className="service-title-row">
                         {getServiceBadge(id)}
                         {badge && <span className="service-badge custom">{badge}</span>}
-                  <span className="service-name">{name}</span>
+                        <span className="service-name">{name}</span>
                       </div>
-                  {featured && <Star size={16} className="featured-icon" />}
-                  {special && (
-                    <div className="special-indicator">
-                      <Sparkles size={16} />
-                      <Sparkles size={16} />
-      </div>
-                  )}
-                </div>
-              </div>
+                      {featured && <Star size={16} className="featured-icon" />}
+                      {special && (
+                        <div className="special-indicator">
+                          <Sparkles size={16} />
+                          <Sparkles size={16} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )
               })}
           </div>
         </div>
       </div>
-      
+
       {/* Detailed Service Selection */}
       {selectedService && detailedServices.length > 0 && (
         <div className="detailed-service-selection">
           <h3>
-            
+
             세부 서비스를 선택해주세요
           </h3>
           <div className="detailed-service-list">
             {detailedServices.map((service) => (
-              <div 
-                key={service.id} 
+              <div
+                key={service.id}
                 className={`detailed-service-item ${selectedDetailedService?.id === service.id ? 'selected' : ''}`}
                 onClick={() => handleDetailedServiceSelect(service)}
               >
@@ -2285,29 +2285,29 @@ const Home = () => {
                     {(() => {
                       const price = service.price / 1000;
                       const formattedPrice = price % 1 === 0 ? price.toString() : price.toFixed(2);
-                      return (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp' || selectedPlatform === 'top-exposure') ? 
-                        `₩${formattedPrice}` : 
+                      return (selectedPlatform === 'instagram' || selectedPlatform === 'threads' || selectedPlatform === 'youtube' || selectedPlatform === 'facebook' || selectedPlatform === 'naver' || selectedPlatform === 'tiktok' || selectedPlatform === 'twitter' || selectedPlatform === 'telegram' || selectedPlatform === 'whatsapp' || selectedPlatform === 'top-exposure') ?
+                        `₩${formattedPrice}` :
                         `${formattedPrice}원`
                     })()}
                   </div>
                 </div>
-                </div>
+              </div>
             ))}
           </div>
         </div>
       )}
-      
+
       {/* Order Form */}
       {selectedDetailedService && (
         <div className="order-form">
           <div className="order-info-header">
             <h3>주문 정보 입력</h3>
           </div>
-          
+
           {/* 상품 설명 */}
           <div className="product-description">
-            <div 
-              className="description-header" 
+            <div
+              className="description-header"
               onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
               style={{ cursor: 'pointer' }}
             >
@@ -2320,34 +2320,34 @@ const Home = () => {
               </div>
             )}
           </div>
-          
+
           {/* Quantity Selection - 패키지 상품 또는 drip-feed 상품이 아닐 때만 표시 */}
           {selectedDetailedService && !selectedDetailedService.package && !selectedDetailedService.drip_feed && (
-          <div className="form-group">
+            <div className="form-group">
               <label className="quantity-label">수량 선택</label>
-            <input
-              type="number"
+              <input
+                type="number"
                 value={quantity === 0 ? '' : quantity}
-              onChange={(e) => {
+                onChange={(e) => {
                   const inputValue = e.target.value
                   if (inputValue === '') {
                     handleQuantityChange(0)
                   } else {
                     const newQuantity = parseInt(inputValue)
                     if (!isNaN(newQuantity)) {
-                  handleQuantityChange(newQuantity)
+                      handleQuantityChange(newQuantity)
                     }
-                }
-              }}
+                  }
+                }}
                 min="0"
-              max={selectedDetailedService.max}
+                max={selectedDetailedService.max}
                 className={`quantity-input-field ${quantity > 0 && quantity < selectedDetailedService.min ? 'quantity-input-invalid' : ''}`}
                 placeholder="수량을 입력하세요 (0부터 시작)"
-            />
+              />
               <div className="quantity-hint-left">
                 최소 {(selectedDetailedService.min || 0).toLocaleString()} : 최대 {(selectedDetailedService.max || 0).toLocaleString()}
+              </div>
             </div>
-          </div>
           )}
 
 
@@ -2362,160 +2362,160 @@ const Home = () => {
             />
           </div>
 
-          {selectedDetailedService && selectedDetailedService.package && selectedDetailedService.steps && 
-           (selectedDetailedService.id === 1003 || selectedDetailedService.id === 1004 || selectedDetailedService.id === 1002) && (
-            <div className="package-steps">
-              <h3>📦 패키지 구성</h3>
-              <div className="steps-container">
-                {selectedDetailedService.steps.map((step, index) => (
-                  <div key={step.id} className="package-step">
-                    <div className="step-header">
-                      <span className="step-number">{index + 1}</span>
-                      <span className="step-name">{step.name}</span>
+          {selectedDetailedService && selectedDetailedService.package && selectedDetailedService.steps &&
+            (selectedDetailedService.id === 1003 || selectedDetailedService.id === 1004 || selectedDetailedService.id === 1002) && (
+              <div className="package-steps">
+                <h3>📦 패키지 구성</h3>
+                <div className="steps-container">
+                  {selectedDetailedService.steps.map((step, index) => (
+                    <div key={step.id} className="package-step">
+                      <div className="step-header">
+                        <span className="step-number">{index + 1}</span>
+                        <span className="step-name">{step.name}</span>
+                      </div>
+                      <div className="step-details">
+                        <p className="step-description">{step.description}</p>
+                        <p className="step-quantity">수량: {(step.quantity || 0).toLocaleString()}개</p>
+                      </div>
                     </div>
-                    <div className="step-details">
-                      <p className="step-description">{step.description}</p>
-                      <p className="step-quantity">수량: {(step.quantity || 0).toLocaleString()}개</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="package-total">
-                <strong>총 패키지 가격: {(() => {
-                  const price = selectedDetailedService.price / 1000;
-                  const formattedPrice = price % 1 === 0 ? price.toString() : price.toFixed(2);
-                  return `${formattedPrice}원`;
-                })()}</strong>
-              </div>
-            </div>
-          )}
-
-          {/* Comments Input */}
-          {((selectedPlatform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) || 
-            (selectedPlatform === 'youtube' && selectedService === 'comments_korean')) && (
-            <div className="form-group">
-              <label>댓글 내용</label>
-              <textarea
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-                placeholder="댓글 내용을 입력하세요 (최대 200자)"
-                maxLength="200"
-                className="form-control"
-                rows="4"
-              />
-              <div className="char-count">{(comments || '').length}/200</div>
-            </div>
-          )}
-
-          {/* 예약 발송 체크박스 - 숨김 처리 */}
-          {false && (
-          <div className="scheduled-order-section">
-            <div className="scheduled-order-checkbox">
-              <input
-                type="checkbox"
-                id="scheduledOrder"
-                checked={isScheduledOrder}
-                onChange={(e) => handleScheduledOrderChange(e.target.checked)}
-                className="scheduled-checkbox"
-              />
-              <label htmlFor="scheduledOrder" className="scheduled-label">
-                📅 예약 발송
-              </label>
-            </div>
-
-            {/* 예약 발송 날짜/시간 선택 */}
-            {isScheduledOrder && (
-              <div className="scheduled-order-details">
-                <div className="scheduled-inputs">
-                  <input
-                    type="date"
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="scheduled-date-input"
-                    placeholder="날짜"
-                  />
-                  <input
-                    type="time"
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    className="scheduled-time-input"
-                    placeholder="시간"
-                  />
+                  ))}
                 </div>
-                <div className="scheduled-info">
-                  <span>⏰ {scheduledDate && scheduledTime ? `${scheduledDate} ${scheduledTime}` : '날짜와 시간을 선택해주세요'}</span>
+                <div className="package-total">
+                  <strong>총 패키지 가격: {(() => {
+                    const price = selectedDetailedService.price / 1000;
+                    const formattedPrice = price % 1 === 0 ? price.toString() : price.toFixed(2);
+                    return `${formattedPrice}원`;
+                  })()}</strong>
                 </div>
               </div>
             )}
-          </div>
+
+          {/* Comments Input */}
+          {((selectedPlatform === 'instagram' && (selectedService === 'comments_korean' || selectedService === 'comments_foreign')) ||
+            (selectedPlatform === 'youtube' && selectedService === 'comments_korean')) && (
+              <div className="form-group">
+                <label>댓글 내용</label>
+                <textarea
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                  placeholder="댓글 내용을 입력하세요 (최대 200자)"
+                  maxLength="200"
+                  className="form-control"
+                  rows="4"
+                />
+                <div className="char-count">{(comments || '').length}/200</div>
+              </div>
+            )}
+
+          {/* 예약 발송 체크박스 - 숨김 처리 */}
+          {false && (
+            <div className="scheduled-order-section">
+              <div className="scheduled-order-checkbox">
+                <input
+                  type="checkbox"
+                  id="scheduledOrder"
+                  checked={isScheduledOrder}
+                  onChange={(e) => handleScheduledOrderChange(e.target.checked)}
+                  className="scheduled-checkbox"
+                />
+                <label htmlFor="scheduledOrder" className="scheduled-label">
+                  📅 예약 발송
+                </label>
+              </div>
+
+              {/* 예약 발송 날짜/시간 선택 */}
+              {isScheduledOrder && (
+                <div className="scheduled-order-details">
+                  <div className="scheduled-inputs">
+                    <input
+                      type="date"
+                      value={scheduledDate}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="scheduled-date-input"
+                      placeholder="날짜"
+                    />
+                    <input
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                      className="scheduled-time-input"
+                      placeholder="시간"
+                    />
+                  </div>
+                  <div className="scheduled-info">
+                    <span>⏰ {scheduledDate && scheduledTime ? `${scheduledDate} ${scheduledTime}` : '날짜와 시간을 선택해주세요'}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* 분할 발송 체크박스 - 숨김 처리 */}
           {false && (
-          <div className="split-delivery-section">
-            <div className="split-delivery-checkbox">
-              <input
-                type="checkbox"
-                id="splitDelivery"
-                checked={isSplitDelivery}
-                onChange={(e) => handleSplitDeliveryChange(e.target.checked)}
-                className="split-checkbox"
-              />
-              <label htmlFor="splitDelivery" className="split-label">
-                📦 분할 발송
-              </label>
-            </div>
+            <div className="split-delivery-section">
+              <div className="split-delivery-checkbox">
+                <input
+                  type="checkbox"
+                  id="splitDelivery"
+                  checked={isSplitDelivery}
+                  onChange={(e) => handleSplitDeliveryChange(e.target.checked)}
+                  className="split-checkbox"
+                />
+                <label htmlFor="splitDelivery" className="split-label">
+                  📦 분할 발송
+                </label>
+              </div>
 
-            {/* 분할 발송 설정 */}
-            {isSplitDelivery && (
-              <div className="split-delivery-details">
-                <div className="split-inputs">
-                  <div className="split-input-group">
-                    <label className="split-input-label">분할 기간 (일)</label>
-                    <input
-                      type="number"
-                      value={splitDays}
-                      onChange={(e) => setSplitDays(Math.max(0, parseInt(e.target.value) || 0))}
-                      min="0"
-                      max="30"
-                      className="split-days-input"
-                      placeholder="예: 7"
-                    />
-                    <div className="split-input-help">
-                      총 수량을 몇 일에 나누어 발송할지 입력하세요
-                      <br />
-                      <span className="min-quantity-info">
-                        (최소 수량: {selectedDetailedService?.min || 1}개/일)
-                      </span>
-                      {isSplitDelivery && !isSplitDeliveryValid() && (
-                        <>
-                          <br />
-                          <span className="warning-text">
-                            ⚠️ 기간을 조정하여 총 수량을 초과하지 않도록 해주세요
-                          </span>
-                        </>
-                      )}
+              {/* 분할 발송 설정 */}
+              {isSplitDelivery && (
+                <div className="split-delivery-details">
+                  <div className="split-inputs">
+                    <div className="split-input-group">
+                      <label className="split-input-label">분할 기간 (일)</label>
+                      <input
+                        type="number"
+                        value={splitDays}
+                        onChange={(e) => setSplitDays(Math.max(0, parseInt(e.target.value) || 0))}
+                        min="0"
+                        max="30"
+                        className="split-days-input"
+                        placeholder="예: 7"
+                      />
+                      <div className="split-input-help">
+                        총 수량을 몇 일에 나누어 발송할지 입력하세요
+                        <br />
+                        <span className="min-quantity-info">
+                          (최소 수량: {selectedDetailedService?.min || 1}개/일)
+                        </span>
+                        {isSplitDelivery && !isSplitDeliveryValid() && (
+                          <>
+                            <br />
+                            <span className="warning-text">
+                              ⚠️ 기간을 조정하여 총 수량을 초과하지 않도록 해주세요
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="split-input-group">
+                      <label className="split-input-label">일일 수량 (자동계산)</label>
+                      <input
+                        type="number"
+                        value={getDailyQuantity()}
+                        disabled
+                        className="split-quantity-input disabled"
+                        placeholder="자동계산"
+                      />
+                      <div className="split-input-help">총 수량 ÷ 기간 = 일일 수량</div>
                     </div>
                   </div>
-                  <div className="split-input-group">
-                    <label className="split-input-label">일일 수량 (자동계산)</label>
-                    <input
-                      type="number"
-                      value={getDailyQuantity()}
-                      disabled
-                      className="split-quantity-input disabled"
-                      placeholder="자동계산"
-                    />
-                    <div className="split-input-help">총 수량 ÷ 기간 = 일일 수량</div>
+                  <div className={`split-info ${!isSplitDeliveryValid() ? 'warning' : ''}`}>
+                    <span>📊 {getSplitInfo()}</span>
                   </div>
                 </div>
-                <div className={`split-info ${!isSplitDeliveryValid() ? 'warning' : ''}`}>
-                  <span>📊 {getSplitInfo()}</span>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
           )}
 
           {/* Total Price */}
@@ -2530,17 +2530,17 @@ const Home = () => {
           {/* Action Buttons */}
           <div className="action-buttons">
             {isGuest ? (
-              <button 
-                className="login-required-btn" 
+              <button
+                className="login-required-btn"
                 onClick={() => setShowAuthModal(true)}
                 disabled={isLoading}
               >
                 로그인하여 주문하기
               </button>
             ) : (
-            <button className="submit-btn" onClick={handlePurchase} disabled={isLoading}>
-              {isLoading ? '처리 중...' : '구매하기'}
-            </button>
+              <button className="submit-btn" onClick={handlePurchase} disabled={isLoading}>
+                {isLoading ? '처리 중...' : '구매하기'}
+              </button>
             )}
           </div>
         </div>
@@ -2550,4 +2550,4 @@ const Home = () => {
   )
 }
 
-export default Home
+export default HomeBackup

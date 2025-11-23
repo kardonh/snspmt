@@ -8,6 +8,7 @@ import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
 import LoadingSpinner from './components/LoadingSpinner'
 import Home from './pages/Home'
+import HomeBackup from './pages/HomeBackup'
 
 // 지연 로딩으로 성능 최적화
 const PaymentPage = lazy(() => import('./pages/PaymentPage'))
@@ -40,7 +41,8 @@ function App() {
                   <Layout>
                 <Suspense fallback={<LoadingSpinner message="페이지를 로딩하는 중..." size="large" />}>
                   <Routes>
-                    <Route path="/" element={<Home />} />
+                    <Route path="/" element={<Home/>} />
+                    <Route path="/HomeBackup" element={<HomeBackup />} />
                     <Route path="/payment/:platform" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
                     <Route path="/order-complete/:orderId" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />
                     <Route path="/order-complete" element={<ProtectedRoute><OrderCompletePage /></ProtectedRoute>} />

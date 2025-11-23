@@ -12,10 +12,6 @@ import {
   ChevronRight,
   RefreshCw
 } from 'lucide-react'
-import CategoryManager from './admin_service/CategoryManager'
-import ProductManager from './admin_service/ProductManager'
-import VariantManager from './admin_service/VariantManager'
-import PackageManager from './admin_service/PackageManager'
 import './AdminServiceManagement.css'
 
 const AdminServiceManagement = ({ adminFetch }) => {
@@ -25,7 +21,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
   const [packages, setPackages] = useState([])
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
   const [selectedProductId, setSelectedProductId] = useState(null)
-  const [expandedCategories, setExpandedCategories] = useState(new Set())
+  const [activeTab, setActiveTab] = useState('categories')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -218,26 +214,17 @@ const AdminServiceManagement = ({ adminFetch }) => {
     setSelectedProductId(productId)
   }
 
-  // 카테고리 ?��?
-  const toggleCategory = (categoryId) => {
-    const newExpanded = new Set(expandedCategories)
-    if (newExpanded.has(categoryId)) {
-      newExpanded.delete(categoryId)
-    } else {
-      newExpanded.add(categoryId)
-    }
-    setExpandedCategories(newExpanded)
-  }
+  const filteredProducts = selectedCategoryId
+    ? products.filter(p => p.category_id === selectedCategoryId)
+    : products
 
-  // 카테고리�??�품 ?�터�?
-  const getProductsByCategory = (categoryId) => {
-    return products.filter(p => p.category_id === categoryId)
-  }
-
-  // ?�품�??�션 ?�터�?
-  const getVariantsByProduct = (productId) => {
-    return variants.filter(v => v.product_id === productId)
-  }
+  const filteredVariants = variants.filter(variant => {
+    const product = products.find(p => p.product_id === variant.product_id)
+    if (!product) return false
+    if (selectedCategoryId && product.category_id !== selectedCategoryId) return false
+    if (selectedProductId && variant.product_id !== selectedProductId) return false
+    return true
+  })
 
   // 카테고리 추�?/수정
   const handleCategorySubmit = async (e) => {
@@ -769,13 +756,280 @@ const AdminServiceManagement = ({ adminFetch }) => {
     })
   }
 
+  const tabs = [
+    { key: 'categories', label: '카테고리', count: categories.length },
+    { key: 'products', label: '상품', count: products.length },
+    { key: 'services', label: '세부서비스', count: variants.length },
+    { key: 'packages', label: '패키지', count: packages.length }
+  ]
+
+  const renderCategoryTable = () => (
+    <div className="table-card">
+      <div className="table-header">
+        <div>
+          <h3>카테고리</h3>
+          <p>서비스를 묶을 최상위 카테고리를 관리하세요.</p>
+        </div>
+        <button className="btn-primary" onClick={() => openCategoryModal()}>
+          <Plus size={14} />
+          카테고리 추가
+        </button>
+      </div>
+      <div className="table-wrapper">
+        <table className="management-table">
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>슬러그</th>
+              <th>상태</th>
+              <th>액션</th>
+            </tr>
+          </thead>
+          <tbody>
+            {categories.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="empty-row">등록된 카테고리가 없습니다.</td>
+              </tr>
+            ) : (
+              categories.map(category => (
+                <tr key={category.category_id}>
+                  <td>{category.name}</td>
+                  <td>{category.slug || '-'}</td>
+                  <td>
+                    <span className={`status-pill ${category.is_active ? 'active' : 'inactive'}`}>
+                      {category.is_active ? '활성' : '비활성'}
+                    </span>
+                  </td>
+                  <td className="table-actions">
+                    <button className="btn-icon" onClick={() => openCategoryModal(category)}>
+                      <Edit size={14} />
+                    </button>
+                    <button className="btn-icon danger" onClick={() => handleDeleteCategory(category.category_id)}>
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+
+  const renderProductTable = () => (
+    <div className="table-card">
+      <div className="table-header">
+        <div>
+          <h3>상품 (Sub Category)</h3>
+          <p>카테고리 안에서 세부서비스를 묶는 상품을 관리하세요.</p>
+        </div>
+        <button className="btn-primary" onClick={() => openProductModal()}>
+          <Plus size={14} />
+          상품 추가
+        </button>
+      </div>
+      <div className="table-wrapper">
+        <table className="management-table">
+          <thead>
+            <tr>
+              <th>상품명</th>
+              <th>소속 카테고리</th>
+              <th>설명</th>
+              <th>옵션</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="empty-row">등록된 상품이 없습니다.</td>
+              </tr>
+            ) : (
+              products.map(product => {
+                const category = categories.find(cat => cat.category_id === product.category_id)
+                return (
+                  <tr key={product.product_id}>
+                    <td>{product.name}</td>
+                    <td>{category ? category.name : '-'}</td>
+                    <td>{product.description || '-'}</td>
+                    <td className="table-actions">
+                      <button className="btn-icon" onClick={() => openProductModal(product)}>
+                        <Edit size={14} />
+                      </button>
+                      <button className="btn-icon danger" onClick={() => handleDeleteProduct(product.product_id)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+
+  const renderVariantTable = () => (
+    <div className="table-card">
+      <div className="table-header">
+        <div>
+          <h3>세부서비스</h3>
+          <p>실제 주문 가능한 세부서비스를 관리하세요.</p>
+        </div>
+        <button className="btn-primary" onClick={() => openVariantModal()}>
+          <Plus size={14} />
+          세부서비스 추가
+        </button>
+      </div>
+
+      <div className="table-filters">
+        <select
+          value={selectedCategoryId || ''}
+          onChange={(e) => {
+            const value = e.target.value ? parseInt(e.target.value) : null
+            setSelectedCategoryId(value)
+            setSelectedProductId(null)
+          }}
+        >
+          <option value="">전체 카테고리</option>
+          {categories.map(cat => (
+            <option key={cat.category_id} value={cat.category_id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={selectedProductId || ''}
+          onChange={(e) => setSelectedProductId(e.target.value ? parseInt(e.target.value) : null)}
+          disabled={!selectedCategoryId}
+        >
+          <option value="">전체 상품</option>
+          {filteredProducts.map(prod => (
+            <option key={prod.product_id} value={prod.product_id}>
+              {prod.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="table-wrapper">
+        <table className="management-table">
+          <thead>
+            <tr>
+              <th>서비스명</th>
+              <th>카테고리</th>
+              <th>상품</th>
+              <th>가격</th>
+              <th>최소/최대</th>
+              <th>상태</th>
+              <th>액션</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredVariants.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="empty-row">조건에 맞는 세부서비스가 없습니다.</td>
+              </tr>
+            ) : (
+              filteredVariants.map(variant => {
+                const product = products.find(p => p.product_id === variant.product_id)
+                const category = product ? categories.find(cat => cat.category_id === product.category_id) : null
+                return (
+                  <tr key={variant.variant_id}>
+                    <td>{variant.name}</td>
+                    <td>{category ? category.name : '-'}</td>
+                    <td>{product ? product.name : '-'}</td>
+                    <td>{parseFloat(variant.price).toLocaleString()}원</td>
+                    <td>
+                      {variant.min_quantity || '-'} / {variant.max_quantity || '-'}
+                    </td>
+                    <td>
+                      <span className={`status-pill ${variant.is_active ? 'active' : 'inactive'}`}>
+                        {variant.is_active ? '활성' : '비활성'}
+                      </span>
+                    </td>
+                    <td className="table-actions">
+                      <button className="btn-icon" onClick={() => openVariantModal(variant)}>
+                        <Edit size={14} />
+                      </button>
+                      <button className="btn-icon danger" onClick={() => handleDeleteVariant(variant.variant_id)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+
+  const renderPackageTable = () => (
+    <div className="table-card">
+      <div className="table-header">
+        <div>
+          <h3>패키지</h3>
+          <p>여러 세부서비스를 묶어 판매할 패키지를 관리하세요.</p>
+        </div>
+        <button className="btn-primary" onClick={() => openPackageModal()}>
+          <Plus size={14} />
+          패키지 추가
+        </button>
+      </div>
+      <div className="table-wrapper">
+        <table className="management-table">
+          <thead>
+            <tr>
+              <th>패키지명</th>
+              <th>카테고리</th>
+              <th>설명</th>
+              <th>가격</th>
+              <th>액션</th>
+            </tr>
+          </thead>
+          <tbody>
+            {packages.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="empty-row">등록된 패키지가 없습니다.</td>
+              </tr>
+            ) : (
+              packages.map(pkg => {
+                const price = pkg?.meta_json?.price ?? pkg.price
+                const category = categories.find(cat => cat.category_id === pkg.category_id)
+                return (
+                  <tr key={pkg.package_id}>
+                    <td>{pkg.name}</td>
+                    <td>{category ? category.name : '-'}</td>
+                    <td>{pkg.description || '-'}</td>
+                    <td>{price ? `${parseFloat(price).toLocaleString()}원` : '-'}</td>
+                    <td className="table-actions">
+                      <button className="btn-icon" onClick={() => openPackageModal(pkg)}>
+                        <Edit size={14} />
+                      </button>
+                      <button className="btn-icon danger" onClick={() => handleDeletePackage(pkg.package_id)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+
   return (
     <div className="admin-service-management">
       <div className="service-header">
         <div>
           <h2>서비스 관리</h2>
           <p className="service-subtitle">
-            카테고리 → 상품 → 세부서비스 → 패키지 순서로 구성하세요.
+            카테고리, 상품, 세부서비스, 패키지를 한 곳에서 관리하세요.
           </p>
         </div>
         <div className="header-actions">
@@ -788,49 +1042,25 @@ const AdminServiceManagement = ({ adminFetch }) => {
 
       {error && <div className="error-message">{error}</div>}
 
-      <div className="service-flow-grid">
-        <CategoryManager
-          categories={categories}
-          selectedCategoryId={selectedCategoryId}
-          onSelectCategory={handleSelectCategory}
-          onAddCategory={() => openCategoryModal()}
-          onEditCategory={openCategoryModal}
-          onDeleteCategory={handleDeleteCategory}
-        />
-        <ProductManager
-          categories={categories}
-          products={products}
-          selectedCategoryId={selectedCategoryId}
-          selectedProductId={selectedProductId}
-          onSelectProduct={handleSelectProduct}
-          onAddProduct={(categoryId) => openProductModal(null, categoryId)}
-          onEditProduct={openProductModal}
-          onDeleteProduct={handleDeleteProduct}
-          onAddVariant={(productId, categoryId) => openVariantModal(null, productId, categoryId)}
-        />
-        <VariantManager
-          variants={variants}
-          products={products}
-          selectedProductId={selectedProductId}
-          onAddVariant={(productId, categoryId) => openVariantModal(null, productId, categoryId)}
-          onEditVariant={openVariantModal}
-          onDeleteVariant={handleDeleteVariant}
-        />
+      <div className="service-tabs">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            className={`tab-button ${activeTab === tab.key ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+            <span className="tab-count">{tab.count}</span>
+          </button>
+        ))}
       </div>
 
-      <PackageManager
-        packages={packages}
-        categories={categories}
-        onAddPackage={() => openPackageModal()}
-        onEditPackage={openPackageModal}
-        onDeletePackage={handleDeletePackage}
-      />
-
-      <div className="section-header" style={{ marginTop: '40px' }}>
-        <h3>전체 서비스 구조</h3>
-        <p>트리 구조로 한눈에 확인하세요.</p>
+      <div className="tab-panel">
+        {activeTab === 'categories' && renderCategoryTable()}
+        {activeTab === 'products' && renderProductTable()}
+        {activeTab === 'services' && renderVariantTable()}
+        {activeTab === 'packages' && renderPackageTable()}
       </div>
-
 
       {/* 카테고리 모달 */}
       {showCategoryModal && (
