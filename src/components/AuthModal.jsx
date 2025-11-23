@@ -28,6 +28,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
   const [referralCode, setReferralCode] = useState('')
   const [referralCodeValid, setReferralCodeValid] = useState(false)
   const [referralCodeError, setReferralCodeError] = useState('')
+  const [referralCodeValidating, setReferralCodeValidating] = useState(false)
   const [autoLogin, setAutoLogin] = useState(false)
   
   const { login, signup, kakaoLogin, googleLogin } = useAuth()
@@ -44,6 +45,9 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
       setReferralCodeError('')
       return
     }
+
+    setReferralCodeValidating(true)
+    setReferralCodeError('')
 
     try {
       const response = await fetch(`/api/referral/validate-code?code=${encodeURIComponent(code)}`)
@@ -63,10 +67,12 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
     } catch (error) {
       setReferralCodeValid(false)
       setReferralCodeError('추천인 코드 검증 중 오류가 발생했습니다.')
+    } finally {
+      setReferralCodeValidating(false)
     }
   }
 
-  // URL 파라미터에서 추천인 코드 읽기
+  // URL 파라미터에서 추천인 코드 읽기 (자동 검증 없이 입력 필드에만 채움)
   useEffect(() => {
     if (isOpen && !isLogin) {
       // URL 파라미터에서 추천인 코드 읽기 (ref 또는 referral)
@@ -76,8 +82,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
       if (refCode) {
         console.log('🔗 추천인 링크에서 코드 감지:', refCode)
         setReferralCode(refCode)
-        // 추천인 코드 유효성 검증
-        validateReferralCode(refCode)
+        // 검증은 사용자가 확인 버튼을 눌렀을 때만 수행
       }
     }
   }, [isOpen, isLogin])
@@ -113,11 +118,19 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
   const handleReferralCodeChange = (e) => {
     const code = e.target.value
     setReferralCode(code)
-    if (code.trim()) {
-      validateReferralCode(code)
-    } else {
+    // 입력이 변경되면 검증 상태 초기화
+    if (code.trim() !== referralCode.trim()) {
       setReferralCodeValid(false)
       setReferralCodeError('')
+    }
+  }
+
+  // 추천인 코드 확인 버튼 핸들러
+  const handleValidateReferralCode = () => {
+    if (referralCode.trim()) {
+      validateReferralCode(referralCode)
+    } else {
+      setReferralCodeError('추천인 코드를 입력해주세요.')
     }
   }
 
@@ -485,14 +498,34 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
                     <span className="valid-icon">✓</span>
                   )}
                 </label>
-                <input
-                  type="text"
-                  id="referralCode"
-                  value={referralCode}
-                  onChange={handleReferralCodeChange}
-                  placeholder="추천인 코드를 입력하세요"
-                  className={referralCode ? (referralCodeValid ? 'valid' : 'invalid') : ''}
-                />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    id="referralCode"
+                    value={referralCode}
+                    onChange={handleReferralCodeChange}
+                    placeholder="추천인 코드를 입력하세요"
+                    className={referralCode ? (referralCodeValid ? 'valid' : 'invalid') : ''}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleValidateReferralCode}
+                    disabled={referralCodeValidating || !referralCode.trim()}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: referralCodeValidating ? '#ccc' : '#007bff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: referralCodeValidating || !referralCode.trim() ? 'not-allowed' : 'pointer',
+                      whiteSpace: 'nowrap',
+                      fontSize: '14px'
+                    }}
+                  >
+                    {referralCodeValidating ? '확인중...' : '확인'}
+                  </button>
+                </div>
                 {referralCodeError && (
                   <div className="error-message">{referralCodeError}</div>
                 )}
