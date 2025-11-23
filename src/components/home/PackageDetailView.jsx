@@ -2,6 +2,7 @@ import React from 'react'
 import { Package, Clock } from 'lucide-react'
 
 function PackageDetailView({ packageDetail, onClose }) {
+  console.log(packageDetail)
   const formatPrice = (price) => {
     const priceValue = parseFloat(price) / 1000
     return priceValue % 1 === 0 ? priceValue.toString() : priceValue.toFixed(2)
@@ -30,7 +31,7 @@ function PackageDetailView({ packageDetail, onClose }) {
 
       <div className="detailed-service-list">
         {packageDetail.steps?.map((step, index) => (
-          <div key={step.package_item_id} className="detailed-service-item">
+          <div key={index} className="detailed-service-item">
             <div className="detailed-service-content">
               <div className="detailed-service-info">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -45,7 +46,7 @@ function PackageDetailView({ packageDetail, onClose }) {
                 </div>
               </div>
               <div className="detailed-service-price">
-                ₩{formatPrice(calculateStepPrice(step).toString())}
+                ₩{formatPrice(calculateStepPrice(packageDetail.items[index]).toString())}
               </div>
             </div>
           </div>
