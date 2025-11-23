@@ -18,7 +18,7 @@ import {
   Info,
   UserPlus,
   Bell,
-  FileText,
+  File,
   Edit,
   Trash2,
   Package,
@@ -1804,7 +1804,7 @@ const AdminPage = () => {
           className={`tab-button ${activeTab === 'blog' ? 'active' : ''}`}
           onClick={() => setActiveTab('blog')}
                   >
-          <FileText size={20} />
+          <File size={20} />
           블로그 관리
                   </button>
                   <button
@@ -1856,7 +1856,7 @@ const AdminPage = () => {
                     className="admin-button"
                     onClick={() => navigate('/admin/blog')}
                   >
-                    <FileText size={16} />
+                    <File size={16} />
                     블로그 관리 페이지로 이동
                   </button>
                 </div>
@@ -2313,7 +2313,7 @@ const AdminPage = () => {
               className="admin-button primary"
               onClick={() => navigate('/admin/blog')}
             >
-              <FileText size={16} />
+              <File size={16} />
               블로그 관리 페이지로 이동
             </button>
           </div>

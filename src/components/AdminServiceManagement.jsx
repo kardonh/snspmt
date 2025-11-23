@@ -1312,9 +1312,9 @@ const AdminServiceManagement = ({ adminFetch }) => {
                       rows={4}
                       style={{ fontFamily: 'monospace', fontSize: '12px' }}
                     />
-                    <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
-                      JSON 형식으로 커스텀 필드를 설정합니다. 예: {"field1": {"label": "사용자명", "type": "text", "required": true}}
-                    </small>
+                      <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                        JSON 형식으로 커스텀 필드를 설정합니다. 예: &#123;"field1": &#123;"label": "사용자명", "type": "text", "required": true&#125;&#125;
+                      </small>
                   </div>
                 )}
               </div>
