@@ -28,6 +28,8 @@ import ReferralRegistration from '../components/ReferralRegistration'
 import AdminServiceManagement from '../components/AdminServiceManagement'
 import AdminUserManagement from '../components/AdminUserManagement'
 import AdminCouponManagement from '../components/AdminCouponManagement'
+import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../supabase/client'
 import { 
   saveReferralCode, 
   getReferralCodes, 
@@ -39,20 +41,141 @@ import './AdminPage.css'
 
 const AdminPage = () => {
   const navigate = useNavigate()
+  const { currentUser } = useAuth()
+  const [isAdmin, setIsAdmin] = useState(null)  // null: 체크 중, true: 관리자, false: 일반 사용자
+  const [checkingAdmin, setCheckingAdmin] = useState(true)
   
-  // 관리자 API 호출 헬퍼 함수
-  const adminFetch = async (url, options = {}) => {
-    const defaultHeaders = {
-      'X-Admin-Token': 'admin_sociality_2024' // 관리자 토큰
+  // 관리자 권한 체크
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      if (!currentUser) {
+        setIsAdmin(false)
+        setCheckingAdmin(false)
+        return
+      }
+      
+      try {
+        // Supabase 세션 가져오기
+        const session = await supabase.auth.getSession()
+        const accessToken = session.data?.session?.access_token
+        
+        if (!accessToken) {
+          setIsAdmin(false)
+          setCheckingAdmin(false)
+          return
+        }
+        
+        // 백엔드 API로 관리자 권한 확인
+        const response = await fetch('/api/users/check-admin', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setIsAdmin(data.is_admin === true)
+        } else {
+          setIsAdmin(false)
+        }
+      } catch (error) {
+        console.error('관리자 권한 체크 실패:', error)
+        setIsAdmin(false)
+      } finally {
+        setCheckingAdmin(false)
+      }
     }
     
-    return fetch(url, {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers
+    checkAdminAccess()
+  }, [currentUser])
+  
+  // 관리자 API 호출 헬퍼 함수 - Authorization 헤더 사용
+  const adminFetch = async (url, options = {}) => {
+    try {
+      const session = await supabase.auth.getSession()
+      const accessToken = session.data?.session?.access_token
+      
+      const defaultHeaders = {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
       }
-    })
+      
+      return fetch(url, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options.headers
+        }
+      })
+    } catch (error) {
+      console.error('adminFetch 오류:', error)
+      throw error
+    }
+  }
+  
+  // 관리자 권한 체크 중
+  if (checkingAdmin) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '20px'
+      }}>
+        <div style={{ fontSize: '18px', color: '#333' }}>
+          관리자 권한 확인 중...
+        </div>
+        <div style={{ 
+          width: '40px', 
+          height: '40px', 
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #667eea',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+      </div>
+    )
+  }
+  
+  // 관리자가 아닌 경우 접근 거부
+  if (isAdmin === false) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '20px',
+        padding: '20px',
+        textAlign: 'center'
+      }}>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc2626' }}>
+          접근 권한이 없습니다
+        </div>
+        <div style={{ fontSize: '16px', color: '#666' }}>
+          관리자 권한이 필요합니다.
+        </div>
+        <button 
+          onClick={() => navigate('/')}
+          style={{
+            padding: '10px 20px',
+            fontSize: '16px',
+            backgroundColor: '#667eea',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}
+        >
+          홈으로 돌아가기
+        </button>
+      </div>
+    )
   }
 
   // 상태 관리
