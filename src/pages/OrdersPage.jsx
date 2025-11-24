@@ -47,6 +47,8 @@ const OrderCard = ({ order, onCopyOrderId, onCopyLink, onRefill }) => {
     }
   }
 
+  console.log(`order:`, order)
+
   return (
     <div className="order-card">
       <div className="order-header">

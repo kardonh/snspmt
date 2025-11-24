@@ -11,7 +11,7 @@ function OrderForm({ variant, packageDetail, category, onSubmit }) {
 
   const calculatePrice = () => {
     if (isPackage) {
-      return packageDetail.steps?.reduce((sum, step) => 
+      return packageDetail.steps?.reduce((sum, step) =>
         sum + (parseFloat(step.variant_price) * step.quantity * step.repeat_count), 0) || 0
     }
     return (parseFloat(variant?.price || 0) * quantity) / 1000
@@ -32,11 +32,14 @@ function OrderForm({ variant, packageDetail, category, onSubmit }) {
     <div className="order-form">
       <div className="order-info-header">
         <h3>주문 정보 입력</h3>
+
+
       </div>
 
       {/* Quantity Selection - 패키지가 아닐 때만 표시 */}
       {!isPackage && (
         <div className="form-group">
+
           <label className="quantity-label">수량 선택</label>
           <input
             type="number"
@@ -65,6 +68,7 @@ function OrderForm({ variant, packageDetail, category, onSubmit }) {
 
       {/* Link Input */}
       <div className="form-group">
+
         <label>링크 입력</label>
         <input
           type="url"
@@ -73,6 +77,15 @@ function OrderForm({ variant, packageDetail, category, onSubmit }) {
           placeholder={`${category?.name || ''} 게시물 URL 또는 사용자명을 입력하세요`}
           className="form-control link-input-field"
         />
+
+        <div className="url-info">
+          <h5>📝 주문 URL 입력 방법</h5>
+          <div className="url-examples">
+            <p><strong>방법 1:</strong> https://www.instagram.com/인스타아이디</p>
+            <p><strong>방법 2:</strong> 인스타아이디만 입력</p>
+            <p><em>※ http → https, www 반드시 추가, I → i 소문자, co.kr → com</em></p>
+          </div>
+        </div>
       </div>
 
       {/* Package Steps Display */}
@@ -126,9 +139,9 @@ function OrderForm({ variant, packageDetail, category, onSubmit }) {
 
       {/* Submit Button */}
       <div className="action-buttons">
-        <button 
-          className="submit-btn" 
-          onClick={handleSubmit} 
+        <button
+          className="submit-btn"
+          onClick={handleSubmit}
           disabled={!isFormValid}
           style={{
             opacity: isFormValid ? 1 : 0.5,

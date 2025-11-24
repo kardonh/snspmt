@@ -4999,32 +4999,32 @@ def create_order():
                   repeat: 30
             is_scheduled:
               type: boolean
-              description: 예약 주문 여부 (선택사항, 기본값: false)
+              description: "예약 주문 여부 (선택사항, 기본값 false)"
               example: false
             scheduled_datetime:
               type: string
               format: date-time
-              description: 예약 주문 실행 시간 (is_scheduled가 true인 경우 필수)
+              description: "예약 주문 실행 시간 (is_scheduled가 true인 경우 필수)"
               example: "2024-01-01 12:00:00"
             is_split_delivery:
               type: boolean
-              description: 분할 발송 여부 (선택사항, 기본값: false)
+              description: "분할 발송 여부 (선택사항, 기본값: false)"
               example: false
             split_days:
               type: integer
-              description: 분할 발송 일수 (is_split_delivery가 true인 경우 필수)
+              description: "분할 발송 일수 (is_split_delivery가 true인 경우 필수)"
               example: 30
             split_quantity:
               type: integer
-              description: 일일 발송 수량 (is_split_delivery가 true인 경우 필수)
+              description: "일일 발송 수량 (is_split_delivery가 true인 경우 필수)"
               example: 400
             runs:
               type: integer
-              description: Drip-feed 반복 횟수 (선택사항, 기본값: 1)
+              description: "Drip-feed 반복 횟수 (선택사항, 기본값: 1)"
               example: 30
             interval:
               type: integer
-              description: Drip-feed 반복 간격(분) (선택사항, 기본값: 0). 예: 1440 = 24시간
+              description: "Drip-feed 반복 간격(분) (선택사항, 기본값: 0). 예: 1440 = 24시간"
               example: 1440
             comments:
               type: string
