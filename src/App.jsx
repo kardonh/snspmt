@@ -53,7 +53,7 @@ function App() {
                     <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
                     <Route path="/points" element={<ProtectedRoute><PointsPage /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-                    <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+                    <Route path="/admin" element={<AdminPage />}/>
                     <Route path="/referral" element={<ProtectedRoute><ReferralDashboard /></ProtectedRoute>} />
                     <Route path="/faq" element={<FAQPage />} />
                       <Route path="/blog" element={<BlogPage />} />
