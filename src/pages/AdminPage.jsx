@@ -45,76 +45,6 @@ const AdminPage = () => {
   const [isAdmin, setIsAdmin] = useState(null)  // null: 체크 중, true: 관리자, false: 일반 사용자
   const [checkingAdmin, setCheckingAdmin] = useState(true)
   
-  // 모든 상태를 조건부 return 이전에 선언 (Hooks 규칙 준수)
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [lastUpdate, setLastUpdate] = useState(null)
-  
-  // 탭별 상태 유지를 위한 상태
-  const [tabStates, setTabStates] = useState({
-    dashboard: { lastUpdate: null },
-    users: { searchTerm: '', lastUpdate: null },
-    orders: { searchTerm: '', lastUpdate: null },
-    purchases: { searchTerm: '', statusFilter: 'all', lastUpdate: null },
-    referrals: { lastUpdate: null },
-    notices: { lastUpdate: null }
-  })
-
-  // 대시보드 데이터
-  const [dashboardData, setDashboardData] = useState({
-    totalUsers: 0,
-    totalOrders: 0,
-    totalRevenue: 0,
-    pendingPurchases: 0,
-    todayOrders: 0,
-    todayRevenue: 0,
-    monthlyRevenue: 0
-  })
-
-  // 사용자 데이터
-  const [users, setUsers] = useState([])
-
-  // 주문 데이터
-  const [orders, setOrders] = useState([])
-
-  // 포인트 구매 신청 데이터
-  const [pendingPurchases, setPendingPurchases] = useState([])
-
-  // 추천인 데이터
-  const [referrals, setReferrals] = useState([])
-  const [showReferralModal, setShowReferralModal] = useState(false)
-  const [showReferralDetailModal, setShowReferralDetailModal] = useState(false)
-  const [selectedReferralCode, setSelectedReferralCode] = useState(null)
-  const [filteredPurchases, setFilteredPurchases] = useState([])
-  
-  // 공지사항 데이터
-  const [notices, setNotices] = useState([])
-  const [showNoticeModal, setShowNoticeModal] = useState(false)
-  const [editingNotice, setEditingNotice] = useState(null)
-  const [noticeForm, setNoticeForm] = useState({
-    title: '',
-    content: '',
-    image_url: '',
-    is_pinned: false,
-    is_published: false
-  })
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const [referralCodes, setReferralCodes] = useState([])
-  const [referralCommissions, setReferralCommissions] = useState([])
-  
-  // 커미션 관련 상태
-  const [commissionOverview, setCommissionOverview] = useState([])
-  const [commissionStats, setCommissionStats] = useState({})
-  const [paymentHistory, setPaymentHistory] = useState([])
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [selectedReferrer, setSelectedReferrer] = useState(null)
-  const [paymentData, setPaymentData] = useState({
-    amount: '',
-    payment_method: 'bank_transfer',
-    notes: ''
-  })
-
   // 관리자 권한 체크
   useEffect(() => {
     let timeoutId = null
@@ -134,89 +64,66 @@ const AdminPage = () => {
       }
       
       try {
-        // 먼저 localStorage에서 토큰 확인 (더 빠름)
+        // 먼저 AuthContext에서 currentUser의 email 사용 (가장 확실함)
+        let userEmail = null
+        if (currentUser && currentUser.email) {
+          userEmail = currentUser.email
+          console.log('✅ AuthContext에서 email 획득:', userEmail)
+        }
+        
+        // localStorage에서 토큰 확인
         console.log('🔍 localStorage에서 토큰 확인...')
         let accessToken = null
         
-        // 모든 localStorage 키를 확인하여 Supabase 토큰 찾기
-        console.log('🔍 localStorage 전체 스캔 중...')
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i)
-          if (key && (key.includes('supabase') || key.includes('sb-') || key.includes('auth'))) {
-            const value = localStorage.getItem(key)
-            if (value) {
+        // 여러 가능한 localStorage 키 확인
+        const tokenKeys = [
+          'supabase_access_token',
+          'sb-access-token',
+          `sb-${window.location.hostname === 'localhost' ? 'localhost' : 'supabase'}-auth-token`
+        ]
+        
+        // localStorage의 모든 키 확인 (sb-로 시작하는 키들)
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key && (key.includes('auth-token') || key.includes('access-token'))) {
+              const value = localStorage.getItem(key)
               try {
-                // JSON 파싱 시도 (Supabase는 JSON으로 저장)
                 const parsed = JSON.parse(value)
-                if (parsed && typeof parsed === 'object') {
-                  // access_token 찾기
-                  if (parsed.access_token) {
-                    accessToken = parsed.access_token
-                    console.log(`✅ localStorage에서 토큰 발견 (JSON): ${key}`)
-                    break
-                  }
-                  // 중첩된 객체에서도 찾기
-                  if (parsed.currentSession?.access_token) {
-                    accessToken = parsed.currentSession.access_token
-                    console.log(`✅ localStorage에서 토큰 발견 (currentSession): ${key}`)
-                    break
-                  }
+                if (parsed && parsed.access_token) {
+                  accessToken = parsed.access_token
+                  console.log(`✅ localStorage에서 토큰 발견: ${key}`)
+                  break
                 }
-              } catch (e) {
-                // JSON이 아니면 문자열로 처리
-                if (value.length > 100 && value.startsWith('eyJ')) {
-                  // JWT 토큰처럼 보이면 사용
+              } catch {
+                // JSON이 아니면 그대로 사용
+                if (value && value.length > 50) {
                   accessToken = value
-                  console.log(`✅ localStorage에서 토큰 발견 (직접): ${key}`)
+                  console.log(`✅ localStorage에서 토큰 발견 (문자열): ${key}`)
                   break
                 }
               }
             }
           }
+        } catch (e) {
+          console.warn('⚠️ localStorage 검색 중 오류:', e)
         }
         
-        // localStorage에 토큰이 없으면 Supabase 세션 가져오기 시도
+        // localStorage에서 직접 찾지 못했으면 Supabase 세션 가져오기 시도 (타임아웃 없이)
         if (!accessToken) {
           console.log('🔍 localStorage에 토큰 없음, Supabase 세션 가져오기...')
-          
-          // 세션 가져오기에 타임아웃 설정 (5초로 증가)
-          const sessionTimeout = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('세션 가져오기 타임아웃 (5초)')), 5000)
-          })
-          
           try {
-            const session = await Promise.race([
-              supabase.auth.getSession(),
-              sessionTimeout
-            ])
+            const session = await supabase.auth.getSession()
             accessToken = session?.data?.session?.access_token
             console.log('🔍 세션에서 토큰 획득:', !!accessToken)
-            
-            // 세션에서 토큰을 얻었으면 localStorage에 저장
-            if (accessToken) {
-              localStorage.setItem('supabase_access_token', accessToken)
-              console.log('✅ 토큰을 localStorage에 저장')
-            }
           } catch (sessionError) {
-            console.warn('⚠️ 세션 가져오기 실패 또는 타임아웃:', sessionError.message)
-            // 토큰이 없으면 관리자가 아닌 것으로 처리
+            console.warn('⚠️ 세션 가져오기 실패:', sessionError.message)
           }
         }
         
-        // currentUser에서 직접 토큰 가져오기 시도
-        if (!accessToken && currentUser) {
-          console.log('🔍 currentUser에서 토큰 확인...')
-          // AuthContext에서 토큰을 가져올 수 있는지 확인
-          if (currentUser.access_token) {
-            accessToken = currentUser.access_token
-            console.log('✅ currentUser에서 토큰 발견')
-          }
-        }
-        
-        // currentUser의 email 확인 (토큰이 없어도 email만으로 체크 가능)
-        const userEmail = currentUser?.email
+        // 토큰이 없어도 email이 있으면 API 호출 시도 (백엔드에서 처리)
         if (!accessToken && !userEmail) {
-          console.warn('⚠️ 액세스 토큰과 email 모두 찾을 수 없습니다.')
+          console.warn('⚠️ 액세스 토큰과 email을 모두 찾을 수 없습니다.')
           if (isMounted) {
             setIsAdmin(false)
             setCheckingAdmin(false)
@@ -224,9 +131,8 @@ const AdminPage = () => {
           return
         }
         
-        console.log('🔍 API 호출 준비 완료')
-        console.log('🔍 토큰 존재:', !!accessToken)
-        console.log('🔍 Email:', userEmail)
+        console.log('🔍 API 호출 준비 완료, 토큰 존재:', !!accessToken)
+        console.log('🔍 토큰 길이:', accessToken?.length)
         
         // AbortController로 요청 취소 가능하게 만들기
         abortController = new AbortController()
@@ -241,21 +147,21 @@ const AdminPage = () => {
         
         // 백엔드 API로 관리자 권한 확인
         console.log('🔍 /api/users/check-admin 호출 중...')
-        
-        // 헤더 준비
         const headers = {
           'Content-Type': 'application/json'
         }
         
-        // 토큰이 있으면 추가
+        // 토큰이 있으면 Authorization 헤더 추가
         if (accessToken) {
           headers['Authorization'] = `Bearer ${accessToken}`
         }
         
-        // currentUser의 email이 있으면 쿼리 파라미터로 전달 (토큰 없이도 가능)
-        const url = userEmail ? `/api/users/check-admin?email=${encodeURIComponent(userEmail)}` : '/api/users/check-admin'
+        // email이 있으면 X-User-Email 헤더 추가 (백엔드에서 사용 가능)
+        if (userEmail) {
+          headers['X-User-Email'] = userEmail
+        }
         
-        const response = await fetch(url, {
+        const response = await fetch('/api/users/check-admin', {
           method: 'GET',
           headers: headers,
           signal: abortController.signal
@@ -318,19 +224,24 @@ const AdminPage = () => {
           timeoutId = null
         }
         
-        // AbortError는 React Strict Mode의 이중 실행이나 컴포넌트 언마운트로 인한 정상적인 취소
-        // 오류로 처리하지 않고 조용히 종료
+        // AbortError는 React Strict Mode에서 정상적인 동작이므로 조용히 처리
         if (error.name === 'AbortError') {
-          console.log('ℹ️ API 호출이 취소되었습니다 (정상적인 취소)')
+          // AbortError는 무시하고 조용히 종료
           return
         }
         
-        // 실제 오류인 경우에만 로그 출력
         console.error('❌ 관리자 권한 체크 오류 발생!')
         console.error('❌ 오류 타입:', error.name)
         console.error('❌ 오류 메시지:', error.message)
+        console.error('❌ 전체 오류 객체:', error)
         
-        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        // AbortError는 React Strict Mode에서 정상적인 동작 (컴포넌트 언마운트 시 요청 취소)
+        if (error.name === 'AbortError') {
+          // AbortError는 무시 (컴포넌트가 언마운트되었거나 cleanup이 실행된 경우)
+          console.log('ℹ️ API 호출이 취소되었습니다 (컴포넌트 언마운트 또는 cleanup)')
+          // AbortError는 상태를 변경하지 않음 (이미 언마운트되었거나 다음 렌더링에서 처리됨)
+          return
+        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
           console.error('❌ 네트워크 오류 또는 CORS 문제일 수 있습니다.')
           console.error('❌ API 서버가 실행 중인지 확인하세요.')
         } else {
@@ -399,65 +310,114 @@ const AdminPage = () => {
     }
   }
   
-  // 함수 선언을 위한 ref (조건부 return 이후에 정의되므로)
-  // 이 ref들은 조건부 return 이후에 실제 함수로 할당됨
-  const loadFunctionsRef = React.useRef({
-    loadAdminData: null,
-    loadReferralData: null,
-    loadCommissionData: null,
-    loadPendingPurchases: null
+  // ⚠️ 중요: React Hooks 규칙 - 모든 hooks는 조건부 return 전에 선언되어야 함
+  // 상태 관리
+  const [activeTab, setActiveTab] = useState('dashboard')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [lastUpdate, setLastUpdate] = useState(null)
+  
+  // 탭별 상태 유지를 위한 상태
+  const [tabStates, setTabStates] = useState({
+    dashboard: { lastUpdate: null },
+    users: { searchTerm: '', lastUpdate: null },
+    orders: { searchTerm: '', lastUpdate: null },
+    purchases: { searchTerm: '', statusFilter: 'all', lastUpdate: null },
+    referrals: { lastUpdate: null },
+    notices: { lastUpdate: null }
   })
+
+  // 대시보드 데이터
+  const [dashboardData, setDashboardData] = useState({
+    totalUsers: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    pendingPurchases: 0,
+    todayOrders: 0,
+    todayRevenue: 0,
+    monthlyRevenue: 0
+  })
+
+  // 사용자 데이터
+  const [users, setUsers] = useState([])
+
+  // 주문 데이터
+  const [orders, setOrders] = useState([])
+
+  // 포인트 구매 신청 데이터
+  const [pendingPurchases, setPendingPurchases] = useState([])
+
+  // 추천인 데이터
+  const [referrals, setReferrals] = useState([])
+  const [showReferralModal, setShowReferralModal] = useState(false)
+  const [showReferralDetailModal, setShowReferralDetailModal] = useState(false)
+  const [selectedReferralCode, setSelectedReferralCode] = useState(null)
+  const [filteredPurchases, setFilteredPurchases] = useState([])
   
-  // 관리자 데이터 로드 useEffect (조건부 return 이전에 선언)
-  // 함수들이 조건부 return 이후에 정의되므로, ref에 할당될 때까지 기다림
+  // 공지사항 데이터
+  const [notices, setNotices] = useState([])
+  const [showNoticeModal, setShowNoticeModal] = useState(false)
+  const [editingNotice, setEditingNotice] = useState(null)
+  const [noticeForm, setNoticeForm] = useState({
+    title: '',
+    content: '',
+    image_url: '',
+    login_popup_image_url: '',
+    popup_type: 'notice', // 'notice' or 'login'
+    is_active: true
+  })
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [referralCodes, setReferralCodes] = useState([])
+  const [referralCommissions, setReferralCommissions] = useState([])
+  
+  // 추천인 커미션 관리 상태
+  const [commissionOverview, setCommissionOverview] = useState([])
+  const [commissionStats, setCommissionStats] = useState({})
+  const [paymentHistory, setPaymentHistory] = useState([])
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedReferrer, setSelectedReferrer] = useState(null)
+  const [paymentData, setPaymentData] = useState({
+    amount: '',
+    payment_method: 'bank_transfer',
+    notes: ''
+  })
+
+  // 컴포넌트 마운트 시 데이터 로드
   useEffect(() => {
-    if (isAdmin === true && !checkingAdmin) {
-      // 함수들이 준비될 때까지 짧은 딜레이 후 실행
-      const checkAndLoad = () => {
-        if (loadFunctionsRef.current.loadAdminData) {
-          console.log('🔄 관리자 데이터 로드 시작')
-          loadFunctionsRef.current.loadAdminData()
-          if (loadFunctionsRef.current.loadReferralData) {
-            loadFunctionsRef.current.loadReferralData()
-          }
-          if (loadFunctionsRef.current.loadCommissionData) {
-            loadFunctionsRef.current.loadCommissionData()
-          }
-        } else {
-          // 함수가 아직 준비되지 않았으면 다시 시도
-          setTimeout(checkAndLoad, 50)
-        }
-      }
-      
-      // 초기 체크 (함수들이 이미 준비되었을 수 있음)
-      const timer = setTimeout(checkAndLoad, 0)
-      
-      return () => clearTimeout(timer)
+    loadAdminData()
+    loadReferralData()
+    loadCommissionData()
+  }, [])
+
+  // 탭 변경 시 해당 탭 데이터 로드
+  useEffect(() => {
+    if (activeTab === 'purchases') {
+      loadPendingPurchases()
     }
-  }, [isAdmin, checkingAdmin])
-  
-  // 탭 변경 시 데이터 로드 useEffect
+  }, [activeTab])
+
+  // 구매 신청 검색 및 상태 필터링
   useEffect(() => {
-    if (isAdmin === true && !checkingAdmin && activeTab === 'purchases' && loadFunctionsRef.current.loadPendingPurchases) {
-      loadFunctionsRef.current.loadPendingPurchases()
-    }
-  }, [isAdmin, checkingAdmin, activeTab])
-  
-  // 구매 신청 검색 및 상태 필터링 useEffect
-  useEffect(() => {
-    if (isAdmin === true && !checkingAdmin) {
     const searchTerm = tabStates.purchases.searchTerm || ''
     const statusFilter = tabStates.purchases.statusFilter || 'all'
     
     const filtered = (pendingPurchases || []).filter(purchase => {
       try {
+        // 상태 필터링
         if (statusFilter !== 'all') {
           const purchaseStatus = purchase.status || 'pending'
-            if (statusFilter === 'pending' && purchaseStatus !== 'pending') return false
-            if (statusFilter === 'approved' && purchaseStatus !== 'approved') return false
-            if (statusFilter === 'rejected' && purchaseStatus !== 'rejected') return false
+          if (statusFilter === 'pending' && purchaseStatus !== 'pending') {
+            return false
           }
-          
+          if (statusFilter === 'approved' && purchaseStatus !== 'approved') {
+            return false
+          }
+          if (statusFilter === 'rejected' && purchaseStatus !== 'rejected') {
+            return false
+          }
+        }
+        
+        // 검색어 필터링
         if (searchTerm) {
           const userId = String(purchase?.userId || '')
           const email = String(purchase?.email || '')
@@ -475,74 +435,7 @@ const AdminPage = () => {
       }
     })
     setFilteredPurchases(filtered)
-    }
-  }, [isAdmin, checkingAdmin, pendingPurchases, tabStates.purchases.searchTerm, tabStates.purchases.statusFilter])
-  
-  // 관리자 권한 체크 중
-  if (checkingAdmin) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        flexDirection: 'column',
-        gap: '20px'
-      }}>
-        <div style={{ fontSize: '18px', color: '#333' }}>
-          관리자 권한 확인 중...
-        </div>
-        <div style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
-          응답이 없으면 자동으로 일반 사용자로 처리됩니다.
-        </div>
-        <div style={{ 
-          width: '40px', 
-          height: '40px', 
-          border: '4px solid #f3f3f3',
-          borderTop: '4px solid #667eea',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }}></div>
-      </div>
-    )
-  }
-  
-  // 관리자가 아닌 경우 접근 거부
-  if (isAdmin === false) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        flexDirection: 'column',
-        gap: '20px',
-        padding: '20px',
-        textAlign: 'center'
-      }}>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc2626' }}>
-          접근 권한이 없습니다
-        </div>
-        <div style={{ fontSize: '16px', color: '#666' }}>
-          관리자 권한이 필요합니다.
-        </div>
-        <button 
-          onClick={() => navigate('/')}
-          style={{
-            padding: '10px 20px',
-            fontSize: '16px',
-            backgroundColor: '#667eea',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer'
-          }}
-        >
-          홈으로 돌아가기
-        </button>
-      </div>
-    )
-  }
+  }, [pendingPurchases, tabStates.purchases.searchTerm, tabStates.purchases.statusFilter])
 
   // 검색어 업데이트 함수들
   const updateSearchTerm = (tab, searchTerm) => {
@@ -602,9 +495,6 @@ const AdminPage = () => {
       setIsLoading(false)
     }
   }
-  
-  // 함수들을 ref에 저장 (조건부 return 이후에 정의되므로)
-  loadFunctionsRef.current.loadAdminData = loadAdminData
 
   // 대시보드 통계 로드
   const loadDashboardStats = async () => {
@@ -722,9 +612,6 @@ const AdminPage = () => {
       setFilteredPurchases([])
     }
   }
-  
-  // 함수들을 ref에 저장
-  loadFunctionsRef.current.loadPendingPurchases = loadPendingPurchases
 
   // 포인트 구매 신청 승인
   const handleApprovePurchase = async (purchaseId) => {
@@ -1049,9 +936,6 @@ const AdminPage = () => {
       setReferralCommissions(commissions)
     }
   }
-  
-  // 함수들을 ref에 저장
-  loadFunctionsRef.current.loadReferralData = loadReferralData
 
   // 커미션 데이터 로드 (환급신청 포함)
   const loadCommissionData = async () => {
@@ -1081,9 +965,6 @@ const AdminPage = () => {
       console.error('커미션 데이터 로드 실패:', error)
     }
   }
-  
-  // 함수들을 ref에 저장
-  loadFunctionsRef.current.loadCommissionData = loadCommissionData
 
   // 환급신청 승인
   const handleApprovePayoutRequest = async (requestId) => {
@@ -2101,6 +1982,71 @@ const AdminPage = () => {
     </div>
   )
 
+  // 관리자 권한 체크 중이거나 관리자가 아닌 경우 처리 (모든 hooks 선언 후)
+  if (checkingAdmin) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '20px'
+      }}>
+        <div style={{ fontSize: '18px', color: '#333' }}>
+          관리자 권한 확인 중...
+        </div>
+        <div style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+          응답이 없으면 자동으로 일반 사용자로 처리됩니다.
+        </div>
+        <div style={{ 
+          width: '40px', 
+          height: '40px', 
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #667eea',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+      </div>
+    )
+  }
+  
+  if (isAdmin === false) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '20px',
+        padding: '20px',
+        textAlign: 'center'
+      }}>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc2626' }}>
+          접근 권한이 없습니다
+        </div>
+        <div style={{ fontSize: '16px', color: '#666' }}>
+          관리자 권한이 필요합니다.
+        </div>
+        <button 
+          onClick={() => navigate('/')}
+          style={{
+            padding: '10px 20px',
+            fontSize: '16px',
+            backgroundColor: '#667eea',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}
+        >
+          홈으로 돌아가기
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="admin-page">
       <div className="admin-header">
@@ -2692,6 +2638,75 @@ const AdminPage = () => {
               블로그 관리 페이지로 이동
             </button>
           </div>
+        </div>
+      )}
+
+      {/* 관리자 권한 체크 중 - 조건부 렌더링은 hooks 뒤에 */}
+      {checkingAdmin && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '100vh',
+          flexDirection: 'column',
+          gap: '20px',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'white',
+          zIndex: 9999
+        }}>
+          <div style={{ fontSize: '18px', color: '#333' }}>
+            관리자 권한 확인 중...
+          </div>
+          <div style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+            응답이 없으면 자동으로 일반 사용자로 처리됩니다.
+          </div>
+          <div style={{ 
+            width: '40px', 
+            height: '40px', 
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #667eea',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+        </div>
+      )}
+
+      {/* 관리자가 아닌 경우 접근 거부 - 조건부 렌더링은 hooks 뒤에 */}
+      {isAdmin === false && !checkingAdmin && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '100vh',
+          flexDirection: 'column',
+          gap: '20px',
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc2626' }}>
+            접근 권한이 없습니다
+          </div>
+          <div style={{ fontSize: '16px', color: '#666' }}>
+            관리자 권한이 필요합니다.
+          </div>
+          <button 
+            onClick={() => navigate('/')}
+            style={{
+              padding: '10px 20px',
+              fontSize: '16px',
+              backgroundColor: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer'
+            }}
+          >
+            홈으로 돌아가기
+          </button>
         </div>
       )}
     </div>
