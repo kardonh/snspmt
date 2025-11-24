@@ -19,12 +19,9 @@ function Home() {
   const [selectedPackage, setSelectedPackage] = useState(null)
   const [selectedVariant, setSelectedVariant] = useState(null)
   const [selectedPackageDetail, setSelectedPackageDetail] = useState(null)
-  const [categories, setCategories] = useState([])
-  const [products, setProducts] = useState([])
+  const [categoriesData, setCategoriesData] = useState([])
   const [packages, setPackages] = useState([])
-  const [variants, setVariants] = useState([])
   const [currentStep, setCurrentStep] = useState(null)
-
 
   const categoryColors = {
     instagram: '#e4405f',
@@ -34,42 +31,32 @@ function Home() {
     naver: '#03c75a'
   }
 
-  // api calls
-  function handleFetchCategories() {
-    api.get('/categories')
+  // Fetch all data once
+  const fetchAllData = () => {
+    api.get('/categories-with-products')
       .then(response => {
-        const payload = Array.isArray(response.data) ? response.data : response.data?.categories || []
-        setCategories(payload)
+        setCategoriesData(response.data?.categories || [])
       })
-      .catch(error => console.error('Error fetching categories:', error))
-  }
-
-  function handleFetchProducts(category_id) {
-    api.get(`/products?category_id=${category_id}`)
-      .then(response => {
-        const payload = Array.isArray(response.data) ? response.data : response.data?.products || []
-        setProducts(payload)
-      })
-      .catch(error => console.error('Error fetching products:', error))
-  }
-
-  function handleFetchPackages() {
+      .catch(error => console.error('Error fetching data:', error))
+    
     api.get('/packages')
-      .then(response => {
-        const payload = response.data?.packages || []
-        setPackages(payload)
-      })
+      .then(response => setPackages(response.data?.packages || []))
       .catch(error => console.error('Error fetching packages:', error))
   }
 
-  function handleFetchVariants(product_id) {
-    api.get(`/product-variants?product_id=${product_id}`)
-      .then(response => {
-        const payload = response.data?.variants || []
-        setVariants(payload)
-      })
-      .catch(error => console.error('Error fetching variants:', error))
-  }
+  // Filter from cached data
+  const categories = categoriesData.map(cat => ({
+    category_id: cat.category_id,
+    name: cat.name,
+    slug: cat.slug,
+    image_url: cat.image_url
+  }))
+
+  const products = categoriesData
+    .find(cat => cat.category_id === selectedPlatform)?.products || []
+
+  const variants = products
+    .find(p => p.product_id === selectedService)?.variants || []
 
   // 
 
@@ -84,7 +71,6 @@ function Home() {
 
   const handleServiceSelect = (serviceId) => {
     setSelectedService(serviceId)
-    handleFetchVariants(serviceId)
     setCurrentStep(3)
   }
 
@@ -180,11 +166,8 @@ function Home() {
 
 
   useEffect(() => {
-    Promise.all([handleFetchCategories(), handleFetchPackages()])
-    if (selectedPlatform && selectedPlatform !== 'recommended') {
-      handleFetchProducts(selectedPlatform)
-    }
-  }, [selectedPlatform])
+    fetchAllData()
+  }, [])
 
 
   return (

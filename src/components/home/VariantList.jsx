@@ -20,7 +20,7 @@ function VariantList({ variants, selectedVariant, onSelectVariant }) {
               <div className="detailed-service-info">
                 <div className="detailed-service-name">{variant.name}</div>
                 <div className="detailed-service-range">
-                  최소: {(variant.min || 0).toLocaleString()} ~ 최대: {(variant.max || 0).toLocaleString()}
+                  최소: {(variant.min_quantity || 0).toLocaleString()} ~ 최대: {(variant.max_quantity || 0).toLocaleString()}
                 </div>
               </div>
               <div className="detailed-service-price">

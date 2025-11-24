@@ -45,10 +45,10 @@ export const createOrderData = ({
     ...baseOrder,
     product: { id: product?.product_id, name: product?.name, is_domestic: product?.is_domestic },
     variant: {
-      id: variant?.id,
+      id: variant?.variant_id,
       name: variant?.name,
-      min: variant?.min,
-      max: variant?.max,
+      min: variant?.min_quantity,
+      max: variant?.max_quantity,
       price: variant?.price
     },
     orderDetails: {

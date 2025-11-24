@@ -141,6 +141,8 @@ const CheckoutPage = () => {
       return
     }
 
+    console.log(orderData)
+
     setIsProcessing(true)
 
     try {

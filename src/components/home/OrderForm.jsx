@@ -6,8 +6,8 @@ function OrderForm({ variant, packageDetail, category, onSubmit }) {
   const [comments, setComments] = useState('')
 
   const isPackage = !!packageDetail
-  const minQuantity = isPackage ? 1 : (variant?.min || 0)
-  const maxQuantity = isPackage ? 1 : (variant?.max || 0)
+  const minQuantity = isPackage ? 1 : (variant?.min_quantity || 0)
+  const maxQuantity = isPackage ? 1 : (variant?.max_quantity || 0)
 
   const calculatePrice = () => {
     if (isPackage) {

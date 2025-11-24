@@ -34,15 +34,30 @@ const Sidebar = ({ onClose }) => {
   const [referralCodeLoading, setReferralCodeLoading] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
 
-  // 사용자 포인트 조회 함수
-  const fetchUserPoints = async () => {
+  // Debounce timer ref
+  const fetchTimerRef = React.useRef(null)
+  const lastFetchRef = React.useRef(0)
+  const FETCH_COOLDOWN = 1000000 // 10 minutes minimum between fetches
+
+  // 사용자 포인트 조회 함수 (with debounce)
+  const fetchUserPoints = async (force = false) => {
     // currentUser가 없으면 포인트 조회하지 않음
     if (!currentUser?.uid) {
       setUserPoints(0)
       return
     }
     
+    const now = Date.now()
+    const timeSinceLastFetch = now - lastFetchRef.current
+    
+    // Prevent too frequent calls (unless forced)
+    if (!force && timeSinceLastFetch < FETCH_COOLDOWN) {
+      console.log(`⏭️ 포인트 조회 스킵 (${Math.round((FETCH_COOLDOWN - timeSinceLastFetch) / 1000)}초 후 가능)`)
+      return
+    }
+    
     const userId = currentUser.uid
+    lastFetchRef.current = now
     
     setPointsLoading(true)
     try {
@@ -91,9 +106,9 @@ const Sidebar = ({ onClose }) => {
     }
   }
 
-  // 포인트 업데이트 이벤트 핸들러
+  // 포인트 업데이트 이벤트 핸들러 (force refresh)
   const handlePointsUpdate = () => {
-    fetchUserPoints()
+    fetchUserPoints(true) // Force immediate fetch
   }
 
   // 관리자 권한 확인 함수

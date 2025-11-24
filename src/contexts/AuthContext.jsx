@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../supabase/client';
+import { clearTokenCache } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -221,6 +222,8 @@ export function AuthProvider({ children }) {
           await handleUserSession(session.user);
         } else {
           console.log('❌ 로그아웃 감지');
+          // Clear API token cache
+          clearTokenCache();
           // 로그아웃 상태
           setCurrentUser(null);
           localStorage.removeItem('currentUser');
@@ -438,6 +441,9 @@ export function AuthProvider({ children }) {
     return new Promise(async (resolve, reject) => {
       try {
         console.log('🔐 로그아웃 시작...');
+        
+        // Clear API token cache
+        clearTokenCache();
         
         // 먼저 로컬 상태 정리 (즉시 UI 반영)
         setCurrentUser(null);
