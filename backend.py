@@ -148,6 +148,24 @@ try:
             response.headers['Expires'] = '0'
         return response
     
+    # Swagger spec 생성 오류 처리 (try-except로 감싸기)
+    original_get_apispecs = swagger.get_apispecs
+    def safe_get_apispecs():
+        try:
+            return original_get_apispecs()
+        except Exception as e:
+            print(f"❌ Swagger spec 생성 오류: {e}")
+            import traceback
+            traceback.print_exc()
+            # 빈 spec 반환하여 Swagger UI가 최소한 로드되도록 함
+            return {
+                'swagger': '2.0',
+                'info': swagger_template['info'],
+                'paths': {},
+                'definitions': {}
+            }
+    swagger.get_apispecs = safe_get_apispecs
+    
     print("✅ Swagger 문서화 설정 완료 - /api-docs에서 확인 가능")
 except ImportError as e:
     print(f"⚠️ Swagger 설정 실패: flasgger가 설치되지 않았습니다. pip install flasgger로 설치해주세요.")
@@ -259,17 +277,27 @@ def verify_supabase_jwt(token):
 
 def get_current_user():
     """현재 요청의 사용자 정보 추출"""
-    auth_header = request.headers.get('Authorization')
-    if not auth_header:
-        return None
+    # X-User-Email 헤더가 있으면 우선 사용 (토큰이 없을 때 대체)
+    user_email_header = request.headers.get('X-User-Email')
     
-    decoded = verify_supabase_jwt(auth_header)
-    if decoded:
+    auth_header = request.headers.get('Authorization')
+    if auth_header:
+        decoded = verify_supabase_jwt(auth_header)
+        if decoded:
+            return {
+                'user_id': decoded.get('sub'),
+                'email': decoded.get('email'),
+                'metadata': decoded.get('user_metadata', {})
+            }
+    
+    # 토큰이 없지만 X-User-Email 헤더가 있으면 email만 반환
+    if user_email_header:
         return {
-            'user_id': decoded.get('sub'),
-            'email': decoded.get('email'),
-            'metadata': decoded.get('user_metadata', {})
+            'user_id': None,
+            'email': user_email_header,
+            'metadata': {}
         }
+    
     return None
 
 # 관리자 인증 데코레이터
@@ -280,10 +308,15 @@ def require_admin_auth(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
+            # 디버깅: 헤더 확인
+            auth_header = request.headers.get('Authorization')
+            user_email_header = request.headers.get('X-User-Email')
+            print(f"🔍 require_admin_auth - Authorization: {bool(auth_header)}, X-User-Email: {user_email_header}")
+            
             # 현재 사용자 정보 가져오기
             current_user = get_current_user()
             if not current_user:
-                print(f"⚠️ 관리자 권한 없음: 로그인되지 않음")
+                print(f"⚠️ 관리자 권한 없음: 로그인되지 않음 (Authorization: {bool(auth_header)}, X-User-Email: {user_email_header})")
                 return jsonify({'error': '로그인이 필요합니다.'}), 401
             
             user_email = current_user.get('email')
@@ -4999,16 +5032,16 @@ def create_order():
                   repeat: 30
             is_scheduled:
               type: boolean
-              description: 예약 주문 여부 (선택사항, 기본값: false)
+              description: "예약 주문 여부 (선택사항, 기본값: false)"
               example: false
             scheduled_datetime:
               type: string
               format: date-time
-              description: 예약 주문 실행 시간 (is_scheduled가 true인 경우 필수)
+              description: "예약 주문 실행 시간 (is_scheduled가 true인 경우 필수)"
               example: "2024-01-01 12:00:00"
             is_split_delivery:
               type: boolean
-              description: 분할 발송 여부 (선택사항, 기본값: false)
+              description: "분할 발송 여부 (선택사항, 기본값: false)"
               example: false
             split_days:
               type: integer
@@ -5020,11 +5053,11 @@ def create_order():
               example: 400
             runs:
               type: integer
-              description: Drip-feed 반복 횟수 (선택사항, 기본값: 1)
+              description: "Drip-feed 반복 횟수 (선택사항, 기본값: 1)"
               example: 30
             interval:
               type: integer
-              description: Drip-feed 반복 간격(분) (선택사항, 기본값: 0). 예: 1440 = 24시간
+              description: "Drip-feed 반복 간격(분) (선택사항, 기본값: 0). 예: 1440 = 24시간"
               example: 1440
             comments:
               type: string
@@ -6285,20 +6318,28 @@ def get_orders():
                     return jsonify({'orders': []}), 200
                 db_user_id = user_result[0]
                 
-                # 주문 조회 (order_items와 LEFT JOIN)
+                # 주문 조회 (order_items와 LEFT JOIN) - 첫 번째 order_item만 가져오기
                 cursor.execute("""
-                    SELECT o.order_id, o.status, COALESCE(o.final_amount, o.total_amount, 0) as price, o.created_at,
-                           oi.variant_id, COALESCE(oi.link, '') as link, COALESCE(oi.quantity, 0) as quantity, 
-                           COALESCE(oi.unit_price, 0) as unit_price,
-                           o.smm_panel_order_id, o.detailed_service,
-                           pv.name as variant_name, pv.meta_json as variant_meta
+                    SELECT 
+                        o.order_id, 
+                        o.status, 
+                        COALESCE(o.final_amount, o.total_amount, 0) as price, 
+                        o.created_at,
+                        oi.variant_id, 
+                        COALESCE(oi.link, '') as link, 
+                        COALESCE(oi.quantity, 0) as quantity, 
+                        COALESCE(oi.unit_price, 0) as unit_price,
+                        o.smm_panel_order_id, 
+                        o.detailed_service,
+                        pv.name as variant_name, 
+                        pv.meta_json as variant_meta
                     FROM orders o
-                    LEFT JOIN order_items oi ON o.order_id = oi.order_id AND oi.order_item_id = (
-                        SELECT order_item_id FROM order_items 
-                        WHERE order_id = o.order_id 
-                        ORDER BY order_item_id ASC 
-                        LIMIT 1
-                    )
+                    LEFT JOIN (
+                        SELECT DISTINCT ON (order_id)
+                            order_id, variant_id, link, quantity, unit_price
+                        FROM order_items
+                        ORDER BY order_id, order_item_id ASC
+                    ) oi ON o.order_id = oi.order_id
                     LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
                     WHERE o.user_id = %s
                     ORDER BY o.created_at DESC
@@ -7443,28 +7484,26 @@ def get_admin_stats():
                     SELECT COALESCE(SUM(pv.original_cost * oi.quantity), 0)
                     FROM order_items oi
                     INNER JOIN orders ord ON oi.order_id = ord.order_id
-                    INNER JOIN product_variants pv ON oi.service_id = (pv.meta_json->>'service_id')
+                    INNER JOIN product_variants pv ON oi.variant_id = pv.variant_id
                     WHERE ord.status = 'completed'
                 """)
                 result = cursor.fetchone()
                 original_cost_sum = result[0] if result and result[0] else 0
             except Exception as e:
                 print(f"⚠️ 월매출 원가 계산 오류 (PostgreSQL, order_items 사용 시도 실패): {e}")
-                # 폴백: orders 테이블 직접 사용 (구 스키마)
+                # 폴백: order_items를 통한 조인 (새 스키마)
                 try:
                     cursor.execute("""
-                        SELECT COALESCE(SUM(
-                            (SELECT original_cost FROM product_variants 
-                             WHERE (meta_json->>'service_id') = o.service_id 
-                             LIMIT 1) * o.quantity
-                        ), 0)
-                        FROM orders o
-                        WHERE o.status = 'completed'
+                        SELECT COALESCE(SUM(pv.original_cost * oi.quantity), 0)
+                        FROM order_items oi
+                        INNER JOIN orders ord ON oi.order_id = ord.order_id
+                        INNER JOIN product_variants pv ON oi.variant_id = pv.variant_id
+                        WHERE ord.status = 'completed'
                     """)
                     result = cursor.fetchone()
                     original_cost_sum = result[0] if result and result[0] else 0
                 except Exception as e2:
-                    print(f"⚠️ 월매출 원가 계산 오류 (PostgreSQL, orders 직접 사용 시도 실패): {e2}")
+                    print(f"⚠️ 월매출 원가 계산 오류 (PostgreSQL, order_items 폴백 시도 실패): {e2}")
                     # 최종 폴백: 원가를 0으로 설정
                     original_cost_sum = 0
             
@@ -10457,7 +10496,7 @@ def get_referral_commission_overview():
                         END), 0) as this_month_commission,
                         COALESCE(SUM(CASE 
                             WHEN c.created_at >= DATE_TRUNC('month', CURRENT_DATE)
-                            AND c.status != 'paid'
+                            AND c.status != 'paid_out'
                             THEN COALESCE(c.amount, 0)
                             ELSE 0 
                         END), 0) as unpaid_commission
@@ -10799,7 +10838,7 @@ def get_payment_history():
                     SELECT 
                         p.processed_at AS paid_at,
                         p.paid_amount AS amount,
-                        COALESCE(p.notes, '') AS notes
+                        '' AS notes
                     FROM payouts p
                     WHERE p.processed_at IS NOT NULL
                     ORDER BY p.payout_id DESC
@@ -12676,13 +12715,31 @@ def get_admin_transactions():
         cursor = conn.cursor()
         
         if DATABASE_URL.startswith('postgresql://'):
-            # 새 스키마에서는 order_items와 조인 필요
+            # 새 스키마에서는 order_items와 product_variants 조인 필요
             try:
                 cursor.execute("""
-                    SELECT o.order_id, o.user_id, oi.variant_id, o.total_amount, o.status, o.created_at,
-                           NULL as platform, NULL as service_name, oi.quantity, oi.link, NULL as comments
+                    SELECT 
+                        o.order_id,
+                        o.user_id,
+                        COALESCE(o.final_amount, o.total_amount, 0) as price,
+                        o.total_amount,
+                        o.status,
+                        o.created_at,
+                        oi.variant_id,
+                        pv.meta_json->>'service_id' as service_id,
+                        COALESCE(o.detailed_service, pv.name, 'N/A') as service_name,
+                        COALESCE(oi.quantity, 0) as quantity,
+                        COALESCE(oi.link, '') as link,
+                        COALESCE(o.notes, '') as comments,
+                        o.smm_panel_order_id
                     FROM orders o
-                    LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                    LEFT JOIN (
+                        SELECT DISTINCT ON (order_id) 
+                            order_id, variant_id, quantity, link
+                        FROM order_items
+                        ORDER BY order_id, order_item_id ASC
+                    ) oi ON o.order_id = oi.order_id
+                    LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
                     ORDER BY o.created_at DESC
                     LIMIT 100
                 """)
@@ -12690,7 +12747,19 @@ def get_admin_transactions():
                 print(f"⚠️ 새 스키마 쿼리 실패: {e}")
                 import traceback
                 traceback.print_exc()
-                return jsonify({'transactions': []}), 200
+                # 폴백: 기본 정보만 조회
+                try:
+                    cursor.execute("""
+                        SELECT o.order_id, o.user_id, o.final_amount, o.total_amount, o.status, o.created_at,
+                               NULL as variant_id, NULL as service_id, COALESCE(o.detailed_service, 'N/A') as service_name, 
+                               0 as quantity, '' as link, COALESCE(o.notes, '') as comments, o.smm_panel_order_id
+                        FROM orders o
+                        ORDER BY o.created_at DESC
+                        LIMIT 100
+                    """)
+                except Exception as e2:
+                    print(f"⚠️ 폴백 쿼리도 실패: {e2}")
+                    return jsonify({'transactions': []}), 200
         else:
             cursor.execute("""
                 SELECT o.order_id, o.user_id, o.service_id, o.price, o.status, o.created_at,
@@ -12705,19 +12774,50 @@ def get_admin_transactions():
         transaction_list = []
         for transaction in transactions:
             if DATABASE_URL.startswith('postgresql://'):
-                # 새 스키마: order_id, user_id, variant_id, total_amount, status, created_at, platform, service_name, quantity, link, comments
+                # 새 스키마: (order_id, user_id, price, total_amount, status, created_at, variant_id, service_id, service_name, quantity, link, comments, smm_panel_order_id)
+                order_id = transaction[0]
+                user_id_val = transaction[1]
+                price = float(transaction[2]) if transaction[2] else 0.0  # final_amount
+                total_amount = float(transaction[3]) if transaction[3] else 0.0
+                status = transaction[4] if transaction[4] else 'pending'
+                created_at = transaction[5]
+                variant_id = transaction[6] if len(transaction) > 6 else None
+                service_id = str(transaction[7]) if len(transaction) > 7 and transaction[7] else 'N/A'
+                service_name = str(transaction[8]) if len(transaction) > 8 and transaction[8] else 'N/A'
+                quantity = int(transaction[9]) if len(transaction) > 9 and transaction[9] else 0
+                link = str(transaction[10]) if len(transaction) > 10 and transaction[10] else 'N/A'
+                comments = str(transaction[11]) if len(transaction) > 11 and transaction[11] else 'N/A'
+                smm_panel_order_id = transaction[12] if len(transaction) > 12 else None
+                
+                # SMM Panel API에서 실제 사용 금액(charge) 조회
+                charge = 0
+                if smm_panel_order_id and status in ['processing', 'completed', 'pending']:
+                    try:
+                        smm_status = call_smm_panel_api({
+                            'action': 'status',
+                            'order': smm_panel_order_id
+                        })
+                        if smm_status.get('status') == 'success':
+                            charge = float(smm_status.get('charge', 0)) or 0
+                    except Exception as e:
+                        print(f"⚠️ SMM Panel 상태 조회 오류 (관리자): {e}")
+                        charge = 0
+                
                 transaction_list.append({
-                    'order_id': transaction[0],
-                    'user_id': str(transaction[1]) if transaction[1] else None,
-                    'service_id': str(transaction[2]) if transaction[2] else None,
-                    'price': float(transaction[3]) if transaction[3] else 0.0,
-                    'status': transaction[4],
-                    'created_at': transaction[5].isoformat() if transaction[5] and hasattr(transaction[5], 'isoformat') else (str(transaction[5]) if transaction[5] else None),
-                    'platform': transaction[6] if len(transaction) > 6 else None,
-                    'service_name': transaction[7] if len(transaction) > 7 else None,
-                    'quantity': transaction[8] if len(transaction) > 8 else 0,
-                    'link': transaction[9] if len(transaction) > 9 else None,
-                    'comments': transaction[10] if len(transaction) > 10 else None
+                    'order_id': order_id,
+                    'user_id': str(user_id_val) if user_id_val else None,
+                    'price': price,  # final_amount
+                    'total_amount': total_amount,
+                    'charge': charge,  # 실제 사용 금액 추가
+                    'status': status,
+                    'created_at': created_at.isoformat() if created_at and hasattr(created_at, 'isoformat') else (str(created_at) if created_at else ''),
+                    'variant_id': variant_id,
+                    'service_id': service_id,
+                    'service_name': service_name,
+                    'quantity': quantity,
+                    'link': link if link and link != 'None' and link != 'null' else 'N/A',
+                    'comments': comments,
+                    'platform': 'N/A'  # 새 스키마에는 platform이 없음
                 })
             else:
                 transaction_list.append({
@@ -15014,7 +15114,6 @@ def get_smm_services():
                 'error': error_message,
                 'details': result.get('message', '') if result else 'No response from SMM Panel'
             }), 500
-            
     except Exception as e:
         import traceback
         error_msg = str(e)
