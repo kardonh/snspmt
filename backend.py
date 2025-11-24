@@ -293,33 +293,37 @@ def require_admin_auth(f):
                 print(f"⚠️ 관리자 권한 없음: 사용자 정보 없음")
                 return jsonify({'error': '사용자 정보를 찾을 수 없습니다.'}), 401
             
-            # 데이터베이스에서 is_admin 체크
+            # 데이터베이스에서 is_admin 체크 (단순화: email로만 조회)
             conn = None
             cursor = None
             try:
                 conn = get_db_connection()
                 cursor = conn.cursor(cursor_factory=RealDictCursor)
                 
-                # external_uid 또는 email로 사용자 찾기
+                # email로만 조회
+                if not user_email:
+                    print(f"⚠️ 관리자 권한 없음: email이 없음")
+                    return jsonify({'error': '이메일 정보가 없습니다.'}), 401
+                
                 if DATABASE_URL.startswith('postgresql://'):
                     cursor.execute("""
                         SELECT is_admin 
                         FROM users 
-                        WHERE external_uid = %s OR email = %s
+                        WHERE email = %s
                         LIMIT 1
-                    """, (user_id, user_email))
+                    """, (user_email,))
                 else:
                     cursor.execute("""
                         SELECT is_admin 
                         FROM users 
-                        WHERE user_id = ? OR email = ?
+                        WHERE email = ?
                         LIMIT 1
-                    """, (user_id, user_email))
+                    """, (user_email,))
                 
                 user = cursor.fetchone()
                 
                 if not user:
-                    print(f"⚠️ 관리자 권한 없음: 사용자를 찾을 수 없음 - email={user_email}, user_id={user_id}")
+                    print(f"⚠️ 관리자 권한 없음: 사용자를 찾을 수 없음 - email={user_email}")
                     return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
                 
                 is_admin = user.get('is_admin') if isinstance(user, dict) else user[0]
@@ -8429,42 +8433,46 @@ def check_admin():
     cursor = None
     try:
         auth_header = request.headers.get('Authorization')
-        query_email = request.args.get('email')  # 쿼리 파라미터에서 email 받기
+        user_email_header = request.headers.get('X-User-Email')  # 프론트엔드에서 직접 전달한 email
         
         print(f"🔍 관리자 권한 확인 요청 수신")
         print(f"🔍 Authorization 헤더 존재: {bool(auth_header)}")
-        print(f"🔍 쿼리 파라미터 email: {query_email}")
+        print(f"🔍 X-User-Email 헤더 존재: {bool(user_email_header)}")
+        if auth_header:
+            print(f"🔍 Authorization 헤더 시작 부분: {auth_header[:20]}...")
         
+        # 현재 사용자 정보 가져오기
+        current_user = get_current_user()
+        
+        # JWT에서 email을 가져오지 못했으면 헤더에서 직접 가져오기
         user_email = None
         user_id = None
         
-        # 먼저 JWT에서 사용자 정보 가져오기 시도 (PyJWT가 설치되어 있으면)
-        try:
-            current_user = get_current_user()
-            if current_user:
-                user_email = current_user.get('email')
-                user_id = current_user.get('user_id')
-                print(f"✅ JWT에서 사용자 정보 추출: email={user_email}, user_id={user_id}")
-        except Exception as jwt_error:
-            print(f"⚠️ JWT 검증 오류 (무시하고 계속): {jwt_error}")
-            current_user = None
+        if current_user:
+            user_email = current_user.get('email')
+            user_id = current_user.get('user_id')
         
-        # JWT에서 못 가져왔으면 쿼리 파라미터에서 가져오기
-        if not user_email and query_email:
-            user_email = query_email
-            print(f"✅ 쿼리 파라미터에서 email 추출: {user_email}")
+        # 헤더에서 직접 전달된 email이 있으면 우선 사용
+        if user_email_header:
+            user_email = user_email_header
+            print(f"✅ X-User-Email 헤더에서 email 획득: {user_email}")
         
-        # 둘 다 없으면 오류
-        if not user_email and not user_id:
-            print(f"⚠️ 관리자 권한 확인 실패: 사용자 정보 없음 (JWT와 쿼리 파라미터 모두 없음)")
-            return jsonify({'error': '로그인이 필요합니다.', 'is_admin': False}), 200
+        if not user_email:
+            print(f"⚠️ 관리자 권한 확인 실패: email 정보 없음")
+            return jsonify({'error': '이메일 정보가 필요합니다.', 'is_admin': False}), 200
         
         print(f"🔍 관리자 권한 확인 - user_id: {user_id}, email: {user_email}")
+        print(f"🔍 current_user 전체 내용: {current_user}")
+        print(f"🔍 JWT에서 추출한 정보:")
+        print(f"   - user_id (JWT sub): {user_id}")
+        print(f"   - email: {user_email}")
         print(f"🔍 데이터베이스에서 찾아야 할 값:")
-        if user_email:
-            print(f"   - email: {user_email}")
-        if user_id:
-            print(f"   - external_uid: {user_id}")
+        print(f"   - external_uid: {user_id} (JWT의 sub와 일치해야 함)")
+        print(f"   - email: {user_email}")
+        
+        if not user_email and not user_id:
+            print(f"⚠️ 관리자 권한 확인 실패: 사용자 정보 없음 (email과 user_id 모두 None)")
+            return jsonify({'error': '사용자 정보를 찾을 수 없습니다.', 'is_admin': False}), 200
         
         # 데이터베이스에서 is_admin 체크
         print(f"🔍 데이터베이스 연결 시도...")
@@ -8475,53 +8483,33 @@ def check_admin():
         
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        print(f"🔍 데이터베이스 쿼리 실행 - external_uid='{user_id}', email='{user_email}'")
-        user = None
+        # 단순화: email로만 조회하여 is_admin 확인
+        print(f"🔍 관리자 권한 확인 - email: '{user_email}'")
+        
+        if not user_email:
+            print(f"❌ email이 없어서 관리자 권한 확인 불가")
+            return jsonify({'is_admin': False, 'error': '이메일 정보가 없습니다.'}), 200
         
         if DATABASE_URL.startswith('postgresql://'):
-            # 단순화: email로 먼저 조회 (가장 확실함)
-            if user_email:
-                print(f"🔍 email로 조회 시도: {user_email}")
-                cursor.execute("""
-                    SELECT is_admin, external_uid, email
-                    FROM users 
-                    WHERE email = %s
-                    LIMIT 1
-                """, (user_email,))
-                user = cursor.fetchone()
-                if user:
-                    print(f"✅ email로 사용자 발견!")
-            
-            # email로 못 찾았으면 external_uid로 시도
-            if not user and user_id:
-                print(f"🔍 external_uid로 조회 시도: {user_id}")
-                cursor.execute("""
-                    SELECT is_admin, external_uid, email
-                    FROM users 
-                    WHERE external_uid = %s
-                    LIMIT 1
-                """, (user_id,))
-                user = cursor.fetchone()
-                if user:
-                    print(f"✅ external_uid로 사용자 발견!")
+            cursor.execute("""
+                SELECT is_admin
+                FROM users 
+                WHERE email = %s
+                LIMIT 1
+            """, (user_email,))
         else:
             cursor.execute("""
                 SELECT is_admin 
                 FROM users 
-                WHERE user_id = ? OR email = ?
+                WHERE email = ?
                 LIMIT 1
-            """, (user_id, user_email))
-            user = cursor.fetchone()
+            """, (user_email,))
         
-        print(f"🔍 사용자 조회 결과: {user}")
+        user = cursor.fetchone()
+        
         if not user:
-            print(f"❌ 사용자를 찾을 수 없음 - email: '{user_email}', external_uid: '{user_id}'")
-            return jsonify({
-                'is_admin': False, 
-                'error': '사용자를 찾을 수 없습니다.'
-            }), 200
-        
-        print(f"✅ 사용자 발견 - email: {user.get('email')}, external_uid: {user.get('external_uid')}, is_admin: {user.get('is_admin')}")
+            print(f"❌ 사용자를 찾을 수 없음 - email: '{user_email}'")
+            return jsonify({'is_admin': False, 'error': '사용자를 찾을 수 없습니다.'}), 200
         
         is_admin = user.get('is_admin') if isinstance(user, dict) else user[0]
         print(f"🔍 is_admin 원본 값: {is_admin} (타입: {type(is_admin)})")
@@ -12813,21 +12801,24 @@ def serve_admin():
             conn = get_db_connection()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
-            # external_uid 또는 email로 사용자 찾기
+            # email로만 사용자 찾기 (단순화)
+            if not user_email:
+                return jsonify({'error': '이메일 정보가 없습니다.'}), 401
+            
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     SELECT is_admin 
                     FROM users 
-                    WHERE external_uid = %s OR email = %s
+                    WHERE email = %s
                     LIMIT 1
-                """, (user_id, user_email))
+                """, (user_email,))
             else:
                 cursor.execute("""
                     SELECT is_admin 
                     FROM users 
-                    WHERE user_id = ? OR email = ?
+                    WHERE email = ?
                     LIMIT 1
-                """, (user_id, user_email))
+                """, (user_email,))
             
             user = cursor.fetchone()
             
