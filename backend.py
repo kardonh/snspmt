@@ -3264,6 +3264,7 @@ def init_database():
                     profile_image TEXT,
                     last_login TIMESTAMP,
                     last_activity TIMESTAMP DEFAULT NOW(),
+                    is_admin BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
@@ -3773,6 +3774,7 @@ def init_database():
                     kakao_id TEXT,
                     profile_image TEXT,
                     last_login TIMESTAMP,
+                    is_admin INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -3829,6 +3831,8 @@ def init_database():
                 added_sqlite_cols.append('contact_phone')
             if safe_add_sqlite_column('contact_email', 'TEXT'):
                 added_sqlite_cols.append('contact_email')
+            if safe_add_sqlite_column('is_admin', 'INTEGER DEFAULT 0'):
+                added_sqlite_cols.append('is_admin')
             if added_sqlite_cols:
                 print(f"✅ 사용자 테이블 컬럼 추가 완료 (SQLite): {', '.join(added_sqlite_cols)}")
             else:
@@ -5045,11 +5049,11 @@ def create_order():
               example: false
             split_days:
               type: integer
-              description: 분할 발송 일수 (is_split_delivery가 true인 경우 필수)
+              description: "분할 발송 일수 (is_split_delivery가 true인 경우 필수)"
               example: 30
             split_quantity:
               type: integer
-              description: 일일 발송 수량 (is_split_delivery가 true인 경우 필수)
+              description: "일일 발송 수량 (is_split_delivery가 true인 경우 필수)"
               example: 400
             runs:
               type: integer
@@ -5061,7 +5065,7 @@ def create_order():
               example: 1440
             comments:
               type: string
-              description: 주문 메모 (선택사항)
+              description: "주문 메모 (선택사항)"
               example: "특별 요청사항"
     responses:
       200:
@@ -8471,14 +8475,20 @@ def check_admin():
     conn = None
     cursor = None
     try:
+        print(f"🔍 관리자 권한 확인 요청 수신 - {datetime.now()}")
+        print(f"🔍 요청 메서드: {request.method}")
+        print(f"🔍 요청 경로: {request.path}")
+        print(f"🔍 요청 헤더 전체: {dict(request.headers)}")
+        
         auth_header = request.headers.get('Authorization')
         user_email_header = request.headers.get('X-User-Email')  # 프론트엔드에서 직접 전달한 email
         
-        print(f"🔍 관리자 권한 확인 요청 수신")
         print(f"🔍 Authorization 헤더 존재: {bool(auth_header)}")
         print(f"🔍 X-User-Email 헤더 존재: {bool(user_email_header)}")
         if auth_header:
             print(f"🔍 Authorization 헤더 시작 부분: {auth_header[:20]}...")
+        if user_email_header:
+            print(f"🔍 X-User-Email 헤더 값: {user_email_header}")
         
         # 현재 사용자 정보 가져오기
         current_user = get_current_user()
@@ -8524,23 +8534,30 @@ def check_admin():
         
         # 단순화: email로만 조회하여 is_admin 확인
         print(f"🔍 관리자 권한 확인 - email: '{user_email}'")
+        print(f"🔍 관리자 권한 확인 - email 타입: {type(user_email)}, 길이: {len(user_email) if user_email else 0}")
         
         if not user_email:
             print(f"❌ email이 없어서 관리자 권한 확인 불가")
             return jsonify({'is_admin': False, 'error': '이메일 정보가 없습니다.'}), 200
         
+        # 이메일 정규화 (공백 제거, 소문자 변환)
+        normalized_email = user_email.strip().lower()
+        print(f"🔍 정규화된 email: '{normalized_email}'")
+        
         if DATABASE_URL.startswith('postgresql://'):
+            # 대소문자 구분 없이 검색 (ILIKE 사용)
             cursor.execute("""
-                SELECT is_admin
+                SELECT is_admin, email
                 FROM users 
-                WHERE email = %s
+                WHERE LOWER(email) = LOWER(%s)
                 LIMIT 1
             """, (user_email,))
         else:
+            # SQLite는 대소문자 구분 없이 검색
             cursor.execute("""
-                SELECT is_admin 
+                SELECT is_admin, email
                 FROM users 
-                WHERE email = ?
+                WHERE LOWER(email) = LOWER(?)
                 LIMIT 1
             """, (user_email,))
         
@@ -8548,6 +8565,15 @@ def check_admin():
         
         if not user:
             print(f"❌ 사용자를 찾을 수 없음 - email: '{user_email}'")
+            # 데이터베이스의 모든 이메일 목록 출력 (디버깅용)
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("SELECT email, is_admin FROM users LIMIT 10")
+            else:
+                cursor.execute("SELECT email, is_admin FROM users LIMIT 10")
+            all_users = cursor.fetchall()
+            print(f"📋 데이터베이스의 사용자 목록 (최대 10개):")
+            for u in all_users:
+                print(f"   - email: '{u.get('email') if isinstance(u, dict) else u[0]}', is_admin: {u.get('is_admin') if isinstance(u, dict) else u[1]}")
             return jsonify({'is_admin': False, 'error': '사용자를 찾을 수 없습니다.'}), 200
         
         is_admin = user.get('is_admin') if isinstance(user, dict) else user[0]
@@ -13395,38 +13421,40 @@ def get_commission_points():
             referrer_user_id = referrer['user_id']
             print(f"✅ 추천인 찾음: user_id={referrer_user_id}", flush=True)
             
-            # commissions (적립) 합계
+            # commission_ledger에서 잔액 계산 (통일된 로직)
             cursor.execute("""
-                SELECT COALESCE(SUM(c.amount), 0) as total_earned
-                FROM commissions c
-                JOIN referrals r ON c.referral_id = r.referral_id
-                WHERE r.referrer_user_id = %s
-            """, (referrer_user_id,))
-            earned_result = cursor.fetchone()
-            total_earned = float(earned_result.get('total_earned', 0) or 0)
+                SELECT 
+                    COALESCE(SUM(CASE WHEN event = 'earn' THEN amount ELSE 0 END), 0) as total_earned,
+                    COALESCE(SUM(CASE WHEN event = 'payout' THEN ABS(amount) ELSE 0 END), 0) as total_paid,
+                    COALESCE(SUM(amount), 0) as current_balance
+                FROM commission_ledger 
+                WHERE referrer_user_id = %s AND status = 'confirmed'
+            """, (str(referrer_user_id),))
             
-            # payouts (지급) 합계
-            cursor.execute("""
-                SELECT COALESCE(SUM(p.paid_amount), 0) as total_paid
-                FROM payouts p
-                JOIN payout_requests pr ON p.request_id = pr.request_id
-                WHERE pr.user_id = %s
-            """, (referrer_user_id,))
-            paid_result = cursor.fetchone()
-            total_paid = float(paid_result.get('total_paid', 0) or 0)
+            result = cursor.fetchone()
             
-            # 현재 잔액 = 적립 - 지급
-            current_balance = total_earned - total_paid
-            
-            print(f"✅ 커미션 포인트 조회 완료: 적립={total_earned}, 지급={total_paid}, 잔액={current_balance}", flush=True)
-            
-            return jsonify({
-                'total_earned': total_earned,
-                'total_paid': total_paid,
-                'current_balance': current_balance,
-                'created_at': None,
-                'updated_at': None
-            }), 200
+            if result:
+                total_earned = float(result.get('total_earned', 0) or 0)
+                total_paid = float(result.get('total_paid', 0) or 0)
+                current_balance = float(result.get('current_balance', 0) or 0)
+                
+                print(f"✅ 커미션 포인트 조회 완료: 적립={total_earned}, 지급={total_paid}, 잔액={current_balance}", flush=True)
+                
+                return jsonify({
+                    'total_earned': total_earned,
+                    'total_paid': total_paid,
+                    'current_balance': current_balance,
+                    'created_at': None,
+                    'updated_at': None
+                }), 200
+            else:
+                return jsonify({
+                    'total_earned': 0,
+                    'total_paid': 0,
+                    'current_balance': 0,
+                    'created_at': None,
+                    'updated_at': None
+                }), 200
         else:
             # SQLite - 레거시 호환
             cursor.execute("""
@@ -13710,24 +13738,74 @@ def request_withdrawal():
         if not all([referrer_email, referrer_name, bank_name, account_number, account_holder, amount]):
             return jsonify({'error': '모든 필드가 필요합니다.'}), 400
         
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        # 금액 검증
+        try:
+            amount = float(amount)
+            if amount <= 0:
+                return jsonify({'error': '환급 금액은 0보다 커야 합니다.'}), 400
+            if amount < 1000:
+                return jsonify({'error': '최소 환급 금액은 1,000원입니다.'}), 400
+        except (ValueError, TypeError):
+            return jsonify({'error': '유효한 금액을 입력해주세요.'}), 400
         
-        # referral_code로 referrer_user_id 조회
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # users 테이블에서 user_id 조회 (email 또는 external_uid로)
         if DATABASE_URL.startswith('postgresql://'):
             cursor.execute("""
-                SELECT code, user_id FROM referral_codes WHERE user_email = %s OR user_id = %s LIMIT 1
+                SELECT user_id, email, referral_code 
+                FROM users 
+                WHERE email = %s OR external_uid = %s
+                LIMIT 1
             """, (referrer_email, referrer_email))
         else:
             cursor.execute("""
-                SELECT code, user_id FROM referral_codes WHERE user_email = ? OR user_id = ? LIMIT 1
+                SELECT user_id, email, referral_code 
+                FROM users 
+                WHERE email = ? OR external_uid = ?
+                LIMIT 1
             """, (referrer_email, referrer_email))
         
-        referral_result = cursor.fetchone()
-        if not referral_result:
-            return jsonify({'error': '추천인을 찾을 수 없습니다.'}), 404
+        user_result = cursor.fetchone()
+        if not user_result:
+            # referral_codes 테이블에서도 시도
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    SELECT code, user_id FROM referral_codes WHERE user_email = %s OR user_id = %s LIMIT 1
+                """, (referrer_email, referrer_email))
+            else:
+                cursor.execute("""
+                    SELECT code, user_id FROM referral_codes WHERE user_email = ? OR user_id = ? LIMIT 1
+                """, (referrer_email, referrer_email))
+            
+            referral_result = cursor.fetchone()
+            if not referral_result:
+                return jsonify({'error': '추천인을 찾을 수 없습니다. 이메일을 확인해주세요.'}), 404
+            
+            referral_code = referral_result[0]
+            referrer_user_id = referral_result[1]
+        else:
+            referrer_user_id = user_result['user_id']
+            referral_code = user_result.get('referral_code')
+            
+            # referral_code가 없으면 referral_codes 테이블에서 찾기
+            if not referral_code:
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        SELECT code FROM referral_codes WHERE user_id = %s LIMIT 1
+                    """, (referrer_user_id,))
+                else:
+                    cursor.execute("""
+                        SELECT code FROM referral_codes WHERE user_id = ? LIMIT 1
+                    """, (referrer_user_id,))
+                
+                code_result = cursor.fetchone()
+                if code_result:
+                    referral_code = code_result[0] if isinstance(code_result, tuple) else code_result.get('code')
         
-        referral_code, referrer_user_id = referral_result
+        if not referral_code:
+            return jsonify({'error': '추천인 코드를 찾을 수 없습니다.'}), 404
         
         # commission_ledger에서 현재 잔액 계산
         if DATABASE_URL.startswith('postgresql://'):
@@ -13744,28 +13822,63 @@ def request_withdrawal():
         result = cursor.fetchone()
         current_balance = float(result[0]) if result else 0.0
         
-        if current_balance < float(amount):
-            return jsonify({'error': f'잔액이 부족합니다. 현재 잔액: {current_balance}원'}), 400
+        print(f"🔍 환급 신청 검증: 신청금액={amount}원, 현재잔액={current_balance}원", flush=True)
         
-        # 환급 신청 저장 - payout_requests 테이블 사용
-        if DATABASE_URL.startswith('postgresql://'):
-            # user_id를 사용하여 payout_requests에 저장
-            cursor.execute("""
-                INSERT INTO payout_requests 
-                (user_id, amount, bank_name, account_number, status, requested_at)
-                VALUES (%s, %s, %s, %s, 'requested', NOW())
-                RETURNING request_id
-            """, (referrer_user_id, amount, bank_name, account_number))
-            request_result = cursor.fetchone()
-            request_id = request_result[0] if request_result else None
-        else:
-            # SQLite
-            cursor.execute("""
-                INSERT INTO payout_requests 
-                (user_id, amount, bank_name, account_number, status, requested_at)
-                VALUES (?, ?, ?, ?, 'requested', datetime('now'))
-            """, (referrer_user_id, amount, bank_name, account_number))
-            request_id = cursor.lastrowid
+        if current_balance < amount:
+            return jsonify({
+                'error': f'잔액이 부족합니다. 현재 잔액: {current_balance:,.0f}원',
+                'current_balance': current_balance
+            }), 400
+        
+        # 환급 신청 저장 - payout_requests 테이블 사용 (account_holder 포함)
+        try:
+            if DATABASE_URL.startswith('postgresql://'):
+                # account_holder 컬럼이 있는지 확인 후 저장
+                try:
+                    cursor.execute("""
+                        INSERT INTO payout_requests 
+                        (user_id, amount, bank_name, account_number, account_holder, status, requested_at)
+                        VALUES (%s, %s, %s, %s, %s, 'requested', NOW())
+                        RETURNING request_id
+                    """, (referrer_user_id, amount, bank_name, account_number, account_holder))
+                    request_result = cursor.fetchone()
+                    request_id = request_result[0] if request_result else None
+                except Exception as e:
+                    # account_holder 컬럼이 없는 경우 (레거시 스키마)
+                    print(f"⚠️ account_holder 컬럼 없음, 기본 컬럼만 사용: {str(e)}")
+                    cursor.execute("""
+                        INSERT INTO payout_requests 
+                        (user_id, amount, bank_name, account_number, status, requested_at)
+                        VALUES (%s, %s, %s, %s, 'requested', NOW())
+                        RETURNING request_id
+                    """, (referrer_user_id, amount, bank_name, account_number))
+                    request_result = cursor.fetchone()
+                    request_id = request_result[0] if request_result else None
+            else:
+                # SQLite
+                try:
+                    cursor.execute("""
+                        INSERT INTO payout_requests 
+                        (user_id, amount, bank_name, account_number, account_holder, status, requested_at)
+                        VALUES (?, ?, ?, ?, ?, 'requested', datetime('now'))
+                    """, (referrer_user_id, amount, bank_name, account_number, account_holder))
+                    request_id = cursor.lastrowid
+                except Exception as e:
+                    # account_holder 컬럼이 없는 경우
+                    print(f"⚠️ account_holder 컬럼 없음, 기본 컬럼만 사용: {str(e)}")
+                    cursor.execute("""
+                        INSERT INTO payout_requests 
+                        (user_id, amount, bank_name, account_number, status, requested_at)
+                        VALUES (?, ?, ?, ?, 'requested', datetime('now'))
+                    """, (referrer_user_id, amount, bank_name, account_number))
+                    request_id = cursor.lastrowid
+        except Exception as e:
+            import traceback
+            print(f"❌ 환급 신청 저장 실패: {str(e)}")
+            print(traceback.format_exc())
+            conn.rollback()
+            conn.close()
+            return jsonify({'error': f'환급 신청 저장 실패: {str(e)}'}), 500
         
         conn.commit()
         conn.close()
@@ -13773,7 +13886,11 @@ def request_withdrawal():
         return jsonify({'message': '환급 신청이 접수되었습니다.'}), 200
         
     except Exception as e:
-        return jsonify({'error': f'환급 신청 실패: {str(e)}'}), 500
+        import traceback
+        error_msg = f'환급 신청 실패: {str(e)}'
+        print(f"❌ {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({'error': error_msg, 'details': str(e)}), 500
 
 # 관리자용 환급 신청 목록 조회
 @app.route('/api/admin/withdrawal-requests', methods=['GET'])

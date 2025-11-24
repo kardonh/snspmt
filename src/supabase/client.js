@@ -30,6 +30,8 @@ console.log('✅ Supabase 클라이언트 초기화:', {
   hasKey: !!supabaseAnonKey
 })
 
+// 원래 기본 설정으로 복원 - Supabase SDK의 기본 동작 사용
+// 커스텀 fetch를 제거하면 Supabase가 자동으로 CORS를 처리합니다
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,

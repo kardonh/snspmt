@@ -33,6 +33,11 @@ const Sidebar = ({ onClose }) => {
   const [hasReferralCode, setHasReferralCode] = useState(false)
   const [referralCodeLoading, setReferralCodeLoading] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  
+  // isAdmin 상태 변경 추적
+  useEffect(() => {
+    console.log('🔄 Sidebar: isAdmin 상태 변경됨 - 새 값:', isAdmin, '타입:', typeof isAdmin)
+  }, [isAdmin])
 
   // 사용자 포인트 조회 함수
   const fetchUserPoints = async () => {
@@ -98,12 +103,20 @@ const Sidebar = ({ onClose }) => {
 
   // 관리자 권한 확인 함수
   const checkAdminStatus = async () => {
+    console.log('🔍 Sidebar: checkAdminStatus 호출됨')
+    console.log('🔍 Sidebar: currentUser:', currentUser)
+    console.log('🔍 Sidebar: currentUser?.email:', currentUser?.email)
+    
     if (!currentUser?.email) {
+      console.log('⚠️ Sidebar: currentUser.email이 없어 관리자 권한 확인을 건너뜁니다.')
       setIsAdmin(false)
       return
     }
     
     try {
+      console.log('🔍 Sidebar: 관리자 권한 확인 시작 - email:', currentUser.email)
+      console.log('🔍 Sidebar: API 호출 전 - 현재 isAdmin:', isAdmin)
+      
       const session = await supabase.auth.getSession()
       const accessToken = session.data?.session?.access_token
       
@@ -113,36 +126,110 @@ const Sidebar = ({ onClose }) => {
       
       if (accessToken) {
         headers['Authorization'] = `Bearer ${accessToken}`
+        console.log('✅ Sidebar: Authorization 토큰 설정됨')
+      } else {
+        console.log('⚠️ Sidebar: Authorization 토큰 없음')
       }
       
       if (currentUser.email) {
         headers['X-User-Email'] = currentUser.email
+        console.log('✅ Sidebar: X-User-Email 헤더 설정:', currentUser.email)
       }
       
-      const response = await fetch('/api/users/check-admin', {
-        method: 'GET',
-        headers
-      })
+      // API 호출에 타임아웃 추가
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => {
+        console.error('⏰ Sidebar: API 호출 타임아웃 (10초) - 요청 취소')
+        controller.abort()
+      }, 10000) // 10초 타임아웃
+      
+      console.log('📡 Sidebar: API 호출 시작 - /api/users/check-admin')
+      console.log('📡 Sidebar: 요청 헤더:', headers)
+      
+      let response
+      try {
+        const fetchPromise = fetch('/api/users/check-admin', {
+          method: 'GET',
+          headers,
+          signal: controller.signal
+        })
+        
+        console.log('📡 Sidebar: fetch Promise 생성됨, 응답 대기 중...')
+        response = await fetchPromise
+        clearTimeout(timeoutId)
+        console.log('✅ Sidebar: 응답 받음 - 상태:', response.status, 'ok:', response.ok)
+        console.log('📡 Sidebar: 관리자 권한 확인 응답 상태:', response.status)
+      } catch (fetchError) {
+        clearTimeout(timeoutId)
+        if (fetchError.name === 'AbortError') {
+          console.error('❌ Sidebar: API 호출 타임아웃 (10초)')
+          setIsAdmin(false)
+          return
+        }
+        console.error('❌ Sidebar: API 호출 실패:', fetchError)
+        console.error('❌ Sidebar: 에러 상세:', {
+          name: fetchError.name,
+          message: fetchError.message,
+          stack: fetchError.stack
+        })
+        setIsAdmin(false)
+        return
+      }
       
       if (response.ok) {
         const data = await response.json()
-        setIsAdmin(data.is_admin === true)
+        console.log('📋 Sidebar: 관리자 권한 확인 응답 데이터:', JSON.stringify(data, null, 2))
+        console.log('🔍 Sidebar: is_admin 값:', data.is_admin, '타입:', typeof data.is_admin)
+        
+        // debug 정보가 있으면 출력
+        if (data.debug) {
+          console.log('🔍 Sidebar: 백엔드 디버그 정보:', data.debug)
+        }
+        
+        // 다양한 true 값 처리 (boolean true, 문자열 "true", 숫자 1 등)
+        const isAdminValue = data.is_admin === true || 
+                            data.is_admin === 'true' || 
+                            data.is_admin === 1 || 
+                            data.is_admin === '1' ||
+                            String(data.is_admin).toLowerCase() === 'true'
+        
+        console.log('✅ Sidebar: 최종 isAdmin 값:', isAdminValue, '타입:', typeof isAdminValue)
+        console.log('✅ Sidebar: setIsAdmin 호출 전 - 현재 isAdmin:', isAdmin)
+        
+        // 강제로 boolean으로 변환
+        const finalIsAdmin = Boolean(isAdminValue)
+        console.log('✅ Sidebar: 최종 boolean 변환:', finalIsAdmin)
+        
+        setIsAdmin(finalIsAdmin)
+        
+        // 상태 업데이트 확인을 위한 추가 로그
+        setTimeout(() => {
+          console.log('⏰ Sidebar: 100ms 후 isAdmin 상태 확인:', isAdmin)
+        }, 100)
       } else {
+        const errorText = await response.text()
+        console.error('❌ Sidebar: 관리자 권한 확인 실패 - 상태:', response.status, '응답:', errorText)
         setIsAdmin(false)
       }
     } catch (error) {
-      console.error('관리자 권한 확인 실패:', error)
+      console.error('❌ Sidebar: 관리자 권한 확인 오류:', error)
       setIsAdmin(false)
     }
   }
 
   // 사용자가 로그인했을 때 포인트 조회 및 추천인 코드 확인
   useEffect(() => {
+    console.log('🔄 Sidebar useEffect 실행 - currentUser:', currentUser?.email)
+    console.log('🔄 Sidebar useEffect - currentUser 전체:', currentUser)
     if (currentUser) {
+      console.log('✅ Sidebar: currentUser 있음 - 관리자 권한 확인 시작')
       fetchUserPoints()
       checkReferralCode()
+      // 관리자 권한 확인을 명시적으로 호출
+      console.log('🔍 Sidebar: checkAdminStatus 함수 호출 직전')
       checkAdminStatus()
     } else {
+      console.log('⚠️ Sidebar: currentUser 없음 - 모든 상태 초기화')
       setUserPoints(0)
       setHasReferralCode(false)
       setIsAdmin(false)
@@ -324,7 +411,12 @@ const Sidebar = ({ onClose }) => {
         ))}
         
         {/* 관리자 메뉴 (관리자 계정일 때만 표시) */}
-        {isAdmin && (
+        {(() => {
+          console.log('🔍 Sidebar 렌더링 - isAdmin 상태:', isAdmin, '타입:', typeof isAdmin)
+          console.log('🔍 Sidebar 렌더링 - currentUser:', currentUser?.email)
+          return null
+        })()}
+        {isAdmin === true && (
           <>
             <div className="admin-separator"></div>
             {adminMenuItems.map(({ id, name, icon: Icon, path, color }) => (

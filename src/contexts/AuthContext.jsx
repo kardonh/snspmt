@@ -325,15 +325,28 @@ export function AuthProvider({ children }) {
       try {
         console.log('🔐 로그인 시도:', email);
         
-        const { data, error } = await supabase.auth.signInWithPassword({
+        // CORS 오류를 방지하기 위해 타임아웃 설정
+        const loginPromise = supabase.auth.signInWithPassword({
           email: email.trim(),
           password: password
         });
+        
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('로그인 요청이 시간 초과되었습니다. 네트워크 연결을 확인하세요.')), 30000);
+        });
+        
+        const { data, error } = await Promise.race([loginPromise, timeoutPromise]);
 
         if (error) {
           console.error('❌ 로그인 오류:', error);
           console.error('❌ 오류 코드:', error.status);
           console.error('❌ 오류 메시지:', error.message);
+          
+          // CORS 오류 처리
+          if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('CORS'))) {
+            reject(new Error('서버 연결에 실패했습니다. 네트워크 연결과 Supabase CORS 설정을 확인하세요.'));
+            return;
+          }
           
           // 이메일 확인 오류 처리
           if (error.message === 'Email not confirmed' || error.message.includes('email_not_confirmed')) {
