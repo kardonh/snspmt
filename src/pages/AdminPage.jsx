@@ -109,21 +109,28 @@ const AdminPage = () => {
           console.warn('⚠️ localStorage 검색 중 오류:', e)
         }
         
-        // localStorage에서 직접 찾지 못했으면 Supabase 세션 가져오기 시도 (타임아웃 없이)
+        // localStorage에서 직접 찾지 못했으면 Supabase 세션 가져오기 시도 (타임아웃 설정)
         if (!accessToken) {
           console.log('🔍 localStorage에 토큰 없음, Supabase 세션 가져오기...')
           try {
-            const session = await supabase.auth.getSession()
+            // Supabase 세션 가져오기에 타임아웃 설정 (3초)
+            const sessionPromise = supabase.auth.getSession()
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('세션 가져오기 타임아웃')), 3000)
+            })
+            
+            const session = await Promise.race([sessionPromise, timeoutPromise])
             accessToken = session?.data?.session?.access_token
             console.log('🔍 세션에서 토큰 획득:', !!accessToken)
           } catch (sessionError) {
-            console.warn('⚠️ 세션 가져오기 실패:', sessionError.message)
+            console.warn('⚠️ 세션 가져오기 실패 (무시하고 계속):', sessionError.message)
+            // Supabase 오류는 무시하고 email만으로 진행
           }
         }
         
-        // 토큰이 없어도 email이 있으면 API 호출 시도 (백엔드에서 처리)
-        if (!accessToken && !userEmail) {
-          console.warn('⚠️ 액세스 토큰과 email을 모두 찾을 수 없습니다.')
+        // email이 없으면 API 호출 불가
+        if (!userEmail) {
+          console.warn('⚠️ email을 찾을 수 없습니다.')
           if (isMounted) {
             setIsAdmin(false)
             setCheckingAdmin(false)
@@ -131,19 +138,18 @@ const AdminPage = () => {
           return
         }
         
-        console.log('🔍 API 호출 준비 완료, 토큰 존재:', !!accessToken)
-        console.log('🔍 토큰 길이:', accessToken?.length)
+        console.log('🔍 API 호출 준비 완료 - email:', userEmail, '토큰 존재:', !!accessToken)
         
         // AbortController로 요청 취소 가능하게 만들기
         abortController = new AbortController()
         
-        // 타임아웃 설정 (5초)
+        // 타임아웃 설정 (10초로 증가 - 네트워크 지연 대응)
         timeoutId = setTimeout(() => {
-          console.error('⏱️ API 호출 타임아웃 (5초 초과)')
+          console.warn('⏱️ API 호출 타임아웃 (10초 초과)')
           if (abortController) {
             abortController.abort()
           }
-        }, 5000)
+        }, 10000)
         
         // 백엔드 API로 관리자 권한 확인
         console.log('🔍 /api/users/check-admin 호출 중...')
@@ -206,8 +212,11 @@ const AdminPage = () => {
         
         if (isMounted) {
           // 응답이 성공이든 실패든 is_admin 값으로 설정
-          setIsAdmin(data.is_admin === true)
+          const adminStatus = data.is_admin === true
+          setIsAdmin(adminStatus)
           setCheckingAdmin(false)
+          
+          console.log(`✅ 관리자 권한 체크 완료 - isAdmin: ${adminStatus}`)
           
           if (response.status !== 200 || data.error) {
             console.warn('⚠️ 관리자 권한 확인 경고:', data.error || '알 수 없는 오류')
@@ -215,6 +224,11 @@ const AdminPage = () => {
           
           if (!data.is_admin && data.debug) {
             console.error('❌ 관리자 권한이 없습니다. 디버깅 정보를 확인하세요.')
+          }
+          
+          // 관리자 권한이 확인되면 데이터 로드 시작
+          if (adminStatus) {
+            console.log('✅ 관리자 권한 확인됨, 데이터 로드 시작...')
           }
         }
       } catch (error) {
@@ -273,14 +287,15 @@ const AdminPage = () => {
     }
   }, [currentUser])
   
-  // 추가 안전장치: 6초 이상 checkingAdmin이 true면 자동으로 false로 변경
+  // 추가 안전장치: 10초 이상 checkingAdmin이 true면 자동으로 false로 변경
   useEffect(() => {
     if (checkingAdmin) {
       const fallbackTimeout = setTimeout(() => {
-        console.warn('⚠️ 관리자 권한 체크가 6초 이상 지연되었습니다. 자동으로 일반 사용자로 처리합니다.')
+        console.warn('⚠️ 관리자 권한 체크가 10초 이상 지연되었습니다. 자동으로 일반 사용자로 처리합니다.')
+        console.warn('⚠️ 이는 네트워크 문제이거나 백엔드 서버가 응답하지 않는 것일 수 있습니다.')
         setIsAdmin(false)
         setCheckingAdmin(false)
-      }, 6000)
+      }, 10000)
       
       return () => clearTimeout(fallbackTimeout)
     }
@@ -289,23 +304,96 @@ const AdminPage = () => {
   // 관리자 API 호출 헬퍼 함수 - Authorization 헤더 사용
   const adminFetch = async (url, options = {}) => {
     try {
-      const session = await supabase.auth.getSession()
-      const accessToken = session.data?.session?.access_token
+      console.log(`📡 adminFetch 호출: ${url}`)
+      
+      // 토큰 가져오기 (여러 방법 시도)
+      let accessToken = null
+      
+      // 방법 1: Supabase 세션에서 가져오기 (타임아웃 증가)
+      try {
+        const sessionPromise = supabase.auth.getSession()
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('세션 가져오기 타임아웃')), 5000)
+        })
+        const session = await Promise.race([sessionPromise, timeoutPromise])
+        accessToken = session.data?.session?.access_token
+        if (accessToken) {
+          console.log(`🔑 토큰 획득 (Supabase 세션): ${accessToken.substring(0, 20)}...`)
+        }
+      } catch (tokenError) {
+        console.warn('⚠️ Supabase 세션에서 토큰 가져오기 실패:', tokenError.message)
+      }
+      
+      // 방법 2: localStorage에서 직접 가져오기
+      if (!accessToken) {
+        try {
+          // 모든 localStorage 키 확인
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key && (key.includes('supabase') || key.includes('auth') || key.includes('token'))) {
+              const stored = localStorage.getItem(key)
+              if (stored) {
+                try {
+                  const parsed = JSON.parse(stored)
+                  if (parsed && parsed.access_token) {
+                    accessToken = parsed.access_token
+                    console.log(`🔑 토큰 획득 (localStorage: ${key}): ${accessToken.substring(0, 20)}...`)
+                    break
+                  }
+                } catch (e) {
+                  // JSON이 아니면 그냥 문자열로 사용 (JWT는 보통 eyJ로 시작)
+                  if (stored.startsWith('eyJ')) {
+                    accessToken = stored
+                    console.log(`🔑 토큰 획득 (localStorage: ${key}, raw): ${accessToken.substring(0, 20)}...`)
+                    break
+                  }
+                }
+              }
+            }
+          }
+        } catch (localStorageError) {
+          console.warn('⚠️ localStorage에서 토큰 가져오기 실패:', localStorageError.message)
+        }
+      }
+      
+      if (!accessToken) {
+        console.warn('⚠️ 토큰을 찾을 수 없습니다. X-User-Email 헤더로 진행합니다.')
+      }
       
       const defaultHeaders = {
-        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       }
       
-      return fetch(url, {
-        ...options,
-        headers: {
-          ...defaultHeaders,
-          ...options.headers
-        }
-      })
+      if (accessToken) {
+        defaultHeaders['Authorization'] = `Bearer ${accessToken}`
+        console.log(`🔑 Authorization 헤더 추가: Bearer ${accessToken.substring(0, 20)}...`)
+      }
+      
+      // currentUser의 email 추가 (필수)
+      const userEmail = currentUser?.email || currentUser?.user?.email
+      if (userEmail) {
+        defaultHeaders['X-User-Email'] = userEmail
+        console.log(`📧 X-User-Email 헤더 추가: ${userEmail}`)
+      } else {
+        console.warn('⚠️ currentUser.email이 없습니다. 인증이 실패할 수 있습니다.')
+        console.warn('⚠️ currentUser 객체:', currentUser)
+      }
+      
+      console.log(`📤 요청 헤더 키:`, Object.keys(defaultHeaders))
+      
+      const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers
+      }
+    })
+      
+      console.log(`📥 응답 상태: ${response.status} ${response.statusText}`)
+      
+      return response
     } catch (error) {
-      console.error('adminFetch 오류:', error)
+      console.error(`❌ adminFetch 오류 (${url}):`, error)
       throw error
     }
   }
@@ -382,12 +470,25 @@ const AdminPage = () => {
     notes: ''
   })
 
-  // 컴포넌트 마운트 시 데이터 로드
+  // 관리자 권한 확인 후 데이터 로드
   useEffect(() => {
+    // 관리자 권한이 확인되고 로딩이 완료된 경우에만 데이터 로드
+    console.log(`🔍 데이터 로드 체크 - isAdmin: ${isAdmin}, checkingAdmin: ${checkingAdmin}`)
+    if (isAdmin === true && checkingAdmin === false) {
+      console.log('✅ 관리자 권한 확인 완료, 데이터 로드 시작...')
+      try {
     loadAdminData()
     loadReferralData()
     loadCommissionData()
-  }, [])
+      } catch (error) {
+        console.error('❌ 데이터 로드 중 오류:', error)
+      }
+    } else if (isAdmin === false && checkingAdmin === false) {
+      console.log('⚠️ 관리자 권한이 없어 데이터 로드를 건너뜁니다.')
+    } else {
+      console.log('⏳ 관리자 권한 확인 대기 중...')
+    }
+  }, [isAdmin, checkingAdmin])
 
   // 탭 변경 시 해당 탭 데이터 로드
   useEffect(() => {
@@ -475,34 +576,47 @@ const AdminPage = () => {
 
   // 관리자 데이터 로드
   const loadAdminData = async () => {
+    console.log('🔄 loadAdminData 시작...')
     setIsLoading(true)
     setError(null)
 
     try {
+      console.log('📊 대시보드 통계 로드 시작...')
       // 대시보드 통계 로드
       await loadDashboardStats()
-
+      console.log('✅ 대시보드 통계 로드 완료')
+      
+      console.log('📦 주문 데이터 로드 시작...')
       // 주문 데이터 로드
       await loadOrders()
-
+      console.log('✅ 주문 데이터 로드 완료')
+      
+      console.log('💰 포인트 구매 신청 로드 시작...')
       // 포인트 구매 신청 로드
       await loadPendingPurchases()
-
+      console.log('✅ 포인트 구매 신청 로드 완료')
+      
       setLastUpdate(new Date().toLocaleString())
+      console.log('✅ loadAdminData 완료')
     } catch (error) {
+      console.error('❌ loadAdminData 오류:', error)
       setError('데이터를 불러오는 중 오류가 발생했습니다.')
     } finally {
       setIsLoading(false)
+      console.log('🏁 loadAdminData 종료 (isLoading: false)')
     }
   }
 
   // 대시보드 통계 로드
   const loadDashboardStats = async () => {
     try {
+      console.log('📡 /api/admin/stats API 호출 중...')
       const response = await adminFetch('/api/admin/stats')
-
+      console.log('📡 /api/admin/stats 응답 상태:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('📊 대시보드 통계 데이터:', data)
         setDashboardData({
           totalUsers: data.total_users || 0,
           totalOrders: data.total_orders || 0,
@@ -512,11 +626,13 @@ const AdminPage = () => {
           todayRevenue: data.today_revenue || 0,
           monthlyRevenue: data.monthly_sales || 0
         })
+        console.log('✅ 대시보드 데이터 설정 완료')
       } else {
-        console.error('대시보드 통계 로드 실패:', response.status)
+        const errorText = await response.text().catch(() => '')
+        console.error('❌ 대시보드 통계 로드 실패:', response.status, errorText)
       }
     } catch (error) {
-      // 대시보드 통계 로드 실패
+      console.error('❌ 대시보드 통계 로드 오류:', error)
     }
   }
 
@@ -548,10 +664,13 @@ const AdminPage = () => {
   // 주문 데이터 로드
   const loadOrders = async () => {
     try {
+      console.log('📡 /api/admin/transactions API 호출 중...')
       const response = await adminFetch('/api/admin/transactions')
-
+      console.log('📡 /api/admin/transactions 응답 상태:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('📦 주문 데이터 원본:', data)
         // API 응답을 프론트엔드 형식으로 변환
         const transformedOrders = Array.isArray(data.transactions || data.orders) ?
           (data.transactions || data.orders).map(order => ({
@@ -566,10 +685,16 @@ const AdminPage = () => {
             link: order.link || order.service_link || 'N/A',
             comments: order.comments || order.remarks || 'N/A'
           })) : []
-
+        
+        console.log('✅ 변환된 주문 데이터:', transformedOrders.length, '개')
         setOrders(transformedOrders)
+      } else {
+        const errorText = await response.text().catch(() => '')
+        console.error('❌ 주문 데이터 로드 실패:', response.status, errorText)
+        setOrders([])
       }
     } catch (error) {
+      console.error('❌ 주문 데이터 로드 오류:', error)
       setOrders([])
     }
   }
@@ -939,30 +1064,52 @@ const AdminPage = () => {
 
   // 커미션 데이터 로드 (환급신청 포함)
   const loadCommissionData = async () => {
+    console.log('🔄 loadCommissionData 시작...')
     try {
+      console.log('📡 커미션 관련 API 호출 중...')
       const [overviewResponse, historyResponse, payoutRequestsResponse] = await Promise.all([
         adminFetch('/api/admin/referral/commission-overview'),
         adminFetch('/api/admin/referral/payment-history'),
         adminFetch('/api/admin/payout-requests')
       ])
-
+      
+      console.log('📡 커미션 API 응답 상태:', {
+        overview: overviewResponse.status,
+        history: historyResponse.status,
+        payoutRequests: payoutRequestsResponse.status
+      })
+      
       if (overviewResponse.ok) {
         const overviewData = await overviewResponse.json()
+        console.log('📊 커미션 개요 데이터:', overviewData)
         setCommissionOverview(overviewData.overview || [])
         setCommissionStats(overviewData.stats || {})
+        console.log('✅ 커미션 개요 데이터 설정 완료')
+      } else {
+        console.error('❌ 커미션 개요 로드 실패:', overviewResponse.status)
       }
 
       if (historyResponse.ok) {
         const historyData = await historyResponse.json()
+        console.log('📊 결제 내역 데이터:', historyData)
         setPaymentHistory(historyData.payments || historyData.payout_requests || [])
+        console.log('✅ 결제 내역 데이터 설정 완료')
+      } else {
+        console.error('❌ 결제 내역 로드 실패:', historyResponse.status)
       }
 
       if (payoutRequestsResponse.ok) {
         const payoutData = await payoutRequestsResponse.json()
+        console.log('📊 환급 신청 데이터:', payoutData)
         setPaymentHistory(payoutData.payout_requests || payoutData.requests || [])
+        console.log('✅ 환급 신청 데이터 설정 완료')
+      } else {
+        console.error('❌ 환급 신청 로드 실패:', payoutRequestsResponse.status)
       }
+      
+      console.log('✅ loadCommissionData 완료')
     } catch (error) {
-      console.error('커미션 데이터 로드 실패:', error)
+      console.error('❌ 커미션 데이터 로드 실패:', error)
     }
   }
 
@@ -2047,7 +2194,7 @@ const AdminPage = () => {
     )
   }
 
-  return (
+    return (
     <div className="admin-page">
       <div className="admin-header">
         <h1>관리자 대시보드</h1>

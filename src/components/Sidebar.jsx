@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useGuest } from '../contexts/GuestContext'
+import { supabase } from '../supabase/client'
 import './Sidebar.css'
 
 const Sidebar = ({ onClose }) => {
@@ -31,6 +32,7 @@ const Sidebar = ({ onClose }) => {
   const [pointsLoading, setPointsLoading] = useState(false)
   const [hasReferralCode, setHasReferralCode] = useState(false)
   const [referralCodeLoading, setReferralCodeLoading] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   // 사용자 포인트 조회 함수
   const fetchUserPoints = async () => {
@@ -94,14 +96,56 @@ const Sidebar = ({ onClose }) => {
     fetchUserPoints()
   }
 
+  // 관리자 권한 확인 함수
+  const checkAdminStatus = async () => {
+    if (!currentUser?.email) {
+      setIsAdmin(false)
+      return
+    }
+    
+    try {
+      const session = await supabase.auth.getSession()
+      const accessToken = session.data?.session?.access_token
+      
+      const headers = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`
+      }
+      
+      if (currentUser.email) {
+        headers['X-User-Email'] = currentUser.email
+      }
+      
+      const response = await fetch('/api/users/check-admin', {
+        method: 'GET',
+        headers
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setIsAdmin(data.is_admin === true)
+      } else {
+        setIsAdmin(false)
+      }
+    } catch (error) {
+      console.error('관리자 권한 확인 실패:', error)
+      setIsAdmin(false)
+    }
+  }
+
   // 사용자가 로그인했을 때 포인트 조회 및 추천인 코드 확인
   useEffect(() => {
     if (currentUser) {
       fetchUserPoints()
       checkReferralCode()
+      checkAdminStatus()
     } else {
       setUserPoints(0)
       setHasReferralCode(false)
+      setIsAdmin(false)
     }
 
     // 포인트 업데이트 이벤트 리스너
@@ -280,7 +324,7 @@ const Sidebar = ({ onClose }) => {
         ))}
         
         {/* 관리자 메뉴 (관리자 계정일 때만 표시) */}
-        {currentUser && (currentUser.email === 'tambleofficial@gmail.com' || currentUser.email === 'tambleofficial01@gmail.com') && (
+        {isAdmin && (
           <>
             <div className="admin-separator"></div>
             {adminMenuItems.map(({ id, name, icon: Icon, path, color }) => (
