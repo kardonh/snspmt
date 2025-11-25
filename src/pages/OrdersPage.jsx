@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import smmpanelApi from '../services/snspopApi'
-import { Copy, ExternalLink, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Copy, ExternalLink, Plus, ChevronLeft, ChevronRight, Package } from 'lucide-react'
 import './OrdersPage.css'
 
 // 주문 현황 상태 상수 (4개로 단순화)
@@ -24,6 +24,8 @@ const ORDER_STATUS_LABELS = {
 
 // 주문 카드 컴포넌트
 const OrderCard = ({ order, onCopyOrderId, onCopyLink, onRefill }) => {
+  const [isExpanded, setIsExpanded] = useState(false)
+  
   const formatDate = (dateString) => {
     if (!dateString) return '-'
     const date = new Date(dateString)
@@ -47,13 +49,30 @@ const OrderCard = ({ order, onCopyOrderId, onCopyLink, onRefill }) => {
     }
   }
 
+  const isPackage = order.is_package && order.package_steps && order.package_steps.length > 0
+
   return (
     <div className="order-card">
       <div className="order-header">
-        <div className="order-title">
-          <span className="service-type">[일반]</span>
+        <div className="order-title" onClick={() => isPackage && setIsExpanded(!isExpanded)} style={{ cursor: isPackage ? 'pointer' : 'default' }}>
+          <span className="service-type">{isPackage ? '[패키지]' : '[일반]'}</span>
           <span className="service-name">{order.service_name || order.detailed_service || `서비스 ${order.service_id}`}</span>
-          <Plus size={16} className="expand-icon" />
+          {isPackage && (
+            <span style={{ marginLeft: '8px', fontSize: '12px', color: '#8b5cf6' }}>
+              ({order.total_steps || order.package_steps?.length || 0}단계)
+            </span>
+          )}
+          {isPackage && (
+            <ChevronRight 
+              size={16} 
+              className="expand-icon" 
+              style={{ 
+                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s'
+              }} 
+            />
+          )}
+          {!isPackage && <Plus size={16} className="expand-icon" />}
         </div>
         <button className="copy-link-btn" onClick={() => onCopyLink(order.link)}>
           링크복사
@@ -107,6 +126,51 @@ const OrderCard = ({ order, onCopyOrderId, onCopyLink, onRefill }) => {
           </div>
         </div>
       </div>
+      
+      {/* 패키지 주문 단계 표시 (서브) */}
+      {isPackage && isExpanded && order.package_steps && order.package_steps.length > 0 && (
+        <div className="package-steps" style={{ 
+          marginTop: '16px', 
+          padding: '16px', 
+          backgroundColor: '#f9fafb', 
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h4 style={{ marginBottom: '12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+            패키지 단계 ({order.package_steps.length}개)
+          </h4>
+          {order.package_steps.map((step, index) => (
+            <div 
+              key={index} 
+              style={{ 
+                padding: '12px', 
+                marginBottom: '8px', 
+                backgroundColor: 'white', 
+                borderRadius: '6px',
+                border: '1px solid #e5e7eb'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <strong style={{ fontSize: '13px', color: '#111827' }}>
+                    {index + 1}단계: {step.name || `단계 ${index + 1}`}
+                  </strong>
+                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                    수량: {step.quantity || 0} | 
+                    {step.delay !== undefined && step.delay > 0 && ` 지연: ${step.delay}분`}
+                    {step.repeat !== undefined && step.repeat > 1 && ` | 반복: ${step.repeat}회`}
+                  </div>
+                </div>
+                {step.id && (
+                  <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+                    서비스 ID: {step.id}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       
       {order.status === '주문 실행완료' && (
         <div className="order-actions">
