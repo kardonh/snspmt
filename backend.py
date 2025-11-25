@@ -4070,6 +4070,87 @@ def init_database():
             
             safe_add_variant_column('original_cost', 'NUMERIC(14,2) DEFAULT 0')
             
+            # packages 테이블에 product_id 컬럼 추가
+            def safe_add_package_column(column_name, column_type):
+                """packages 테이블에 컬럼이 없으면 추가"""
+                try:
+                    cursor.execute("""
+                        SELECT EXISTS (
+                            SELECT 1 
+                            FROM information_schema.columns 
+                            WHERE table_name = 'packages' 
+                            AND column_name = %s
+                        )
+                    """, (column_name,))
+                    exists = cursor.fetchone()[0]
+                    if not exists:
+                        cursor.execute(f"ALTER TABLE packages ADD COLUMN {column_name} {column_type}")
+                        conn.commit()
+                        print(f"✅ packages.{column_name} 필드 추가 완료")
+                        return True
+                    else:
+                        print(f"ℹ️ packages.{column_name} 필드 이미 존재")
+                        return False
+                except Exception as e:
+                    error_str = str(e).lower()
+                    if 'current transaction is aborted' in error_str:
+                        try:
+                            conn.rollback()
+                            cursor.execute("""
+                                SELECT EXISTS (
+                                    SELECT 1 
+                                    FROM information_schema.columns 
+                                    WHERE table_name = 'packages' 
+                                    AND column_name = %s
+                                )
+                            """, (column_name,))
+                            exists = cursor.fetchone()[0]
+                            if not exists:
+                                cursor.execute(f"ALTER TABLE packages ADD COLUMN {column_name} {column_type}")
+                                conn.commit()
+                                print(f"✅ packages.{column_name} 필드 추가 완료 (재시도)")
+                                return True
+                        except Exception as retry_error:
+                            print(f"⚠️ packages.{column_name} 필드 추가 실패: {retry_error}")
+                            try:
+                                conn.rollback()
+                            except:
+                                pass
+                            return False
+                    else:
+                        print(f"⚠️ packages.{column_name} 필드 추가 실패: {e}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        return False
+            
+            # product_id 컬럼 추가 (외래 키는 나중에 추가)
+            if safe_add_package_column('product_id', 'BIGINT'):
+                # 기존 패키지들의 product_id 업데이트
+                try:
+                    cursor.execute("""
+                        UPDATE packages p
+                        SET product_id = (
+                            SELECT product_id 
+                            FROM products pr 
+                            WHERE pr.category_id = p.category_id 
+                            ORDER BY pr.product_id ASC 
+                            LIMIT 1
+                        )
+                        WHERE p.product_id IS NULL
+                    """)
+                    updated_count = cursor.rowcount
+                    conn.commit()
+                    if updated_count > 0:
+                        print(f"✅ {updated_count}개 패키지의 product_id 업데이트 완료")
+                except Exception as update_error:
+                    print(f"⚠️ 패키지 product_id 업데이트 실패: {update_error}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
+            
             # wallets 테이블 생성 (새 스키마 사용)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS wallets (
@@ -16657,6 +16738,44 @@ def migrate_database():
             except Exception as e:
                 messages.append(f"⚠️ package_steps: {str(e)}")
                 print(f"⚠️ package_steps 필드 추가 실패: {e}")
+                conn.rollback()
+            
+            # packages 테이블에 product_id 컬럼 추가
+            try:
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name='packages' AND column_name='product_id'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE packages ADD COLUMN product_id BIGINT REFERENCES products(product_id)")
+                    conn.commit()
+                    messages.append("✅ packages.product_id 필드 추가 완료")
+                    print("✅ packages.product_id 필드 추가 완료")
+                    
+                    # 기존 패키지들의 product_id 업데이트 (category_id로 첫 번째 상품 찾기)
+                    cursor.execute("""
+                        UPDATE packages p
+                        SET product_id = (
+                            SELECT product_id 
+                            FROM products pr 
+                            WHERE pr.category_id = p.category_id 
+                            ORDER BY pr.product_id ASC 
+                            LIMIT 1
+                        )
+                        WHERE p.product_id IS NULL
+                    """)
+                    updated_count = cursor.rowcount
+                    conn.commit()
+                    if updated_count > 0:
+                        messages.append(f"✅ {updated_count}개 패키지의 product_id 업데이트 완료")
+                        print(f"✅ {updated_count}개 패키지의 product_id 업데이트 완료")
+                else:
+                    messages.append("ℹ️ packages.product_id 필드 이미 존재")
+                    print("ℹ️ packages.product_id 필드 이미 존재")
+            except Exception as e:
+                messages.append(f"⚠️ packages.product_id: {str(e)}")
+                print(f"⚠️ packages.product_id 필드 추가 실패: {e}")
                 conn.rollback()
         
         cursor.close()
