@@ -4854,6 +4854,7 @@ def get_user_points():
                 }), 200
             
             # 지갑 조회 (없으면 생성) - 안전하게 처리
+            balance = 0.0
             try:
                 # 먼저 지갑이 있는지 확인
                 cursor.execute("""
@@ -4877,7 +4878,7 @@ def get_user_points():
                     except Exception as insert_error:
                         # UNIQUE 제약 조건 오류는 무시 (다른 요청에서 이미 생성됨)
                         error_msg = str(insert_error).lower()
-                        if 'unique' in error_msg or 'duplicate' in error_msg:
+                        if 'unique' in error_msg or 'duplicate' in error_msg or 'already exists' in error_msg:
                             print(f"⚠️ 지갑이 이미 존재함 (재조회): {insert_error}")
                             conn.rollback()
                             # 다시 조회
@@ -4887,19 +4888,33 @@ def get_user_points():
                                 WHERE user_id = %s
                             """, (user['user_id'],))
                             wallet = cursor.fetchone()
+                        elif 'does not exist' in error_msg or 'relation' in error_msg:
+                            # wallets 테이블이 없는 경우
+                            print(f"⚠️ wallets 테이블이 없음, 기본값 0 반환: {insert_error}")
+                            balance = 0.0
+                            wallet = None
                         else:
-                            raise
+                            print(f"⚠️ 지갑 생성 오류 (기본값 반환): {insert_error}")
+                            conn.rollback()
+                            balance = 0.0
+                            wallet = None
                 else:
                     conn.commit()
                 
                 # 잔액 계산
-                balance = float(wallet['balance']) if wallet and wallet.get('balance') is not None else 0.0
-                print(f"✅ 포인트 조회 성공: {balance}")
+                if wallet:
+                    balance = float(wallet['balance']) if wallet.get('balance') is not None else 0.0
+                    print(f"✅ 포인트 조회 성공: {balance}")
+                else:
+                    print(f"⚠️ 지갑 없음, 기본값 0 반환")
             except Exception as wallet_error:
                 print(f"⚠️ 지갑 조회/생성 오류: {wallet_error}")
                 import traceback
                 traceback.print_exc()
-                conn.rollback()
+                try:
+                    conn.rollback()
+                except:
+                    pass
                 # 오류가 발생해도 기본값 반환
                 balance = 0.0
                 print(f"⚠️ 기본값 0 반환")
@@ -5491,25 +5506,61 @@ def create_order():
         print(f"🔍 주문 INSERT 시작 - real_order_id: {real_order_id}, db_user_id: {db_user_id}, price: {price}, final_price: {final_price}, smm_error: {smm_error}")
         try:
             if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
-                # 새 스키마: total_amount, final_amount 사용, service_id, link, quantity, price 제거
+                # orders 테이블에 link, quantity 컬럼 추가 시도 (없으면 추가)
+                try:
+                    # PostgreSQL에서 컬럼 존재 여부 확인 후 추가
+                    cursor.execute("""
+                        DO $$ 
+                        BEGIN
+                            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='link') THEN
+                                ALTER TABLE orders ADD COLUMN link TEXT;
+                            END IF;
+                            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='quantity') THEN
+                                ALTER TABLE orders ADD COLUMN quantity INTEGER DEFAULT 0;
+                            END IF;
+                        END $$;
+                    """)
+                    print(f"✅ orders 테이블에 link, quantity 컬럼 확인/추가 완료")
+                except Exception as alter_err:
+                    # 컬럼이 이미 존재하거나 다른 오류 (무시하고 계속)
+                    print(f"⚠️ orders 테이블 컬럼 확인/추가 중 오류 (이미 존재할 수 있음): {alter_err}")
+                
+                # 새 스키마: total_amount, final_amount 사용 + link, quantity 직접 저장
                 cursor.execute("""
                     INSERT INTO orders (order_id, user_id, total_amount, discount_amount, final_amount,
-                                    status, created_at, updated_at,
+                                    link, quantity, status, created_at, updated_at,
                                     is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, 
                                     smm_panel_order_id, detailed_service, referrer_user_id, coupon_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW(),
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(),
                             %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING order_id
                 """, (
                     real_order_id, db_user_id, price, discount_amount, final_price,
+                    str(link) if link else '',  # link 직접 저장 (문자열로 변환)
+                    int(quantity) if quantity else 0,  # quantity 직접 저장 (정수로 변환)
                     'failed' if smm_error else ('pending' if is_scheduled else 'pending'),  # SMM 실패 시 failed 상태
                     is_scheduled, scheduled_datetime, is_split_delivery, split_days, split_quantity, 
                     smm_panel_order_id, detailed_service,
                     referrer_user_id if 'referrer_user_id' in locals() and referrer_user_id else None,
                     user_coupon_id if 'user_coupon_id' in locals() and user_coupon_id else None
                 ))
+                print(f"✅ 주문 INSERT 완료 - link: '{link}', quantity: {quantity}")
                 inserted_order_id = cursor.fetchone()[0] if cursor.rowcount > 0 else real_order_id
                 print(f"✅ 주문 INSERT 완료 (PostgreSQL) - order_id: {inserted_order_id}")
+                
+                # 저장 확인: 실제로 저장되었는지 확인
+                try:
+                    cursor.execute("""
+                        SELECT link, quantity FROM orders WHERE order_id = %s
+                    """, (inserted_order_id,))
+                    saved_data = cursor.fetchone()
+                    if saved_data:
+                        saved_link, saved_quantity = saved_data
+                        print(f"✅ 저장 확인 - order_id: {inserted_order_id}, link: '{saved_link}', quantity: {saved_quantity}")
+                    else:
+                        print(f"⚠️ 저장 확인 실패 - order_id: {inserted_order_id}를 찾을 수 없음")
+                except Exception as check_err:
+                    print(f"⚠️ 저장 확인 중 오류: {check_err}")
             else:
                 # SQLite: 구 스키마 유지 (레거시 호환)
                 cursor.execute("""
@@ -5566,25 +5617,120 @@ def create_order():
             }), 500
         
         # order_items 테이블에 상세 정보 저장 (새 스키마)
-        if DATABASE_URL and DATABASE_URL.startswith('postgresql://') and variant_id:
-            try:
-                line_amount = unit_price * quantity
-                cursor.execute("""
-                    INSERT INTO order_items (order_id, variant_id, quantity, unit_price, line_amount, link, status, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), NOW())
-                    RETURNING order_item_id
-                """, (order_id, variant_id, quantity, unit_price, line_amount, link))
-                order_item_result = cursor.fetchone()
-                order_item_id = order_item_result[0] if order_item_result else None
-                print(f"✅ 주문 아이템 생성 완료 - order_item_id: {order_item_id}, variant_id: {variant_id}, quantity: {quantity}, unit_price: {unit_price}, line_amount: {line_amount}")
-            except Exception as item_error:
-                print(f"⚠️ 주문 아이템 생성 실패 (무시하고 계속): {item_error}")
-                import traceback
-                traceback.print_exc()
-        elif not variant_id:
-            print(f"⚠️ variant_id를 찾을 수 없어 order_items에 저장하지 않음: service_id={service_id}")
+        # 패키지 주문인 경우 각 단계마다 order_items에 저장
+        package_steps = data.get('package_steps', [])
+        is_package = len(package_steps) > 0
+        
+        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+            if is_package and package_steps:
+                # 패키지 주문: 각 단계마다 order_items에 저장
+                print(f"📦 패키지 주문 - {len(package_steps)}개 단계를 order_items에 저장")
+                for step_idx, step in enumerate(package_steps, 1):
+                    try:
+                        step_service_id = step.get('id') or step.get('service_id')
+                        step_quantity = step.get('quantity', 0)
+                        step_name = step.get('name', f'단계 {step_idx}')
+                        
+                        # 각 단계의 variant_id 찾기
+                        step_variant_id = None
+                        step_unit_price = 0
+                        if step_service_id and str(step_service_id).isdigit():
+                            try:
+                                cursor.execute("""
+                                    SELECT variant_id, price 
+                                    FROM product_variants 
+                                    WHERE (meta_json->>'service_id')::text = %s 
+                                       OR (meta_json->>'smm_service_id')::text = %s
+                                    LIMIT 1
+                                """, (str(step_service_id), str(step_service_id)))
+                                variant_result = cursor.fetchone()
+                                if variant_result:
+                                    step_variant_id = variant_result[0]
+                                    step_unit_price = float(variant_result[1]) if variant_result[1] else 0
+                            except Exception as step_variant_error:
+                                print(f"⚠️ 단계 {step_idx} variant_id 찾기 실패: {step_variant_error}")
+                        
+                        step_line_amount = step_unit_price * step_quantity if step_unit_price > 0 else 0
+                        
+                        # 각 단계를 order_items에 저장
+                        cursor.execute("""
+                            INSERT INTO order_items (order_id, variant_id, quantity, unit_price, line_amount, link, status, created_at, updated_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), NOW())
+                            RETURNING order_item_id
+                        """, (order_id, step_variant_id, step_quantity, step_unit_price, step_line_amount, link))
+                        step_item_result = cursor.fetchone()
+                        step_item_id = step_item_result[0] if step_item_result else None
+                        print(f"✅ 패키지 단계 {step_idx} order_item 생성 완료 - order_item_id: {step_item_id}, variant_id: {step_variant_id}, quantity: {step_quantity}, name: {step_name}")
+                    except Exception as step_error:
+                        print(f"⚠️ 패키지 단계 {step_idx} order_item 생성 실패: {step_error}")
+                        import traceback
+                        traceback.print_exc()
+            else:
+                # 일반 주문: 1개 order_item 저장
+                try:
+                    line_amount = unit_price * quantity if variant_id else (final_price if 'final_price' in locals() else price)
+                    cursor.execute("""
+                        INSERT INTO order_items (order_id, variant_id, quantity, unit_price, line_amount, link, status, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, 'pending', NOW(), NOW())
+                        RETURNING order_item_id
+                    """, (order_id, variant_id, quantity, unit_price, line_amount, link))
+                    order_item_result = cursor.fetchone()
+                    order_item_id = order_item_result[0] if order_item_result else None
+                    if variant_id:
+                        print(f"✅ 주문 아이템 생성 완료 - order_item_id: {order_item_id}, order_id: {order_id}, variant_id: {variant_id}, quantity: {quantity}, link: '{link}', unit_price: {unit_price}, line_amount: {line_amount}")
+                    else:
+                        print(f"⚠️ variant_id 없이 주문 아이템 생성 완료 - order_item_id: {order_item_id}, order_id: {order_id}, service_id: {service_id}, quantity: {quantity}, link: '{link}', unit_price: {unit_price}, line_amount: {line_amount}")
+                except Exception as item_error:
+                    print(f"⚠️ 주문 아이템 생성 실패: {item_error}")
+                    import traceback
+                    traceback.print_exc()
+                    # variant_id 없이 재시도
+                    try:
+                        print(f"🔄 variant_id 없이 재시도...")
+                        cursor.execute("""
+                            INSERT INTO order_items (order_id, variant_id, quantity, unit_price, line_amount, link, status, created_at, updated_at)
+                            VALUES (%s, NULL, %s, %s, %s, %s, 'pending', NOW(), NOW())
+                            RETURNING order_item_id
+                        """, (order_id, quantity, final_price if 'final_price' in locals() else price, final_price if 'final_price' in locals() else price, link))
+                        order_item_result = cursor.fetchone()
+                        order_item_id = order_item_result[0] if order_item_result else None
+                        print(f"✅ variant_id 없이 주문 아이템 생성 완료 - order_item_id: {order_item_id}")
+                    except Exception as retry_error:
+                        print(f"❌ variant_id 없이 재시도도 실패: {retry_error}")
+                        import traceback
+                        traceback.print_exc()
+        else:
+            # SQLite의 경우 (레거시 호환)
+            print(f"ℹ️ SQLite 사용 중 - order_items 저장은 PostgreSQL에서만 지원")
         
         # 주문 저장 확정 (commit 전에 SMM 에러 처리)
+        # order_items 저장 확인
+        if DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
+            try:
+                cursor.execute("""
+                    SELECT COUNT(*) as item_count 
+                    FROM order_items 
+                    WHERE order_id = %s
+                """, (order_id,))
+                item_count_result = cursor.fetchone()
+                item_count = item_count_result[0] if item_count_result else 0
+                print(f"📊 order_items 저장 확인 - order_id: {order_id}, 저장된 아이템 수: {item_count}")
+                if item_count == 0:
+                    print(f"⚠️ 경고: order_items에 데이터가 없습니다! 최소한의 정보라도 저장 시도...")
+                    # 최소한의 정보라도 저장
+                    try:
+                        cursor.execute("""
+                            INSERT INTO order_items (order_id, variant_id, quantity, unit_price, line_amount, link, status, created_at, updated_at)
+                            VALUES (%s, NULL, %s, %s, %s, %s, 'pending', NOW(), NOW())
+                            RETURNING order_item_id
+                        """, (order_id, quantity if 'quantity' in locals() else 0, final_price if 'final_price' in locals() else price if 'price' in locals() else 0, final_price if 'final_price' in locals() else price if 'price' in locals() else 0, link if 'link' in locals() else ''))
+                        fallback_result = cursor.fetchone()
+                        fallback_item_id = fallback_result[0] if fallback_result else None
+                        print(f"✅ 최소 정보로 order_item 저장 완료 - order_item_id: {fallback_item_id}")
+                    except Exception as fallback_error:
+                        print(f"❌ 최소 정보 저장도 실패: {fallback_error}")
+            except Exception as check_error:
+                print(f"⚠️ order_items 저장 확인 중 오류: {check_error}")
         # SMM Panel 실패 시 주문 금액을 0으로 업데이트하고 포인트 환불 및 커미션 저장 건너뛰기
         if smm_error:
             print(f"⚠️ SMM Panel 실패로 인해 주문이 'failed' 상태로 저장되었습니다. 주문 금액을 0으로 설정하고 포인트 환불 및 커미션 저장을 건너뜁니다.")
@@ -5687,9 +5833,7 @@ def create_order():
         conn.commit()
         print(f"✅ 주문 생성 성공 - 주문 ID: {order_id}")
         
-        # 패키지 상품 여부 확인
-        package_steps = data.get('package_steps', [])
-        is_package = len(package_steps) > 0
+        # 패키지 상품 여부 확인 (위에서 이미 정의됨)
         print(f"🔍 패키지 상품 확인: is_package={is_package}, package_steps={package_steps}")
         
         # 응답 변수 초기화
@@ -6322,29 +6466,33 @@ def get_orders():
                     return jsonify({'orders': []}), 200
                 db_user_id = user_result[0]
                 
-                # 주문 조회 (order_items와 LEFT JOIN) - 첫 번째 order_item만 가져오기
+                # 주문 조회: orders 테이블에서 직접 link, quantity 가져오기 (간단하게)
                 cursor.execute("""
                     SELECT 
                         o.order_id, 
                         o.status, 
-                        COALESCE(o.final_amount, o.total_amount, 0) as price, 
+                        COALESCE(o.final_amount, o.total_amount, 0) as price,
+                        o.total_amount,
                         o.created_at,
-                        oi.variant_id, 
-                        COALESCE(oi.link, '') as link, 
-                        COALESCE(oi.quantity, 0) as quantity, 
-                        COALESCE(oi.unit_price, 0) as unit_price,
                         o.smm_panel_order_id, 
                         o.detailed_service,
+                        -- orders 테이블에서 직접 link, quantity 가져오기
+                        COALESCE(o.link, '') as link,
+                        COALESCE(o.quantity, 0) as quantity,
+                        -- variant_id는 order_items에서 가져오기 (서비스 정보용)
+                        oi_first.variant_id,
+                        oi_first.unit_price,
                         pv.name as variant_name, 
                         pv.meta_json as variant_meta
                     FROM orders o
+                    -- variant_id만 order_items에서 가져오기 (서비스 정보 표시용)
                     LEFT JOIN (
                         SELECT DISTINCT ON (order_id)
-                            order_id, variant_id, link, quantity, unit_price
+                            order_id, variant_id, unit_price
                         FROM order_items
                         ORDER BY order_id, order_item_id ASC
-                    ) oi ON o.order_id = oi.order_id
-                    LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
+                    ) oi_first ON o.order_id = oi_first.order_id
+                    LEFT JOIN product_variants pv ON oi_first.variant_id = pv.variant_id
                     WHERE o.user_id = %s
                     ORDER BY o.created_at DESC
                     LIMIT 50
@@ -6372,40 +6520,36 @@ def get_orders():
             try:
                 # 주문 데이터 처리 (새 스키마에 맞게 수정)
                 if DATABASE_URL.startswith('postgresql://'):
-                    # 새 스키마: order_id, status, price (final_amount), created_at, variant_id, link, quantity, unit_price, smm_panel_order_id, detailed_service, variant_name, variant_meta
+                    # 새 스키마 쿼리 결과 순서:
+                    # 0: order_id, 1: status, 2: price (final_amount), 3: total_amount,
+                    # 4: created_at, 5: smm_panel_order_id, 6: detailed_service,
+                    # 7: link (orders 테이블에서 직접), 8: quantity (orders 테이블에서 직접),
+                    # 9: variant_id, 10: unit_price,
+                    # 11: variant_name, 12: variant_meta
                     order_id = order[0]
                     db_status = order[1] if len(order) > 1 else 'pending'
                     price = float(order[2]) if len(order) > 2 and order[2] else 0.0
-                    created_at = order[3] if len(order) > 3 else None
-                    variant_id = order[4] if len(order) > 4 else None
-                    link_raw = order[5] if len(order) > 5 else None
-                    # 링크 처리: order_items의 link를 사용, 없으면 별도 조회
+                    total_amount = float(order[3]) if len(order) > 3 and order[3] else 0.0
+                    created_at = order[4] if len(order) > 4 else None
+                    smm_panel_order_id = order[5] if len(order) > 5 else None
+                    detailed_service = order[6] if len(order) > 6 else None
+                    link_raw = order[7] if len(order) > 7 else None  # orders 테이블에서 직접
+                    quantity = int(order[8]) if len(order) > 8 and order[8] is not None else 0  # orders 테이블에서 직접
+                    variant_id = order[9] if len(order) > 9 else None
+                    unit_price = float(order[10]) if len(order) > 10 and order[10] else 0.0
+                    variant_name = order[11] if len(order) > 11 else None
+                    variant_meta = order[12] if len(order) > 12 else None
+                    
+                    # 링크 처리: orders 테이블에서 직접 가져오기 (간단하게)
                     link = ''
                     if link_raw and isinstance(link_raw, str) and link_raw.strip() and link_raw.strip() != 'None' and link_raw.strip() != 'null':
                         link = link_raw.strip()
                     else:
-                        # JOIN에서 링크가 없으면 별도로 조회 시도
-                        try:
-                            cursor.execute("""
-                                SELECT link FROM order_items 
-                                WHERE order_id = %s AND link IS NOT NULL AND link != '' AND link != 'null'
-                                ORDER BY order_item_id ASC
-                                LIMIT 1
-                            """, (order_id,))
-                            link_result = cursor.fetchone()
-                            if link_result and link_result[0]:
-                                link = str(link_result[0]).strip()
-                        except Exception as link_err:
-                            print(f"⚠️ 링크 별도 조회 실패: {link_err}")
+                        link = ''  # 빈 문자열로 설정
                     
-                    quantity = int(order[6]) if len(order) > 6 and order[6] is not None else 0  # None 체크 추가
-                    unit_price = float(order[7]) if len(order) > 7 and order[7] else 0.0
-                    smm_panel_order_id = order[8] if len(order) > 8 else None
-                    detailed_service = order[9] if len(order) > 9 else None
-                    variant_name = order[10] if len(order) > 10 else None
-                    variant_meta = order[11] if len(order) > 11 else None
-                    
-                    print(f"🔍 주문 데이터 추출 - order_id: {order_id}, link_raw: {link_raw}, 최종 link: '{link}', quantity: {quantity}, variant_id: {variant_id}")
+                    # quantity 처리: orders 테이블에서 직접 가져오기 (간단하게)
+                    if quantity is None:
+                        quantity = 0
                     
                     # variant_meta에서 service_id 추출
                     actual_service_id = None
@@ -6455,32 +6599,30 @@ def get_orders():
                 # SMM Panel 주문번호 우선 사용
                 display_order_id = smm_panel_order_id if smm_panel_order_id else order_id
                 
-                # SMM Panel API에서 실제 사용 금액 및 남은 수량 조회
-                charge = 0
-                if smm_panel_order_id and status in ['주문 실행중', '주문 실행완료', '주문발송']:
-                    try:
-                        # 처리 중이거나 완료된 주문만 SMM Panel API 호출
-                        smm_status = call_smm_panel_api({
-                            'action': 'status',
-                            'order': smm_panel_order_id
-                        })
-                        
-                        if smm_status.get('status') == 'success':
-                            charge = float(smm_status.get('charge', 0)) or 0
-                            start_count = int(smm_status.get('start_count', 0)) or 0
-                            api_remains = smm_status.get('remains')
-                            # API에서 남은 수량이 있으면 사용, 없으면 원래 수량 사용
-                            if api_remains is not None:
-                                remains = int(api_remains)
-                            else:
-                                remains = quantity
-                            print(f"✅ SMM Panel 상태 조회 성공: charge={charge}, start_count={start_count}, remains={remains}")
-                        else:
-                            print(f"⚠️ SMM Panel 상태 조회 실패: {smm_status.get('message')}")
-                    except Exception as e:
-                        print(f"⚠️ SMM Panel 상태 조회 오류: {e}")
-                        charge = 0
-                        remains = quantity  # 오류 시 전체 수량으로 설정
+                # charge는 사용한 금액 (orders 테이블의 total_amount)
+                charge = total_amount if total_amount > 0 else price
+                
+                # SMM Panel API 호출 최적화: 타임아웃 방지를 위해 기본값 사용
+                # 주문 목록 조회 시 모든 주문에 대해 API 호출하면 매우 느려짐 (15초 타임아웃 발생)
+                # 필요시 개별 주문 상세 조회 시에만 API 호출하는 것을 권장
+                start_count = 0
+                remains = quantity  # 기본값: 전체 수량
+                
+                # 성능 최적화: 주문 목록 조회 시 SMM Panel API 호출 제거
+                # 개별 주문 상세 조회 API에서만 사용하도록 변경 권장
+                # if smm_panel_order_id and status in ['주문 실행중', '주문 실행완료']:
+                #     try:
+                #         smm_status = call_smm_panel_api({
+                #             'action': 'status',
+                #             'order': smm_panel_order_id
+                #         })
+                #         if smm_status.get('status') == 'success':
+                #             start_count = int(smm_status.get('start_count', 0)) or 0
+                #             api_remains = smm_status.get('remains')
+                #             if api_remains is not None:
+                #                 remains = int(api_remains)
+                #     except Exception as e:
+                #         pass  # 오류 시 기본값 사용
                 
                 # 서비스 이름 결정 (우선순위: detailed_service > variant_name > get_service_name > 기본값)
                 if detailed_service:
@@ -12751,21 +12893,28 @@ def get_admin_transactions():
                         o.total_amount,
                         o.status,
                         o.created_at,
-                        oi.variant_id,
+                        oi_first.variant_id,
+                        oi_first.link as link,
+                        COALESCE(oi_sum.total_quantity, 0) as quantity,
                         pv.meta_json->>'service_id' as service_id,
                         COALESCE(o.detailed_service, pv.name, 'N/A') as service_name,
-                        COALESCE(oi.quantity, 0) as quantity,
-                        COALESCE(oi.link, '') as link,
                         COALESCE(o.notes, '') as comments,
                         o.smm_panel_order_id
                     FROM orders o
+                    -- 첫 번째 order_item (link, variant_id용)
                     LEFT JOIN (
-                        SELECT DISTINCT ON (order_id) 
-                            order_id, variant_id, quantity, link
+                        SELECT DISTINCT ON (order_id)
+                            order_id, variant_id, link
                         FROM order_items
                         ORDER BY order_id, order_item_id ASC
-                    ) oi ON o.order_id = oi.order_id
-                    LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
+                    ) oi_first ON o.order_id = oi_first.order_id
+                    -- 모든 order_items의 quantity 합산
+                    LEFT JOIN (
+                        SELECT order_id, SUM(quantity) as total_quantity
+                        FROM order_items
+                        GROUP BY order_id
+                    ) oi_sum ON o.order_id = oi_sum.order_id
+                    LEFT JOIN product_variants pv ON oi_first.variant_id = pv.variant_id
                     ORDER BY o.created_at DESC
                     LIMIT 100
                 """)
@@ -12800,7 +12949,11 @@ def get_admin_transactions():
         transaction_list = []
         for transaction in transactions:
             if DATABASE_URL.startswith('postgresql://'):
-                # 새 스키마: (order_id, user_id, price, total_amount, status, created_at, variant_id, service_id, service_name, quantity, link, comments, smm_panel_order_id)
+                # 새 스키마 쿼리 결과 순서:
+                # 0: order_id, 1: user_id, 2: price (final_amount), 3: total_amount,
+                # 4: status, 5: created_at, 6: variant_id, 7: link,
+                # 8: quantity (합산), 9: service_id, 10: service_name,
+                # 11: comments, 12: smm_panel_order_id
                 order_id = transaction[0]
                 user_id_val = transaction[1]
                 price = float(transaction[2]) if transaction[2] else 0.0  # final_amount
@@ -12808,10 +12961,10 @@ def get_admin_transactions():
                 status = transaction[4] if transaction[4] else 'pending'
                 created_at = transaction[5]
                 variant_id = transaction[6] if len(transaction) > 6 else None
-                service_id = str(transaction[7]) if len(transaction) > 7 and transaction[7] else 'N/A'
-                service_name = str(transaction[8]) if len(transaction) > 8 and transaction[8] else 'N/A'
-                quantity = int(transaction[9]) if len(transaction) > 9 and transaction[9] else 0
-                link = str(transaction[10]) if len(transaction) > 10 and transaction[10] else 'N/A'
+                link = str(transaction[7]) if len(transaction) > 7 and transaction[7] else 'N/A'
+                quantity = int(transaction[8]) if len(transaction) > 8 and transaction[8] else 0
+                service_id = str(transaction[9]) if len(transaction) > 9 and transaction[9] else 'N/A'
+                service_name = str(transaction[10]) if len(transaction) > 10 and transaction[10] else 'N/A'
                 comments = str(transaction[11]) if len(transaction) > 11 and transaction[11] else 'N/A'
                 smm_panel_order_id = transaction[12] if len(transaction) > 12 else None
                 
@@ -12829,6 +12982,16 @@ def get_admin_transactions():
                         print(f"⚠️ SMM Panel 상태 조회 오류 (관리자): {e}")
                         charge = 0
                 
+                # link가 비어있거나 None/null이면 N/A로 설정
+                final_link = 'N/A'
+                if link and link != 'None' and link != 'null' and str(link).strip() != '':
+                    final_link = str(link).strip()
+                
+                # service_id가 None이거나 비어있으면 N/A로 설정
+                final_service_id = 'N/A'
+                if service_id and service_id != 'None' and service_id != 'null' and str(service_id).strip() != '':
+                    final_service_id = str(service_id).strip()
+                
                 transaction_list.append({
                     'order_id': order_id,
                     'user_id': str(user_id_val) if user_id_val else None,
@@ -12838,11 +13001,12 @@ def get_admin_transactions():
                     'status': status,
                     'created_at': created_at.isoformat() if created_at and hasattr(created_at, 'isoformat') else (str(created_at) if created_at else ''),
                     'variant_id': variant_id,
-                    'service_id': service_id,
+                    'service_id': final_service_id,
                     'service_name': service_name,
                     'quantity': quantity,
-                    'link': link if link and link != 'None' and link != 'null' else 'N/A',
+                    'link': final_link,
                     'comments': comments,
+                    'smm_panel_order_id': smm_panel_order_id,
                     'platform': 'N/A'  # 새 스키마에는 platform이 없음
                 })
             else:
@@ -13400,36 +13564,55 @@ def get_commission_points():
         
         if DATABASE_URL.startswith('postgresql://'):
             # 먼저 사용자 찾기 (external_uid 또는 email로)
-            cursor.execute("""
-                SELECT user_id, email, referral_code
-                FROM users 
-                WHERE external_uid = %s OR email = %s
-                LIMIT 1
-            """, (referrer_email, referrer_email))
-            referrer = cursor.fetchone()
-            
-            if not referrer:
-                print(f"⚠️ 추천인을 찾을 수 없음: {referrer_email}", flush=True)
-                return jsonify({
-                    'total_earned': 0,
-                    'total_paid': 0,
-                    'current_balance': 0,
-                    'created_at': None,
-                    'updated_at': None
-                }), 200
-            
-            referrer_user_id = referrer['user_id']
-            print(f"✅ 추천인 찾음: user_id={referrer_user_id}", flush=True)
-            
-            # commission_ledger에서 잔액 계산 (통일된 로직)
-            cursor.execute("""
-                SELECT 
-                    COALESCE(SUM(CASE WHEN event = 'earn' THEN amount ELSE 0 END), 0) as total_earned,
-                    COALESCE(SUM(CASE WHEN event = 'payout' THEN ABS(amount) ELSE 0 END), 0) as total_paid,
-                    COALESCE(SUM(amount), 0) as current_balance
-                FROM commission_ledger 
-                WHERE referrer_user_id = %s AND status = 'confirmed'
-            """, (str(referrer_user_id),))
+            try:
+                cursor.execute("""
+                    SELECT user_id, email, referral_code
+                    FROM users 
+                    WHERE external_uid = %s OR LOWER(email) = LOWER(%s)
+                    LIMIT 1
+                """, (referrer_email, referrer_email))
+                referrer = cursor.fetchone()
+                
+                if not referrer:
+                    print(f"⚠️ 추천인을 찾을 수 없음: {referrer_email}", flush=True)
+                    return jsonify({
+                        'total_earned': 0,
+                        'total_paid': 0,
+                        'current_balance': 0,
+                        'created_at': None,
+                        'updated_at': None
+                    }), 200
+                
+                referrer_user_id = referrer['user_id']
+                print(f"✅ 추천인 찾음: user_id={referrer_user_id}, email={referrer.get('email')}", flush=True)
+                
+                # commission_ledger에서 잔액 계산 (통일된 로직)
+                # referrer_user_id는 TEXT 또는 BIGINT일 수 있으므로 타입 변환 사용
+                try:
+                    cursor.execute("""
+                        SELECT 
+                            COALESCE(SUM(CASE WHEN event = 'earn' THEN amount ELSE 0 END), 0) as total_earned,
+                            COALESCE(SUM(CASE WHEN event = 'payout' THEN ABS(amount) ELSE 0 END), 0) as total_paid,
+                            COALESCE(SUM(amount), 0) as current_balance
+                        FROM commission_ledger 
+                        WHERE referrer_user_id::text = %s AND status = 'confirmed'
+                    """, (str(referrer_user_id),))
+                except Exception as ledger_error:
+                    # 타입 변환 실패 시 다른 방법 시도
+                    print(f"⚠️ commission_ledger 조회 오류 (첫 번째 시도): {ledger_error}", flush=True)
+                    cursor.execute("""
+                        SELECT 
+                            COALESCE(SUM(CASE WHEN event = 'earn' THEN amount ELSE 0 END), 0) as total_earned,
+                            COALESCE(SUM(CASE WHEN event = 'payout' THEN ABS(amount) ELSE 0 END), 0) as total_paid,
+                            COALESCE(SUM(amount), 0) as current_balance
+                        FROM commission_ledger 
+                        WHERE referrer_user_id = %s AND status = 'confirmed'
+                    """, (referrer_user_id,))
+            except Exception as query_error:
+                print(f"❌ 쿼리 실행 오류: {query_error}", flush=True)
+                import traceback
+                traceback.print_exc()
+                raise
             
             result = cursor.fetchone()
             

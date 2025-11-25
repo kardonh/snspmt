@@ -332,7 +332,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
           }
         }
 
-        await signup(email, password, displayName, {
+        const businessInfoData = {
           accountType,
           phoneNumber: phoneNumber.trim(),
           businessNumber: businessNumber.trim(),
@@ -342,7 +342,11 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
           contactEmail: contactEmail.trim(),
           signupSource: signupSource,
           referralCode: referralCode.trim()
-        })
+        };
+        
+        console.log('📋 AuthModal - signup 호출 전 비지니스 정보:', businessInfoData);
+        
+        await signup(email, password, displayName, businessInfoData)
       }
       console.log('Auth successful:', isLogin ? 'login' : 'signup')
       onSuccess()
