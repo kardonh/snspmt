@@ -247,27 +247,52 @@ export function AuthProvider({ children }) {
       }
 
       try {
+        // 비지니스 정보 로깅
+        if (businessInfo) {
+          console.log('📋 회원가입 - 비지니스 정보:', {
+            accountType: businessInfo.accountType,
+            businessNumber: businessInfo.businessNumber,
+            businessName: businessInfo.businessName,
+            representative: businessInfo.representative,
+            contactPhone: businessInfo.contactPhone,
+            contactEmail: businessInfo.contactEmail,
+            phoneNumber: businessInfo.phoneNumber,
+            signupSource: businessInfo.signupSource,
+            referralCode: businessInfo.referralCode
+          });
+        }
+        
         // Supabase에 사용자 생성
+        const userMetadata = {
+          display_name: username,
+          full_name: username,
+          phone_number: businessInfo?.phoneNumber || businessInfo?.contactPhone || null,
+          referral_code: businessInfo?.referralCode || null,
+          signup_source: businessInfo?.signupSource || null,
+          ...(businessInfo && {
+            account_type: businessInfo.accountType,
+            business_number: businessInfo.businessNumber,
+            business_name: businessInfo.businessName,
+            representative: businessInfo.representative,
+            contact_phone: businessInfo.contactPhone || null,
+            contact_email: businessInfo.contactEmail || null,
+            business_address: businessInfo.businessAddress || null
+          })
+        };
+        
+        console.log('📤 Supabase user_metadata에 저장할 데이터:', userMetadata);
+        
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: {
-              display_name: username,
-              full_name: username,
-              phone_number: businessInfo?.phoneNumber || businessInfo?.contactPhone || null,
-              referral_code: businessInfo?.referralCode || null,
-              signup_source: businessInfo?.signupSource || null,
-              ...(businessInfo && {
-                account_type: businessInfo.accountType,
-                business_number: businessInfo.businessNumber,
-                business_name: businessInfo.businessName,
-                representative: businessInfo.representative,
-                business_address: businessInfo.businessAddress
-              })
-            }
+            data: userMetadata
           }
         });
+        
+        if (data?.user) {
+          console.log('✅ Supabase user_metadata 저장 완료:', data.user.user_metadata);
+        }
 
         if (error) {
           console.error('회원가입 오류:', error);
@@ -299,6 +324,8 @@ export function AuthProvider({ children }) {
               businessNumber: businessInfo.businessNumber,
               businessName: businessInfo.businessName,
               representative: businessInfo.representative,
+              contactPhone: businessInfo.contactPhone,
+              contactEmail: businessInfo.contactEmail,
               businessAddress: businessInfo.businessAddress
             });
           }

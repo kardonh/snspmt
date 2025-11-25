@@ -117,8 +117,66 @@ const Sidebar = ({ onClose }) => {
       console.log('🔍 Sidebar: 관리자 권한 확인 시작 - email:', currentUser.email)
       console.log('🔍 Sidebar: API 호출 전 - 현재 isAdmin:', isAdmin)
       
-      const session = await supabase.auth.getSession()
-      const accessToken = session.data?.session?.access_token
+      // Supabase 세션 가져오기 (타임아웃 처리)
+      let accessToken = null
+      try {
+        console.log('🔍 Sidebar: Supabase 세션 가져오기 시도...')
+        const sessionPromise = supabase.auth.getSession()
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('세션 가져오기 타임아웃')), 3000) // 3초로 단축
+        })
+        
+        const session = await Promise.race([sessionPromise, timeoutPromise])
+        accessToken = session.data?.session?.access_token
+        console.log('✅ Sidebar: Supabase 세션 가져오기 성공, 토큰:', accessToken ? '있음' : '없음')
+      } catch (sessionError) {
+        console.warn('⚠️ Sidebar: Supabase 세션 가져오기 실패 또는 타임아웃, localStorage에서 토큰 찾기:', sessionError.message)
+        
+        // localStorage에서 토큰 찾기
+        const tokenKeys = [
+          'supabase_access_token',
+          'sb-access-token',
+          `sb-${window.location.hostname === 'localhost' ? 'localhost' : 'supabase'}-auth-token`
+        ]
+        
+        for (const key of tokenKeys) {
+          const token = localStorage.getItem(key)
+          if (token) {
+            try {
+              // JSON 파싱 시도
+              const parsed = JSON.parse(token)
+              accessToken = parsed?.access_token || parsed
+            } catch {
+              // 문자열 그대로 사용
+              accessToken = token
+            }
+            if (accessToken) {
+              console.log(`✅ Sidebar: localStorage에서 토큰 찾음 (${key})`)
+              break
+            }
+          }
+        }
+        
+        // localStorage의 모든 키 확인 (sb-로 시작하는 키들)
+        if (!accessToken) {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key && key.startsWith('sb-')) {
+              try {
+                const value = localStorage.getItem(key)
+                const parsed = JSON.parse(value)
+                if (parsed?.access_token) {
+                  accessToken = parsed.access_token
+                  console.log(`✅ Sidebar: localStorage에서 토큰 찾음 (${key})`)
+                  break
+                }
+              } catch {
+                // JSON 파싱 실패 시 무시
+              }
+            }
+          }
+        }
+      }
       
       const headers = {
         'Content-Type': 'application/json'
@@ -128,7 +186,7 @@ const Sidebar = ({ onClose }) => {
         headers['Authorization'] = `Bearer ${accessToken}`
         console.log('✅ Sidebar: Authorization 토큰 설정됨')
       } else {
-        console.log('⚠️ Sidebar: Authorization 토큰 없음')
+        console.log('⚠️ Sidebar: Authorization 토큰 없음 (X-User-Email만 사용)')
       }
       
       if (currentUser.email) {

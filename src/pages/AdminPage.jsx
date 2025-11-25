@@ -678,12 +678,16 @@ const AdminPage = () => {
             userId: order.user_id || order.userId,
             platform: order.platform || order.service_platform || 'N/A',
             service: order.service_name || order.service || order.service_type || 'N/A',
+            serviceId: order.service_id || order.serviceId || 'N/A',
             quantity: order.quantity || order.service_quantity || 0,
             amount: order.price || order.amount || order.total_price || 0,
             status: order.status || 'pending',
             createdAt: order.created_at || order.createdAt || order.order_date,
-            link: order.link || order.service_link || 'N/A',
-            comments: order.comments || order.remarks || 'N/A'
+            link: (order.link && order.link !== 'N/A' && order.link !== 'null' && order.link.trim() !== '') 
+              ? order.link 
+              : 'N/A',
+            comments: order.comments || order.remarks || 'N/A',
+            smmPanelOrderId: order.smm_panel_order_id || order.smmPanelOrderId || null
           })) : []
         
         console.log('✅ 변환된 주문 데이터:', transformedOrders.length, '개')
@@ -956,6 +960,35 @@ const AdminPage = () => {
   }
 
 
+  // 주문 접수 처리
+  const handleOrderReceive = async (orderId) => {
+    if (!confirm('이 주문을 접수 처리하시겠습니까?')) return
+    
+    try {
+      setIsLoading(true)
+      const response = await adminFetch(`/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: 'processing' })
+      })
+      
+      if (response.ok) {
+        await loadOrders()
+        alert('주문이 접수되었습니다.')
+      } else {
+        const errorData = await response.json().catch(() => ({ error: '알 수 없는 오류' }))
+        alert(`오류: ${errorData.error || '주문 접수 실패'}`)
+      }
+    } catch (error) {
+      console.error('주문 접수 오류:', error)
+      alert('주문 접수 처리 중 오류가 발생했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // 강제완료 처리
   const handleForceComplete = async (orderId) => {
     if (!confirm('이 주문을 강제완료 처리하시겠습니까?')) return
@@ -967,17 +1000,18 @@ const AdminPage = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ status: '주문 실행완료' })
+        body: JSON.stringify({ status: 'completed' })
       })
       
       if (response.ok) {
         await loadOrders()
         alert('주문이 강제완료 처리되었습니다.')
       } else {
-        const errorData = await response.json()
-        alert(`오류: ${errorData.error}`)
+        const errorData = await response.json().catch(() => ({ error: '알 수 없는 오류' }))
+        alert(`오류: ${errorData.error || '강제완료 실패'}`)
       }
     } catch (error) {
+      console.error('강제완료 오류:', error)
       alert('강제완료 처리 중 오류가 발생했습니다.')
     } finally {
       setIsLoading(false)
@@ -1639,29 +1673,49 @@ const AdminPage = () => {
                   </div>
                 </div>
                 
-                {order.packageSteps && order.packageSteps.length > 0 && (
-                  <div className="package-progress">
-                    <h4>패키지 진행:</h4>
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{width: `${order.progressPercentage || 0}%`}}></div>
-                    </div>
-                    <div className="progress-text">
-                      {order.currentStatus || '대기중'} ({order.completedSteps || 0}/{order.totalSteps || 0})
-                    </div>
-                    
-                    <div className="package-steps">
-                      {order.packageSteps.map((step, stepIndex) => (
-                        <div key={stepIndex} className={`step ${step.completed ? 'completed' : step.current ? 'current' : 'pending'}`}>
-                          <div className="step-number">{stepIndex + 1}</div>
-                          <div className="step-content">
-                            <div className="step-title">{step.title}</div>
-                            <div className="step-description">{step.description}</div>
-                            <div className="step-quantity">{step.quantity}</div>
-                            {step.schedule && <div className="step-schedule">{step.schedule}</div>}
-                          </div>
+                {/* 주문 진행현황 표시 */}
+                {(order.smmPanelOrderId || order.packageSteps) && (
+                  <div className="order-progress">
+                    <h4>주문 진행현황:</h4>
+                    {order.packageSteps && order.packageSteps.length > 0 ? (
+                      <div className="package-progress">
+                        <div className="progress-bar">
+                          <div className="progress-fill" style={{width: `${order.progressPercentage || 0}%`}}></div>
                         </div>
-                      ))}
-                    </div>
+                        <div className="progress-text">
+                          {order.currentStatus || '대기중'} ({order.completedSteps || 0}/{order.totalSteps || 0})
+                        </div>
+                        
+                        <div className="package-steps">
+                          {order.packageSteps.map((step, stepIndex) => (
+                            <div key={stepIndex} className={`step ${step.completed ? 'completed' : step.current ? 'current' : 'pending'}`}>
+                              <div className="step-number">{stepIndex + 1}</div>
+                              <div className="step-content">
+                                <div className="step-title">{step.title}</div>
+                                <div className="step-description">{step.description}</div>
+                                <div className="step-quantity">{step.quantity}</div>
+                                {step.schedule && <div className="step-schedule">{step.schedule}</div>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="simple-progress">
+                        <div className="progress-info">
+                          <span className="status-label">상태:</span>
+                          <span className={`status-value ${getOrderStatusClass(order.status)}`}>
+                            {getOrderStatusText(order.status)}
+                          </span>
+                        </div>
+                        {order.smmPanelOrderId && (
+                          <div className="smm-order-id">
+                            <span className="label">SMM 주문번호:</span>
+                            <span className="value">{order.smmPanelOrderId}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -1669,7 +1723,15 @@ const AdminPage = () => {
                   <span className={`status-badge ${getOrderStatusClass(order.status)}`}>
                     {getOrderStatusText(order.status)}
                   </span>
-                  {order.status !== '주문 실행완료' && (
+                  {order.status === 'pending' && (
+                    <button 
+                      className="action-btn order-receive"
+                      onClick={() => handleOrderReceive(order.orderId)}
+                    >
+                      주문 접수
+                    </button>
+                  )}
+                  {order.status !== 'completed' && order.status !== '주문 실행완료' && (
                     <button 
                       className="action-btn force-complete"
                       onClick={() => handleForceComplete(order.orderId)}
