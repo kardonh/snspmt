@@ -173,14 +173,21 @@ const CheckoutPage = () => {
         comments: orderData.orderDetails.comments || '',
         total_price: finalPrice,
         discount: selectedCoupon ? (selectedCoupon.type === 'percentage' ? selectedCoupon.discount : (orderData.pricing.total - finalPrice)) : 0,
-        package_steps: orderData.type === 'package' ? orderData.package.steps.map(step => ({
-          ...step,
-          quantity: step.quantity || 0
+        package_steps: orderData.type === 'package' && orderData.package ? (orderData.package.items || orderData.package.steps || []).map(item => ({
+          step: item.step,
+          variant_id: item.variant_id,
+          variant_name: item.variant_name,
+          quantity: item.quantity || 0,
+          repeat_count: item.repeat_count || 1,
+          term_value: item.term_value || 0,
+          term_unit: item.term_unit || 'minute'
         })) : [],
         use_coupon: selectedCoupon ? true : false,
         coupon_id: selectedCoupon?.id || null,
         coupon_discount: selectedCoupon ? (selectedCoupon.type === 'percentage' ? selectedCoupon.discount : (orderData.pricing.total - finalPrice)) : 0
       }
+
+      console.log("orderPayload",orderPayload)
 
       const orderResponse = await fetch('/api/orders', {
         method: 'POST',
@@ -217,7 +224,8 @@ const CheckoutPage = () => {
       const orderResult = await orderResponse.json()
 
       // 3. 패키지 주문인 경우 처리 시작
-      if (orderData.type === 'package' && orderData.package.steps.length > 0) {
+      const packageItems = orderData.package?.items || orderData.package?.steps || []
+      if (orderData.type === 'package' && orderData.package && packageItems.length > 0) {
         try {
           await fetch('/api/orders/start-package-processing', {
             method: 'POST',
@@ -249,6 +257,7 @@ const CheckoutPage = () => {
 
     } catch (error) {
       alert(`결제 실패: ${error.message}`)
+      
       setIsProcessing(false)
     }
   }
@@ -288,7 +297,7 @@ const CheckoutPage = () => {
             </div>
             <div className="summary-row">
               <span>서비스:</span>
-              <span>{orderData.type === 'package' ? orderData.package.name : orderData.product.name}</span>
+              <span>{orderData.type === 'package' ? orderData.package?.name : orderData.product?.name}</span>
             </div>
             {orderData.type === 'product' && (
               <>
@@ -316,14 +325,19 @@ const CheckoutPage = () => {
         </div>
 
         {/* 패키지 구성 */}
-        {orderData.type === 'package' && (
+        {orderData.type === 'package' && orderData.package && (
           <div className="order-summary">
             <h2>📦 패키지 구성</h2>
             <div className="summary-content">
-              {orderData.package.steps.map((step, index) => (
+              {(orderData.package.items || orderData.package.steps || []).map((item, index) => (
                 <div key={index} className="summary-row">
-                  <span>Step {step.step}:</span>
-                  <span>{step.variant_name} (x{step.quantity})</span>
+                  <span>Step {item.step || index + 1}:</span>
+                  <span>{item.variant_name || item.name}:</span>
+                  <span>
+                    수량: {item.quantity?.toLocaleString()}개
+                    {item.repeat_count > 1 && ` × ${item.repeat_count}회`}
+                    {item.term_value > 0 && ` (간격: ${item.term_value}${item.term_unit === 'minute' ? '분' : '시간'})`}
+                  </span>
                 </div>
               ))}
             </div>

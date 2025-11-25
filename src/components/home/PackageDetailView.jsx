@@ -1,8 +1,7 @@
 import React from 'react'
 import { Package, Clock } from 'lucide-react'
 
-function PackageDetailView({ packageDetail, onClose }) {
-  console.log(packageDetail)
+function PackageDetailView({ packageDetail, onClose}) {
   const formatPrice = (price) => {
     const priceValue = parseFloat(price) / 1000
     return priceValue % 1 === 0 ? priceValue.toString() : priceValue.toFixed(2)
@@ -31,17 +30,18 @@ function PackageDetailView({ packageDetail, onClose }) {
 
       <div className="detailed-service-list">
         {packageDetail.steps?.map((step, index) => (
-          <div key={index} className="detailed-service-item">
+          <div key={index} className="detailed-service-item"
+          >
             <div className="detailed-service-content">
               <div className="detailed-service-info">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <span style={{ background: '#667eea', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
-                    Step {step.step}
+                    Step {index + 1}
                   </span>
                   <div className="detailed-service-name">{step.variant_name}</div>
                 </div>
                 <div className="detailed-service-range">
-                  수량: {step.quantity.toLocaleString()} | 반복: {step.repeat_count}회
+                  수량: {step.quantity.toLocaleString()} | 반복: {step.repeat}회
                   {step.term_value > 0 && ` | 간격: ${step.term_value}${step.term_unit === 'minute' ? '분' : '시간'}`}
                 </div>
               </div>

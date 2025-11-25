@@ -11,9 +11,14 @@ function OrderForm({ variant, packageDetail, category, onSubmit }) {
 
   const calculatePrice = () => {
     if (isPackage) {
-      return packageDetail.steps?.reduce((sum, step) =>
-        sum + (parseFloat(step.variant_price) * step.quantity * step.repeat_count), 0) || 0
+      // 패키지는 variant_price가 이미 원 단위로 저장되어 있음
+      const calculateStepPrice = (item) => {
+        return parseFloat(item.variant_price) * item.quantity * item.repeat_count
+      }
+      return packageDetail.items?.reduce((sum, item) => 
+        sum + calculateStepPrice(item), 0) || 0
     }
+    // 일반 variant는 price가 1000원 단위로 저장되어 있음
     return (parseFloat(variant?.price || 0) * quantity) / 1000
   }
 
@@ -94,14 +99,14 @@ function OrderForm({ variant, packageDetail, category, onSubmit }) {
           <h3>📦 패키지 구성</h3>
           <div className="steps-container">
             {packageDetail.steps.map((step, index) => (
-              <div key={step.package_item_id} className="package-step">
+              <div key={index} className="package-step">
                 <div className="step-header">
-                  <span className="step-number">{step.step}</span>
-                  <span className="step-name">{step.variant_name}</span>
+                  <span className="step-number">{index + 1}</span>
+                  <span className="step-name">{step.name}</span>
                 </div>
                 <div className="step-details">
                   <p className="step-quantity">
-                    수량: {step.quantity.toLocaleString()}개 × {step.repeat_count}회
+                    수량: {step.quantity.toLocaleString()}개 × {step.repeat}회
                   </p>
                   {step.term_value > 0 && (
                     <p className="step-term">

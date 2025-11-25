@@ -19,21 +19,44 @@ export const createOrderData = ({
   }
 
   if (type === 'package') {
+    // packageData가 없으면 빈 패키지 반환
+    if (!packageData) {
+      console.warn('⚠️ packageData가 없습니다.')
+      return {
+        ...baseOrder,
+        package: {
+          id: null,
+          name: '알 수 없는 패키지',
+          description: '',
+          items: [],
+          steps: []
+        },
+        orderDetails: { link },
+        pricing: { subtotal: 0, total: 0, formatted: '₩0' }
+      }
+    }
+    
+    // items 배열이 있으면 items 사용, 없으면 steps 사용
+    const packageItems = packageData.items || packageData.steps || []
+    
     return {
       ...baseOrder,
       package: {
         id: packageData.package_id,
         name: packageData.name,
         description: packageData.description,
-        steps: packageData.steps?.map(step => ({
-          step: step.step,
-          variant_id: step.variant_id,
-          variant_name: step.variant_name,
-          quantity: step.quantity,
-          repeat_count: step.repeat_count,
-          price: step.variant_price,
-          term: { value: step.term_value, unit: step.term_unit }
-        })) || []
+        items: packageItems.map(item => ({
+          package_item_id: item.package_item_id,
+          step: item.step,
+          variant_id: item.variant_id || item.id,
+          variant_name: item.variant_name || item.name,
+          quantity: item.quantity,
+          repeat_count: item.repeat_count || item.repeat || 1,
+          variant_price: item.variant_price || item.price,
+          term_value: item.term_value || item.delay || 0,
+          term_unit: item.term_unit || 'minute'
+        })),
+        steps: packageData.steps || []
       },
       orderDetails: { link },
       pricing: calculatePackagePrice(packageData)
@@ -63,8 +86,19 @@ export const createOrderData = ({
 }
 
 const calculatePackagePrice = (packageData) => {
-  const total = packageData.steps?.reduce((sum, step) => 
-    sum + (parseFloat(step.variant_price) * step.quantity * step.repeat_count), 0) || 0
+  // packageData가 없으면 0 반환
+  if (!packageData) {
+    return { subtotal: 0, total: 0, formatted: '₩0' }
+  }
+  
+  // items 배열이 있으면 items 사용, 없으면 steps 사용
+  const items = packageData.items || packageData.steps || []
+  const total = items.reduce((sum, item) => {
+    const price = parseFloat(item.variant_price || item.price || 0)
+    const quantity = item.quantity || 0
+    const repeat = item.repeat_count || item.repeat || 1
+    return sum + (price * quantity * repeat)
+  }, 0)
   return { subtotal: total, total: total, formatted: formatPrice(total) }
 }
 

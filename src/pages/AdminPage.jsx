@@ -47,6 +47,7 @@ function AdminPage() {
       case 'services': return <AdminServices />;
       case 'popup': return <AdminPopup />;
       case 'coupons': return <AdminCoupons />;
+      case 'schedules': return <AdminSchedules />;
       default: return <AdminDashboard />;
     }
   };

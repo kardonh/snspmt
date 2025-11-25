@@ -78,6 +78,7 @@ function Home() {
     setSelectedPackage(packageId)
     const packageDetail = packages.find(pkg => pkg.package_id === packageId)
     setSelectedPackageDetail(packageDetail)
+    console.log(packageDetail)
     setCurrentStep(3)
   }
 
@@ -137,6 +138,8 @@ function Home() {
 
   const handleOrderSubmit = (orderType, formData) => {
     const category = categories.find(c => c.category_id === selectedPlatform)
+
+    console.log("formData", formData)
 
     let orderData
     if (orderType === 'package') {
