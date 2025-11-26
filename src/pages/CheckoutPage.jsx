@@ -147,23 +147,24 @@ const CheckoutPage = () => {
 
     try {
       // 1. 포인트 차감
-      const deductResponse = await fetch('/api/points/deduct', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: currentUser.uid,
-          amount: finalPrice
-        })
-      })
+      // const deductResponse = await fetch('/api/points/deduct', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     user_id: currentUser.uid,
+      //     amount: finalPrice
+      //   })
+      // })
 
-      if (!deductResponse.ok) {
-        const errorData = await deductResponse.json()
-        throw new Error(errorData.error || '포인트 차감 실패')
-      }
+      // if (!deductResponse.ok) {
+      //   const errorData = await deductResponse.json()
+      //   throw new Error(errorData.error || '포인트 차감 실패')
+      // }
 
       // 2. 주문 생성
       const orderPayload = {
         user_id: currentUser.uid,
+        type: orderData.type,
         platform: orderData.category.slug,
         service: orderData.product?.name || orderData.package?.name,
         detailed_service: orderData.variant?.name || orderData.package?.name,
@@ -173,8 +174,7 @@ const CheckoutPage = () => {
         comments: orderData.orderDetails.comments || '',
         total_price: finalPrice,
         discount: selectedCoupon ? (selectedCoupon.type === 'percentage' ? selectedCoupon.discount : (orderData.pricing.total - finalPrice)) : 0,
-        package_steps: orderData.type === 'package' && orderData.package ? (orderData.package.items || orderData.package.steps || []).map(item => ({
-          step: item.step,
+        package_steps: orderData.type === 'package' && orderData.package ? (orderData.package.items).map(item => ({
           variant_id: item.variant_id,
           variant_name: item.variant_name,
           quantity: item.quantity || 0,
@@ -189,7 +189,7 @@ const CheckoutPage = () => {
 
       console.log("orderPayload",orderPayload)
 
-      const orderResponse = await fetch('/api/orders', {
+      const orderResponse = await fetch('/api/new/orders/purchase', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

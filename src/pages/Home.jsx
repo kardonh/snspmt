@@ -40,7 +40,10 @@ function Home() {
       .catch(error => console.error('Error fetching data:', error))
     
     api.get('/packages')
-      .then(response => setPackages(response.data?.packages || []))
+      .then(response => {
+        setPackages(response.data?.packages || [])
+      }
+    )
       .catch(error => console.error('Error fetching packages:', error))
   }
 
@@ -139,8 +142,6 @@ function Home() {
   const handleOrderSubmit = (orderType, formData) => {
     const category = categories.find(c => c.category_id === selectedPlatform)
 
-    console.log("formData", formData)
-
     let orderData
     if (orderType === 'package') {
       orderData = createOrderData({
@@ -161,6 +162,8 @@ function Home() {
         comments: formData.comments
       })
     }
+
+    console.log("orderData", orderData)
 
     if (saveOrderForCheckout(orderData)) {
       navigate('/checkout')

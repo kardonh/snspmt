@@ -175,6 +175,25 @@ except Exception as e:
     import traceback
     traceback.print_exc()
 
+# Blueprint 등록 - 별도 파일의 API를 여기서 등록
+try:
+    from api.new import new
+    app.register_blueprint(new)
+    print("✅ Example API Blueprint 등록 완료")
+except ImportError as e:
+    print(f"⚠️ Example API Blueprint 등록 실패: {e}")
+except Exception as e:
+    print(f"⚠️ Blueprint 등록 중 오류: {e}")
+
+try:
+    from api.orders import orders
+    app.register_blueprint(orders)
+    print("✅ Orders API Blueprint 등록 완료")
+except ImportError as e:
+    print(f"⚠️ Orders API Blueprint 등록 실패: {e}")
+except Exception as e:
+    print(f"⚠️ Orders Blueprint 등록 중 오류: {e}")
+
 # 정적 파일 서빙 설정
 @app.route('/static/uploads/<filename>')
 def uploaded_file(filename):
@@ -13214,6 +13233,9 @@ def serve_index():
         </body>
         </html>
         """, 200
+        
+        
+@app.route('/api/smm-panel/check-service', methods=['GET'])
 
 # SMM Panel API 테스트 엔드포인트
 @app.route('/api/smm-panel/test', methods=['GET'])
@@ -13263,7 +13285,7 @@ def smm_panel_test():
         # 간단한 테스트 요청
         test_data = {
             'action': 'balance',
-            'key': 'bc85538982fb27c6c0558be6cd669e67'
+            'key': 'c0402322621d262a59cc793704635fdd'
         }
         
         smm_panel_url = 'https://smmpanel.kr/api/v2'
@@ -14604,6 +14626,121 @@ def check_order_status():
         return jsonify({'error': f'주문 상태 확인 실패: {str(e)}'}), 500
 
 # 주문 상태 업데이트 API
+@app.route('/api/new/orders/purchase', methods=['POST'])
+def purchase_order():
+    """주문 생성
+    ---
+    tags:
+      - Orders
+    summary: 새로운 주문 생성
+    description: "사용자의 주문을 생성하고 할인 및 커미션을 적용합니다"
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - user_id
+            - service_id
+            - link
+            - quantity
+            - price
+          properties:
+            user_id:
+              type: string
+              description: 사용자 ID
+              example: "user123"
+            service_id:
+              type: integer
+              description: 서비스 ID
+              example: 1
+            link:
+              type: string
+              description: "주문할 링크 (예: 인스타그램 게시물 URL)"
+              example: "https://instagram.com/p/abc123"
+            quantity:
+              type: integer
+              description: 주문 수량
+              example: 100
+            price:
+              type: number
+              description: 주문 가격
+              example: 10000
+            coupon_id:
+              type: integer
+              description: 사용할 쿠폰 ID (선택사항)
+            user_coupon_id:
+              type: integer
+              description: 사용자 쿠폰 ID (선택사항)
+            package_steps:
+              type: array
+              description: "패키지 주문의 단계별 정보 (선택사항)"
+              example: []
+            is_scheduled:
+              type: boolean
+              description: "예약 주문 여부 (선택사항, 기본값: false)"
+              example: false
+            scheduled_datetime:
+              type: string
+              format: date-time
+              description: "예약 주문 실행 시간"
+              example: "2024-01-01 12:00:00"
+            is_split_delivery:
+              type: boolean
+              description: "분할 발송 여부 (선택사항, 기본값: false)"
+              example: false
+            split_days:
+              type: integer
+              description: "분할 발송 일수"
+              example: 30
+            split_quantity:
+              type: integer
+              description: "일일 발송 수량"
+              example: 400
+            runs:
+              type: integer
+              description: "Drip-feed 반복 횟수 (선택사항, 기본값: 1)"
+              example: 30
+            interval:
+              type: integer
+              description: "Drip-feed 반복 간격(분) (선택사항, 기본값: 0)"
+              example: 1440
+            comments:
+              type: string
+              description: "주문 메모 (선택사항)"
+              example: "특별 요청사항"
+    responses:
+      200:
+        description: "주문 생성 성공"
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            order_id:
+              type: integer
+            status:
+              type: string
+            final_price:
+              type: number
+            message:
+              type: string
+      400:
+        description: 필수 필드 누락 또는 잘못된 요청
+      500:
+        description: 서버 오류
+    """
+    # Import inside function to avoid circular import
+    try:
+        from api.orders import test_orders_api
+        return test_orders_api()
+    except ImportError as e:
+        print(f"❌ Import error: {e}")
+        return jsonify({"error": f"Order purchase endpoint not available: {str(e)}"}), 500
+
 @app.route('/api/orders/<order_id>/status', methods=['PUT'])
 @require_admin_auth
 def update_order_status(order_id):
@@ -15345,41 +15482,39 @@ def get_smm_services():
     tags:
       - SMM Panel
     summary: Get Smm Services
-    description: "Get Smm Services API"
+    description: "Get all SMM Panel services or check specific service by ID"
     parameters:
-      - name: example
+      - name: id
         in: query
         type: string
         required: false
-        description: 예시 파라미터
+        description: Optional service ID to check. If provided, returns only that service with exists status.
+        example: "361"
     responses:
       200:
         description: 성공
         schema:
           type: object
           properties:
-            message:
+            success:
+              type: boolean
+            exists:
+              type: boolean
+            service_id:
               type: string
-              example: "성공"
-      400:
-        description: 잘못된 요청
-        schema:
-          type: object
-          properties:
-            error:
-              type: string
-              example: "잘못된 요청입니다."
+            service:
+              type: object
+            services:
+              type: array
+            service_ids:
+              type: array
       500:
         description: 서버 오류
-        schema:
-          type: object
-          properties:
-            error:
-              type: string
-              example: "서버 오류가 발생했습니다."
     """ 
-    """SMM Panel에서 사용 가능한 서비스 목록 조회"""
+    """SMM Panel에서 사용 가능한 서비스 목록 조회 또는 특정 서비스 확인"""
     try:
+        service_id = request.args.get('id')
+        
         # API 키 확인 (전역 변수 사용)
         api_key = SMMPANEL_API_KEY or os.environ.get('SMMPANEL_API_KEY')
         
@@ -15396,10 +15531,34 @@ def get_smm_services():
         result = get_smm_panel_services()
         
         if result and result.get('status') == 'success':
+            service_ids = result.get('service_ids', [])
+            services = result.get('services', [])
+            
+            # If ID is provided, check if it exists and return that service
+            if service_id:
+                service_id_str = str(service_id)
+                exists = service_id_str in service_ids
+                
+                # Find service details if exists
+                service_details = None
+                if exists:
+                    for service in services:
+                        if str(service.get('service')) == service_id_str:
+                            service_details = service
+                            break
+                
+                return jsonify({
+                    'success': True,
+                    'exists': exists,
+                    'service_id': service_id_str,
+                    'service': service_details
+                }), 200
+            
+            # No ID provided, return all services
             return jsonify({
                 'success': True,
-                'services': result.get('services', []),
-                'service_ids': result.get('service_ids', [])
+                'services': services,
+                'service_ids': service_ids
             }), 200
         else:
             error_message = result.get('message', 'Failed to get services') if result else 'Unknown error'
@@ -15439,6 +15598,91 @@ def get_smm_services():
             'success': False,
             'error': f'서비스 목록 조회 실패: {error_msg}',
             'details': str(e)
+        }), 500
+
+# SMM Panel 서비스 ID 확인
+@app.route('/api/smm-panel/check-service', methods=['GET'])
+def check_smm_service():
+    """Check Smm Service
+    ---
+    tags:
+      - SMM Panel
+    summary: Check if service ID exists
+    description: "Check if a service ID exists in SMM Panel services. Returns service details and existence status."
+    parameters:
+      - name: id
+        in: query
+        type: string
+        required: false
+        description: Service ID to check (optional)
+        example: "361"
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            exists:
+              type: boolean
+            service_id:
+              type: string
+            service:
+              type: object
+      500:
+        description: 서버 오류
+    """
+    try:
+        service_id = request.args.get('id')
+        
+        # Get services from SMM Panel
+        result = get_smm_panel_services()
+        
+        if not result or result.get('status') != 'success':
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch services from SMM Panel'
+            }), 500
+        
+        service_ids = result.get('service_ids', [])
+        services = result.get('services', [])
+        
+        # If no ID provided, return all services info
+        if not service_id:
+            return jsonify({
+                'success': True,
+                'exists': None,
+                'service_id': None,
+                'service': None,
+                'total_services': len(services),
+                'service_ids': service_ids
+            }), 200
+        
+        # Check if service_id exists (convert to string for comparison)
+        service_id_str = str(service_id)
+        exists = service_id_str in service_ids
+        
+        # Find service details if exists
+        service_details = None
+        if exists:
+            for service in services:
+                if str(service.get('service')) == service_id_str:
+                    service_details = service
+                    break
+        
+        return jsonify({
+            'success': True,
+            'exists': exists,
+            'service_id': service_id_str,
+            'service': service_details
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ SMM Panel 서비스 확인 오류: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'서비스 확인 실패: {str(e)}'
         }), 500
 
 # 스케줄러 작업: 예약/분할 주문 처리
@@ -19113,7 +19357,7 @@ def get_categories_with_products():
                 p.created_at as product_created_at,
                 pv.variant_id,
                 pv.name as variant_name,
-                pv.price as variant_price,
+                pv.price / 1000.0 as variant_price,
                 pv.min_quantity as variant_min,
                 pv.max_quantity as variant_max,
                 pv.delivery_time_days,
@@ -19440,6 +19684,7 @@ def get_packages():
                     pk.name,
                     pk.description,
                     pk.category_id,
+                    pk.meta_json,
                     c.name as category_name
                 FROM packages pk
                 LEFT JOIN categories c ON pk.category_id = c.category_id
@@ -19453,6 +19698,7 @@ def get_packages():
                     pk.name,
                     pk.description,
                     pk.category_id,
+                    pk.meta_json,
                     c.name as category_name
                 FROM packages pk
                 LEFT JOIN categories c ON pk.category_id = c.category_id
@@ -19480,6 +19726,20 @@ def get_packages():
         result = []
         for pkg in packages:
             pkg_dict = dict(pkg) if not isinstance(pkg, dict) else pkg
+            
+            # meta_json 처리 (PostgreSQL은 JSONB, SQLite는 TEXT)
+            if 'meta_json' in pkg_dict:
+                meta_json = pkg_dict['meta_json']
+                # SQLite의 경우 문자열로 저장되어 있을 수 있으므로 파싱
+                if isinstance(meta_json, str) and meta_json:
+                    try:
+                        import json
+                        pkg_dict['meta_json'] = json.loads(meta_json)
+                    except:
+                        pkg_dict['meta_json'] = None
+                # None이거나 빈 문자열인 경우 None으로 설정
+                elif not meta_json:
+                    pkg_dict['meta_json'] = None
             
             # 패키지 아이템 조회
             if is_postgres:
@@ -20906,4 +21166,6 @@ start_smm_status_checker()
 # Flask 앱 실행
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # 개발 환경에서는 자동 리로드 활성화 (FLASK_ENV=development 또는 DEBUG=True)
+    debug_mode = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('DEBUG', 'False').lower() == 'true'
+    app.run(host='0.0.0.0', port=port, debug=debug_mode, use_reloader=debug_mode)

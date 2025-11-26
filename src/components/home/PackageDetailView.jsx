@@ -24,7 +24,7 @@ function PackageDetailView({ packageDetail, onClose}) {
         <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>{packageDetail.name}</div>
         {packageDetail.description && <div style={{ color: '#666', marginBottom: '12px' }}>{packageDetail.description}</div>}
         <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#667eea' }}>
-          총 가격: ₩{formatPrice(totalPrice.toString())}
+          총 가격: ₩{packageDetail.meta_json?.price ? Number(packageDetail.meta_json.price).toLocaleString('ko-KR') : '0'}
         </div>
       </div>
 
@@ -46,7 +46,7 @@ function PackageDetailView({ packageDetail, onClose}) {
                 </div>
               </div>
               <div className="detailed-service-price">
-                ₩{formatPrice(calculateStepPrice(packageDetail.items[index]).toString())}
+               {step.name}
               </div>
             </div>
           </div>

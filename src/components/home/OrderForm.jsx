@@ -9,17 +9,19 @@ function OrderForm({ variant, packageDetail, category, onSubmit }) {
   const minQuantity = isPackage ? 1 : (variant?.min_quantity || 0)
   const maxQuantity = isPackage ? 1 : (variant?.max_quantity || 0)
 
+  console.log(variant)
+
   const calculatePrice = () => {
     if (isPackage) {
       // 패키지는 variant_price가 이미 원 단위로 저장되어 있음
-      const calculateStepPrice = (item) => {
-        return parseFloat(item.variant_price) * item.quantity * item.repeat_count
-      }
-      return packageDetail.items?.reduce((sum, item) => 
-        sum + calculateStepPrice(item), 0) || 0
+      // const calculateStepPrice = (item) => {
+      //   return parseFloat(item.variant_price) * item.quantity * item.repeat_count
+      // }
+      // return packageDetail.items?.reduce((sum, item) => 
+      //   sum + calculateStepPrice(item), 0) || 0
     }
     // 일반 variant는 price가 1000원 단위로 저장되어 있음
-    return (parseFloat(variant?.price || 0) * quantity) / 1000
+    return (parseFloat(variant?.price || 0) * quantity)
   }
 
   const totalPrice = calculatePrice()
@@ -30,7 +32,7 @@ function OrderForm({ variant, packageDetail, category, onSubmit }) {
 
   const handleSubmit = () => {
     if (!isFormValid) return
-    onSubmit({ quantity: isPackage ? 1 : quantity, link, comments })
+    onSubmit({ quantity: isPackage ? 1 : quantity, link, comments, price: totalPrice })
   }
 
   return (
@@ -138,7 +140,7 @@ function OrderForm({ variant, packageDetail, category, onSubmit }) {
 
       {/* Total Price */}
       <div className="price-display">
-        <div className="total-price">₩{formattedPrice}</div>
+        <div className="total-price">₩{Number(formattedPrice).toLocaleString()}</div>
         <div className="price-label">총 금액</div>
       </div>
 

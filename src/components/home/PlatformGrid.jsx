@@ -1,7 +1,6 @@
 import React from 'react'
 
 function PlatformGrid({ categories, selectedPlatform, onSelectPlatform, categoryColors }) {
-  console.log(categories)
   return (
     <div className="service-selection">
       <div className="service-header">

@@ -92,20 +92,13 @@ const calculatePackagePrice = (packageData) => {
   }
   
   // items 배열이 있으면 items 사용, 없으면 steps 사용
-  const items = packageData.items || packageData.steps || []
-  const total = items.reduce((sum, item) => {
-    const price = parseFloat(item.variant_price || item.price || 0)
-    const quantity = item.quantity || 0
-    const repeat = item.repeat_count || item.repeat || 1
-    return sum + (price * quantity * repeat)
-  }, 0)
+  const total = parseFloat(packageData.meta_json.price)
   return { subtotal: total, total: total, formatted: formatPrice(total) }
 }
 
 const calculateProductPrice = (variant, quantity) => {
-  const pricePerUnit = parseFloat(variant?.price || 0)
-  const subtotal = (pricePerUnit * quantity) / 1000
-  return { subtotal, total: subtotal, pricePerUnit, quantity, formatted: formatPrice(subtotal) }
+  var price = variant?.price * quantity
+  return { subtotal: price, total: price, pricePerUnit: price, quantity: quantity, formatted: formatPrice(price) }
 }
 
 const formatPrice = (price) => {

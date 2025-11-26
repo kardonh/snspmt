@@ -1,8 +1,9 @@
 import React from 'react'
 
 function VariantList({ variants, selectedVariant, onSelectVariant }) {
+  console.log(variants)
   const formatPrice = (price) => {
-    const priceValue = parseFloat(price) / 1000
+    const priceValue = parseFloat(price)
     return priceValue % 1 === 0 ? priceValue.toString() : priceValue.toFixed(2)
   }
 
@@ -10,9 +11,9 @@ function VariantList({ variants, selectedVariant, onSelectVariant }) {
     <div className="detailed-service-selection">
       <h3>세부 서비스를 선택해주세요</h3>
       <div className="detailed-service-list">
-        {variants.map((variant) => (
+        {variants.map((variant, index) => (
           <div
-            key={variant.id}
+            key={index}
             className={`detailed-service-item ${selectedVariant?.id === variant.id ? 'selected' : ''}`}
             onClick={() => onSelectVariant(variant)}
           >
