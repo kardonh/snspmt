@@ -8158,7 +8158,15 @@ def get_admin_stats():
             
             # 총 매출 (주문 + 포인트 구매) - 새 스키마에서는 wallet_transactions 사용
             cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE status = 'completed'")
-            order_revenue = cursor.fetchone()[0] or 0
+            order_revenue_result = cursor.fetchone()[0]
+            # Decimal 타입을 float로 안전하게 변환
+            from decimal import Decimal
+            if isinstance(order_revenue_result, Decimal):
+                order_revenue = float(order_revenue_result)
+            elif order_revenue_result is not None:
+                order_revenue = float(order_revenue_result)
+            else:
+                order_revenue = 0.0
             
             cursor.execute("""
                 SELECT COALESCE(SUM(ABS(wt.amount)), 0) 
@@ -8166,8 +8174,14 @@ def get_admin_stats():
                 WHERE wt.type = 'topup' AND wt.status = 'approved'
             """)
             purchase_revenue_result = cursor.fetchone()[0]
-            purchase_revenue = float(purchase_revenue_result) if purchase_revenue_result else 0.0
-            print(f"🔍 purchase_revenue 계산 결과: {purchase_revenue} (raw: {purchase_revenue_result})")
+            # Decimal 타입을 float로 안전하게 변환
+            if isinstance(purchase_revenue_result, Decimal):
+                purchase_revenue = float(purchase_revenue_result)
+            elif purchase_revenue_result is not None:
+                purchase_revenue = float(purchase_revenue_result)
+            else:
+                purchase_revenue = 0.0
+            print(f"🔍 purchase_revenue 계산 결과: {purchase_revenue} (raw: {purchase_revenue_result}, type: {type(purchase_revenue_result)})")
             total_revenue = order_revenue + purchase_revenue
             
             # 대기 중인 포인트 구매
@@ -8180,18 +8194,34 @@ def get_admin_stats():
             
             # 오늘 매출 (주문 + 포인트 구매)
             cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE DATE(created_at) = CURRENT_DATE AND status = 'completed'")
-            today_order_revenue = cursor.fetchone()[0] or 0
+            today_order_revenue_result = cursor.fetchone()[0]
+            # Decimal 타입을 float로 안전하게 변환
+            from decimal import Decimal
+            if isinstance(today_order_revenue_result, Decimal):
+                today_order_revenue = float(today_order_revenue_result)
+            elif today_order_revenue_result is not None:
+                today_order_revenue = float(today_order_revenue_result)
+            else:
+                today_order_revenue = 0.0
+            
             cursor.execute("""
                 SELECT COALESCE(SUM(wt.amount), 0) 
                 FROM wallet_transactions wt
                 WHERE DATE(wt.created_at) = CURRENT_DATE AND wt.type = 'topup' AND wt.status = 'approved'
             """)
-            today_purchase_revenue = cursor.fetchone()[0] or 0
+            today_purchase_revenue_result = cursor.fetchone()[0]
+            # Decimal 타입을 float로 안전하게 변환
+            if isinstance(today_purchase_revenue_result, Decimal):
+                today_purchase_revenue = float(today_purchase_revenue_result)
+            elif today_purchase_revenue_result is not None:
+                today_purchase_revenue = float(today_purchase_revenue_result)
+            else:
+                today_purchase_revenue = 0.0
             today_revenue = today_order_revenue + today_purchase_revenue
             
             # 월 매출 계산: (총 포인트 - 총원가)
             # 1단계: 총 주문한 상품의 원가 합계 계산
-            original_cost_sum = 0
+            original_cost_sum = 0.0
             try:
                 cursor.execute("""
                     SELECT COALESCE(SUM(pv.original_cost * oi.quantity), 0)
@@ -8201,7 +8231,15 @@ def get_admin_stats():
                     WHERE ord.status = 'completed'
                 """)
                 result = cursor.fetchone()
-                original_cost_sum = result[0] if result and result[0] else 0
+                # Decimal 타입을 float로 안전하게 변환
+                from decimal import Decimal
+                if result and result[0] is not None:
+                    if isinstance(result[0], Decimal):
+                        original_cost_sum = float(result[0])
+                    else:
+                        original_cost_sum = float(result[0])
+                else:
+                    original_cost_sum = 0.0
             except Exception as e:
                 print(f"⚠️ 월매출 원가 계산 오류 (PostgreSQL, order_items 사용 시도 실패): {e}")
                 # 폴백: order_items를 통한 조인 (새 스키마)
@@ -8214,20 +8252,28 @@ def get_admin_stats():
                         WHERE ord.status = 'completed'
                     """)
                     result = cursor.fetchone()
-                    original_cost_sum = result[0] if result and result[0] else 0
+                    # Decimal 타입을 float로 안전하게 변환
+                    from decimal import Decimal
+                    if result and result[0] is not None:
+                        if isinstance(result[0], Decimal):
+                            original_cost_sum = float(result[0])
+                        else:
+                            original_cost_sum = float(result[0])
+                    else:
+                        original_cost_sum = 0.0
                 except Exception as e2:
                     print(f"⚠️ 월매출 원가 계산 오류 (PostgreSQL, order_items 폴백 시도 실패): {e2}")
                     # 최종 폴백: 원가를 0으로 설정
-                    original_cost_sum = 0
+                    original_cost_sum = 0.0
             
             # 디버깅: 값 확인
             print(f"🔍 월매출 계산 (PostgreSQL): purchase_revenue={purchase_revenue} (type: {type(purchase_revenue)}), original_cost_sum={original_cost_sum} (type: {type(original_cost_sum)})")
             
             # 2단계: 월 매출 = 총 포인트 - 총원가
             # 값이 음수일 수 있으므로 절댓값 처리 및 타입 변환
-            purchase_revenue = abs(float(purchase_revenue)) if purchase_revenue else 0.0
+            # purchase_revenue는 이미 float로 변환됨
             original_cost_sum = abs(float(original_cost_sum)) if original_cost_sum else 0.0
-            monthly_sales = purchase_revenue - original_cost_sum
+            monthly_sales = abs(float(purchase_revenue)) - original_cost_sum
             # 음수 결과 방지 (잔액보다 원가가 클 경우 0으로 처리)
             if monthly_sales < 0:
                 print(f"⚠️ 월매출 계산 경고: 결과가 음수입니다. {monthly_sales} → 0으로 조정")
@@ -20150,18 +20196,49 @@ def get_packages():
                 quantity_val = item_dict.get('quantity')
                 term_value_val = item_dict.get('term_value')
                 repeat_count_val = item_dict.get('repeat_count')
+                term_unit = item_dict.get('term_unit')
+                
+                # 안전한 int 변환 함수
+                def safe_int(value, default=0):
+                    """None이거나 빈 값이면 default 반환, 아니면 int 변환"""
+                    if value is None:
+                        return default
+                    if isinstance(value, (int, float)):
+                        return int(value)
+                    if isinstance(value, str):
+                        value = value.strip()
+                        if not value or value.lower() in ('none', 'null', ''):
+                            return default
+                        try:
+                            return int(float(value))  # '1.0' 같은 경우도 처리
+                        except (ValueError, TypeError):
+                            return default
+                    try:
+                        return int(value)
+                    except (ValueError, TypeError):
+                        return default
+                
+                # quantity, delay, repeat 안전하게 변환
+                quantity = safe_int(quantity_val, 0)
+                delay = 0
+                repeat = safe_int(repeat_count_val, 1)
+                
+                # delay 계산 (term_unit에 따라)
+                if term_value_val is not None:
+                    if term_unit == 'minute':
+                        delay = safe_int(term_value_val, 0)
+                    elif term_unit == 'hour':
+                        delay = safe_int(term_value_val, 0) * 60
+                    else:
+                        delay = safe_int(term_value_val, 0)
                 
                 step_dict = {
                     'id': service_id or variant_id,  # service_id가 없으면 variant_id 사용
                     'name': variant_name or f"단계 {item_dict.get('step', 0)}",
-                    'quantity': int(quantity_val) if quantity_val is not None else 0,
-                    'delay': int(term_value_val) if term_value_val is not None and item_dict.get('term_unit') == 'minute' else 0,
-                    'repeat': int(repeat_count_val) if repeat_count_val is not None else 1
+                    'quantity': quantity,
+                    'delay': delay,
+                    'repeat': repeat
                 }
-                
-                # term_unit이 'hour'인 경우 분으로 변환
-                if item_dict.get('term_unit') == 'hour' and term_value_val is not None:
-                    step_dict['delay'] = int(term_value_val) * 60
                 
                 converted_steps.append(step_dict)
             
