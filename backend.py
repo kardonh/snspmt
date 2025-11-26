@@ -8142,6 +8142,21 @@ def get_admin_stats():
     conn = None
     cursor = None
     
+    # Decimal 타입 변환 헬퍼 함수
+    from decimal import Decimal
+    def safe_float(value, default=0.0):
+        """Decimal이나 다른 숫자 타입을 안전하게 float로 변환"""
+        if value is None:
+            return default
+        if isinstance(value, Decimal):
+            return float(value)
+        if isinstance(value, (int, float)):
+            return float(value)
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+    
     try:
         print("🔍 관리자 통계 조회 시작")
         conn = get_db_connection()
@@ -8159,14 +8174,7 @@ def get_admin_stats():
             # 총 매출 (주문 + 포인트 구매) - 새 스키마에서는 wallet_transactions 사용
             cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE status = 'completed'")
             order_revenue_result = cursor.fetchone()[0]
-            # Decimal 타입을 float로 안전하게 변환
-            from decimal import Decimal
-            if isinstance(order_revenue_result, Decimal):
-                order_revenue = float(order_revenue_result)
-            elif order_revenue_result is not None:
-                order_revenue = float(order_revenue_result)
-            else:
-                order_revenue = 0.0
+            order_revenue = safe_float(order_revenue_result, 0.0)
             
             cursor.execute("""
                 SELECT COALESCE(SUM(ABS(wt.amount)), 0) 
@@ -8174,13 +8182,7 @@ def get_admin_stats():
                 WHERE wt.type = 'topup' AND wt.status = 'approved'
             """)
             purchase_revenue_result = cursor.fetchone()[0]
-            # Decimal 타입을 float로 안전하게 변환
-            if isinstance(purchase_revenue_result, Decimal):
-                purchase_revenue = float(purchase_revenue_result)
-            elif purchase_revenue_result is not None:
-                purchase_revenue = float(purchase_revenue_result)
-            else:
-                purchase_revenue = 0.0
+            purchase_revenue = safe_float(purchase_revenue_result, 0.0)
             print(f"🔍 purchase_revenue 계산 결과: {purchase_revenue} (raw: {purchase_revenue_result}, type: {type(purchase_revenue_result)})")
             total_revenue = order_revenue + purchase_revenue
             
@@ -8195,14 +8197,7 @@ def get_admin_stats():
             # 오늘 매출 (주문 + 포인트 구매)
             cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE DATE(created_at) = CURRENT_DATE AND status = 'completed'")
             today_order_revenue_result = cursor.fetchone()[0]
-            # Decimal 타입을 float로 안전하게 변환
-            from decimal import Decimal
-            if isinstance(today_order_revenue_result, Decimal):
-                today_order_revenue = float(today_order_revenue_result)
-            elif today_order_revenue_result is not None:
-                today_order_revenue = float(today_order_revenue_result)
-            else:
-                today_order_revenue = 0.0
+            today_order_revenue = safe_float(today_order_revenue_result, 0.0)
             
             cursor.execute("""
                 SELECT COALESCE(SUM(wt.amount), 0) 
@@ -8210,13 +8205,7 @@ def get_admin_stats():
                 WHERE DATE(wt.created_at) = CURRENT_DATE AND wt.type = 'topup' AND wt.status = 'approved'
             """)
             today_purchase_revenue_result = cursor.fetchone()[0]
-            # Decimal 타입을 float로 안전하게 변환
-            if isinstance(today_purchase_revenue_result, Decimal):
-                today_purchase_revenue = float(today_purchase_revenue_result)
-            elif today_purchase_revenue_result is not None:
-                today_purchase_revenue = float(today_purchase_revenue_result)
-            else:
-                today_purchase_revenue = 0.0
+            today_purchase_revenue = safe_float(today_purchase_revenue_result, 0.0)
             today_revenue = today_order_revenue + today_purchase_revenue
             
             # 월 매출 계산: (총 포인트 - 총원가)
@@ -8231,15 +8220,7 @@ def get_admin_stats():
                     WHERE ord.status = 'completed'
                 """)
                 result = cursor.fetchone()
-                # Decimal 타입을 float로 안전하게 변환
-                from decimal import Decimal
-                if result and result[0] is not None:
-                    if isinstance(result[0], Decimal):
-                        original_cost_sum = float(result[0])
-                    else:
-                        original_cost_sum = float(result[0])
-                else:
-                    original_cost_sum = 0.0
+                original_cost_sum = safe_float(result[0] if result and result[0] is not None else None, 0.0)
             except Exception as e:
                 print(f"⚠️ 월매출 원가 계산 오류 (PostgreSQL, order_items 사용 시도 실패): {e}")
                 # 폴백: order_items를 통한 조인 (새 스키마)
@@ -8252,15 +8233,7 @@ def get_admin_stats():
                         WHERE ord.status = 'completed'
                     """)
                     result = cursor.fetchone()
-                    # Decimal 타입을 float로 안전하게 변환
-                    from decimal import Decimal
-                    if result and result[0] is not None:
-                        if isinstance(result[0], Decimal):
-                            original_cost_sum = float(result[0])
-                        else:
-                            original_cost_sum = float(result[0])
-                    else:
-                        original_cost_sum = 0.0
+                    original_cost_sum = safe_float(result[0] if result and result[0] is not None else None, 0.0)
                 except Exception as e2:
                     print(f"⚠️ 월매출 원가 계산 오류 (PostgreSQL, order_items 폴백 시도 실패): {e2}")
                     # 최종 폴백: 원가를 0으로 설정
@@ -8270,10 +8243,9 @@ def get_admin_stats():
             print(f"🔍 월매출 계산 (PostgreSQL): purchase_revenue={purchase_revenue} (type: {type(purchase_revenue)}), original_cost_sum={original_cost_sum} (type: {type(original_cost_sum)})")
             
             # 2단계: 월 매출 = 총 포인트 - 총원가
-            # 값이 음수일 수 있으므로 절댓값 처리 및 타입 변환
-            # purchase_revenue는 이미 float로 변환됨
-            original_cost_sum = abs(float(original_cost_sum)) if original_cost_sum else 0.0
-            monthly_sales = abs(float(purchase_revenue)) - original_cost_sum
+            # 값이 음수일 수 있으므로 절댓값 처리
+            original_cost_sum = abs(original_cost_sum)
+            monthly_sales = abs(purchase_revenue) - original_cost_sum
             # 음수 결과 방지 (잔액보다 원가가 클 경우 0으로 처리)
             if monthly_sales < 0:
                 print(f"⚠️ 월매출 계산 경고: 결과가 음수입니다. {monthly_sales} → 0으로 조정")
@@ -13307,12 +13279,22 @@ def approve_payout_request(request_id):
         if request_data['status'] not in ('pending', 'requested'):
             return jsonify({'error': '이미 처리된 환급신청입니다.'}), 400
         
-        # referral_code 조회 (commission_ledger 기록을 위해 필요)
+        # referral_code 및 referrer_user_id 조회 (commission_ledger 기록을 위해 필요)
         cursor.execute("""
-            SELECT referral_code FROM users WHERE user_id = %s
+            SELECT referral_code, user_id, email FROM users WHERE user_id = %s
         """, (request_data['user_id'],))
         user_result = cursor.fetchone()
         referral_code = user_result['referral_code'] if user_result and user_result.get('referral_code') else None
+        referrer_user_id = str(user_result['user_id']) if user_result and user_result.get('user_id') else str(request_data['user_id'])
+        
+        # referral_code가 없으면 referral_codes 테이블에서 찾기
+        if not referral_code:
+            cursor.execute("""
+                SELECT code FROM referral_codes WHERE user_id = %s OR user_email = %s LIMIT 1
+            """, (request_data['user_id'], user_result.get('email') if user_result else None))
+            code_result = cursor.fetchone()
+            if code_result:
+                referral_code = code_result['code'] if isinstance(code_result, dict) else code_result[0]
         
         if not referral_code:
             return jsonify({'error': '추천인 코드를 찾을 수 없습니다.'}), 400
@@ -13332,16 +13314,17 @@ def approve_payout_request(request_id):
         
         # commission_ledger에 payout 이벤트 기록 (음수로 기록하여 잔액 차감)
         payout_amount = float(request_data['amount'])
+        account_holder = request_data.get('account_holder', request_data.get('referrer_name', 'N/A'))
         cursor.execute("""
             INSERT INTO commission_ledger 
             (referral_code, referrer_user_id, order_id, event, base_amount, commission_rate, amount, status, notes, created_at, confirmed_at)
             VALUES (%s, %s, NULL, 'payout', %s, 0, %s, 'confirmed', %s, NOW(), NOW())
         """, (
             referral_code,
-            str(request_data['user_id']),  # 문자열로 변환 (referrer_user_id는 VARCHAR)
+            referrer_user_id,  # 이미 문자열로 변환됨
             payout_amount,  # base_amount
             -payout_amount,  # amount는 음수 (잔액 차감)
-            f'환급 신청 승인 - 신청 ID: {request_id}, 은행: {request_data.get("bank_name", "N/A")}, 계좌: {request_data.get("account_number", "N/A")}'
+            f'환급 신청 승인 - 신청 ID: {request_id}, 예금주: {account_holder}, 은행: {request_data.get("bank_name", "N/A")}, 계좌: {request_data.get("account_number", "N/A")}'
         ))
         
         conn.commit()
@@ -16002,13 +15985,47 @@ def get_smm_services():
         
         print(f"🔍 SMM Panel API 키 확인 완료 (길이: {len(api_key) if api_key else 0})")
         
-        result = get_smm_panel_services()
+        try:
+            result = get_smm_panel_services()
+        except Exception as get_services_error:
+            import traceback
+            error_msg = str(get_services_error)
+            traceback_str = traceback.format_exc()
+            print(f"❌ get_smm_panel_services() 호출 오류: {error_msg}")
+            print(f"📋 상세 오류:\n{traceback_str}")
+            
+            # SSL 오류나 네트워크 오류인 경우 빈 배열 반환
+            if 'SSL' in error_msg or 'SSLError' in error_msg or 'network' in error_msg.lower() or 'connection' in error_msg.lower() or 'timeout' in error_msg.lower():
+                print("⚠️ 네트워크/SSL 오류로 인해 빈 서비스 목록 반환")
+                return jsonify({
+                    'success': True,
+                    'services': [],
+                    'service_ids': [],
+                    'warning': 'SMM Panel 연결 실패. 네트워크를 확인하세요.'
+                }), 200
+            
+            return jsonify({
+                'success': False,
+                'error': f'서비스 목록 조회 실패: {error_msg}',
+                'details': str(get_services_error)
+            }), 500
         
         if result and result.get('status') == 'success':
+            services = result.get('services', [])
+            service_ids = result.get('service_ids', [])
+            
+            # 응답 형식 검증
+            if not isinstance(services, list):
+                print(f"⚠️ services가 리스트가 아님: {type(services)}")
+                services = []
+            if not isinstance(service_ids, list):
+                print(f"⚠️ service_ids가 리스트가 아님: {type(service_ids)}")
+                service_ids = []
+            
             return jsonify({
                 'success': True,
-                'services': result.get('services', []),
-                'service_ids': result.get('service_ids', [])
+                'services': services,
+                'service_ids': service_ids
             }), 200
         else:
             error_message = result.get('message', 'Failed to get services') if result else 'Unknown error'
@@ -16018,11 +16035,13 @@ def get_smm_services():
             if 'Invalid API key' in error_message or '401' in error_message:
                 error_message = 'API 키가 유효하지 않습니다. 관리자에게 문의하세요.'
             
+            # 오류가 발생해도 빈 배열 반환 (프론트엔드가 계속 작동하도록)
             return jsonify({
-                'success': False,
-                'error': error_message,
-                'details': result.get('message', '') if result else 'No response from SMM Panel'
-            }), 500
+                'success': True,
+                'services': [],
+                'service_ids': [],
+                'warning': error_message
+            }), 200
     except Exception as e:
         import traceback
         error_msg = str(e)
@@ -16030,25 +16049,14 @@ def get_smm_services():
         print(f"❌ SMM Panel 서비스 목록 조회 오류: {error_msg}")
         print(f"📋 상세 오류:\n{traceback_str}")
         
-        # SSL 오류나 네트워크 오류인 경우 빈 배열 반환 (프론트엔드가 계속 작동하도록)
-        if 'SSL' in error_msg or 'SSLError' in error_msg or 'network' in error_msg.lower() or 'connection' in error_msg.lower():
-            print("⚠️ 네트워크/SSL 오류로 인해 빈 서비스 목록 반환")
-            return jsonify({
-                'success': True,
-                'services': [],
-                'service_ids': [],
-                'warning': 'SMM Panel 연결 실패. 네트워크를 확인하세요.'
-            }), 200
-        
-        # API 키 관련 오류인 경우
-        if 'Invalid API key' in error_msg or '401' in error_msg:
-            error_msg = 'API 키가 유효하지 않습니다. 관리자에게 문의하세요.'
-        
+        # 모든 오류에 대해 빈 배열 반환 (프론트엔드가 계속 작동하도록)
+        print("⚠️ 오류 발생으로 인해 빈 서비스 목록 반환")
         return jsonify({
-            'success': False,
-            'error': f'서비스 목록 조회 실패: {error_msg}',
-            'details': str(e)
-        }), 500
+            'success': True,
+            'services': [],
+            'service_ids': [],
+            'warning': f'SMM Panel 연결 실패: {error_msg}'
+        }), 200
 
 # 스케줄러 작업: 예약/분할 주문 처리
 @app.route('/api/cron/process-scheduled-orders', methods=['POST'])
