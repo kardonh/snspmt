@@ -1421,15 +1421,30 @@ def create_scheduled_order():
                             scheduled_time = datetime.fromisoformat(scheduled_datetime.replace('Z', '+00:00'))
                         scheduled_time = scheduled_time + timedelta(minutes=step_delay)
                     
-                    cursor.execute("""
-                        INSERT INTO execution_progress 
-                        (order_id, exec_type, step_number, step_name, service_id, quantity, scheduled_datetime, status, created_at)
-                        VALUES (%s, 'package', %s, %s, %s, %s, %s, 'pending', NOW())
-                        ON CONFLICT (order_id, exec_type, step_number) DO NOTHING
-                    """, (
-                        order_id, idx + 1, step.get('name', f'단계 {idx + 1}'),
-                        step.get('id'), step.get('quantity', 0), scheduled_time
-                    ))
+                    try:
+                        cursor.execute("""
+                            INSERT INTO execution_progress 
+                            (order_id, exec_type, step_number, step_name, service_id, quantity, scheduled_datetime, status, created_at)
+                            VALUES (%s, 'package', %s, %s, %s, %s, %s, 'pending', NOW())
+                            ON CONFLICT (order_id, exec_type, step_number) DO NOTHING
+                        """, (
+                            order_id, idx + 1, step.get('name', f'단계 {idx + 1}'),
+                            step.get('id'), step.get('quantity', 0), scheduled_time
+                        ))
+                    except Exception as e:
+                        if 'does not exist' in str(e):
+                            ensure_execution_progress_table(cursor, conn)
+                            cursor.execute("""
+                                INSERT INTO execution_progress 
+                                (order_id, exec_type, step_number, step_name, service_id, quantity, scheduled_datetime, status, created_at)
+                                VALUES (%s, 'package', %s, %s, %s, %s, %s, 'pending', NOW())
+                                ON CONFLICT (order_id, exec_type, step_number) DO NOTHING
+                            """, (
+                                order_id, idx + 1, step.get('name', f'단계 {idx + 1}'),
+                                step.get('id'), step.get('quantity', 0), scheduled_time
+                            ))
+                        else:
+                            raise
         else:
             cursor.execute("""
                 INSERT INTO orders 
@@ -1451,14 +1466,28 @@ def create_scheduled_order():
                             scheduled_time = datetime.fromisoformat(scheduled_datetime.replace('Z', '+00:00'))
                         scheduled_time = scheduled_time + timedelta(minutes=step_delay)
                     
-                    cursor.execute("""
-                        INSERT INTO execution_progress 
-                        (order_id, exec_type, step_number, step_name, service_id, quantity, scheduled_datetime, status, created_at)
-                        VALUES (?, 'package', ?, ?, ?, ?, ?, 'pending', datetime('now'))
-                    """, (
-                        order_id, idx + 1, step.get('name', f'단계 {idx + 1}'),
-                        step.get('id'), step.get('quantity', 0), scheduled_time
-                    ))
+                    try:
+                        cursor.execute("""
+                            INSERT INTO execution_progress 
+                            (order_id, exec_type, step_number, step_name, service_id, quantity, scheduled_datetime, status, created_at)
+                            VALUES (?, 'package', ?, ?, ?, ?, ?, 'pending', datetime('now'))
+                        """, (
+                            order_id, idx + 1, step.get('name', f'단계 {idx + 1}'),
+                            step.get('id'), step.get('quantity', 0), scheduled_time
+                        ))
+                    except Exception as e:
+                        if 'no such table' in str(e).lower():
+                            ensure_execution_progress_table(cursor, conn)
+                            cursor.execute("""
+                                INSERT INTO execution_progress 
+                                (order_id, exec_type, step_number, step_name, service_id, quantity, scheduled_datetime, status, created_at)
+                                VALUES (?, 'package', ?, ?, ?, ?, ?, 'pending', datetime('now'))
+                            """, (
+                                order_id, idx + 1, step.get('name', f'단계 {idx + 1}'),
+                                step.get('id'), step.get('quantity', 0), scheduled_time
+                            ))
+                        else:
+                            raise
         
         conn.commit()
         
@@ -2169,6 +2198,101 @@ def process_split_delivery(order_id, day_number):
         if conn:
             conn.close()
 
+# execution_progress 테이블 생성 헬퍼 함수
+def ensure_execution_progress_table(cursor, conn):
+    """execution_progress 테이블이 존재하는지 확인하고 없으면 생성"""
+    try:
+        if DATABASE_URL.startswith('postgresql://'):
+            # CREATE TABLE IF NOT EXISTS를 사용하여 더 안전하게 처리
+            try:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS execution_progress (
+                        exec_id BIGSERIAL PRIMARY KEY,
+                        order_id VARCHAR(255) NOT NULL,
+                        exec_type VARCHAR(50) NOT NULL,
+                        step_number INTEGER NOT NULL,
+                        step_name VARCHAR(255),
+                        service_id VARCHAR(255),
+                        quantity INTEGER,
+                        scheduled_datetime TIMESTAMP,
+                        status VARCHAR(50) DEFAULT 'pending',
+                        smm_panel_order_id VARCHAR(255),
+                        error_message TEXT,
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        completed_at TIMESTAMP,
+                        failed_at TIMESTAMP,
+                        UNIQUE(order_id, exec_type, step_number)
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_order ON execution_progress(order_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_scheduled ON execution_progress(scheduled_datetime)")
+                conn.commit()
+                print("✅ execution_progress 테이블 확인/생성 완료 (PostgreSQL)")
+            except Exception as create_error:
+                # 테이블이 이미 존재하거나 다른 오류인 경우
+                if 'already exists' not in str(create_error).lower():
+                    print(f"⚠️ execution_progress 테이블 생성 시도 중 오류: {create_error}")
+                    # 재시도: 테이블 존재 여부 확인
+                    try:
+                        cursor.execute("""
+                            SELECT EXISTS (
+                                SELECT FROM information_schema.tables 
+                                WHERE table_schema = 'public' 
+                                AND table_name = 'execution_progress'
+                            )
+                        """)
+                        exists = cursor.fetchone()[0]
+                        if not exists:
+                            raise create_error
+                        print("✅ execution_progress 테이블 존재 확인됨")
+                    except:
+                        raise create_error
+        else:
+            # SQLite: CREATE TABLE IF NOT EXISTS 사용
+            try:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS execution_progress (
+                        exec_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        order_id TEXT NOT NULL,
+                        exec_type TEXT NOT NULL,
+                        step_number INTEGER NOT NULL,
+                        step_name TEXT,
+                        service_id TEXT,
+                        quantity INTEGER,
+                        scheduled_datetime TEXT,
+                        status TEXT DEFAULT 'pending',
+                        smm_panel_order_id TEXT,
+                        error_message TEXT,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        completed_at TEXT,
+                        failed_at TEXT,
+                        UNIQUE(order_id, exec_type, step_number)
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_order ON execution_progress(order_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_scheduled ON execution_progress(scheduled_datetime)")
+                conn.commit()
+                print("✅ execution_progress 테이블 확인/생성 완료 (SQLite)")
+            except Exception as create_error:
+                print(f"⚠️ execution_progress 테이블 생성 시도 중 오류: {create_error}")
+                # 재시도: 테이블 존재 여부 확인
+                try:
+                    cursor.execute("""
+                        SELECT name FROM sqlite_master 
+                        WHERE type='table' AND name='execution_progress'
+                    """)
+                    exists = cursor.fetchone() is not None
+                    if not exists:
+                        raise create_error
+                    print("✅ execution_progress 테이블 존재 확인됨 (SQLite)")
+                except:
+                    raise create_error
+    except Exception as e:
+        print(f"❌ execution_progress 테이블 확인/생성 실패: {e}")
+        import traceback
+        print(traceback.format_exc())
+        # 오류가 발생해도 계속 진행 (나중에 INSERT 시 재시도)
+
 # 패키지 상품 단계별 처리 함수
 def process_package_step(order_id, step_index):
     """패키지 상품의 각 단계 처리"""
@@ -2178,6 +2302,26 @@ def process_package_step(order_id, step_index):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # execution_progress 테이블 존재 확인 및 생성 (필요시) - INSERT 전에 반드시 실행
+        try:
+            ensure_execution_progress_table(cursor, conn)
+            # 테이블이 정말 생성되었는지 확인
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'execution_progress'
+                    )
+                """)
+                table_exists = cursor.fetchone()[0]
+                if not table_exists:
+                    print("❌ execution_progress 테이블이 여전히 없습니다. 강제 생성 시도...")
+                    ensure_execution_progress_table(cursor, conn)
+        except Exception as check_error:
+            print(f"⚠️ execution_progress 테이블 확인 중 오류: {check_error}")
+            # 오류가 발생해도 계속 진행 (INSERT 시 재시도)
         
         # 주문 정보 조회 (comments 컬럼은 nullable이므로 COALESCE 사용)
         # link는 order_items 테이블에서 가져와야 함
@@ -2257,21 +2401,42 @@ def process_package_step(order_id, step_index):
         if step_quantity <= 0:
             print(f"⚠️ 패키지 단계 {step_index + 1} 건너뛰기 - 수량이 0: {step_name}")
             # 건너뛴 단계도 진행 상황에 기록
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    INSERT INTO execution_progress 
-                    (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (%s, 'package', %s, %s, %s, %s, %s, 'skipped', NOW())
-                    ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
-                    SET step_name=EXCLUDED.step_name, status=EXCLUDED.status
-                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
-            else:
-                cursor.execute("""
-                    INSERT INTO execution_progress 
-                    (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (?, 'package', ?, ?, ?, ?, ?, 'skipped', datetime('now'))
-                """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
-            conn.commit()
+            try:
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        INSERT INTO execution_progress 
+                        (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                        VALUES (%s, 'package', %s, %s, %s, %s, %s, 'skipped', NOW())
+                        ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
+                        SET step_name=EXCLUDED.step_name, status=EXCLUDED.status
+                    """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
+                else:
+                    cursor.execute("""
+                        INSERT INTO execution_progress 
+                        (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                        VALUES (?, 'package', ?, ?, ?, ?, ?, 'skipped', datetime('now'))
+                    """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
+                conn.commit()
+            except Exception as e:
+                if 'does not exist' in str(e) or 'no such table' in str(e).lower():
+                    ensure_execution_progress_table(cursor, conn)
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
+                            INSERT INTO execution_progress 
+                            (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                            VALUES (%s, 'package', %s, %s, %s, %s, %s, 'skipped', NOW())
+                            ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
+                            SET step_name=EXCLUDED.step_name, status=EXCLUDED.status
+                        """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
+                    else:
+                        cursor.execute("""
+                            INSERT INTO execution_progress 
+                            (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                            VALUES (?, 'package', ?, ?, ?, ?, ?, 'skipped', datetime('now'))
+                        """, (order_id, step_index + 1, step_name, step_service_id, step_quantity, None))
+                    conn.commit()
+                else:
+                    raise
             
             # 다음 단계로 진행
             schedule_next_package_step(order_id, step_index + 1, package_steps)
@@ -2302,24 +2467,99 @@ def process_package_step(order_id, step_index):
             status = 'completed' if smm_result.get('status') == 'success' else 'failed'
             smm_order_id = smm_result.get('order') if smm_result.get('status') == 'success' else None
             
-            # 패키지 진행 상황을 DB에 기록
-            if DATABASE_URL.startswith('postgresql://'):
-                cursor.execute("""
-                    INSERT INTO execution_progress 
-                    (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (%s, 'package', %s, %s, %s, %s, %s, %s, NOW())
-                    ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
-                    SET step_name=EXCLUDED.step_name, service_id=EXCLUDED.service_id, quantity=EXCLUDED.quantity, 
-                        smm_panel_order_id=EXCLUDED.smm_panel_order_id, status=EXCLUDED.status
-                """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
-            else:
-                cursor.execute("""
-                    INSERT INTO execution_progress 
-                    (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
-                    VALUES (?, 'package', ?, ?, ?, ?, ?, ?, datetime('now'))
-                """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
-            
-            conn.commit()
+            # 패키지 진행 상황을 DB에 기록 (테이블이 없으면 생성 후 재시도)
+            try:
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        INSERT INTO execution_progress 
+                        (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                        VALUES (%s, 'package', %s, %s, %s, %s, %s, %s, NOW())
+                        ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
+                        SET step_name=EXCLUDED.step_name, service_id=EXCLUDED.service_id, quantity=EXCLUDED.quantity, 
+                            smm_panel_order_id=EXCLUDED.smm_panel_order_id, status=EXCLUDED.status
+                    """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
+                else:
+                    cursor.execute("""
+                        INSERT INTO execution_progress 
+                        (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                        VALUES (?, 'package', ?, ?, ?, ?, ?, ?, datetime('now'))
+                    """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
+                
+                conn.commit()
+            except Exception as insert_error:
+                # 테이블이 없으면 생성 후 재시도
+                if 'does not exist' in str(insert_error) or 'no such table' in str(insert_error).lower():
+                    print(f"⚠️ execution_progress 테이블이 없습니다. 생성 후 재시도...")
+                    try:
+                        if DATABASE_URL.startswith('postgresql://'):
+                            cursor.execute("""
+                                CREATE TABLE IF NOT EXISTS execution_progress (
+                                    exec_id BIGSERIAL PRIMARY KEY,
+                                    order_id VARCHAR(255) NOT NULL,
+                                    exec_type VARCHAR(50) NOT NULL,
+                                    step_number INTEGER NOT NULL,
+                                    step_name VARCHAR(255),
+                                    service_id VARCHAR(255),
+                                    quantity INTEGER,
+                                    scheduled_datetime TIMESTAMP,
+                                    status VARCHAR(50) DEFAULT 'pending',
+                                    smm_panel_order_id VARCHAR(255),
+                                    error_message TEXT,
+                                    created_at TIMESTAMP DEFAULT NOW(),
+                                    completed_at TIMESTAMP,
+                                    failed_at TIMESTAMP,
+                                    UNIQUE(order_id, exec_type, step_number)
+                                )
+                            """)
+                            cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_order ON execution_progress(order_id)")
+                            cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_scheduled ON execution_progress(scheduled_datetime)")
+                        else:
+                            cursor.execute("""
+                                CREATE TABLE IF NOT EXISTS execution_progress (
+                                    exec_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    order_id TEXT NOT NULL,
+                                    exec_type TEXT NOT NULL,
+                                    step_number INTEGER NOT NULL,
+                                    step_name TEXT,
+                                    service_id TEXT,
+                                    quantity INTEGER,
+                                    scheduled_datetime TEXT,
+                                    status TEXT DEFAULT 'pending',
+                                    smm_panel_order_id TEXT,
+                                    error_message TEXT,
+                                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                                    completed_at TEXT,
+                                    failed_at TEXT,
+                                    UNIQUE(order_id, exec_type, step_number)
+                                )
+                            """)
+                            cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_order ON execution_progress(order_id)")
+                            cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_scheduled ON execution_progress(scheduled_datetime)")
+                        conn.commit()
+                        print("✅ execution_progress 테이블 생성 완료, INSERT 재시도")
+                        
+                        # 재시도
+                        if DATABASE_URL.startswith('postgresql://'):
+                            cursor.execute("""
+                                INSERT INTO execution_progress 
+                                (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                                VALUES (%s, 'package', %s, %s, %s, %s, %s, %s, NOW())
+                                ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
+                                SET step_name=EXCLUDED.step_name, service_id=EXCLUDED.service_id, quantity=EXCLUDED.quantity, 
+                                    smm_panel_order_id=EXCLUDED.smm_panel_order_id, status=EXCLUDED.status
+                            """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
+                        else:
+                            cursor.execute("""
+                                INSERT INTO execution_progress 
+                                (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, created_at)
+                                VALUES (?, 'package', ?, ?, ?, ?, ?, ?, datetime('now'))
+                            """, (order_id, step_index + 1, f"{step_name} ({repeat_count + 1}/{step_repeat})", step_service_id, step_quantity, smm_order_id, status))
+                        conn.commit()
+                    except Exception as retry_error:
+                        print(f"❌ execution_progress 테이블 생성/재시도 실패: {retry_error}")
+                else:
+                    print(f"❌ execution_progress INSERT 실패: {insert_error}")
+                    raise
             
             # SMM Panel에서 받은 실제 주문번호로 order_id 업데이트 (성공한 경우만)
             if smm_order_id and status == 'completed':
@@ -2403,7 +2643,27 @@ def process_package_step(order_id, step_index):
                 conn.commit()
                 print(f"📝 다음 단계 예약 정보 저장 완료")
             except Exception as e:
-                print(f"❌ 다음 단계 예약 정보 저장 실패: {e}")
+                if 'does not exist' in str(e) or 'no such table' in str(e).lower():
+                    print(f"⚠️ execution_progress 테이블이 없습니다. 생성 후 재시도...")
+                    ensure_execution_progress_table(cursor, conn)
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
+                            INSERT INTO execution_progress 
+                            (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, scheduled_datetime, created_at)
+                            VALUES (%s, 'package', %s, %s, %s, %s, %s, %s, NOW() + INTERVAL '%s minutes', NOW())
+                            ON CONFLICT (order_id, exec_type, step_number) DO UPDATE
+                            SET step_name=EXCLUDED.step_name, scheduled_datetime=EXCLUDED.scheduled_datetime, status=EXCLUDED.status
+                        """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'pending', next_step.get('delay', 1440)))
+                    else:
+                        cursor.execute("""
+                            INSERT INTO execution_progress 
+                            (order_id, exec_type, step_number, step_name, service_id, quantity, smm_panel_order_id, status, scheduled_datetime, created_at)
+                            VALUES (?, 'package', ?, ?, ?, ?, ?, ?, datetime('now', '+' || ? || ' minutes'), datetime('now'))
+                        """, (order_id, step_index + 2, f"{next_step_name} (예약됨)", next_step.get('id', 0), next_step.get('quantity', 0), None, 'pending', next_step.get('delay', 1440)))
+                    conn.commit()
+                    print(f"📝 다음 단계 예약 정보 저장 완료 (재시도)")
+                else:
+                    print(f"❌ 다음 단계 예약 정보 저장 실패: {e}")
         else:
             print(f"🎉 모든 단계 완료! 다음 단계 없음")
         
@@ -3455,15 +3715,44 @@ def init_database():
                 )
             """)
             
-            # commission_ledger 테이블 생성 스킵 (새 스키마에서는 commissions 테이블 사용)
-            # Supabase에 이미 새 스키마가 적용되어 있으므로 구 스키마 테이블 생성은 건너뜀
-            print("ℹ️ commission_ledger 테이블 생성 스킵 (새 스키마에서는 commissions 테이블 사용)")
-            
-            # commission_ledger 관련 코드 스킵 (새 스키마에서는 commissions 테이블 사용)
-            print("ℹ️ commission_ledger 관련 코드 스킵 (새 스키마에서는 commissions 테이블 사용)")
-            
-            # commission_ledger 트리거 함수 생성 스킵 (새 스키마에서는 commissions 테이블 사용)
-            print("ℹ️ commission_ledger 트리거 생성 스킵 (새 스키마에서는 commissions 테이블 사용)")
+            # commission_ledger 테이블 생성 (통합 커미션 원장)
+            # 실제로 코드에서 사용 중이므로 테이블 생성 필요
+            try:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS commission_ledger (
+                        ledger_id BIGSERIAL PRIMARY KEY,
+                        referral_code VARCHAR(50) NOT NULL,
+                        referrer_user_id VARCHAR(255) NOT NULL,
+                        referred_user_id VARCHAR(255),
+                        order_id VARCHAR(255),
+                        event VARCHAR(50) NOT NULL,
+                        base_amount NUMERIC(10,2),
+                        commission_rate NUMERIC(5,4),
+                        amount NUMERIC(10,2) NOT NULL,
+                        status VARCHAR(50) DEFAULT 'confirmed',
+                        notes TEXT,
+                        external_ref VARCHAR(100),
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        confirmed_at TIMESTAMP
+                    )
+                """)
+                print("✅ commission_ledger 테이블 생성 완료 (PostgreSQL - 통합 테이블)")
+                
+                # 인덱스 생성
+                try:
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_code_time ON commission_ledger(referral_code, created_at)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_owner_time ON commission_ledger(referrer_user_id, created_at)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_event_time ON commission_ledger(event, created_at)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ledger_order ON commission_ledger(order_id)")
+                    print("✅ commission_ledger 인덱스 생성 완료 (PostgreSQL)")
+                except Exception as idx_err:
+                    print(f"⚠️ commission_ledger 인덱스 생성 실패 (이미 존재할 수 있음): {idx_err}")
+            except Exception as e:
+                print(f"⚠️ commission_ledger 테이블 생성 실패 (이미 존재할 수 있음): {e}")
+                try:
+                    conn.rollback()
+                except:
+                    pass
             
             # 공지사항 테이블 생성
             cursor.execute("""
@@ -3607,32 +3896,85 @@ def init_database():
             else:
                 print("✅ 예약/분할 필드 확인 완료 (모든 필드 존재)")
         
-        # execution_progress 테이블 생성 (통합: package_progress, split_delivery_progress, scheduled_orders 대체) - PostgreSQL만
-        # 새 스키마에서는 work_jobs 테이블을 사용하므로 execution_progress는 스킵
+        # execution_progress 테이블 생성 (패키지 스케줄링용)
+        # 실제로 코드에서 사용 중이므로 테이블 생성 필요
         if is_postgresql:
-            # execution_progress 테이블은 새 스키마에서 사용하지 않음 (work_jobs 사용)
-            # 기존 테이블이 있으면 외래 키 제약 조건만 제거
+            # execution_progress 테이블 생성 (패키지 단계 스케줄링에 필수)
             try:
                 cursor.execute("""
-                    SELECT EXISTS (
-                        SELECT 1 FROM information_schema.tables 
-                        WHERE table_schema = 'public' AND table_name = 'execution_progress'
+                    CREATE TABLE IF NOT EXISTS execution_progress (
+                        exec_id BIGSERIAL PRIMARY KEY,
+                        order_id VARCHAR(255) NOT NULL,
+                        exec_type VARCHAR(50) NOT NULL,
+                        step_number INTEGER NOT NULL,
+                        step_name VARCHAR(255),
+                        service_id VARCHAR(255),
+                        quantity INTEGER,
+                        scheduled_datetime TIMESTAMP,
+                        status VARCHAR(50) DEFAULT 'pending',
+                        smm_panel_order_id VARCHAR(255),
+                        error_message TEXT,
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        completed_at TIMESTAMP,
+                        failed_at TIMESTAMP,
+                        UNIQUE(order_id, exec_type, step_number)
                     )
                 """)
-                table_exists = cursor.fetchone()[0]
-                if table_exists:
-                    # 외래 키 제약 조건 제거 시도
-                    try:
-                        cursor.execute("ALTER TABLE execution_progress DROP CONSTRAINT IF EXISTS fk_exec_order")
-                        print("✅ execution_progress 외래 키 제약 조건 제거 완료")
-                    except:
-                        pass
-            except:
-                pass
-            print("ℹ️ execution_progress 테이블 생성 스킵 (새 스키마에서는 work_jobs 사용)")
-            
-            # execution_progress 인덱스 생성도 스킵 (테이블이 없으므로)
-            print("ℹ️ execution_progress 인덱스 생성 스킵 (새 스키마에서는 work_jobs 사용)")
+                print("✅ execution_progress 테이블 생성 완료 (PostgreSQL)")
+                
+                # 인덱스 생성
+                try:
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_order_type_step ON execution_progress(order_id, exec_type, step_number)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_status_time ON execution_progress(status, scheduled_datetime)")
+                    print("✅ execution_progress 인덱스 생성 완료")
+                except Exception as idx_err:
+                    print(f"⚠️ execution_progress 인덱스 생성 실패 (이미 존재할 수 있음): {idx_err}")
+                
+                # 기존 테이블이 있으면 외래 키 제약 조건 제거 (order_id가 VARCHAR이므로)
+                try:
+                    cursor.execute("ALTER TABLE execution_progress DROP CONSTRAINT IF EXISTS fk_exec_order")
+                    print("✅ execution_progress 외래 키 제약 조건 제거 완료 (필요시)")
+                except:
+                    pass
+            except Exception as e:
+                print(f"⚠️ execution_progress 테이블 생성 실패 (이미 존재할 수 있음): {e}")
+                try:
+                    conn.rollback()
+                except:
+                    pass
+        else:
+            # SQLite용 execution_progress 테이블 생성
+            try:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS execution_progress (
+                        exec_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        order_id TEXT NOT NULL,
+                        exec_type TEXT NOT NULL,
+                        step_number INTEGER NOT NULL,
+                        step_name TEXT,
+                        service_id TEXT,
+                        quantity INTEGER,
+                        scheduled_datetime TIMESTAMP,
+                        status TEXT DEFAULT 'pending',
+                        smm_panel_order_id TEXT,
+                        error_message TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        completed_at TIMESTAMP,
+                        failed_at TIMESTAMP,
+                        UNIQUE(order_id, exec_type, step_number)
+                    )
+                """)
+                print("✅ execution_progress 테이블 생성 완료 (SQLite)")
+                
+                # 인덱스 생성
+                try:
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_order_type_step ON execution_progress(order_id, exec_type, step_number)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_status_time ON execution_progress(status, scheduled_datetime)")
+                    print("✅ execution_progress 인덱스 생성 완료 (SQLite)")
+                except Exception as idx_err:
+                    print(f"⚠️ execution_progress 인덱스 생성 실패 (이미 존재할 수 있음): {idx_err}")
+            except Exception as e:
+                print(f"⚠️ execution_progress 테이블 생성 실패 (이미 존재할 수 있음): {e}")
             
             # orders 테이블에 필요한 컬럼들 추가 (존재 여부 확인 후)
             def safe_add_order_col(column_name, column_type, col_type_desc=''):
@@ -3746,6 +4088,87 @@ def init_database():
                         return False
             
             safe_add_variant_column('original_cost', 'NUMERIC(14,2) DEFAULT 0')
+            
+            # packages 테이블에 product_id 컬럼 추가
+            def safe_add_package_column(column_name, column_type):
+                """packages 테이블에 컬럼이 없으면 추가"""
+                try:
+                    cursor.execute("""
+                        SELECT EXISTS (
+                            SELECT 1 
+                            FROM information_schema.columns 
+                            WHERE table_name = 'packages' 
+                            AND column_name = %s
+                        )
+                    """, (column_name,))
+                    exists = cursor.fetchone()[0]
+                    if not exists:
+                        cursor.execute(f"ALTER TABLE packages ADD COLUMN {column_name} {column_type}")
+                        conn.commit()
+                        print(f"✅ packages.{column_name} 필드 추가 완료")
+                        return True
+                    else:
+                        print(f"ℹ️ packages.{column_name} 필드 이미 존재")
+                        return False
+                except Exception as e:
+                    error_str = str(e).lower()
+                    if 'current transaction is aborted' in error_str:
+                        try:
+                            conn.rollback()
+                            cursor.execute("""
+                                SELECT EXISTS (
+                                    SELECT 1 
+                                    FROM information_schema.columns 
+                                    WHERE table_name = 'packages' 
+                                    AND column_name = %s
+                                )
+                            """, (column_name,))
+                            exists = cursor.fetchone()[0]
+                            if not exists:
+                                cursor.execute(f"ALTER TABLE packages ADD COLUMN {column_name} {column_type}")
+                                conn.commit()
+                                print(f"✅ packages.{column_name} 필드 추가 완료 (재시도)")
+                                return True
+                        except Exception as retry_error:
+                            print(f"⚠️ packages.{column_name} 필드 추가 실패: {retry_error}")
+                            try:
+                                conn.rollback()
+                            except:
+                                pass
+                            return False
+                    else:
+                        print(f"⚠️ packages.{column_name} 필드 추가 실패: {e}")
+                        try:
+                            conn.rollback()
+                        except:
+                            pass
+                        return False
+            
+            # product_id 컬럼 추가 (외래 키는 나중에 추가)
+            if safe_add_package_column('product_id', 'BIGINT'):
+                # 기존 패키지들의 product_id 업데이트
+                try:
+                    cursor.execute("""
+                        UPDATE packages p
+                        SET product_id = (
+                            SELECT product_id 
+                            FROM products pr 
+                            WHERE pr.category_id = p.category_id 
+                            ORDER BY pr.product_id ASC 
+                            LIMIT 1
+                        )
+                        WHERE p.product_id IS NULL
+                    """)
+                    updated_count = cursor.rowcount
+                    conn.commit()
+                    if updated_count > 0:
+                        print(f"✅ {updated_count}개 패키지의 product_id 업데이트 완료")
+                except Exception as update_error:
+                    print(f"⚠️ 패키지 product_id 업데이트 실패: {update_error}")
+                    try:
+                        conn.rollback()
+                    except:
+                        pass
             
             # wallets 테이블 생성 (새 스키마 사용)
             cursor.execute("""
@@ -3922,7 +4345,38 @@ def init_database():
             """)
             print("✅ 예약 주문 테이블 생성 완료 (SQLite)")
             
-            # 패키지 진행 상황 테이블 생성 (SQLite)
+            # execution_progress 테이블 생성 (SQLite) - 패키지 스케줄링용
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS execution_progress (
+                    exec_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id TEXT NOT NULL,
+                    exec_type TEXT NOT NULL,
+                    step_number INTEGER NOT NULL,
+                    step_name TEXT,
+                    service_id TEXT,
+                    quantity INTEGER,
+                    scheduled_datetime TIMESTAMP,
+                    status TEXT DEFAULT 'pending',
+                    smm_panel_order_id TEXT,
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    completed_at TIMESTAMP,
+                    failed_at TIMESTAMP,
+                    UNIQUE(order_id, exec_type, step_number)
+                )
+            """)
+            print("✅ execution_progress 테이블 생성 완료 (SQLite)")
+            
+            # 인덱스 생성
+            try:
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_order_type_step ON execution_progress(order_id, exec_type, step_number)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_status_time ON execution_progress(status, scheduled_datetime)")
+                print("✅ execution_progress 인덱스 생성 완료 (SQLite)")
+            except Exception as idx_err:
+                print(f"⚠️ execution_progress 인덱스 생성 실패 (이미 존재할 수 있음): {idx_err}")
+            
+            # 패키지 진행 상황 테이블 생성 (SQLite) - 레거시, 사용 안 함
+            # execution_progress로 대체되었지만 하위 호환성을 위해 유지
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS package_progress (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3938,7 +4392,7 @@ def init_database():
                     completed_at TIMESTAMP
                 )
             """)
-            print("✅ 패키지 진행 상황 테이블 생성 완료 (SQLite)")
+            print("ℹ️ package_progress 테이블 생성 완료 (SQLite - 레거시, execution_progress 사용 권장)")
             
             # 공지사항 테이블 생성 (SQLite)
             cursor.execute("""
@@ -5684,6 +6138,34 @@ def create_order():
                         print(f"⚠️ 패키지 단계 {step_idx} order_item 생성 실패: {step_error}")
                         import traceback
                         traceback.print_exc()
+                
+                # 패키지 주문의 경우 orders 테이블의 link와 quantity 업데이트
+                # link는 첫 번째 단계의 link 사용, quantity는 모든 단계의 합산
+                try:
+                    # order_items에서 첫 번째 link와 전체 quantity 합산 가져오기
+                    cursor.execute("""
+                        SELECT 
+                            (SELECT link FROM order_items WHERE order_id = %s AND link IS NOT NULL AND link != '' ORDER BY order_item_id ASC LIMIT 1) as first_link,
+                            COALESCE(SUM(quantity), 0) as total_quantity
+                        FROM order_items
+                        WHERE order_id = %s
+                    """, (order_id, order_id))
+                    pkg_result = cursor.fetchone()
+                    if pkg_result:
+                        pkg_link = pkg_result[0] if pkg_result[0] else link if 'link' in locals() else ''
+                        pkg_quantity = int(pkg_result[1]) if pkg_result[1] else 0
+                        
+                        # orders 테이블 업데이트
+                        cursor.execute("""
+                            UPDATE orders 
+                            SET link = %s, quantity = %s, updated_at = NOW()
+                            WHERE order_id = %s
+                        """, (pkg_link, pkg_quantity, order_id))
+                        print(f"✅ 패키지 주문 orders 테이블 업데이트 - order_id: {order_id}, link: '{pkg_link}', quantity: {pkg_quantity}")
+                except Exception as pkg_update_err:
+                    print(f"⚠️ 패키지 주문 orders 테이블 업데이트 실패: {pkg_update_err}")
+                    import traceback
+                    traceback.print_exc()
             else:
                 # 일반 주문: 1개 order_item 저장
                 try:
@@ -5810,7 +6292,7 @@ def create_order():
                 
                 print(f"💰 커미션 계산 - 추천인: {referrer_email} (user_id: {referrer_user_id}), 피추천인: {user_id}, 구매금액: {final_price}원, 커미션: {commission_amount}원 (10%)")
                 
-                # 새 스키마: commissions 테이블에 커미션 저장
+                # commission_ledger 테이블에 커미션 저장 (통합 원장)
                 if DATABASE_URL.startswith('postgresql://'):
                     # 현재 사용자의 데이터베이스 내부 user_id 조회
                     cursor.execute("""
@@ -5819,25 +6301,31 @@ def create_order():
                     referred_user_result = cursor.fetchone()
                     referred_user_db_id = referred_user_result[0] if referred_user_result else None
                     
-                    if referred_user_db_id:
-                        # commissions 테이블에 커미션 저장 (referral_id, order_id, amount, status)
+                    if referred_user_db_id and 'referral_code' in locals() and referral_code:
+                        # commission_ledger 테이블에 커미션 저장 (통합 원장)
                         cursor.execute("""
-                            INSERT INTO commissions (referral_id, order_id, amount, status, created_at)
-                            VALUES (%s, %s, %s, 'accrued', NOW())
-                            RETURNING commission_id
-                        """, (referral_id, order_id, commission_amount))
-                        commission_result = cursor.fetchone()
-                        commission_record_id = commission_result[0] if commission_result else None
-                        print(f"✅ 커미션 저장 완료 - commission_id: {commission_record_id}, referral_id: {referral_id}, order_id: {order_id}, 금액: {commission_amount}원")
+                            INSERT INTO commission_ledger 
+                            (referral_code, referrer_user_id, referred_user_id, order_id, event, base_amount, commission_rate, amount, status, created_at, confirmed_at)
+                            VALUES (%s, %s, %s, %s, 'earn', %s, %s, %s, 'confirmed', NOW(), NOW())
+                            RETURNING ledger_id
+                        """, (referral_code, str(referrer_user_id), str(referred_user_db_id), str(order_id), final_price, commission_rate, commission_amount))
+                        ledger_result = cursor.fetchone()
+                        ledger_id = ledger_result[0] if ledger_result else None
+                        print(f"✅ 커미션 저장 완료 (commission_ledger) - ledger_id: {ledger_id}, referral_code: {referral_code}, order_id: {order_id}, 금액: {commission_amount}원")
                     else:
-                        print(f"⚠️ 피추천인 user_id를 찾을 수 없음: {user_id}")
+                        print(f"⚠️ 커미션 저장 실패 - referred_user_db_id: {referred_user_db_id}, referral_code: {referral_code if 'referral_code' in locals() else 'N/A'}")
                 else:
-                    # SQLite: 구 스키마 사용 (레거시 호환)
-                    cursor.execute("""
-                        INSERT INTO commissions (referred_user, referrer_id, purchase_amount, commission_amount, commission_rate, is_paid, created_at)
-                        VALUES (?, ?, ?, ?, ?, false, datetime('now'))
-                    """, (user_id, referrer_user_id, final_price, commission_amount, commission_rate))
-                    print(f"✅ 커미션 저장 완료 (SQLite) - 금액: {commission_amount}원")
+                    # SQLite: commission_ledger 테이블에 저장
+                    if 'referral_code' in locals() and referral_code:
+                        cursor.execute("""
+                            INSERT INTO commission_ledger 
+                            (referral_code, referrer_user_id, referred_user_id, order_id, event, base_amount, commission_rate, amount, status, created_at, confirmed_at)
+                            VALUES (?, ?, ?, ?, 'earn', ?, ?, ?, 'confirmed', datetime('now'), datetime('now'))
+                        """, (referral_code, str(referrer_user_id), user_id, str(order_id), final_price, commission_rate, commission_amount))
+                        ledger_id = cursor.lastrowid
+                        print(f"✅ 커미션 저장 완료 (SQLite, commission_ledger) - ledger_id: {ledger_id}, 금액: {commission_amount}원")
+                    else:
+                        print(f"⚠️ 커미션 저장 실패 - referral_code 없음")
                 
                 print(f"✅ 추천인 커미션 적립 완료: {commission_amount}원 (구매 금액 {final_price}원의 10%)")
             except Exception as commission_error:
@@ -6485,9 +6973,10 @@ def get_orders():
                     return jsonify({'orders': []}), 200
                 db_user_id = user_result[0]
                 
-                # 주문 조회: orders 테이블에서 직접 link, quantity 가져오기 (간단하게)
+                # 주문 조회: orders 테이블만 조회 (패키지 주문도 1개로 표시)
+                # order_items와 JOIN하지 않음 (개별 항목으로 보이지 않도록)
                 cursor.execute("""
-                    SELECT 
+                    SELECT DISTINCT
                         o.order_id, 
                         o.status, 
                         COALESCE(o.final_amount, o.total_amount, 0) as price,
@@ -6495,23 +6984,42 @@ def get_orders():
                         o.created_at,
                         o.smm_panel_order_id, 
                         o.detailed_service,
-                        -- orders 테이블에서 직접 link, quantity 가져오기
-                        COALESCE(o.link, '') as link,
-                        COALESCE(o.quantity, 0) as quantity,
-                        -- variant_id는 order_items에서 가져오기 (서비스 정보용)
-                        oi_first.variant_id,
-                        oi_first.unit_price,
-                        pv.name as variant_name, 
-                        pv.meta_json as variant_meta
+                        o.package_steps,
+                        -- link: orders 테이블 우선, 없으면 order_items에서 첫 번째 가져오기
+                        COALESCE(
+                            NULLIF(o.link, ''),
+                            (SELECT link FROM order_items WHERE order_id = o.order_id AND link IS NOT NULL AND link != '' ORDER BY order_item_id ASC LIMIT 1)
+                        ) as link,
+                        -- quantity: orders 테이블 우선, 없으면 order_items에서 합산
+                        COALESCE(
+                            NULLIF(o.quantity, 0),
+                            (SELECT SUM(quantity) FROM order_items WHERE order_id = o.order_id)
+                        ) as quantity,
+                        -- 서비스 정보: package_steps가 있으면 패키지 주문으로 표시
+                        CASE 
+                            WHEN o.package_steps IS NOT NULL THEN 
+                                (SELECT jsonb_build_object(
+                                    'name', '패키지 주문',
+                                    'is_package', true,
+                                    'steps_count', jsonb_array_length(o.package_steps::jsonb)
+                                ))
+                            ELSE
+                                (SELECT jsonb_build_object(
+                                    'variant_id', oi_first.variant_id,
+                                    'variant_name', pv.name,
+                                    'variant_meta', pv.meta_json
+                                ) FROM (
+                                    SELECT DISTINCT ON (order_id)
+                                        order_id, variant_id
+                                    FROM order_items
+                                    WHERE order_id = o.order_id
+                                    ORDER BY order_id, order_item_id ASC
+                                    LIMIT 1
+                                ) oi_first
+                                LEFT JOIN product_variants pv ON oi_first.variant_id = pv.variant_id
+                                WHERE oi_first.order_id = o.order_id)
+                        END as service_info
                     FROM orders o
-                    -- variant_id만 order_items에서 가져오기 (서비스 정보 표시용)
-                    LEFT JOIN (
-                        SELECT DISTINCT ON (order_id)
-                            order_id, variant_id, unit_price
-                        FROM order_items
-                        ORDER BY order_id, order_item_id ASC
-                    ) oi_first ON o.order_id = oi_first.order_id
-                    LEFT JOIN product_variants pv ON oi_first.variant_id = pv.variant_id
                     WHERE o.user_id = %s
                     ORDER BY o.created_at DESC
                     LIMIT 50
@@ -6542,9 +7050,9 @@ def get_orders():
                     # 새 스키마 쿼리 결과 순서:
                     # 0: order_id, 1: status, 2: price (final_amount), 3: total_amount,
                     # 4: created_at, 5: smm_panel_order_id, 6: detailed_service,
-                    # 7: link (orders 테이블에서 직접), 8: quantity (orders 테이블에서 직접),
-                    # 9: variant_id, 10: unit_price,
-                    # 11: variant_name, 12: variant_meta
+                    # 7: package_steps, 8: link, 9: quantity,
+                    # 10: variant_id, 11: unit_price,
+                    # 12: variant_name, 13: variant_meta
                     order_id = order[0]
                     db_status = order[1] if len(order) > 1 else 'pending'
                     price = float(order[2]) if len(order) > 2 and order[2] else 0.0
@@ -6552,23 +7060,67 @@ def get_orders():
                     created_at = order[4] if len(order) > 4 else None
                     smm_panel_order_id = order[5] if len(order) > 5 else None
                     detailed_service = order[6] if len(order) > 6 else None
-                    link_raw = order[7] if len(order) > 7 else None  # orders 테이블에서 직접
-                    quantity = int(order[8]) if len(order) > 8 and order[8] is not None else 0  # orders 테이블에서 직접
-                    variant_id = order[9] if len(order) > 9 else None
-                    unit_price = float(order[10]) if len(order) > 10 and order[10] else 0.0
-                    variant_name = order[11] if len(order) > 11 else None
-                    variant_meta = order[12] if len(order) > 12 else None
+                    package_steps_json = order[7] if len(order) > 7 else None
+                    link_raw = order[8] if len(order) > 8 else None  # orders 또는 order_items에서
+                    quantity = int(order[9]) if len(order) > 9 and order[9] is not None else 0  # orders 또는 order_items에서
+                    variant_id = order[10] if len(order) > 10 else None
+                    unit_price = float(order[11]) if len(order) > 11 and order[11] else 0.0
+                    variant_name = order[12] if len(order) > 12 else None
+                    variant_meta = order[13] if len(order) > 13 else None
                     
-                    # 링크 처리: orders 테이블에서 직접 가져오기 (간단하게)
+                    # 패키지 주문인지 확인
+                    is_package_order = False
+                    if package_steps_json:
+                        try:
+                            if isinstance(package_steps_json, str):
+                                import json
+                                package_steps = json.loads(package_steps_json)
+                            else:
+                                package_steps = package_steps_json
+                            if isinstance(package_steps, list) and len(package_steps) > 0:
+                                is_package_order = True
+                                print(f"📦 패키지 주문 확인 - order_id: {order_id}, 단계 수: {len(package_steps)}")
+                        except Exception as pkg_err:
+                            print(f"⚠️ package_steps 파싱 실패: {pkg_err}")
+                    
+                    # 링크 처리: 쿼리에서 이미 order_items에서 가져왔지만, 없으면 다시 확인
                     link = ''
                     if link_raw and isinstance(link_raw, str) and link_raw.strip() and link_raw.strip() != 'None' and link_raw.strip() != 'null':
                         link = link_raw.strip()
                     else:
-                        link = ''  # 빈 문자열로 설정
+                        # 패키지 주문이거나 링크가 없으면 order_items에서 다시 확인
+                        if is_package_order or not link:
+                            try:
+                                cursor.execute("""
+                                    SELECT link FROM order_items 
+                                    WHERE order_id = %s AND link IS NOT NULL AND link != ''
+                                    ORDER BY order_item_id ASC
+                                    LIMIT 1
+                                """, (order_id,))
+                                link_result = cursor.fetchone()
+                                if link_result and link_result[0]:
+                                    link = str(link_result[0]).strip()
+                                    print(f"✅ order_items에서 링크 찾음 (패키지) - order_id: {order_id}, link: {link}")
+                            except Exception as link_err:
+                                print(f"⚠️ order_items 링크 조회 실패: {link_err}")
                     
-                    # quantity 처리: orders 테이블에서 직접 가져오기 (간단하게)
-                    if quantity is None:
-                        quantity = 0
+                    # quantity 처리: 쿼리에서 이미 order_items에서 합산했지만, 0이면 다시 확인
+                    if quantity is None or quantity == 0:
+                        # 패키지 주문이거나 수량이 0이면 order_items에서 다시 합산
+                        if is_package_order or quantity == 0:
+                            try:
+                                cursor.execute("""
+                                    SELECT SUM(quantity) as total_quantity 
+                                    FROM order_items 
+                                    WHERE order_id = %s
+                                """, (order_id,))
+                                qty_result = cursor.fetchone()
+                                if qty_result and qty_result[0] is not None:
+                                    quantity = int(qty_result[0])
+                                    print(f"✅ order_items에서 수량 찾음 (패키지) - order_id: {order_id}, quantity: {quantity}")
+                            except Exception as qty_err:
+                                print(f"⚠️ order_items 수량 조회 실패: {qty_err}")
+                                quantity = 0
                     
                     # variant_meta에서 service_id 추출
                     actual_service_id = None
@@ -6657,20 +7209,35 @@ def get_orders():
                 
                 print(f"🔍 주문 데이터 구성 - order_id: {display_order_id}, link: '{link}', quantity: {quantity}, service_id: {service_id}")
                 
+                # 패키지 주문인지 확인 및 package_steps 파싱
+                is_package = False
+                package_steps_list = []
+                if package_steps_json:
+                    try:
+                        if isinstance(package_steps_json, str):
+                            import json
+                            package_steps_list = json.loads(package_steps_json)
+                        else:
+                            package_steps_list = package_steps_json
+                        if isinstance(package_steps_list, list) and len(package_steps_list) > 0:
+                            is_package = True
+                    except Exception as pkg_parse_err:
+                        print(f"⚠️ package_steps 파싱 실패: {pkg_parse_err}")
+                
                 order_list.append({
                     'id': display_order_id,
                     'order_id': display_order_id,
                     'service_id': service_id,
-                    'service_name': service_name,
+                    'service_name': service_name if not is_package else f'패키지 주문 ({len(package_steps_list)}단계)',
                     'link': link,  # 링크 필수 포함
                     'quantity': quantity,
                     'price': price,
                     'charge': charge,  # 사용한 금액 추가
                     'status': status,
                     'created_at': created_at_str,
-                    'is_package': False,  # 간소화
-                    'package_steps': [],
-                    'total_steps': 0,
+                    'is_package': is_package,
+                    'package_steps': package_steps_list,  # 패키지 단계 정보 포함
+                    'total_steps': len(package_steps_list) if is_package else 0,
                     'smm_panel_order_id': smm_panel_order_id,
                     'detailed_service': detailed_service,
                     'start_count': start_count,
@@ -9654,14 +10221,13 @@ def get_my_codes():
                 referral_code = user_result[1]
                 created_at = user_result[2]
                 
-                # 커미션 정보는 commissions 테이블에서 계산
+                # 커미션 정보는 commission_ledger 테이블에서 계산 (통합 원장)
                 cursor.execute("""
-                    SELECT COALESCE(SUM(c.amount), 0) as total_commission,
-                           COUNT(DISTINCT c.commission_id) as usage_count
-                    FROM commissions c
-                    JOIN referrals r ON c.referral_id = r.referral_id
-                    WHERE r.referrer_user_id = %s
-                """, (user_result[0],))
+                    SELECT COALESCE(SUM(cl.amount), 0) as total_commission,
+                           COUNT(DISTINCT cl.ledger_id) as usage_count
+                    FROM commission_ledger cl
+                    WHERE cl.referrer_user_id::text = %s AND cl.event = 'earn' AND cl.status = 'confirmed'
+                """, (str(user_result[0]),))
                 commission_result = cursor.fetchone()
                 total_commission = float(commission_result[0]) if commission_result and commission_result[0] else 0.0
                 usage_count = commission_result[1] if commission_result and commission_result[1] else 0
@@ -9908,15 +10474,14 @@ def get_commissions():
                             CASE 
                                 WHEN o.final_amount IS NOT NULL THEN o.final_amount
                                 WHEN o.total_amount IS NOT NULL THEN o.total_amount
-                                ELSE (c.amount / %s)  -- 사용자의 실제 커미션율 사용
+                                ELSE (cl.amount / %s)  -- 사용자의 실제 커미션율 사용
                             END as purchase_amount
-                        FROM commissions c
-                        JOIN referrals r ON c.referral_id = r.referral_id
-                        LEFT JOIN users u_referred ON r.referred_user_id = u_referred.user_id
-                        LEFT JOIN orders o ON c.order_id = o.order_id
-                        WHERE r.referrer_user_id = %s
-                        ORDER BY c.created_at DESC
-                    """, (commission_rate, referrer_user_id))
+                        FROM commission_ledger cl
+                        LEFT JOIN users u_referred ON cl.referred_user_id::text = u_referred.external_uid OR cl.referred_user_id::text = u_referred.user_id::text
+                        LEFT JOIN orders o ON cl.order_id::text = o.order_id::text
+                        WHERE cl.referrer_user_id::text = %s AND cl.event = 'earn' AND cl.status = 'confirmed'
+                        ORDER BY cl.created_at DESC
+                    """, (commission_rate, str(referrer_user_id)))
                     rows = cursor.fetchall()
                     print(f"📊 조회된 커미션 수: {len(rows)}개", flush=True)
                 except Exception as query_error:
@@ -9966,12 +10531,12 @@ def get_commissions():
                     'status': row.get('status', 'accrued')
                 })
         else:
-            # SQLite - 레거시 호환
+            # SQLite - commission_ledger 사용 (통합 원장)
             cursor.execute("""
-                SELECT id, referred_user, purchase_amount, commission_amount, 
-                    commission_rate, created_at
-                FROM commissions 
-                WHERE referrer_id = ?
+                SELECT ledger_id as id, referred_user_id as referred_user, base_amount as purchase_amount, 
+                    amount as commission_amount, commission_rate, created_at
+                FROM commission_ledger 
+                WHERE referrer_user_id = ? AND event = 'earn' AND status = 'confirmed'
                 ORDER BY created_at DESC
             """, (user_id,))
             
@@ -11168,13 +11733,12 @@ def get_referral_stats():
             """, (referrer_user_id,))
             active_referrals = cursor.fetchone()['active_referrals'] or 0
             
-            # 총 커미션 (commissions 테이블에서 조회)
+            # 총 커미션 (commission_ledger 테이블에서 조회 - 통합 원장)
             cursor.execute("""
-                SELECT COALESCE(SUM(c.amount), 0) as total_commission
-                FROM commissions c
-                JOIN referrals r ON c.referral_id = r.referral_id
-                WHERE r.referrer_user_id = %s
-            """, (referrer_user_id,))
+                SELECT COALESCE(SUM(cl.amount), 0) as total_commission
+                FROM commission_ledger cl
+                WHERE cl.referrer_user_id::text = %s AND cl.event = 'earn' AND cl.status = 'confirmed'
+            """, (str(referrer_user_id),))
             total_commission = float(cursor.fetchone()['total_commission'] or 0)
             
             # 이번 달 추천인 수
@@ -11186,14 +11750,14 @@ def get_referral_stats():
             """, (referrer_user_id,))
             this_month_referrals = cursor.fetchone()['this_month_referrals'] or 0
             
-            # 이번 달 커미션
+            # 이번 달 커미션 (commission_ledger 테이블에서 조회)
             cursor.execute("""
-                SELECT COALESCE(SUM(c.amount), 0) as this_month_commission
-                FROM commissions c
-                JOIN referrals r ON c.referral_id = r.referral_id
-                WHERE r.referrer_user_id = %s 
-                AND DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', CURRENT_DATE)
-            """, (referrer_user_id,))
+                SELECT COALESCE(SUM(cl.amount), 0) as this_month_commission
+                FROM commission_ledger cl
+                WHERE cl.referrer_user_id::text = %s 
+                AND cl.event = 'earn' AND cl.status = 'confirmed'
+                AND DATE_TRUNC('month', cl.created_at) = DATE_TRUNC('month', CURRENT_DATE)
+            """, (str(referrer_user_id),))
             this_month_commission = float(cursor.fetchone()['this_month_commission'] or 0)
         else:
             # SQLite - 레거시 호환
@@ -11220,8 +11784,8 @@ def get_referral_stats():
             active_referrals = total_referrals
             
             cursor.execute("""
-                SELECT COALESCE(SUM(commission_amount), 0) FROM commissions 
-                WHERE referrer_id = ?
+                SELECT COALESCE(SUM(amount), 0) FROM commission_ledger 
+                WHERE referrer_user_id = ? AND event = 'earn' AND status = 'confirmed'
             """, (user_id,))
             total_commission = float(cursor.fetchone()[0] or 0)
             
@@ -11233,9 +11797,10 @@ def get_referral_stats():
             this_month_referrals = cursor.fetchone()[0] or 0
             
             cursor.execute("""
-                SELECT COALESCE(SUM(commission_amount), 0) FROM commissions 
-                WHERE referrer_id = ? 
-                AND strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')
+                SELECT COALESCE(SUM(amount), 0) FROM commission_ledger 
+                WHERE referrer_user_id = ? 
+                AND event = 'earn' AND status = 'confirmed'
+                AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
             """, (user_id,))
             this_month_commission = float(cursor.fetchone()[0] or 0)
         
@@ -11953,24 +12518,23 @@ def admin_get_commissions():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # commission_ledger 테이블에서 커미션 내역 조회 (통합 원장)
         if DATABASE_URL.startswith('postgresql://'):
-            # 새 스키마에서는 commissions 테이블 사용
             try:
                 cursor.execute("""
                     SELECT 
-                        c.commission_id, 
-                        r.referred_user_id, 
-                        NULL::numeric AS base_amount, 
-                        c.amount, 
-                        NULL::numeric AS commission_rate, 
-                        c.created_at
-                    FROM commissions c
-                    JOIN referrals r ON c.referral_id = r.referral_id
-                    WHERE c.status = 'accrued'
-                    ORDER BY c.created_at DESC
+                        cl.ledger_id AS commission_id, 
+                        cl.referred_user_id, 
+                        cl.base_amount, 
+                        cl.amount, 
+                        cl.commission_rate, 
+                        cl.created_at
+                    FROM commission_ledger cl
+                    WHERE cl.event = 'earn' AND cl.status = 'confirmed'
+                    ORDER BY cl.created_at DESC
                 """)
             except Exception as e:
-                print(f"⚠️ 새 스키마 쿼리 실패: {e}")
+                print(f"⚠️ commission_ledger 쿼리 실패: {e}")
                 import traceback
                 traceback.print_exc()
                 return jsonify({'commissions': []}), 200
@@ -13776,16 +14340,15 @@ def get_commission_transactions():
             cursor.execute("""
                 SELECT 
                     'earn' as type,
-                    c.amount,
-                    c.created_at,
+                    cl.amount,
+                    cl.created_at,
                     o.order_id,
-                    c.commission_id
-                FROM commissions c
-                JOIN referrals r ON c.referral_id = r.referral_id
-                LEFT JOIN orders o ON c.order_id = o.order_id
-                WHERE r.referrer_user_id = %s
-                ORDER BY c.created_at DESC, c.commission_id DESC
-            """, (referrer_user_id,))
+                    cl.ledger_id as commission_id
+                FROM commission_ledger cl
+                LEFT JOIN orders o ON cl.order_id::text = o.order_id::text
+                WHERE cl.referrer_user_id::text = %s AND cl.event = 'earn' AND cl.status = 'confirmed'
+                ORDER BY cl.created_at DESC, cl.ledger_id DESC
+            """, (str(referrer_user_id),))
             
             earn_transactions = cursor.fetchall()
             
@@ -15925,6 +16488,181 @@ def cron_process_scheduled_orders():
         print(f"❌ 예약 주문 처리 크론잡 실패: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/cron/process-package-steps', methods=['POST'])
+def cron_process_package_steps():
+    """Cron Process Package Steps
+    ---
+    tags:
+      - Cron
+    summary: Cron Process Package Steps
+    description: "Cron Process Package Steps API - execution_progress 테이블의 scheduled_datetime 확인"
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            example:
+              type: string
+              description: 예시 필드
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
+    """ 
+    """패키지 단계 처리 크론잡 - execution_progress 테이블의 scheduled_datetime 확인"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # scheduled_datetime이 지난 pending 상태의 패키지 단계 조회
+        if DATABASE_URL.startswith('postgresql://'):
+            try:
+                cursor.execute("""
+                    SELECT order_id, step_number, step_name, service_id, quantity
+                    FROM execution_progress
+                    WHERE exec_type = 'package'
+                    AND status = 'pending'
+                    AND scheduled_datetime IS NOT NULL
+                    AND scheduled_datetime <= NOW()
+                    ORDER BY scheduled_datetime ASC
+                    LIMIT 50
+                """)
+            except Exception as e:
+                # execution_progress 테이블이 없을 수 있음
+                print(f"⚠️ execution_progress 테이블 조회 실패 (테이블이 없을 수 있음): {e}")
+                return jsonify({
+                    'success': True,
+                    'processed': 0,
+                    'message': 'execution_progress 테이블이 없거나 조회 실패'
+                }), 200
+        else:
+            cursor.execute("""
+                SELECT order_id, step_number, step_name, service_id, quantity
+                FROM execution_progress
+                WHERE exec_type = 'package'
+                AND status = 'pending'
+                AND scheduled_datetime IS NOT NULL
+                AND scheduled_datetime <= datetime('now')
+                ORDER BY scheduled_datetime ASC
+                LIMIT 50
+            """)
+        
+        pending_steps = cursor.fetchall()
+        print(f"🔍 발견된 실행 대기 중인 패키지 단계: {len(pending_steps)}개")
+        
+        processed_count = 0
+        
+        for step in pending_steps:
+            order_id = step[0]
+            step_number = step[1]  # 1부터 시작
+            step_name = step[2]
+            service_id = step[3]
+            quantity = step[4]
+            
+            print(f"🔄 패키지 단계 처리: order_id={order_id}, step_number={step_number}, step_name={step_name}")
+            
+            try:
+                # step_number는 1부터 시작하므로 step_index는 step_number - 1
+                step_index = step_number - 1
+                
+                # 상태를 running으로 변경
+                if DATABASE_URL.startswith('postgresql://'):
+                    cursor.execute("""
+                        UPDATE execution_progress
+                        SET status = 'running', updated_at = NOW()
+                        WHERE order_id = %s AND exec_type = 'package' AND step_number = %s
+                    """, (order_id, step_number))
+                else:
+                    cursor.execute("""
+                        UPDATE execution_progress
+                        SET status = 'running', updated_at = datetime('now')
+                        WHERE order_id = ? AND exec_type = 'package' AND step_number = ?
+                    """, (order_id, step_number))
+                
+                conn.commit()
+                
+                # 패키지 단계 처리 실행
+                result = process_package_step(order_id, step_index)
+                
+                if result:
+                    processed_count += 1
+                    print(f"✅ 패키지 단계 처리 완료: order_id={order_id}, step_number={step_number}")
+                else:
+                    print(f"❌ 패키지 단계 처리 실패: order_id={order_id}, step_number={step_number}")
+                    # 실패 시 상태를 failed로 변경
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
+                            UPDATE execution_progress
+                            SET status = 'failed', updated_at = NOW()
+                            WHERE order_id = %s AND exec_type = 'package' AND step_number = %s
+                        """, (order_id, step_number))
+                    else:
+                        cursor.execute("""
+                            UPDATE execution_progress
+                            SET status = 'failed', updated_at = datetime('now')
+                            WHERE order_id = ? AND exec_type = 'package' AND step_number = ?
+                        """, (order_id, step_number))
+                    conn.commit()
+                    
+            except Exception as step_error:
+                print(f"❌ 패키지 단계 처리 오류: {step_error}")
+                import traceback
+                traceback.print_exc()
+                # 오류 시 상태를 failed로 변경
+                try:
+                    if DATABASE_URL.startswith('postgresql://'):
+                        cursor.execute("""
+                            UPDATE execution_progress
+                            SET status = 'failed', error_message = %s, updated_at = NOW()
+                            WHERE order_id = %s AND exec_type = 'package' AND step_number = %s
+                        """, (str(step_error), order_id, step_number))
+                    else:
+                        cursor.execute("""
+                            UPDATE execution_progress
+                            SET status = 'failed', error_message = ?, updated_at = datetime('now')
+                            WHERE order_id = ? AND exec_type = 'package' AND step_number = ?
+                        """, (str(step_error), order_id, step_number))
+                    conn.commit()
+                except:
+                    pass
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'processed': processed_count,
+            'message': f'{processed_count}개의 패키지 단계를 처리했습니다.'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 패키지 단계 처리 크론잡 실패: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/cron/process-split-deliveries', methods=['POST'])
 def cron_process_split_deliveries():
     """Cron Process Split Deliveries
@@ -16053,6 +16791,14 @@ def background_scheduler():
             with app.app_context():
                 result = cron_process_scheduled_orders()
                 print(f"🔄 스케줄러 결과: {result}")
+            
+            # 패키지 단계 처리 (execution_progress 테이블 확인)
+            print("🔄 스케줄러: 패키지 단계 처리 중...")
+            with app.app_context():
+                try:
+                    cron_process_package_steps()
+                except Exception as pkg_err:
+                    print(f"⚠️ 패키지 단계 처리 오류: {pkg_err}")
             
             # 분할 발송 처리 (매일 자정에 한 번만 실행하도록 시간 체크)
             current_hour = datetime.now().hour
@@ -16236,6 +16982,44 @@ def migrate_database():
             except Exception as e:
                 messages.append(f"⚠️ package_steps: {str(e)}")
                 print(f"⚠️ package_steps 필드 추가 실패: {e}")
+                conn.rollback()
+            
+            # packages 테이블에 product_id 컬럼 추가
+            try:
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name='packages' AND column_name='product_id'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE packages ADD COLUMN product_id BIGINT REFERENCES products(product_id)")
+                    conn.commit()
+                    messages.append("✅ packages.product_id 필드 추가 완료")
+                    print("✅ packages.product_id 필드 추가 완료")
+                    
+                    # 기존 패키지들의 product_id 업데이트 (category_id로 첫 번째 상품 찾기)
+                    cursor.execute("""
+                        UPDATE packages p
+                        SET product_id = (
+                            SELECT product_id 
+                            FROM products pr 
+                            WHERE pr.category_id = p.category_id 
+                            ORDER BY pr.product_id ASC 
+                            LIMIT 1
+                        )
+                        WHERE p.product_id IS NULL
+                    """)
+                    updated_count = cursor.rowcount
+                    conn.commit()
+                    if updated_count > 0:
+                        messages.append(f"✅ {updated_count}개 패키지의 product_id 업데이트 완료")
+                        print(f"✅ {updated_count}개 패키지의 product_id 업데이트 완료")
+                else:
+                    messages.append("ℹ️ packages.product_id 필드 이미 존재")
+                    print("ℹ️ packages.product_id 필드 이미 존재")
+            except Exception as e:
+                messages.append(f"⚠️ packages.product_id: {str(e)}")
+                print(f"⚠️ packages.product_id 필드 추가 실패: {e}")
                 conn.rollback()
         
         cursor.close()
@@ -19825,18 +20609,22 @@ def get_packages():
                     except Exception as e:
                         print(f"⚠️ variant_id {variant_id}에서 service_id 찾기 실패: {e}")
                 
-                # steps 형식으로 변환
+                # steps 형식으로 변환 (None 값 처리)
+                quantity_val = item_dict.get('quantity')
+                term_value_val = item_dict.get('term_value')
+                repeat_count_val = item_dict.get('repeat_count')
+                
                 step_dict = {
                     'id': service_id or variant_id,  # service_id가 없으면 variant_id 사용
                     'name': variant_name or f"단계 {item_dict.get('step', 0)}",
-                    'quantity': int(item_dict.get('quantity', 0)),
-                    'delay': int(item_dict.get('term_value', 0)) if item_dict.get('term_unit') == 'minute' else 0,
-                    'repeat': int(item_dict.get('repeat_count', 1))
+                    'quantity': int(quantity_val) if quantity_val is not None else 0,
+                    'delay': int(term_value_val) if term_value_val is not None and item_dict.get('term_unit') == 'minute' else 0,
+                    'repeat': int(repeat_count_val) if repeat_count_val is not None else 1
                 }
                 
                 # term_unit이 'hour'인 경우 분으로 변환
-                if item_dict.get('term_unit') == 'hour':
-                    step_dict['delay'] = int(item_dict.get('term_value', 0)) * 60
+                if item_dict.get('term_unit') == 'hour' and term_value_val is not None:
+                    step_dict['delay'] = int(term_value_val) * 60
                 
                 converted_steps.append(step_dict)
             
@@ -20445,12 +21233,59 @@ def get_admin_packages():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        cursor.execute("""
-            SELECT p.*, c.name as category_name
-            FROM packages p
-            LEFT JOIN categories c ON p.category_id = c.category_id
-            ORDER BY p.created_at DESC
-        """)
+        # packages 테이블에 product_id 컬럼이 있는지 확인
+        has_product_id = False
+        if DATABASE_URL.startswith('postgresql://'):
+            try:
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'packages' AND column_name = 'product_id'
+                """)
+                has_product_id = cursor.fetchone() is not None
+            except:
+                has_product_id = False
+        else:
+            # SQLite: pragma table_info 사용
+            try:
+                cursor.execute("PRAGMA table_info(packages)")
+                columns = cursor.fetchall()
+                has_product_id = any(col[1] == 'product_id' for col in columns)
+            except:
+                has_product_id = False
+        
+        if has_product_id:
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    SELECT p.*, c.name as category_name, pr.name as product_name
+                    FROM packages p
+                    LEFT JOIN categories c ON p.category_id = c.category_id
+                    LEFT JOIN products pr ON p.product_id = pr.product_id
+                    ORDER BY p.created_at DESC
+                """)
+            else:
+                cursor.execute("""
+                    SELECT p.*, c.name as category_name, pr.name as product_name
+                    FROM packages p
+                    LEFT JOIN categories c ON p.category_id = c.category_id
+                    LEFT JOIN products pr ON p.product_id = pr.product_id
+                    ORDER BY p.created_at DESC
+                """)
+        else:
+            if DATABASE_URL.startswith('postgresql://'):
+                cursor.execute("""
+                    SELECT p.*, c.name as category_name, NULL as product_name
+                    FROM packages p
+                    LEFT JOIN categories c ON p.category_id = c.category_id
+                    ORDER BY p.created_at DESC
+                """)
+            else:
+                cursor.execute("""
+                    SELECT p.*, c.name as category_name, NULL as product_name
+                    FROM packages p
+                    LEFT JOIN categories c ON p.category_id = c.category_id
+                    ORDER BY p.created_at DESC
+                """)
         
         packages = cursor.fetchall()
         
@@ -20541,17 +21376,30 @@ def create_admin_package():
     cursor = None
     try:
         data = request.get_json()
+        product_id = data.get('product_id')
         category_id = data.get('category_id')
         name = data.get('name')
         description = data.get('description')
         items = data.get('items', [])
         meta_json = data.get('meta_json')
         
-        if not category_id or not name:
-            return jsonify({'error': '카테고리 ID와 패키지 이름이 필요합니다.'}), 400
+        if not name:
+            return jsonify({'error': '패키지 이름이 필요합니다.'}), 400
         
+        # product_id가 있으면 category_id 찾기, 없으면 category_id 직접 사용
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        if product_id and not category_id:
+            cursor.execute("SELECT category_id FROM products WHERE product_id = %s", (product_id,))
+            product = cursor.fetchone()
+            if product:
+                category_id = product['category_id']
+            else:
+                return jsonify({'error': '상품을 찾을 수 없습니다.'}), 400
+        
+        if not category_id:
+            return jsonify({'error': '카테고리 ID 또는 상품 ID가 필요합니다.'}), 400
         
         # meta_json을 JSON 문자열로 변환
         import json
@@ -20559,28 +21407,56 @@ def create_admin_package():
         if meta_json:
             meta_json_str = json.dumps(meta_json) if not isinstance(meta_json, str) else meta_json
         
-        # 패키지 생성 (meta_json 컬럼이 있으면 포함, 없으면 제외)
+        # 패키지 생성 (product_id와 meta_json 컬럼이 있으면 포함, 없으면 제외)
         try:
-            if meta_json_str:
-                cursor.execute("""
-                    INSERT INTO packages (category_id, name, description, meta_json, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s::jsonb, NOW(), NOW())
-                    RETURNING *
-                """, (category_id, name, description, meta_json_str))
+            # product_id 컬럼이 있는지 확인
+            cursor.execute("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'packages' AND column_name = 'product_id'
+            """)
+            has_product_id = cursor.fetchone() is not None
+            
+            if has_product_id and product_id:
+                if meta_json_str:
+                    cursor.execute("""
+                        INSERT INTO packages (product_id, category_id, name, description, meta_json, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s::jsonb, NOW(), NOW())
+                        RETURNING *
+                    """, (product_id, category_id, name, description, meta_json_str))
+                else:
+                    cursor.execute("""
+                        INSERT INTO packages (product_id, category_id, name, description, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, NOW(), NOW())
+                        RETURNING *
+                    """, (product_id, category_id, name, description))
             else:
-                cursor.execute("""
-                    INSERT INTO packages (category_id, name, description, created_at, updated_at)
-                    VALUES (%s, %s, %s, NOW(), NOW())
-                    RETURNING *
-                """, (category_id, name, description))
+                if meta_json_str:
+                    cursor.execute("""
+                        INSERT INTO packages (category_id, name, description, meta_json, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s::jsonb, NOW(), NOW())
+                        RETURNING *
+                    """, (category_id, name, description, meta_json_str))
+                else:
+                    cursor.execute("""
+                        INSERT INTO packages (category_id, name, description, created_at, updated_at)
+                        VALUES (%s, %s, %s, NOW(), NOW())
+                        RETURNING *
+                    """, (category_id, name, description))
         except Exception as e:
             # meta_json 컬럼이 없으면 meta_json 없이 다시 시도
             if 'meta_json' in str(e).lower() or 'column' in str(e).lower():
-                cursor.execute("""
-                    INSERT INTO packages (category_id, name, description, created_at, updated_at)
-                    VALUES (%s, %s, %s, NOW(), NOW())
-                    RETURNING *
-                """, (category_id, name, description))
+                if has_product_id and product_id:
+                    cursor.execute("""
+                        INSERT INTO packages (product_id, category_id, name, description, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, NOW(), NOW())
+                        RETURNING *
+                    """, (product_id, category_id, name, description))
+                else:
+                    cursor.execute("""
+                        INSERT INTO packages (category_id, name, description, created_at, updated_at)
+                        VALUES (%s, %s, %s, NOW(), NOW())
+                        RETURNING *
+                    """, (category_id, name, description))
             else:
                 raise
         

@@ -72,7 +72,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
     custom_fields_config: {}
   })
   const [packageForm, setPackageForm] = useState({
-    category_id: null,
+    product_id: null,  // 상품 선택 (카테고리 대신)
     name: '',
     description: '',
     price: '',  // 패키지 가격
@@ -214,17 +214,29 @@ const AdminServiceManagement = ({ adminFetch }) => {
     setSelectedProductId(productId)
   }
 
-  const filteredProducts = selectedCategoryId
-    ? products.filter(p => p.category_id === selectedCategoryId)
-    : products
+  // 카테고리�??�품 ?�터�?
+  const getProductsByCategory = (categoryId) => {
+    return products.filter(p => p.category_id === categoryId)
+  }
 
-  const filteredVariants = variants.filter(variant => {
-    const product = products.find(p => p.product_id === variant.product_id)
-    if (!product) return false
-    if (selectedCategoryId && product.category_id !== selectedCategoryId) return false
-    if (selectedProductId && variant.product_id !== selectedProductId) return false
-    return true
-  })
+  // ?�품�??�션 ?�터�?
+  const getVariantsByProduct = (productId) => {
+    return variants.filter(v => v.product_id === productId)
+  }
+
+  // 상품의 패키지 가져오기
+  const getPackagesByProduct = (productId) => {
+    // 패키지가 product_id를 가지고 있으면 필터링, 없으면 category_id로 찾기
+    return packages.filter(pkg => {
+      if (pkg.product_id) {
+        return pkg.product_id === productId
+      } else {
+        // 하위 호환성: category_id로 찾기
+        const product = products.find(p => p.product_id === productId)
+        return product && pkg.category_id === product.category_id
+      }
+    })
+  }
 
   // 카테고리 추�?/수정
   const handleCategorySubmit = async (e) => {
@@ -592,12 +604,14 @@ const AdminServiceManagement = ({ adminFetch }) => {
     return products.filter(p => p.category_id === parseInt(variantForm.category_id))
   }
 
-  const openPackageModal = (pkg = null) => {
+  const openPackageModal = (pkg = null, productId = null) => {
     if (pkg) {
       setEditingItem(pkg)
       const meta = pkg.meta_json || {}
+      // 패키지에서 product_id 찾기 (기존에는 category_id만 있었음)
+      const product = products.find(p => p.category_id === pkg.category_id)
       setPackageForm({
-        category_id: pkg.category_id,
+        product_id: product ? product.product_id : null,
         name: pkg.name,
         description: pkg.description || '',
         price: meta.price || pkg.price || '',
@@ -614,7 +628,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
     } else {
       setEditingItem(null)
       setPackageForm({
-        category_id: null,
+        product_id: productId || null,
         name: '',
         description: '',
         price: '',
@@ -668,11 +682,18 @@ const AdminServiceManagement = ({ adminFetch }) => {
         }
       })
 
+      // product_id로 category_id 찾기
+      const selectedProduct = products.find(p => p.product_id === parseInt(packageForm.product_id))
+      if (!selectedProduct && packageForm.product_id) {
+        throw new Error('선택한 상품을 찾을 수 없습니다.')
+      }
+      
       const response = await adminFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          category_id: parseInt(packageForm.category_id),
+          product_id: packageForm.product_id ? parseInt(packageForm.product_id) : null,
+          category_id: selectedProduct ? selectedProduct.category_id : null,  // 하위 호환성
           name: packageForm.name,
           description: packageForm.description,
           meta_json: Object.keys(metaJson).length > 0 ? metaJson : null,
@@ -685,7 +706,7 @@ const AdminServiceManagement = ({ adminFetch }) => {
         setShowPackageModal(false)
         setEditingItem(null)
         setPackageForm({
-          category_id: null,
+          product_id: null,
           name: '',
           description: '',
           price: '',
@@ -870,109 +891,128 @@ const AdminServiceManagement = ({ adminFetch }) => {
     </div>
   )
 
-  const renderVariantTable = () => (
-    <div className="table-card">
-      <div className="table-header">
-        <div>
-          <h3>세부서비스</h3>
-          <p>실제 주문 가능한 세부서비스를 관리하세요.</p>
-        </div>
-        <button className="btn-primary" onClick={() => openVariantModal()}>
-          <Plus size={14} />
-          세부서비스 추가
-        </button>
+              {isExpanded && (
+                <div className="category-content">
+                  {categoryProducts.length === 0 ? (
+                    <div className="empty-state">
+                      상품이 없습니다. 상품을 추가해주세요.
+                    </div>
+                  ) : (
+                    categoryProducts.map(product => {
+                      const productVariants = getVariantsByProduct(product.product_id)
+                      const productPackages = getPackagesByProduct(product.product_id)
+
+                      return (
+                        <div key={product.product_id} className="product-item">
+                          <div className="product-header">
+                            <Layers size={14} />
+                            <span className="product-name">{product.name}</span>
+                            <div className="product-actions">
+                              <button
+                                className="btn-icon"
+                                onClick={() => openVariantModal(null, product.product_id)}
+                                title="세부서비스 추가"
+                              >
+                                <Plus size={14} />
+                              </button>
+                              <button
+                                className="btn-icon"
+                                onClick={() => openPackageModal(null, product.product_id)}
+                                title="패키지 추가"
+                              >
+                                <Package size={14} />
+                              </button>
+                              <button
+                                className="btn-icon"
+                                onClick={() => openProductModal(product)}
+                                title="수정"
+                              >
+                                <Edit size={14} />
+                              </button>
+                              <button
+                                className="btn-icon"
+                                onClick={() => handleDeleteProduct(product.product_id)}
+                                title="삭제"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="variants-list">
+                            {/* 일반 세부서비스 (variants) */}
+                            {productVariants.map(variant => (
+                              <div key={variant.variant_id} className="variant-item">
+                                <span className="variant-name">{variant.name}</span>
+                                <span className="variant-price">{parseFloat(variant.price).toLocaleString()}원</span>
+                                <div className="variant-actions">
+                                  <button
+                                    className="btn-icon-small"
+                                    onClick={() => openVariantModal(variant)}
+                                    title="수정"
+                                  >
+                                    <Edit size={12} />
+                                  </button>
+                                  <button
+                                    className="btn-icon-small"
+                                    onClick={() => handleDeleteVariant(variant.variant_id)}
+                                    title="삭제"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {/* 패키지 (세부서비스로 표시) */}
+                            {productPackages.map(pkg => (
+                              <div key={pkg.package_id} className="variant-item" style={{ borderLeft: '3px solid #8b5cf6' }}>
+                                <Package size={14} style={{ marginRight: '8px', color: '#8b5cf6' }} />
+                                <span className="variant-name">{pkg.name} (패키지)</span>
+                                <span className="variant-price">
+                                  {pkg.meta_json?.price ? parseFloat(pkg.meta_json.price).toLocaleString() + '원' : '가격 없음'}
+                                </span>
+                                <div className="variant-actions">
+                                  <button
+                                    className="btn-icon-small"
+                                    onClick={() => openPackageModal(pkg)}
+                                    title="수정"
+                                  >
+                                    <Edit size={12} />
+                                  </button>
+                                  <button
+                                    className="btn-icon-small"
+                                    onClick={() => handleDeletePackage(pkg.package_id)}
+                                    title="삭제"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {productVariants.length === 0 && productPackages.length === 0 && (
+                              <div className="empty-state-small">
+                                세부서비스가 없습니다.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
-      <div className="table-filters">
-        <select
-          value={selectedCategoryId || ''}
-          onChange={(e) => {
-            const value = e.target.value ? parseInt(e.target.value) : null
-            setSelectedCategoryId(value)
-            setSelectedProductId(null)
-          }}
-        >
-          <option value="">전체 카테고리</option>
-          {categories.map(cat => (
-            <option key={cat.category_id} value={cat.category_id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={selectedProductId || ''}
-          onChange={(e) => setSelectedProductId(e.target.value ? parseInt(e.target.value) : null)}
-          disabled={!selectedCategoryId}
-        >
-          <option value="">전체 상품</option>
-          {filteredProducts.map(prod => (
-            <option key={prod.product_id} value={prod.product_id}>
-              {prod.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="table-wrapper">
-        <table className="management-table">
-          <thead>
-            <tr>
-              <th>서비스명</th>
-              <th>카테고리</th>
-              <th>상품</th>
-              <th>가격</th>
-              <th>최소/최대</th>
-              <th>상태</th>
-              <th>액션</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredVariants.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="empty-row">조건에 맞는 세부서비스가 없습니다.</td>
-              </tr>
-            ) : (
-              filteredVariants.map(variant => {
-                const product = products.find(p => p.product_id === variant.product_id)
-                const category = product ? categories.find(cat => cat.category_id === product.category_id) : null
-                return (
-                  <tr key={variant.variant_id}>
-                    <td>{variant.name}</td>
-                    <td>{category ? category.name : '-'}</td>
-                    <td>{product ? product.name : '-'}</td>
-                    <td>{parseFloat(variant.price).toLocaleString()}원</td>
-                    <td>
-                      {variant.min_quantity || '-'} / {variant.max_quantity || '-'}
-                    </td>
-                    <td>
-                      <span className={`status-pill ${variant.is_active ? 'active' : 'inactive'}`}>
-                        {variant.is_active ? '활성' : '비활성'}
-                      </span>
-                    </td>
-                    <td className="table-actions">
-                      <button className="btn-icon" onClick={() => openVariantModal(variant)}>
-                        <Edit size={14} />
-                      </button>
-                      <button className="btn-icon danger" onClick={() => handleDeleteVariant(variant.variant_id)}>
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-
-  const renderPackageTable = () => (
-    <div className="table-card">
-      <div className="table-header">
-        <div>
-          <h3>패키지</h3>
-          <p>여러 세부서비스를 묶어 판매할 패키지를 관리하세요.</p>
+      {/* ?�체 ?�품 목록 ?�션 */}
+      <div className="all-products-section">
+        <div className="section-header">
+          <h3>전체 세부서비스 목록</h3>
+          <span className="product-count">총 {variants.length}개 세부서비스</span>
         </div>
         <button className="btn-primary" onClick={() => openPackageModal()}>
           <Plus size={14} />
@@ -1505,19 +1545,25 @@ const AdminServiceManagement = ({ adminFetch }) => {
             </div>
             <form onSubmit={handlePackageSubmit}>
               <div className="form-group">
-                <label>카테고리 *</label>
+                <label>상품 *</label>
                 <select
-                  value={packageForm.category_id || ''}
-                  onChange={(e) => setPackageForm({ ...packageForm, category_id: e.target.value })}
+                  value={packageForm.product_id || ''}
+                  onChange={(e) => setPackageForm({ ...packageForm, product_id: e.target.value })}
                   required
                 >
                   <option value="">선택하세요</option>
-                  {categories.filter(c => c.is_active).map(cat => (
-                    <option key={cat.category_id} value={cat.category_id}>
-                      {cat.name}
-                    </option>
-                  ))}
+                  {products.filter(p => p.is_active !== false).map(product => {
+                    const category = categories.find(c => c.category_id === product.category_id)
+                    return (
+                      <option key={product.product_id} value={product.product_id}>
+                        {category ? `[${category.name}] ` : ''}{product.name}
+                      </option>
+                    )
+                  })}
                 </select>
+                <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                  패키지는 선택한 상품의 세부서비스로 추가됩니다.
+                </small>
               </div>
               <div className="form-group">
                 <label>패키지 이름 *</label>
@@ -1713,9 +1759,11 @@ const AdminServiceManagement = ({ adminFetch }) => {
                       <div className="form-group">
                         <label>간격 단위</label>
                         <select
-                          value={item.term_unit || 'day'}
+                          value={item.term_unit || 'minute'}
                           onChange={(e) => updatePackageItem(index, 'term_unit', e.target.value)}
                         >
+                          <option value="minute">분</option>
+                          <option value="hour">시</option>
                           <option value="day">일</option>
                           <option value="week">주</option>
                           <option value="month">월</option>
@@ -1743,9 +1791,11 @@ const AdminServiceManagement = ({ adminFetch }) => {
                       <div className="form-group">
                         <label>반복 간격 단위</label>
                         <select
-                          value={item.repeat_term_unit || 'day'}
+                          value={item.repeat_term_unit || 'minute'}
                           onChange={(e) => updatePackageItem(index, 'repeat_term_unit', e.target.value)}
                         >
+                          <option value="minute">분</option>
+                          <option value="hour">시</option>
                           <option value="day">일</option>
                           <option value="week">주</option>
                           <option value="month">월</option>
