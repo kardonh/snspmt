@@ -2821,11 +2821,27 @@ def reprocess_stuck_package_orders():
         if conn:
             conn.close()
 
+# 주문 상태 정규화 함수 (한글 → 영어 ENUM)
+def normalize_order_status(status):
+    """한글 주문 상태값을 PostgreSQL ENUM 값으로 변환"""
+    status_mapping = {
+        '주문 실행중': 'processing',
+        '주문 실행완료': 'completed',
+        '주문발송': 'processing',
+        '주문 미처리': 'pending',
+        '진행중': 'processing',
+        '접수됨': 'pending'
+    }
+    return status_mapping.get(status, status)  # 매핑이 없으면 원래 값 반환
+
 # 주문 상태 업데이트 스케줄 함수
 def schedule_order_status_update(order_id, new_status, delay_minutes):
     """주문 상태를 지정된 시간 후에 업데이트하도록 스케줄"""
     import threading
     import time
+    
+    # 한글 상태값을 영어 ENUM 값으로 변환
+    normalized_status = normalize_order_status(new_status)
     
     def update_order_status():
         time.sleep(delay_minutes * 60)  # 분을 초로 변환
@@ -2850,24 +2866,24 @@ def schedule_order_status_update(order_id, new_status, delay_minutes):
             current_status = result[0]
             
             # 이미 완료된 주문이면 상태 변경하지 않음
-            if current_status in ['주문 실행완료', 'failed', 'cancelled']:
+            if current_status in ['completed', 'failed', 'cancelled']:
                 print(f"⚠️ 주문 {order_id}은 이미 {current_status} 상태입니다. 상태 변경을 건너뜁니다.")
                 return
             
-            # 주문 상태 업데이트
+            # 주문 상태 업데이트 (정규화된 영어 ENUM 값 사용)
             if DATABASE_URL.startswith('postgresql://'):
                 cursor.execute("""
                     UPDATE orders SET status = %s, updated_at = NOW() 
                     WHERE order_id = %s
-                """, (new_status, order_id))
+                """, (normalized_status, order_id))
             else:
                 cursor.execute("""
                     UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP 
                     WHERE order_id = ?
-                """, (new_status, order_id))
+                """, (normalized_status, order_id))
             
             conn.commit()
-            print(f"✅ 주문 {order_id} 상태가 {new_status}로 자동 업데이트되었습니다.")
+            print(f"✅ 주문 {order_id} 상태가 {normalized_status}로 자동 업데이트되었습니다.")
             
         except Exception as e:
             print(f"❌ 주문 {order_id} 상태 업데이트 실패: {e}")
