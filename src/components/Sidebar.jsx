@@ -1,4 +1,4 @@
-import React, { useState, useEffect,useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { 
   Star, 
@@ -116,8 +116,8 @@ const Sidebar = ({ onClose }) => {
     fetchUserPoints(true) // Force immediate fetch
   }
 
-  // 관리자 권한 확인 함수
-  const checkAdminStatus = async () => {
+  // 관리자 권한 확인 함수 (useCallback으로 메모이제이션)
+  const checkAdminStatus = useCallback(async () => {
     console.log('🔍 Sidebar: checkAdminStatus 호출됨')
     console.log('🔍 Sidebar: currentUser:', currentUser)
     console.log('🔍 Sidebar: currentUser?.email:', currentUser?.email)
@@ -130,7 +130,6 @@ const Sidebar = ({ onClose }) => {
     
     try {
       console.log('🔍 Sidebar: 관리자 권한 확인 시작 - email:', currentUser.email)
-      console.log('🔍 Sidebar: API 호출 전 - 현재 isAdmin:', isAdmin)
       
       // Supabase 세션 가져오기 (타임아웃 처리)
       let accessToken = null
@@ -280,7 +279,6 @@ const Sidebar = ({ onClose }) => {
         }
         
         console.log('✅ Sidebar: 최종 isAdmin 값:', isAdminValue, '타입:', typeof isAdminValue)
-        console.log('✅ Sidebar: setIsAdmin 호출 전 - 현재 isAdmin:', isAdmin)
         
         // 강제로 boolean으로 변환
         const finalIsAdmin = Boolean(isAdminValue)
@@ -289,9 +287,12 @@ const Sidebar = ({ onClose }) => {
         
         setIsAdmin(finalIsAdmin)
         
-        // 상태 업데이트 확인을 위한 추가 로그 (100ms 후 확인)
+        // 상태 업데이트 확인을 위한 추가 로그 (100ms 후 확인 - 함수형 업데이트 사용)
         setTimeout(() => {
-          console.log('⏰ Sidebar: 100ms 후 isAdmin 상태 확인:', isAdmin)
+          setIsAdmin(prevIsAdmin => {
+            console.log('⏰ Sidebar: 100ms 후 isAdmin 상태 확인:', prevIsAdmin)
+            return prevIsAdmin // 상태 변경 없이 확인만
+          })
         }, 100)
         
         // 상태 업데이트 확인을 위한 추가 로그 (useEffect로 확인)
@@ -305,7 +306,7 @@ const Sidebar = ({ onClose }) => {
       console.error('❌ Sidebar: 관리자 권한 확인 오류:', error)
       setIsAdmin(false)
     }
-  }
+  }, [currentUser])
 
   // 사용자가 로그인했을 때 포인트 조회 및 추천인 코드 확인
   useEffect(() => {
@@ -351,6 +352,7 @@ const Sidebar = ({ onClose }) => {
       window.removeEventListener('focus', fetchUserPoints)
       document.removeEventListener('visibilitychange', fetchUserPoints)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser])
 
   // 기본 메뉴 아이템
