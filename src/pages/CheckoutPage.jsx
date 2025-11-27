@@ -164,27 +164,41 @@ const CheckoutPage = () => {
       // 2. 주문 생성
       const orderPayload = {
         user_id: currentUser.uid,
-        type: orderData.type,
-        platform: orderData.category.slug,
-        service: orderData.product?.name || orderData.package?.name,
-        detailed_service: orderData.variant?.name || orderData.package?.name,
-        service_id: orderData.variant?.id || orderData.package?.id,
+        service_id: orderData.variant?.smm_service_id || orderData.variant?.id || orderData.package?.smmkings_id || orderData.package?.id,
         link: orderData.orderDetails.link,
         quantity: orderData.orderDetails.quantity || 1,
+        price: finalPrice,
         comments: orderData.orderDetails.comments || '',
-        total_price: finalPrice,
-        discount: selectedCoupon ? (selectedCoupon.type === 'percentage' ? selectedCoupon.discount : (orderData.pricing.total - finalPrice)) : 0,
-        package_steps: orderData.type === 'package' && orderData.package ? (orderData.package.items).map(item => ({
-          variant_id: item.variant_id,
-          variant_name: item.variant_name,
-          quantity: item.quantity || 0,
-          repeat_count: item.repeat_count || 1,
-          term_value: item.term_value || 0,
-          term_unit: item.term_unit || 'minute'
-        })) : [],
-        use_coupon: selectedCoupon ? true : false,
-        coupon_id: selectedCoupon?.id || null,
-        coupon_discount: selectedCoupon ? (selectedCoupon.type === 'percentage' ? selectedCoupon.discount : (orderData.pricing.total - finalPrice)) : 0
+        detailed_service: orderData.variant?.name || orderData.package?.name,
+        
+        // Drip-feed settings (for variants with drip-feed enabled)
+        runs: orderData.variant?.drip_feed ? (orderData.variant?.runs || 1) : 1,
+        interval: orderData.variant?.drip_feed ? (orderData.variant?.interval || 0) : 0,
+        
+        // Package steps (for package orders)
+        package_steps: orderData.type === 'package' && orderData.package?.items ? 
+          orderData.package.items.map((item, index) => ({
+            id: item.smm_service_id || item.variant_id,
+            name: item.variant_name || `Step ${index + 1}`,
+            quantity: item.quantity || 0,
+            delay: convertTermToMinutes(item.term_value || 0, item.term_unit || 'minute'),
+            repeat: item.repeat_count || 1
+          })) : [],
+        
+        // Coupon (user_coupon_id expected by backend)
+        user_coupon_id: selectedCoupon?.id || null
+      }
+      
+      // Helper function to convert term to minutes
+      function convertTermToMinutes(value, unit) {
+        const multipliers = {
+          'minute': 1,
+          'hour': 60,
+          'day': 1440,
+          'week': 10080,
+          'month': 43200
+        }
+        return (value || 0) * (multipliers[unit] || 1)
       }
 
       console.log("orderPayload",orderPayload)
