@@ -148,13 +148,18 @@ axiosInstance.interceptors.response.use(
   }
 )
 
-// Setup cache with 5-minute TTL
+// Setup cache with 5-minute TTL (but exclude admin endpoints)
 const cachedAxios = setupCache(axiosInstance, {
   ttl: 5 * 60 * 1000, // 5 minutes
   interpretHeader: false,
   methods: ['get'],
   cachePredicate: {
-    statusCheck: (status) => status >= 200 && status < 300
+    statusCheck: (status) => status >= 200 && status < 300,
+    // Don't cache admin endpoints
+    requestMatch: (config) => {
+      const url = config.url || ''
+      return !url.includes('/admin/')
+    }
   }
 })
 

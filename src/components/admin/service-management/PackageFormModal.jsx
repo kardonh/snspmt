@@ -23,14 +23,31 @@ function PackageFormModal({
   const addItem = () => {
     onFormChange({
       ...packageForm,
-      items: [...packageForm.items, { variant_id: null, quantity: 0, term: 0, repeat: 0 }]
+      items: [
+        ...packageForm.items,
+        {
+          variant_id: null,
+          step: packageForm.items.length + 1,
+          term_value: null,
+          term_unit: 'day',
+          quantity: null,
+          repeat_count: null,
+          repeat_term_value: null,
+          repeat_term_unit: 'day'
+        }
+      ]
     });
   };
 
   const removeItem = (index) => {
+    const newItems = packageForm.items.filter((_, i) => i !== index);
+    // Renumber steps
+    newItems.forEach((item, i) => {
+      item.step = i + 1;
+    });
     onFormChange({
       ...packageForm,
-      items: packageForm.items.filter((_, i) => i !== index)
+      items: newItems
     });
   };
 
@@ -48,30 +65,36 @@ function PackageFormModal({
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-medium">카테고리 *</label>
-              <select
-                value={packageForm.category_id || ''}
-                onChange={(e) => onFormChange({ ...packageForm, category_id: parseInt(e.target.value) })}
-                required
-                className="w-full mt-1 px-3 py-2 border rounded"
-              >
-                <option value="">선택하세요</option>
-                {categories.map(cat => (
-                  <option key={cat.category_id} value={cat.category_id}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="text-sm font-medium">상품 *</label>
+            <select
+              value={packageForm.product_id || ''}
+              onChange={(e) => onFormChange({ ...packageForm, product_id: parseInt(e.target.value) })}
+              required
+              className="w-full mt-1 px-3 py-2 border rounded"
+            >
+              <option value="">선택하세요</option>
+              {products.filter(p => p.is_active !== false).map(product => {
+                const category = categories.find(c => c.category_id === product.category_id);
+                return (
+                  <option key={product.product_id} value={product.product_id}>
+                    {category ? `[${category.name}] ` : ''}{product.name}
+                  </option>
+                );
+              })}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              패키지는 선택한 상품의 세부서비스로 추가됩니다.
+            </p>
+          </div>
 
-            <div>
-              <label className="text-sm font-medium">이름 *</label>
-              <Input
-                value={packageForm.name}
-                onChange={(e) => onFormChange({ ...packageForm, name: e.target.value })}
-                required
-              />
-            </div>
+          <div>
+            <label className="text-sm font-medium">패키지 이름 *</label>
+            <Input
+              value={packageForm.name}
+              onChange={(e) => onFormChange({ ...packageForm, name: e.target.value })}
+              required
+            />
           </div>
 
           <div>

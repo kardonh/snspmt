@@ -36,6 +36,7 @@ function AdminPage() {
     localStorage.setItem('adminActiveTab', key);
   };
 
+
   const renderContent = () => {
     switch (activeMenu) {
       case 'dashboard': return <AdminDashboard />;

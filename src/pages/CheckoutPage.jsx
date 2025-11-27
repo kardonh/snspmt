@@ -189,7 +189,7 @@ const CheckoutPage = () => {
 
       console.log("orderPayload",orderPayload)
 
-      const orderResponse = await fetch('/api/new/orders/purchase', {
+      const orderResponse = await fetch('/api/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

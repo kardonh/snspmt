@@ -26,44 +26,94 @@ function AdminServices() {
   const [showPackageModal, setShowPackageModal] = useState(false);
   
   const [editingItem, setEditingItem] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
   const [categoryForm, setCategoryForm] = useState({ 
     name: '', slug: '', image_url: '', is_active: true 
   });
   const [productForm, setProductForm] = useState({ 
-    category_id: null, name: '', description: '', is_domestic: false, is_auto: false, auto_tag: false 
+    category_id: null, name: '', description: '', is_domestic: true, is_auto: false, auto_tag: false, is_package: false 
   });
   const [variantForm, setVariantForm] = useState({
     category_id: null, product_id: null, name: '', price: '', description: '', 
     min_quantity: '', max_quantity: '', delivery_time_days: '', time: '', 
-    smm_service_id: '', smmkings_id: '', api_endpoint: '',
+    smm_service_id: '', api_endpoint: '',
     requires_comments: false, requires_custom_fields: false, custom_fields_config: {},
-    drip_feed: false, runs: '', interval: '', drip_quantity: '', is_active: true
+    drip_feed: false, runs: '', interval: '', drip_quantity: '', is_active: true, meta_json: {}
   });
   const [packageForm, setPackageForm] = useState({
-    category_id: null, name: '', description: '', price: '', 
+    product_id: null, name: '', description: '', price: '', 
     min_quantity: '', max_quantity: '', time: '', smmkings_id: '',
     drip_feed: false, runs: '', interval: '', drip_quantity: '', items: []
   });
   const [variantSearchTerms, setVariantSearchTerms] = useState({});
 
+  
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const refreshData = async () => {
+    alert('변경 완료!')
+    window.location.reload();
+  };
+
   useEffect(() => {
     loadData();
-  }, []);
+    loadSmmEndpoint();
+  }, [refreshTrigger]);
 
   const loadData = async () => {
     try {
-      const [catRes, prodRes, varRes, pkgRes] = await Promise.all([
-        api.get('/admin/categories'),
-        api.get('/admin/products'),
-        api.get('/admin/product-variants'),
-        api.get('/admin/packages')
-      ]);
-      setCategories(catRes.data.categories || []);
-      setProducts(prodRes.data.products || []);
-      setVariants(varRes.data.variants || []);
-      setPackages(pkgRes.data.packages || []);
+      await Promise.all([loadCategories(), loadProducts(), loadVariants(), loadPackages()]);
     } catch (error) {
       console.error('Failed to load data:', error);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const response = await api.get('/admin/categories?include_inactive=true');
+      setCategories(response.data.categories || []);
+    } catch (err) {
+      console.error('카테고리 로드 실패:', err);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const response = await api.get('/admin/products');
+      setProducts(response.data.products || []);
+    } catch (err) {
+      console.error('상품 로드 실패:', err);
+    }
+  };
+
+  const loadVariants = async () => {
+    try {
+      const response = await api.get('/admin/product-variants');
+      setVariants(response.data.variants || []);
+    } catch (err) {
+      console.error('옵션 로드 실패:', err);
+    }
+  };
+
+  const loadPackages = async () => {
+    try {
+      const response = await api.get('/admin/packages');
+      setPackages(response.data.packages || []);
+    } catch (err) {
+      console.error('패키지 로드 실패:', err);
+    }
+  };
+
+  const loadSmmEndpoint = async () => {
+    try {
+      const response = await api.get('/admin/config');
+      if (response.data.smm_api_endpoint && !variantForm.api_endpoint) {
+        setVariantForm(prev => ({ ...prev, api_endpoint: response.data.smm_api_endpoint }));
+      }
+    } catch (err) {
+      console.error('SMM API 엔드포인트 로드 실패:', err);
     }
   };
 
@@ -77,6 +127,12 @@ function AdminServices() {
     setExpandedProducts(prev => 
       prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
     );
+  };
+
+  // Helper functions
+  const getProductsBySelectedCategory = () => {
+    if (!variantForm.category_id) return [];
+    return products.filter(p => p.category_id === parseInt(variantForm.category_id));
   };
 
   const filteredVariants = variantSearchTerm ? variants.filter(v => {
@@ -125,28 +181,43 @@ function AdminServices() {
 
   const handleSaveCategory = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
+
     try {
       if (editingItem) {
         await api.put(`/admin/categories/${editingItem.category_id}`, categoryForm);
       } else {
         await api.post('/admin/categories', categoryForm);
       }
-      await loadData();
+      await loadCategories();
       setShowCategoryModal(false);
       setEditingItem(null);
-      setCategoryForm({ name: '', is_active: true });
-    } catch (error) {
-      alert('카테고리 저장 실패');
+      setCategoryForm({ name: '', slug: '', image_url: '', is_active: true });
+      
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || '카테고리 저장 실패';
+      setError(errorMsg);
+      alert(errorMsg);
+    } finally {
+      setLoading(false);
+      refreshData();
     }
   };
 
   const handleDeleteCategory = async (id) => {
-    if (!window.confirm('정말 삭제하시겠습니까?')) return;
+    if (!window.confirm('카테고리를 삭제하시겠습니까?\n\n연결된 상품이나 패키지도 함께 삭제될 수 있습니다.')) return;
+    
     try {
-      await api.delete(`/admin/categories/${id}`);
-      await loadData();
-    } catch (error) {
-      alert('카테고리 삭제 실패');
+      const response = await api.delete(`/admin/categories/${id}`);
+      alert(response.data.message || '카테고리가 삭제되었습니다.');
+      await Promise.all([loadCategories(), loadProducts(), loadVariants(), loadPackages()]);
+    } catch (err) {
+      console.error('카테고리 삭제 실패:', err);
+      alert(err.response?.data?.error || '카테고리 삭제 중 오류가 발생했습니다.');
+    }
+    finally {
+      refreshData();
     }
   };
 
@@ -178,82 +249,115 @@ function AdminServices() {
 
   const handleSaveProduct = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
+
     try {
+      const payload = {
+        category_id: parseInt(productForm.category_id),
+        name: productForm.name,
+        description: productForm.description,
+        is_domestic: productForm.is_domestic,
+        is_auto: productForm.is_auto,
+        auto_tag: productForm.auto_tag
+      };
+
       if (editingItem) {
-        await api.put(`/admin/products/${editingItem.product_id}`, productForm);
+        await api.put(`/admin/products/${editingItem.product_id}`, payload);
       } else {
-        await api.post('/admin/products', productForm);
+        await api.post('/admin/products', payload);
       }
-      await loadData();
+      
+      await loadProducts();
       setShowProductModal(false);
       setEditingItem(null);
-      setProductForm({ category_id: null, name: '', is_domestic: false, is_auto: false, auto_tag: false });
-    } catch (error) {
-      alert('상품 저장 실패');
+      setProductForm({
+        category_id: null,
+        name: '',
+        description: '',
+        is_domestic: true,
+        is_auto: false,
+        auto_tag: false,
+        is_package: false
+      });
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || '상품 저장 실패';
+      setError(errorMsg);
+      alert(errorMsg);
+    } finally {
+      setLoading(false);
+      refreshData();
     }
   };
 
   const handleDeleteProduct = async (id) => {
-    if (!window.confirm('정말 삭제하시겠습니까?')) return;
+    if (!window.confirm('상품을 삭제하시겠습니까?')) return;
+    
     try {
       await api.delete(`/admin/products/${id}`);
-      await loadData();
-    } catch (error) {
-      alert('상품 삭제 실패');
+      await Promise.all([loadProducts(), loadVariants()]);
+    } catch (err) {
+      console.error('상품 삭제 실패:', err);
+      alert(err.response?.data?.error || '상품 삭제 중 오류가 발생했습니다.');
+    }
+    finally {
+      refreshData();
     }
   };
 
   // Variant handlers
-  const openVariantModal = (variant = null, product = null) => {
+  const openVariantModal = (variant = null, product = null, categoryId = null) => {
     if (variant) {
       setEditingItem(variant);
-      const meta = variant.meta_json || {};
       const productData = products.find(p => p.product_id === variant.product_id);
+      const catId = productData ? productData.category_id : null;
+      
+      const meta = variant.meta_json || {};
       setVariantForm({
-        category_id: productData?.category_id || null,
+        category_id: catId,
         product_id: variant.product_id,
         name: variant.name,
-        price: meta.price || variant.price || '',
-        description: variant.description || '',
-        min_quantity: meta.min || meta.min_quantity || '',
-        max_quantity: meta.max || meta.max_quantity || '',
-        delivery_time_days: meta.delivery_time_days || '',
+        price: variant.price,
+        min_quantity: variant.min_quantity || '',
+        max_quantity: variant.max_quantity || '',
+        delivery_time_days: variant.delivery_time_days || '',
+        description: meta.description || '',
         time: meta.time || '',
-        smm_service_id: meta.smm_service_id || meta.smmkings_id || meta.id || '',
-        smmkings_id: meta.smmkings_id || meta.id || '',
-        api_endpoint: meta.api_endpoint || '',
-        requires_comments: meta.requires_comments || false,
-        requires_custom_fields: meta.requires_custom_fields || false,
-        custom_fields_config: meta.custom_fields_config || {},
+        smm_service_id: meta.smm_service_id || meta.id || '',
         drip_feed: meta.drip_feed || false,
         runs: meta.runs || '',
         interval: meta.interval || '',
         drip_quantity: meta.drip_quantity || '',
-        is_active: variant.is_active
+        is_active: variant.is_active,
+        meta_json: variant.meta_json || {},
+        api_endpoint: variant.api_endpoint || '',
+        requires_comments: meta.requires_comments || false,
+        requires_custom_fields: meta.requires_custom_fields || false,
+        custom_fields_config: meta.custom_fields_config || {}
       });
     } else {
       setEditingItem(null);
       setVariantForm({
-        category_id: product ? products.find(p => p.product_id === product.product_id)?.category_id || null : null,
+        category_id: categoryId || null,
         product_id: product?.product_id || null,
         name: '',
         price: '',
-        description: '',
         min_quantity: '',
         max_quantity: '',
         delivery_time_days: '',
+        description: '',
         time: '',
         smm_service_id: '',
-        smmkings_id: '',
-        api_endpoint: '',
-        requires_comments: false,
-        requires_custom_fields: false,
-        custom_fields_config: {},
         drip_feed: false,
         runs: '',
         interval: '',
         drip_quantity: '',
-        is_active: true
+        is_active: true,
+        meta_json: {},
+        api_endpoint: '',
+        requires_comments: false,
+        requires_custom_fields: false,
+        custom_fields_config: {}
       });
     }
     setShowVariantModal(true);
@@ -261,32 +365,43 @@ function AdminServices() {
 
   const handleSaveVariant = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
+
     try {
-      const payload = {
-        product_id: variantForm.product_id,
-        name: variantForm.name,
-        description: variantForm.description,
-        is_active: variantForm.is_active,
-        meta_json: {
-          price: parseFloat(variantForm.price) || 0,
-          min: parseInt(variantForm.min_quantity) || null,
-          max: parseInt(variantForm.max_quantity) || null,
-          min_quantity: parseInt(variantForm.min_quantity) || null,
-          max_quantity: parseInt(variantForm.max_quantity) || null,
-          delivery_time_days: parseInt(variantForm.delivery_time_days) || null,
-          time: variantForm.time || null,
-          smm_service_id: variantForm.smm_service_id || variantForm.smmkings_id || null,
-          smmkings_id: variantForm.smmkings_id || variantForm.smm_service_id || null,
-          id: variantForm.smmkings_id || variantForm.smm_service_id || null,
-          api_endpoint: variantForm.api_endpoint || null,
-          requires_comments: variantForm.requires_comments || false,
-          requires_custom_fields: variantForm.requires_custom_fields || false,
-          custom_fields_config: variantForm.custom_fields_config || {},
-          drip_feed: variantForm.drip_feed || false,
-          runs: variantForm.drip_feed ? parseInt(variantForm.runs) || null : null,
-          interval: variantForm.drip_feed ? parseInt(variantForm.interval) || null : null,
-          drip_quantity: variantForm.drip_feed ? parseInt(variantForm.drip_quantity) || null : null
+      // meta_json 구성
+      const metaJson = {
+        ...(variantForm.meta_json || {}),
+        description: variantForm.description || null,
+        time: variantForm.time || null,
+        smm_service_id: variantForm.smm_service_id ? parseInt(variantForm.smm_service_id) : null,
+        id: variantForm.smm_service_id ? parseInt(variantForm.smm_service_id) : null,
+        drip_feed: variantForm.drip_feed || false,
+        runs: variantForm.runs ? parseInt(variantForm.runs) : null,
+        interval: variantForm.interval ? parseInt(variantForm.interval) : null,
+        drip_quantity: variantForm.drip_quantity ? parseInt(variantForm.drip_quantity) : null,
+        requires_comments: variantForm.requires_comments || false,
+        requires_custom_fields: variantForm.requires_custom_fields || false,
+        custom_fields_config: variantForm.custom_fields_config || {}
+      };
+      
+      // null 값 제거
+      Object.keys(metaJson).forEach(key => {
+        if (metaJson[key] === null || metaJson[key] === '') {
+          delete metaJson[key];
         }
+      });
+
+      const payload = {
+        product_id: parseInt(variantForm.product_id),
+        name: variantForm.name,
+        price: parseFloat(variantForm.price),
+        min_quantity: variantForm.min_quantity ? parseInt(variantForm.min_quantity) : null,
+        max_quantity: variantForm.max_quantity ? parseInt(variantForm.max_quantity) : null,
+        delivery_time_days: variantForm.delivery_time_days ? parseInt(variantForm.delivery_time_days) : null,
+        is_active: variantForm.is_active,
+        meta_json: metaJson,
+        api_endpoint: variantForm.api_endpoint || null
       };
 
       if (editingItem) {
@@ -294,38 +409,65 @@ function AdminServices() {
       } else {
         await api.post('/admin/product-variants', payload);
       }
-      await loadData();
+
+      await loadVariants();
       setShowVariantModal(false);
       setEditingItem(null);
       setVariantForm({
-        category_id: null, product_id: null, name: '', price: '', description: '',
-        min_quantity: '', max_quantity: '', delivery_time_days: '', time: '',
-        smm_service_id: '', smmkings_id: '', api_endpoint: '',
-        requires_comments: false, requires_custom_fields: false, custom_fields_config: {},
-        drip_feed: false, runs: '', interval: '', drip_quantity: '', is_active: true
+        category_id: null,
+        product_id: null,
+        name: '',
+        price: '',
+        min_quantity: '',
+        max_quantity: '',
+        delivery_time_days: '',
+        description: '',
+        time: '',
+        smm_service_id: '',
+        drip_feed: false,
+        runs: '',
+        interval: '',
+        drip_quantity: '',
+        is_active: true,
+        meta_json: {},
+        api_endpoint: '',
+        requires_comments: false,
+        requires_custom_fields: false,
+        custom_fields_config: {}
       });
-    } catch (error) {
-      alert('세부서비스 저장 실패');
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || '옵션 저장 실패';
+      setError(errorMsg);
+      alert(errorMsg);
+    } finally {
+      setLoading(false);
+      refreshData();
     }
   };
 
   const handleDeleteVariant = async (id) => {
-    if (!window.confirm('정말 삭제하시겠습니까?')) return;
+    if (!window.confirm('옵션을 삭제하시겠습니까?')) return;
+    
     try {
       await api.delete(`/admin/product-variants/${id}`);
-      await loadData();
-    } catch (error) {
-      alert('세부서비스 삭제 실패');
+      await loadVariants();
+    } catch (err) {
+      console.error('옵션 삭제 실패:', err);
+      alert(err.response?.data?.error || '세부서비스 삭제 중 오류가 발생했습니다.');
+    }
+    finally {
+      refreshData();
     }
   };
 
   // Package handlers
-  const openPackageModal = (pkg = null) => {
+  const openPackageModal = (pkg = null, productId = null) => {
     if (pkg) {
       setEditingItem(pkg);
       const meta = pkg.meta_json || {};
+      const product = products.find(p => p.category_id === pkg.category_id);
       setPackageForm({
-        category_id: pkg.category_id,
+        product_id: product ? product.product_id : null,
         name: pkg.name,
         description: pkg.description || '',
         price: meta.price || pkg.price || '',
@@ -342,9 +484,19 @@ function AdminServices() {
     } else {
       setEditingItem(null);
       setPackageForm({
-        category_id: null, name: '', description: '', price: '',
-        min_quantity: '', max_quantity: '', time: '', smmkings_id: '',
-        drip_feed: false, runs: '', interval: '', drip_quantity: '', items: []
+        product_id: productId || null,
+        name: '',
+        description: '',
+        price: '',
+        min_quantity: '',
+        max_quantity: '',
+        time: '',
+        smmkings_id: '',
+        drip_feed: false,
+        runs: '',
+        interval: '',
+        drip_quantity: '',
+        items: []
       });
     }
     setVariantSearchTerms({});
@@ -353,26 +505,46 @@ function AdminServices() {
 
   const handleSavePackage = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
+
     try {
+      // meta_json 구성
+      const metaJson = {
+        price: packageForm.price ? parseFloat(packageForm.price) : null,
+        min: packageForm.min_quantity ? parseInt(packageForm.min_quantity) : null,
+        min_quantity: packageForm.min_quantity ? parseInt(packageForm.min_quantity) : null,
+        max: packageForm.max_quantity ? parseInt(packageForm.max_quantity) : null,
+        max_quantity: packageForm.max_quantity ? parseInt(packageForm.max_quantity) : null,
+        time: packageForm.time || null,
+        smmkings_id: packageForm.smmkings_id ? parseInt(packageForm.smmkings_id) : null,
+        id: packageForm.smmkings_id ? parseInt(packageForm.smmkings_id) : null,
+        drip_feed: packageForm.drip_feed || false,
+        runs: packageForm.runs ? parseInt(packageForm.runs) : null,
+        interval: packageForm.interval ? parseInt(packageForm.interval) : null,
+        drip_quantity: packageForm.drip_quantity ? parseInt(packageForm.drip_quantity) : null
+      };
+      
+      // null 값 제거
+      Object.keys(metaJson).forEach(key => {
+        if (metaJson[key] === null || metaJson[key] === '') {
+          delete metaJson[key];
+        }
+      });
+
+      // product_id로 category_id 찾기
+      const selectedProduct = products.find(p => p.product_id === parseInt(packageForm.product_id));
+      if (!selectedProduct && packageForm.product_id) {
+        throw new Error('선택한 상품을 찾을 수 없습니다.');
+      }
+      
       const payload = {
-        category_id: packageForm.category_id,
+        product_id: packageForm.product_id ? parseInt(packageForm.product_id) : null,
+        category_id: selectedProduct ? selectedProduct.category_id : null,
         name: packageForm.name,
         description: packageForm.description,
-        items: packageForm.items,
-        meta_json: {
-          price: parseFloat(packageForm.price) || 0,
-          min: parseInt(packageForm.min_quantity) || null,
-          max: parseInt(packageForm.max_quantity) || null,
-          min_quantity: parseInt(packageForm.min_quantity) || null,
-          max_quantity: parseInt(packageForm.max_quantity) || null,
-          time: packageForm.time || null,
-          smmkings_id: packageForm.smmkings_id || null,
-          id: packageForm.smmkings_id || null,
-          drip_feed: packageForm.drip_feed,
-          runs: packageForm.drip_feed ? parseInt(packageForm.runs) || null : null,
-          interval: packageForm.drip_feed ? parseInt(packageForm.interval) || null : null,
-          drip_quantity: packageForm.drip_feed ? parseInt(packageForm.drip_quantity) || null : null
-        }
+        meta_json: Object.keys(metaJson).length > 0 ? metaJson : null,
+        items: packageForm.items
       };
 
       if (editingItem) {
@@ -380,27 +552,48 @@ function AdminServices() {
       } else {
         await api.post('/admin/packages', payload);
       }
-      await loadData();
+
+      await loadPackages();
       setShowPackageModal(false);
       setEditingItem(null);
       setPackageForm({
-        category_id: null, name: '', description: '', price: '',
-        min_quantity: '', max_quantity: '', time: '', smmkings_id: '',
-        drip_feed: false, runs: '', interval: '', drip_quantity: '', items: []
+        product_id: null,
+        name: '',
+        description: '',
+        price: '',
+        min_quantity: '',
+        max_quantity: '',
+        time: '',
+        smmkings_id: '',
+        drip_feed: false,
+        runs: '',
+        interval: '',
+        drip_quantity: '',
+        items: []
       });
       setVariantSearchTerms({});
-    } catch (error) {
-      alert('패키지 저장 실패');
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || err.message || '패키지 저장 중 오류 발생';
+      setError(errorMsg);
+      alert(errorMsg);
+    } finally {
+      setLoading(false);
+      refreshData();
     }
   };
 
   const handleDeletePackage = async (id) => {
-    if (!window.confirm('정말 삭제하시겠습니까?')) return;
+    if (!window.confirm('패키지를 삭제하시겠습니까?')) return;
+    
     try {
       await api.delete(`/admin/packages/${id}`);
-      await loadData();
-    } catch (error) {
-      alert('패키지 삭제 실패');
+      await loadPackages();
+    } catch (err) {
+      console.error('패키지 삭제 실패:', err);
+      alert(err.response?.data?.error || '패키지 삭제 중 오류가 발생했습니다.');
+    }
+    finally {
+      refreshData();
     }
   };
 

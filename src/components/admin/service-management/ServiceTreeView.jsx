@@ -55,13 +55,13 @@ function ServiceTreeView({
                 </Badge>
               </div>
               <div className="flex gap-1">
-                <Button variant="ghost" size="sm" onClick={() => onAddProduct(category)}>
+                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onAddProduct(null, category); }}>
                   <Plus className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => onEditCategory(category)}>
+                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onEditCategory(category); }}>
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => onDeleteCategory(category.category_id)}>
+                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onDeleteCategory(category.category_id); }}>
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>
               </div>
@@ -89,13 +89,13 @@ function ServiceTreeView({
                           {product.auto_tag && <Badge className="bg-blue-500 text-xs">자동태그</Badge>}
                         </div>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => onAddVariant(product)}>
+                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onAddVariant(null, product, category.category_id); }}>
                             <Plus className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => onEditProduct(product)}>
+                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onEditProduct(product); }}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => onDeleteProduct(product.product_id)}>
+                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onDeleteProduct(product.product_id); }}>
                             <Trash2 className="h-3 w-3 text-red-500" />
                           </Button>
                         </div>
@@ -129,10 +129,10 @@ function ServiceTreeView({
                                   <Badge variant={variant.is_active ? "default" : "secondary"} className="text-xs">
                                     {variant.is_active ? '활성' : '비활성'}
                                   </Badge>
-                                  <Button variant="ghost" size="sm" onClick={() => onEditVariant(variant)}>
+                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onEditVariant(variant); }}>
                                     <Edit className="h-3 w-3" />
                                   </Button>
-                                  <Button variant="ghost" size="sm" onClick={() => onDeleteVariant(variant.variant_id)}>
+                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onDeleteVariant(variant.variant_id); }}>
                                     <Trash2 className="h-3 w-3 text-red-500" />
                                   </Button>
                                 </div>
