@@ -197,13 +197,6 @@ const OrdersPage = () => {
   useEffect(() => {
     if (currentUser) {
       loadOrders()
-      
-      // 60초마다 주문 상태 업데이트 (성능 최적화)
-      const interval = setInterval(() => {
-        loadOrders()
-      }, 60000)
-      
-      return () => clearInterval(interval)
     }
   }, [currentUser])
 

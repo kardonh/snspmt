@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import StatusBar from './StatusBar'
@@ -12,9 +13,13 @@ import './GuidePanel.css'
 import '../pages/Home.css'
 
 const Layout = ({ children }) => {
+  const location = useLocation()
   const { currentUser, showAuthModal, setShowAuthModal, authModalMode, showOrderMethodModal, setShowOrderMethodModal } = useAuth()
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const adminPaths = ['/admin', '/referral','orders']
+  const isAdminPage = adminPaths.some(path => location?.pathname?.includes(path))
+
 
   // 화면 크기 감지
   useEffect(() => {
@@ -22,10 +27,9 @@ const Layout = ({ children }) => {
       const mobile = window.innerWidth <= 1200  // 1200px까지 모바일로 처리
       setIsMobile(mobile)
     }
-    
+
     checkIsMobile()
     window.addEventListener('resize', checkIsMobile)
-    
     return () => window.removeEventListener('resize', checkIsMobile)
   }, [])
 
@@ -42,27 +46,29 @@ const Layout = ({ children }) => {
       <StatusBar />
       <div className="layout-content">
 
-        
+
         {/* Sidebar - 데스크톱에서만 표시 */}
         {!isMobile && (
           <div className="sidebar-container">
             <Sidebar />
           </div>
         )}
-        
+
         <main className="main-content">
           {children}
         </main>
-        <GuidePanel />
-        
+
+
+        {!isAdminPage && <GuidePanel />}
+
         {/* Bottom Tab Bar - 모바일에서만 표시 */}
         <BottomTabBar />
-        
+
 
       </div>
 
       {/* Auth Modal */}
-      <AuthModal 
+      <AuthModal
         isOpen={showAuthModal}
         initialMode={authModalMode}
         onClose={() => {
@@ -78,7 +84,7 @@ const Layout = ({ children }) => {
 
       {/* 1:1 상담 버튼 - 전체 화면 고정 */}
       <div className="consultation-section">
-        <button 
+        <button
           className="consultation-btn"
           onClick={() => window.open('http://pf.kakao.com/_QqyKn', '_blank')}
         >
@@ -92,14 +98,14 @@ const Layout = ({ children }) => {
           <div className="order-method-modal">
             <div className="modal-header">
               <h3>📋 주문방법 가이드</h3>
-              <button 
+              <button
                 className="modal-close-btn"
                 onClick={() => setShowOrderMethodModal(false)}
               >
                 ✕
               </button>
             </div>
-            
+
             <div className="modal-content">
               <div className="order-steps">
                 <div className="step">
@@ -109,7 +115,7 @@ const Layout = ({ children }) => {
                     <p>원하는 플랫폼과 서비스를 선택하세요</p>
                   </div>
                 </div>
-                
+
                 <div className="step">
                   <div className="step-number">2</div>
                   <div className="step-content">
@@ -117,7 +123,7 @@ const Layout = ({ children }) => {
                     <p>원하는 수량을 입력하세요 (최소 수량 이상)</p>
                   </div>
                 </div>
-                
+
                 <div className="step">
                   <div className="step-number">3</div>
                   <div className="step-content">
@@ -125,7 +131,7 @@ const Layout = ({ children }) => {
                     <p>대상 게시물의 URL 또는 사용자명을 입력하세요</p>
                   </div>
                 </div>
-                
+
                 <div className="step">
                   <div className="step-number">4</div>
                   <div className="step-content">
@@ -134,7 +140,7 @@ const Layout = ({ children }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="important-notes">
                 <h4>⚠️ 주의사항</h4>
                 <ul>
@@ -145,9 +151,9 @@ const Layout = ({ children }) => {
                 </ul>
               </div>
             </div>
-            
+
             <div className="modal-footer">
-              <button 
+              <button
                 className="modal-confirm-btn"
                 onClick={() => setShowOrderMethodModal(false)}
               >

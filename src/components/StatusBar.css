@@ -687,9 +687,9 @@
     color: white !important;
   }
   
-  .mobile-status-bar .time-display svg {
+.mobile-status-bar .time-display svg {
     color: #10b981 !important;
     width: 16px !important;
     height: 16px !important;
   }
-}}
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect,useMemo } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { 
   Star, 
@@ -39,15 +39,30 @@ const Sidebar = ({ onClose }) => {
     console.log('🔄 Sidebar: isAdmin 상태 변경됨 - 새 값:', isAdmin, '타입:', typeof isAdmin)
   }, [isAdmin])
 
-  // 사용자 포인트 조회 함수
-  const fetchUserPoints = async () => {
+  // Debounce timer ref
+  const fetchTimerRef = React.useRef(null)
+  const lastFetchRef = React.useRef(0)
+  const FETCH_COOLDOWN = 1000000 // 10 minutes minimum between fetches
+
+  // 사용자 포인트 조회 함수 (with debounce)
+  const fetchUserPoints = async (force = false) => {
     // currentUser가 없으면 포인트 조회하지 않음
     if (!currentUser?.uid) {
       setUserPoints(0)
       return
     }
     
+    const now = Date.now()
+    const timeSinceLastFetch = now - lastFetchRef.current
+    
+    // Prevent too frequent calls (unless forced)
+    if (!force && timeSinceLastFetch < FETCH_COOLDOWN) {
+      console.log(`⏭️ 포인트 조회 스킵 (${Math.round((FETCH_COOLDOWN - timeSinceLastFetch) / 1000)}초 후 가능)`)
+      return
+    }
+    
     const userId = currentUser.uid
+    lastFetchRef.current = now
     
     setPointsLoading(true)
     try {
@@ -96,9 +111,9 @@ const Sidebar = ({ onClose }) => {
     }
   }
 
-  // 포인트 업데이트 이벤트 핸들러
+  // 포인트 업데이트 이벤트 핸들러 (force refresh)
   const handlePointsUpdate = () => {
-    fetchUserPoints()
+    fetchUserPoints(true) // Force immediate fetch
   }
 
   // 관리자 권한 확인 함수

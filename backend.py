@@ -21540,6 +21540,209 @@ def serve_spa_routes():
     except Exception as e:
         print(f"❌ SPA 라우팅 오류: {e}")
         return jsonify({'error': 'SPA routing failed'}), 500
+    
+@app.route('/api/categories-with-products', methods=['GET'])
+def get_categories_with_products():
+    """카테고리와 상품, 옵션을 한번에 조회 (최적화)
+    ---
+    tags:
+      - Products
+    summary: 카테고리와 상품, 옵션을 한번에 조회
+    description: "활성화된 카테고리와 해당 카테고리의 모든 상품 및 옵션을 한 번의 쿼리로 조회합니다."
+    responses:
+      200:
+        description: 성공
+        schema:
+          type: object
+          properties:
+            categories:
+              type: array
+              items:
+                type: object
+                properties:
+                  category_id:
+                    type: integer
+                    example: 1
+                  name:
+                    type: string
+                    example: "인스타그램"
+                  slug:
+                    type: string
+                    example: "instagram"
+                  image_url:
+                    type: string
+                    example: "https://..."
+                  products:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        product_id:
+                          type: integer
+                          example: 1
+                        name:
+                          type: string
+                          example: "좋아요"
+                        description:
+                          type: string
+                          example: "인스타그램 좋아요 서비스"
+                        variants:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              variant_id:
+                                type: integer
+                                example: 1
+                              name:
+                                type: string
+                                example: "실제 좋아요"
+                              price:
+                                type: number
+                                example: 1000
+                              min_quantity:
+                                type: integer
+                                example: 100
+                              max_quantity:
+                                type: integer
+                                example: 10000
+            count:
+              type: integer
+              example: 5
+      500:
+        description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "카테고리 조회 실패: ..."
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 단일 쿼리로 모든 데이터 조회
+        cursor.execute("""
+            SELECT 
+                c.category_id,
+                c.name as category_name,
+                c.slug as category_slug,
+                c.image_url as category_image_url,
+                c.created_at as category_created_at,
+                p.product_id,
+                p.name as product_name,
+                p.description as product_description,
+                p.created_at as product_created_at,
+                pv.variant_id,
+                pv.name as variant_name,
+                pv.price / 1000.0 as variant_price,
+                pv.min_quantity as variant_min,
+                pv.max_quantity as variant_max,
+                pv.delivery_time_days,
+                pv.meta_json,
+                pv.api_endpoint
+            FROM categories c
+            LEFT JOIN products p ON c.category_id = p.category_id
+            LEFT JOIN product_variants pv ON p.product_id = pv.product_id
+            WHERE c.is_active = TRUE
+            ORDER BY c.created_at ASC, p.created_at ASC, pv.created_at ASC
+        """)
+        
+        rows = cursor.fetchall()
+        
+        # 중첩 구조로 변환
+        categories_dict = {}
+        
+        for row in rows:
+            cat_id = row['category_id']
+            prod_id = row['product_id']
+            var_id = row['variant_id']
+            
+            # 카테고리 추가
+            if cat_id not in categories_dict:
+                categories_dict[cat_id] = {
+                    'category_id': cat_id,
+                    'name': row['category_name'],
+                    'slug': row['category_slug'],
+                    'image_url': row['category_image_url'],
+                    'created_at': row['category_created_at'].isoformat() if row['category_created_at'] else None,
+                    'products': {}
+                }
+            
+            # 상품 추가
+            if prod_id and prod_id not in categories_dict[cat_id]['products']:
+                categories_dict[cat_id]['products'][prod_id] = {
+                    'product_id': prod_id,
+                    'name': row['product_name'],
+                    'description': row['product_description'],
+                    'created_at': row['product_created_at'].isoformat() if row['product_created_at'] else None,
+                    'variants': []
+                }
+            
+            # 옵션 추가
+            if var_id and prod_id:
+                variant_data = {
+                    'variant_id': var_id,
+                    'name': row['variant_name'],
+                    'price': float(row['variant_price']) if row['variant_price'] else 0,
+                    'min_quantity': row['variant_min'],
+                    'max_quantity': row['variant_max'],
+                    'delivery_time_days': row['delivery_time_days'],
+                    'api_endpoint': row['api_endpoint']
+                }
+                
+                # meta_json 파싱
+                if row['meta_json']:
+                    try:
+                        if isinstance(row['meta_json'], str):
+                            variant_data['meta_json'] = json.loads(row['meta_json'])
+                        else:
+                            variant_data['meta_json'] = row['meta_json']
+                    except:
+                        variant_data['meta_json'] = {}
+                
+                # 배송 시간 포맷팅
+                if row['delivery_time_days']:
+                    try:
+                        days = float(row['delivery_time_days'])
+                        if days == 1:
+                            variant_data['time'] = '1일'
+                        elif days < 1:
+                            variant_data['time'] = f'{int(days * 24)}시간'
+                        else:
+                            variant_data['time'] = f'{int(days)}일'
+                    except:
+                        variant_data['time'] = '데이터가 충분하지 않습니다'
+                else:
+                    variant_data['time'] = '데이터가 충분하지 않습니다'
+                
+                categories_dict[cat_id]['products'][prod_id]['variants'].append(variant_data)
+        
+        # products를 리스트로 변환
+        result = []
+        for cat in categories_dict.values():
+            cat['products'] = list(cat['products'].values())
+            result.append(cat)
+        
+        return jsonify({
+            'categories': result,
+            'count': len(result)
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"❌ 카테고리-상품 통합 조회 오류: {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({'error': f'카테고리 조회 실패: {error_msg}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # SPA 라우팅 지원 - 모든 경로를 index.html로 리다이렉트
 # 주의: 이 라우트는 모든 API 라우트보다 나중에 등록되어야 함

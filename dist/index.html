@@ -56,18 +56,20 @@
     <!-- 카카오 SDK -->
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.0/kakao.min.js" crossorigin="anonymous"></script>
     <script>
-      // 카카오 SDK 로딩 확인
+      // 카카오 SDK 초기화
       window.addEventListener('load', function() {
         console.log('페이지 로드 완료, 카카오 SDK 상태:', typeof window.Kakao);
         if (window.Kakao) {
-          console.log('카카오 SDK 로딩 성공');
+          // 카카오 앱 키로 초기화
+          window.Kakao.init('5a6e0106e9beafa7bd8199ab3c378ceb');
+          console.log('카카오 SDK 초기화 완료');
         } else {
           console.error('카카오 SDK 로딩 실패');
         }
       });
     </script>
-    <script type="module" crossorigin src="/assets/index-796d1edb.js"></script>
-    <link rel="stylesheet" href="/assets/index-542f8220.css">
+    <script type="module" crossorigin src="/assets/index-e2597385.js"></script>
+    <link rel="stylesheet" href="/assets/index-bb86b7a4.css">
   </head>
   <body>
     <div id="root"></div>

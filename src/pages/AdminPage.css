@@ -10,6 +10,10 @@
   border-radius: 8px;
 }
 
+.main-content {
+  padding:0 !important
+}
+
 /* 주문 상태 배지 스타일 */
 .status-badge {
   display: inline-block;
