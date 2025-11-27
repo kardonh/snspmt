@@ -257,14 +257,27 @@ const Sidebar = ({ onClose }) => {
         // debug 정보가 있으면 출력
         if (data.debug) {
           console.log('🔍 Sidebar: 백엔드 디버그 정보:', data.debug)
+          console.log('🔍 Sidebar: raw_is_admin:', data.debug.raw_is_admin)
+          console.log('🔍 Sidebar: is_admin_type:', data.debug.is_admin_type)
         }
         
         // 다양한 true 값 처리 (boolean true, 문자열 "true", 숫자 1 등)
-        const isAdminValue = data.is_admin === true || 
-                            data.is_admin === 'true' || 
-                            data.is_admin === 1 || 
-                            data.is_admin === '1' ||
-                            String(data.is_admin).toLowerCase() === 'true'
+        let isAdminValue = false
+        if (data.is_admin === true) {
+          isAdminValue = true
+          console.log('✅ Sidebar: is_admin이 boolean true로 확인됨')
+        } else if (data.is_admin === 'true' || data.is_admin === 'True' || data.is_admin === 'TRUE') {
+          isAdminValue = true
+          console.log('✅ Sidebar: is_admin이 문자열 "true"로 확인됨')
+        } else if (data.is_admin === 1 || data.is_admin === '1') {
+          isAdminValue = true
+          console.log('✅ Sidebar: is_admin이 숫자 1로 확인됨')
+        } else if (String(data.is_admin).toLowerCase() === 'true') {
+          isAdminValue = true
+          console.log('✅ Sidebar: is_admin이 문자열 변환 후 "true"로 확인됨')
+        } else {
+          console.log('⚠️ Sidebar: is_admin이 false로 판단됨:', data.is_admin, '타입:', typeof data.is_admin)
+        }
         
         console.log('✅ Sidebar: 최종 isAdmin 값:', isAdminValue, '타입:', typeof isAdminValue)
         console.log('✅ Sidebar: setIsAdmin 호출 전 - 현재 isAdmin:', isAdmin)
@@ -272,13 +285,17 @@ const Sidebar = ({ onClose }) => {
         // 강제로 boolean으로 변환
         const finalIsAdmin = Boolean(isAdminValue)
         console.log('✅ Sidebar: 최종 boolean 변환:', finalIsAdmin)
+        console.log('✅ Sidebar: setIsAdmin 호출 - finalIsAdmin:', finalIsAdmin)
         
         setIsAdmin(finalIsAdmin)
         
-        // 상태 업데이트 확인을 위한 추가 로그
+        // 상태 업데이트 확인을 위한 추가 로그 (100ms 후 확인)
         setTimeout(() => {
           console.log('⏰ Sidebar: 100ms 후 isAdmin 상태 확인:', isAdmin)
         }, 100)
+        
+        // 상태 업데이트 확인을 위한 추가 로그 (useEffect로 확인)
+        console.log('✅ Sidebar: setIsAdmin 호출 완료, 상태 업데이트 대기 중...')
       } else {
         const errorText = await response.text()
         console.error('❌ Sidebar: 관리자 권한 확인 실패 - 상태:', response.status, '응답:', errorText)

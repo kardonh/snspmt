@@ -175,25 +175,6 @@ except Exception as e:
     import traceback
     traceback.print_exc()
 
-# Blueprint 등록 - 별도 파일의 API를 여기서 등록
-try:
-    from api.new import new
-    app.register_blueprint(new)
-    print("✅ Example API Blueprint 등록 완료")
-except ImportError as e:
-    print(f"⚠️ Example API Blueprint 등록 실패: {e}")
-except Exception as e:
-    print(f"⚠️ Blueprint 등록 중 오류: {e}")
-
-try:
-    from api.orders import orders
-    app.register_blueprint(orders)
-    print("✅ Orders API Blueprint 등록 완료")
-except ImportError as e:
-    print(f"⚠️ Orders API Blueprint 등록 실패: {e}")
-except Exception as e:
-    print(f"⚠️ Orders Blueprint 등록 중 오류: {e}")
-
 # 정적 파일 서빙 설정
 @app.route('/static/uploads/<filename>')
 def uploaded_file(filename):
@@ -8161,6 +8142,21 @@ def get_admin_stats():
     conn = None
     cursor = None
     
+    # Decimal 타입 변환 헬퍼 함수
+    from decimal import Decimal
+    def safe_float(value, default=0.0):
+        """Decimal이나 다른 숫자 타입을 안전하게 float로 변환"""
+        if value is None:
+            return default
+        if isinstance(value, Decimal):
+            return float(value)
+        if isinstance(value, (int, float)):
+            return float(value)
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+    
     try:
         print("🔍 관리자 통계 조회 시작")
         conn = get_db_connection()
@@ -8177,7 +8173,8 @@ def get_admin_stats():
             
             # 총 매출 (주문 + 포인트 구매) - 새 스키마에서는 wallet_transactions 사용
             cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE status = 'completed'")
-            order_revenue = cursor.fetchone()[0] or 0
+            order_revenue_result = cursor.fetchone()[0]
+            order_revenue = safe_float(order_revenue_result, 0.0)
             
             cursor.execute("""
                 SELECT COALESCE(SUM(ABS(wt.amount)), 0) 
@@ -8185,8 +8182,8 @@ def get_admin_stats():
                 WHERE wt.type = 'topup' AND wt.status = 'approved'
             """)
             purchase_revenue_result = cursor.fetchone()[0]
-            purchase_revenue = float(purchase_revenue_result) if purchase_revenue_result else 0.0
-            print(f"🔍 purchase_revenue 계산 결과: {purchase_revenue} (raw: {purchase_revenue_result})")
+            purchase_revenue = safe_float(purchase_revenue_result, 0.0)
+            print(f"🔍 purchase_revenue 계산 결과: {purchase_revenue} (raw: {purchase_revenue_result}, type: {type(purchase_revenue_result)})")
             total_revenue = order_revenue + purchase_revenue
             
             # 대기 중인 포인트 구매
@@ -8199,18 +8196,21 @@ def get_admin_stats():
             
             # 오늘 매출 (주문 + 포인트 구매)
             cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE DATE(created_at) = CURRENT_DATE AND status = 'completed'")
-            today_order_revenue = cursor.fetchone()[0] or 0
+            today_order_revenue_result = cursor.fetchone()[0]
+            today_order_revenue = safe_float(today_order_revenue_result, 0.0)
+            
             cursor.execute("""
                 SELECT COALESCE(SUM(wt.amount), 0) 
                 FROM wallet_transactions wt
                 WHERE DATE(wt.created_at) = CURRENT_DATE AND wt.type = 'topup' AND wt.status = 'approved'
             """)
-            today_purchase_revenue = cursor.fetchone()[0] or 0
+            today_purchase_revenue_result = cursor.fetchone()[0]
+            today_purchase_revenue = safe_float(today_purchase_revenue_result, 0.0)
             today_revenue = today_order_revenue + today_purchase_revenue
             
             # 월 매출 계산: (총 포인트 - 총원가)
             # 1단계: 총 주문한 상품의 원가 합계 계산
-            original_cost_sum = 0
+            original_cost_sum = 0.0
             try:
                 cursor.execute("""
                     SELECT COALESCE(SUM(pv.original_cost * oi.quantity), 0)
@@ -8220,7 +8220,7 @@ def get_admin_stats():
                     WHERE ord.status = 'completed'
                 """)
                 result = cursor.fetchone()
-                original_cost_sum = result[0] if result and result[0] else 0
+                original_cost_sum = safe_float(result[0] if result and result[0] is not None else None, 0.0)
             except Exception as e:
                 print(f"⚠️ 월매출 원가 계산 오류 (PostgreSQL, order_items 사용 시도 실패): {e}")
                 # 폴백: order_items를 통한 조인 (새 스키마)
@@ -8233,20 +8233,19 @@ def get_admin_stats():
                         WHERE ord.status = 'completed'
                     """)
                     result = cursor.fetchone()
-                    original_cost_sum = result[0] if result and result[0] else 0
+                    original_cost_sum = safe_float(result[0] if result and result[0] is not None else None, 0.0)
                 except Exception as e2:
                     print(f"⚠️ 월매출 원가 계산 오류 (PostgreSQL, order_items 폴백 시도 실패): {e2}")
                     # 최종 폴백: 원가를 0으로 설정
-                    original_cost_sum = 0
+                    original_cost_sum = 0.0
             
             # 디버깅: 값 확인
             print(f"🔍 월매출 계산 (PostgreSQL): purchase_revenue={purchase_revenue} (type: {type(purchase_revenue)}), original_cost_sum={original_cost_sum} (type: {type(original_cost_sum)})")
             
             # 2단계: 월 매출 = 총 포인트 - 총원가
-            # 값이 음수일 수 있으므로 절댓값 처리 및 타입 변환
-            purchase_revenue = abs(float(purchase_revenue)) if purchase_revenue else 0.0
-            original_cost_sum = abs(float(original_cost_sum)) if original_cost_sum else 0.0
-            monthly_sales = purchase_revenue - original_cost_sum
+            # 값이 음수일 수 있으므로 절댓값 처리
+            original_cost_sum = abs(original_cost_sum)
+            monthly_sales = abs(purchase_revenue) - original_cost_sum
             # 음수 결과 방지 (잔액보다 원가가 클 경우 0으로 처리)
             if monthly_sales < 0:
                 print(f"⚠️ 월매출 계산 경고: 결과가 음수입니다. {monthly_sales} → 0으로 조정")
@@ -13280,12 +13279,22 @@ def approve_payout_request(request_id):
         if request_data['status'] not in ('pending', 'requested'):
             return jsonify({'error': '이미 처리된 환급신청입니다.'}), 400
         
-        # referral_code 조회 (commission_ledger 기록을 위해 필요)
+        # referral_code 및 referrer_user_id 조회 (commission_ledger 기록을 위해 필요)
         cursor.execute("""
-            SELECT referral_code FROM users WHERE user_id = %s
+            SELECT referral_code, user_id, email FROM users WHERE user_id = %s
         """, (request_data['user_id'],))
         user_result = cursor.fetchone()
         referral_code = user_result['referral_code'] if user_result and user_result.get('referral_code') else None
+        referrer_user_id = str(user_result['user_id']) if user_result and user_result.get('user_id') else str(request_data['user_id'])
+        
+        # referral_code가 없으면 referral_codes 테이블에서 찾기
+        if not referral_code:
+            cursor.execute("""
+                SELECT code FROM referral_codes WHERE user_id = %s OR user_email = %s LIMIT 1
+            """, (request_data['user_id'], user_result.get('email') if user_result else None))
+            code_result = cursor.fetchone()
+            if code_result:
+                referral_code = code_result['code'] if isinstance(code_result, dict) else code_result[0]
         
         if not referral_code:
             return jsonify({'error': '추천인 코드를 찾을 수 없습니다.'}), 400
@@ -13305,16 +13314,17 @@ def approve_payout_request(request_id):
         
         # commission_ledger에 payout 이벤트 기록 (음수로 기록하여 잔액 차감)
         payout_amount = float(request_data['amount'])
+        account_holder = request_data.get('account_holder', request_data.get('referrer_name', 'N/A'))
         cursor.execute("""
             INSERT INTO commission_ledger 
             (referral_code, referrer_user_id, order_id, event, base_amount, commission_rate, amount, status, notes, created_at, confirmed_at)
             VALUES (%s, %s, NULL, 'payout', %s, 0, %s, 'confirmed', %s, NOW(), NOW())
         """, (
             referral_code,
-            str(request_data['user_id']),  # 문자열로 변환 (referrer_user_id는 VARCHAR)
+            referrer_user_id,  # 이미 문자열로 변환됨
             payout_amount,  # base_amount
             -payout_amount,  # amount는 음수 (잔액 차감)
-            f'환급 신청 승인 - 신청 ID: {request_id}, 은행: {request_data.get("bank_name", "N/A")}, 계좌: {request_data.get("account_number", "N/A")}'
+            f'환급 신청 승인 - 신청 ID: {request_id}, 예금주: {account_holder}, 은행: {request_data.get("bank_name", "N/A")}, 계좌: {request_data.get("account_number", "N/A")}'
         ))
         
         conn.commit()
@@ -13797,9 +13807,6 @@ def serve_index():
         </body>
         </html>
         """, 200
-        
-        
-@app.route('/api/smm-panel/check-service', methods=['GET'])
 
 # SMM Panel API 테스트 엔드포인트
 @app.route('/api/smm-panel/test', methods=['GET'])
@@ -13849,7 +13856,7 @@ def smm_panel_test():
         # 간단한 테스트 요청
         test_data = {
             'action': 'balance',
-            'key': 'c0402322621d262a59cc793704635fdd'
+            'key': 'bc85538982fb27c6c0558be6cd669e67'
         }
         
         smm_panel_url = 'https://smmpanel.kr/api/v2'
@@ -15189,121 +15196,6 @@ def check_order_status():
         return jsonify({'error': f'주문 상태 확인 실패: {str(e)}'}), 500
 
 # 주문 상태 업데이트 API
-@app.route('/api/new/orders/purchase', methods=['POST'])
-def purchase_order():
-    """주문 생성
-    ---
-    tags:
-      - Orders
-    summary: 새로운 주문 생성
-    description: "사용자의 주문을 생성하고 할인 및 커미션을 적용합니다"
-    security:
-      - Bearer: []
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          type: object
-          required:
-            - user_id
-            - service_id
-            - link
-            - quantity
-            - price
-          properties:
-            user_id:
-              type: string
-              description: 사용자 ID
-              example: "user123"
-            service_id:
-              type: integer
-              description: 서비스 ID
-              example: 1
-            link:
-              type: string
-              description: "주문할 링크 (예: 인스타그램 게시물 URL)"
-              example: "https://instagram.com/p/abc123"
-            quantity:
-              type: integer
-              description: 주문 수량
-              example: 100
-            price:
-              type: number
-              description: 주문 가격
-              example: 10000
-            coupon_id:
-              type: integer
-              description: 사용할 쿠폰 ID (선택사항)
-            user_coupon_id:
-              type: integer
-              description: 사용자 쿠폰 ID (선택사항)
-            package_steps:
-              type: array
-              description: "패키지 주문의 단계별 정보 (선택사항)"
-              example: []
-            is_scheduled:
-              type: boolean
-              description: "예약 주문 여부 (선택사항, 기본값: false)"
-              example: false
-            scheduled_datetime:
-              type: string
-              format: date-time
-              description: "예약 주문 실행 시간"
-              example: "2024-01-01 12:00:00"
-            is_split_delivery:
-              type: boolean
-              description: "분할 발송 여부 (선택사항, 기본값: false)"
-              example: false
-            split_days:
-              type: integer
-              description: "분할 발송 일수"
-              example: 30
-            split_quantity:
-              type: integer
-              description: "일일 발송 수량"
-              example: 400
-            runs:
-              type: integer
-              description: "Drip-feed 반복 횟수 (선택사항, 기본값: 1)"
-              example: 30
-            interval:
-              type: integer
-              description: "Drip-feed 반복 간격(분) (선택사항, 기본값: 0)"
-              example: 1440
-            comments:
-              type: string
-              description: "주문 메모 (선택사항)"
-              example: "특별 요청사항"
-    responses:
-      200:
-        description: "주문 생성 성공"
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-            order_id:
-              type: integer
-            status:
-              type: string
-            final_price:
-              type: number
-            message:
-              type: string
-      400:
-        description: 필수 필드 누락 또는 잘못된 요청
-      500:
-        description: 서버 오류
-    """
-    # Import inside function to avoid circular import
-    try:
-        from api.orders import test_orders_api
-        return test_orders_api()
-    except ImportError as e:
-        print(f"❌ Import error: {e}")
-        return jsonify({"error": f"Order purchase endpoint not available: {str(e)}"}), 500
-
 @app.route('/api/orders/<order_id>/status', methods=['PUT'])
 @require_admin_auth
 def update_order_status(order_id):
@@ -16045,39 +15937,41 @@ def get_smm_services():
     tags:
       - SMM Panel
     summary: Get Smm Services
-    description: "Get all SMM Panel services or check specific service by ID"
+    description: "Get Smm Services API"
     parameters:
-      - name: id
+      - name: example
         in: query
         type: string
         required: false
-        description: Optional service ID to check. If provided, returns only that service with exists status.
-        example: "361"
+        description: 예시 파라미터
     responses:
       200:
         description: 성공
         schema:
           type: object
           properties:
-            success:
-              type: boolean
-            exists:
-              type: boolean
-            service_id:
+            message:
               type: string
-            service:
-              type: object
-            services:
-              type: array
-            service_ids:
-              type: array
+              example: "성공"
+      400:
+        description: 잘못된 요청
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "잘못된 요청입니다."
       500:
         description: 서버 오류
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "서버 오류가 발생했습니다."
     """ 
-    """SMM Panel에서 사용 가능한 서비스 목록 조회 또는 특정 서비스 확인"""
+    """SMM Panel에서 사용 가능한 서비스 목록 조회"""
     try:
-        service_id = request.args.get('id')
-        
         # API 키 확인 (전역 변수 사용)
         api_key = SMMPANEL_API_KEY or os.environ.get('SMMPANEL_API_KEY')
         
@@ -16091,33 +15985,43 @@ def get_smm_services():
         
         print(f"🔍 SMM Panel API 키 확인 완료 (길이: {len(api_key) if api_key else 0})")
         
-        result = get_smm_panel_services()
-        
-        if result and result.get('status') == 'success':
-            service_ids = result.get('service_ids', [])
-            services = result.get('services', [])
+        try:
+            result = get_smm_panel_services()
+        except Exception as get_services_error:
+            import traceback
+            error_msg = str(get_services_error)
+            traceback_str = traceback.format_exc()
+            print(f"❌ get_smm_panel_services() 호출 오류: {error_msg}")
+            print(f"📋 상세 오류:\n{traceback_str}")
             
-            # If ID is provided, check if it exists and return that service
-            if service_id:
-                service_id_str = str(service_id)
-                exists = service_id_str in service_ids
-                
-                # Find service details if exists
-                service_details = None
-                if exists:
-                    for service in services:
-                        if str(service.get('service')) == service_id_str:
-                            service_details = service
-                            break
-                
+            # SSL 오류나 네트워크 오류인 경우 빈 배열 반환
+            if 'SSL' in error_msg or 'SSLError' in error_msg or 'network' in error_msg.lower() or 'connection' in error_msg.lower() or 'timeout' in error_msg.lower():
+                print("⚠️ 네트워크/SSL 오류로 인해 빈 서비스 목록 반환")
                 return jsonify({
                     'success': True,
-                    'exists': exists,
-                    'service_id': service_id_str,
-                    'service': service_details
+                    'services': [],
+                    'service_ids': [],
+                    'warning': 'SMM Panel 연결 실패. 네트워크를 확인하세요.'
                 }), 200
             
-            # No ID provided, return all services
+            return jsonify({
+                'success': False,
+                'error': f'서비스 목록 조회 실패: {error_msg}',
+                'details': str(get_services_error)
+            }), 500
+        
+        if result and result.get('status') == 'success':
+            services = result.get('services', [])
+            service_ids = result.get('service_ids', [])
+            
+            # 응답 형식 검증
+            if not isinstance(services, list):
+                print(f"⚠️ services가 리스트가 아님: {type(services)}")
+                services = []
+            if not isinstance(service_ids, list):
+                print(f"⚠️ service_ids가 리스트가 아님: {type(service_ids)}")
+                service_ids = []
+            
             return jsonify({
                 'success': True,
                 'services': services,
@@ -16131,11 +16035,13 @@ def get_smm_services():
             if 'Invalid API key' in error_message or '401' in error_message:
                 error_message = 'API 키가 유효하지 않습니다. 관리자에게 문의하세요.'
             
+            # 오류가 발생해도 빈 배열 반환 (프론트엔드가 계속 작동하도록)
             return jsonify({
-                'success': False,
-                'error': error_message,
-                'details': result.get('message', '') if result else 'No response from SMM Panel'
-            }), 500
+                'success': True,
+                'services': [],
+                'service_ids': [],
+                'warning': error_message
+            }), 200
     except Exception as e:
         import traceback
         error_msg = str(e)
@@ -16143,110 +16049,14 @@ def get_smm_services():
         print(f"❌ SMM Panel 서비스 목록 조회 오류: {error_msg}")
         print(f"📋 상세 오류:\n{traceback_str}")
         
-        # SSL 오류나 네트워크 오류인 경우 빈 배열 반환 (프론트엔드가 계속 작동하도록)
-        if 'SSL' in error_msg or 'SSLError' in error_msg or 'network' in error_msg.lower() or 'connection' in error_msg.lower():
-            print("⚠️ 네트워크/SSL 오류로 인해 빈 서비스 목록 반환")
-            return jsonify({
-                'success': True,
-                'services': [],
-                'service_ids': [],
-                'warning': 'SMM Panel 연결 실패. 네트워크를 확인하세요.'
-            }), 200
-        
-        # API 키 관련 오류인 경우
-        if 'Invalid API key' in error_msg or '401' in error_msg:
-            error_msg = 'API 키가 유효하지 않습니다. 관리자에게 문의하세요.'
-        
-        return jsonify({
-            'success': False,
-            'error': f'서비스 목록 조회 실패: {error_msg}',
-            'details': str(e)
-        }), 500
-
-# SMM Panel 서비스 ID 확인
-@app.route('/api/smm-panel/check-service', methods=['GET'])
-def check_smm_service():
-    """Check Smm Service
-    ---
-    tags:
-      - SMM Panel
-    summary: Check if service ID exists
-    description: "Check if a service ID exists in SMM Panel services. Returns service details and existence status."
-    parameters:
-      - name: id
-        in: query
-        type: string
-        required: false
-        description: Service ID to check (optional)
-        example: "361"
-    responses:
-      200:
-        description: 성공
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-            exists:
-              type: boolean
-            service_id:
-              type: string
-            service:
-              type: object
-      500:
-        description: 서버 오류
-    """
-    try:
-        service_id = request.args.get('id')
-        
-        # Get services from SMM Panel
-        result = get_smm_panel_services()
-        
-        if not result or result.get('status') != 'success':
-            return jsonify({
-                'success': False,
-                'error': 'Failed to fetch services from SMM Panel'
-            }), 500
-        
-        service_ids = result.get('service_ids', [])
-        services = result.get('services', [])
-        
-        # If no ID provided, return all services info
-        if not service_id:
-            return jsonify({
-                'success': True,
-                'exists': None,
-                'service_id': None,
-                'service': None,
-                'total_services': len(services),
-                'service_ids': service_ids
-            }), 200
-        
-        # Check if service_id exists (convert to string for comparison)
-        service_id_str = str(service_id)
-        exists = service_id_str in service_ids
-        
-        # Find service details if exists
-        service_details = None
-        if exists:
-            for service in services:
-                if str(service.get('service')) == service_id_str:
-                    service_details = service
-                    break
-        
+        # 모든 오류에 대해 빈 배열 반환 (프론트엔드가 계속 작동하도록)
+        print("⚠️ 오류 발생으로 인해 빈 서비스 목록 반환")
         return jsonify({
             'success': True,
-            'exists': exists,
-            'service_id': service_id_str,
-            'service': service_details
+            'services': [],
+            'service_ids': [],
+            'warning': f'SMM Panel 연결 실패: {error_msg}'
         }), 200
-        
-    except Exception as e:
-        print(f"❌ SMM Panel 서비스 확인 오류: {e}")
-        return jsonify({
-            'success': False,
-            'error': f'서비스 확인 실패: {str(e)}'
-        }), 500
 
 # 스케줄러 작업: 예약/분할 주문 처리
 @app.route('/api/cron/process-scheduled-orders', methods=['POST'])
@@ -18589,7 +18399,7 @@ def upload_admin_image():
 
 # 카테고리 관리
 @app.route('/api/admin/categories', methods=['GET'])
-@require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def get_admin_categories():
     """카테고리 목록 조회
     ---
@@ -18649,7 +18459,7 @@ def get_admin_categories():
             conn.close()
 
 @app.route('/api/admin/categories', methods=['POST'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def create_admin_category():
     """Create Admin Category
     ---
@@ -18803,7 +18613,7 @@ def get_admin_category(category_id):
             conn.close()
 
 @app.route('/api/admin/categories/<int:category_id>', methods=['PUT'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def update_admin_category(category_id):
     """Update Admin Category
     ---
@@ -18902,7 +18712,7 @@ def update_admin_category(category_id):
             conn.close()
 
 @app.route('/api/admin/categories/<int:category_id>', methods=['DELETE'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def delete_admin_category(category_id):
     """Delete Admin Category
     ---
@@ -19034,7 +18844,7 @@ def delete_admin_category(category_id):
 
 # 상품 관리
 @app.route('/api/admin/products', methods=['GET'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def get_admin_products():
     """Get Admin Products
     ---
@@ -19115,7 +18925,7 @@ def get_admin_products():
             conn.close()
 
 @app.route('/api/admin/products', methods=['POST'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def create_admin_product():
     """Create Admin Product
     ---
@@ -19292,7 +19102,7 @@ def get_admin_product(product_id):
             conn.close()
 
 @app.route('/api/admin/products/<int:product_id>', methods=['PUT'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def update_admin_product(product_id):
     """Update Admin Product
     ---
@@ -19408,7 +19218,7 @@ def update_admin_product(product_id):
             conn.close()
 
 @app.route('/api/admin/products/<int:product_id>', methods=['DELETE'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def delete_admin_product(product_id):
     """Delete Admin Product
     ---
@@ -20044,209 +19854,6 @@ def get_product_variants():
             except:
                 pass
 
-@app.route('/api/categories-with-products', methods=['GET'])
-def get_categories_with_products():
-    """카테고리와 상품, 옵션을 한번에 조회 (최적화)
-    ---
-    tags:
-      - Products
-    summary: 카테고리와 상품, 옵션을 한번에 조회
-    description: "활성화된 카테고리와 해당 카테고리의 모든 상품 및 옵션을 한 번의 쿼리로 조회합니다."
-    responses:
-      200:
-        description: 성공
-        schema:
-          type: object
-          properties:
-            categories:
-              type: array
-              items:
-                type: object
-                properties:
-                  category_id:
-                    type: integer
-                    example: 1
-                  name:
-                    type: string
-                    example: "인스타그램"
-                  slug:
-                    type: string
-                    example: "instagram"
-                  image_url:
-                    type: string
-                    example: "https://..."
-                  products:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        product_id:
-                          type: integer
-                          example: 1
-                        name:
-                          type: string
-                          example: "좋아요"
-                        description:
-                          type: string
-                          example: "인스타그램 좋아요 서비스"
-                        variants:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              variant_id:
-                                type: integer
-                                example: 1
-                              name:
-                                type: string
-                                example: "실제 좋아요"
-                              price:
-                                type: number
-                                example: 1000
-                              min_quantity:
-                                type: integer
-                                example: 100
-                              max_quantity:
-                                type: integer
-                                example: 10000
-            count:
-              type: integer
-              example: 5
-      500:
-        description: 서버 오류
-        schema:
-          type: object
-          properties:
-            error:
-              type: string
-              example: "카테고리 조회 실패: ..."
-    """
-    conn = None
-    cursor = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # 단일 쿼리로 모든 데이터 조회
-        cursor.execute("""
-            SELECT 
-                c.category_id,
-                c.name as category_name,
-                c.slug as category_slug,
-                c.image_url as category_image_url,
-                c.created_at as category_created_at,
-                p.product_id,
-                p.name as product_name,
-                p.description as product_description,
-                p.created_at as product_created_at,
-                pv.variant_id,
-                pv.name as variant_name,
-                pv.price / 1000.0 as variant_price,
-                pv.min_quantity as variant_min,
-                pv.max_quantity as variant_max,
-                pv.delivery_time_days,
-                pv.meta_json,
-                pv.api_endpoint
-            FROM categories c
-            LEFT JOIN products p ON c.category_id = p.category_id
-            LEFT JOIN product_variants pv ON p.product_id = pv.product_id
-            WHERE c.is_active = TRUE
-            ORDER BY c.created_at ASC, p.created_at ASC, pv.created_at ASC
-        """)
-        
-        rows = cursor.fetchall()
-        
-        # 중첩 구조로 변환
-        categories_dict = {}
-        
-        for row in rows:
-            cat_id = row['category_id']
-            prod_id = row['product_id']
-            var_id = row['variant_id']
-            
-            # 카테고리 추가
-            if cat_id not in categories_dict:
-                categories_dict[cat_id] = {
-                    'category_id': cat_id,
-                    'name': row['category_name'],
-                    'slug': row['category_slug'],
-                    'image_url': row['category_image_url'],
-                    'created_at': row['category_created_at'].isoformat() if row['category_created_at'] else None,
-                    'products': {}
-                }
-            
-            # 상품 추가
-            if prod_id and prod_id not in categories_dict[cat_id]['products']:
-                categories_dict[cat_id]['products'][prod_id] = {
-                    'product_id': prod_id,
-                    'name': row['product_name'],
-                    'description': row['product_description'],
-                    'created_at': row['product_created_at'].isoformat() if row['product_created_at'] else None,
-                    'variants': []
-                }
-            
-            # 옵션 추가
-            if var_id and prod_id:
-                variant_data = {
-                    'variant_id': var_id,
-                    'name': row['variant_name'],
-                    'price': float(row['variant_price']) if row['variant_price'] else 0,
-                    'min_quantity': row['variant_min'],
-                    'max_quantity': row['variant_max'],
-                    'delivery_time_days': row['delivery_time_days'],
-                    'api_endpoint': row['api_endpoint']
-                }
-                
-                # meta_json 파싱
-                if row['meta_json']:
-                    try:
-                        if isinstance(row['meta_json'], str):
-                            variant_data['meta_json'] = json.loads(row['meta_json'])
-                        else:
-                            variant_data['meta_json'] = row['meta_json']
-                    except:
-                        variant_data['meta_json'] = {}
-                
-                # 배송 시간 포맷팅
-                if row['delivery_time_days']:
-                    try:
-                        days = float(row['delivery_time_days'])
-                        if days == 1:
-                            variant_data['time'] = '1일'
-                        elif days < 1:
-                            variant_data['time'] = f'{int(days * 24)}시간'
-                        else:
-                            variant_data['time'] = f'{int(days)}일'
-                    except:
-                        variant_data['time'] = '데이터가 충분하지 않습니다'
-                else:
-                    variant_data['time'] = '데이터가 충분하지 않습니다'
-                
-                categories_dict[cat_id]['products'][prod_id]['variants'].append(variant_data)
-        
-        # products를 리스트로 변환
-        result = []
-        for cat in categories_dict.values():
-            cat['products'] = list(cat['products'].values())
-            result.append(cat)
-        
-        return jsonify({
-            'categories': result,
-            'count': len(result)
-        }), 200
-        
-    except Exception as e:
-        import traceback
-        error_msg = str(e)
-        print(f"❌ 카테고리-상품 통합 조회 오류: {error_msg}")
-        print(traceback.format_exc())
-        return jsonify({'error': f'카테고리 조회 실패: {error_msg}'}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
 @app.route('/api/product-variants/<int:variant_id>', methods=['GET'])
 def get_product_variant_detail(variant_id):
     """상품 옵션 상세 조회
@@ -20468,7 +20075,6 @@ def get_packages():
                     pk.name,
                     pk.description,
                     pk.category_id,
-                    pk.meta_json,
                     c.name as category_name
                 FROM packages pk
                 LEFT JOIN categories c ON pk.category_id = c.category_id
@@ -20482,7 +20088,6 @@ def get_packages():
                     pk.name,
                     pk.description,
                     pk.category_id,
-                    pk.meta_json,
                     c.name as category_name
                 FROM packages pk
                 LEFT JOIN categories c ON pk.category_id = c.category_id
@@ -20510,20 +20115,6 @@ def get_packages():
         result = []
         for pkg in packages:
             pkg_dict = dict(pkg) if not isinstance(pkg, dict) else pkg
-            
-            # meta_json 처리 (PostgreSQL은 JSONB, SQLite는 TEXT)
-            if 'meta_json' in pkg_dict:
-                meta_json = pkg_dict['meta_json']
-                # SQLite의 경우 문자열로 저장되어 있을 수 있으므로 파싱
-                if isinstance(meta_json, str) and meta_json:
-                    try:
-                        import json
-                        pkg_dict['meta_json'] = json.loads(meta_json)
-                    except:
-                        pkg_dict['meta_json'] = None
-                # None이거나 빈 문자열인 경우 None으로 설정
-                elif not meta_json:
-                    pkg_dict['meta_json'] = None
             
             # 패키지 아이템 조회
             if is_postgres:
@@ -20613,18 +20204,49 @@ def get_packages():
                 quantity_val = item_dict.get('quantity')
                 term_value_val = item_dict.get('term_value')
                 repeat_count_val = item_dict.get('repeat_count')
+                term_unit = item_dict.get('term_unit')
+                
+                # 안전한 int 변환 함수
+                def safe_int(value, default=0):
+                    """None이거나 빈 값이면 default 반환, 아니면 int 변환"""
+                    if value is None:
+                        return default
+                    if isinstance(value, (int, float)):
+                        return int(value)
+                    if isinstance(value, str):
+                        value = value.strip()
+                        if not value or value.lower() in ('none', 'null', ''):
+                            return default
+                        try:
+                            return int(float(value))  # '1.0' 같은 경우도 처리
+                        except (ValueError, TypeError):
+                            return default
+                    try:
+                        return int(value)
+                    except (ValueError, TypeError):
+                        return default
+                
+                # quantity, delay, repeat 안전하게 변환
+                quantity = safe_int(quantity_val, 0)
+                delay = 0
+                repeat = safe_int(repeat_count_val, 1)
+                
+                # delay 계산 (term_unit에 따라)
+                if term_value_val is not None:
+                    if term_unit == 'minute':
+                        delay = safe_int(term_value_val, 0)
+                    elif term_unit == 'hour':
+                        delay = safe_int(term_value_val, 0) * 60
+                    else:
+                        delay = safe_int(term_value_val, 0)
                 
                 step_dict = {
                     'id': service_id or variant_id,  # service_id가 없으면 variant_id 사용
                     'name': variant_name or f"단계 {item_dict.get('step', 0)}",
-                    'quantity': int(quantity_val) if quantity_val is not None else 0,
-                    'delay': int(term_value_val) if term_value_val is not None and item_dict.get('term_unit') == 'minute' else 0,
-                    'repeat': int(repeat_count_val) if repeat_count_val is not None else 1
+                    'quantity': quantity,
+                    'delay': delay,
+                    'repeat': repeat
                 }
-                
-                # term_unit이 'hour'인 경우 분으로 변환
-                if item_dict.get('term_unit') == 'hour' and term_value_val is not None:
-                    step_dict['delay'] = int(term_value_val) * 60
                 
                 converted_steps.append(step_dict)
             
@@ -20655,7 +20277,7 @@ def get_packages():
 
 # 상품 옵션 관리
 @app.route('/api/admin/product-variants', methods=['GET'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def get_admin_product_variants():
     """Get Admin Product Variants
     ---
@@ -20750,7 +20372,7 @@ def get_admin_product_variants():
             conn.close()
 
 @app.route('/api/admin/product-variants', methods=['POST'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def create_admin_product_variant():
     """Create Admin Product Variant
     ---
@@ -20952,7 +20574,7 @@ def get_admin_product_variant(variant_id):
             conn.close()
 
 @app.route('/api/admin/product-variants/<int:variant_id>', methods=['PUT'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def update_admin_product_variant(variant_id):
     """Update Admin Product Variant
     ---
@@ -21114,7 +20736,7 @@ def update_admin_product_variant(variant_id):
             conn.close()
 
 @app.route('/api/admin/product-variants/<int:variant_id>', methods=['DELETE'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def delete_admin_product_variant(variant_id):
     """Delete Admin Product Variant
     ---
@@ -21184,7 +20806,7 @@ def delete_admin_product_variant(variant_id):
 
 # 패키지 관리
 @app.route('/api/admin/packages', methods=['GET'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def get_admin_packages():
     """Get Admin Packages
     ---
@@ -21325,7 +20947,7 @@ def get_admin_packages():
             conn.close()
 
 @app.route('/api/admin/packages', methods=['POST'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def create_admin_package():
     """Create Admin Package
     ---
@@ -21619,7 +21241,7 @@ def get_admin_package(package_id):
             conn.close()
 
 @app.route('/api/admin/packages/<int:package_id>', methods=['PUT'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def update_admin_package(package_id):
     """Update Admin Package
     ---
@@ -21792,7 +21414,7 @@ def update_admin_package(package_id):
             conn.close()
 
 @app.route('/api/admin/packages/<int:package_id>', methods=['DELETE'])
-# @require_admin_auth  # Temporarily disabled for testing
+@require_admin_auth
 def delete_admin_package(package_id):
     """Delete Admin Package
     ---
@@ -22042,6 +21664,4 @@ start_smm_status_checker()
 # Flask 앱 실행
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
-    # 개발 환경에서는 자동 리로드 활성화 (FLASK_ENV=development 또는 DEBUG=True)
-    debug_mode = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('DEBUG', 'False').lower() == 'true'
-    app.run(host='0.0.0.0', port=port, debug=debug_mode, use_reloader=debug_mode)
+    app.run(host='0.0.0.0', port=port, debug=False)
